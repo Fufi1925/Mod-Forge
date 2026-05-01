@@ -1,0 +1,19 @@
+{
+  "name": "modforge-bot",
+  "version": "3.1.0",
+  "description": "ModForge Discord Bot – Production Ready",
+  "main": "index.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "discord.js": "^14.16.3",
+    "express": "^4.21.2",
+    "pg": "^8.13.3"
+  }
+}
