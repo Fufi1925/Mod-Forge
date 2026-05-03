@@ -3600,3 +3600,7 @@ async def on_app_command_error(interaction: discord.Interaction,
             user=interaction.user if isinstance(interaction.user, discord.Member) else None,
             module="errors",
       )
+                module="errors",
+)          # ← schließt bot.log_action
+           # ← schließt die if-Abfrage
+           # ← schließt die Funktion
