@@ -51,41 +51,6 @@ class Tracker:
             dq.popleft()
 
 # ═══════════════════════════════════════════════════════════════════
-# ACTIVITY-STREAM (IN-MEMORY RING-BUFFER)
-# ═════════════════════════════════════════════════════════════════
-
-    def push(
-        self,
-        kind: str,
-        text: str,
-        guild_id: Optional[int] = None,
-        guild_name: Optional[str] = None,
-        user_id: Optional[int] = None,
-        user_name: Optional[str] = None,
-        extra: Optional[Dict[str, Any]] = None,
-    ) -> None:
-        evt = {
-            "kind": kind,
-            "text": text,
-            "guild_id": guild_id,
-            "guild_name": guild_name,
-            "user_id": user_id,
-            "user_name": user_name,
-            "extra": extra or {},
-            "ts": datetime.datetime.utcnow().isoformat() + "Z",
-        }
-        with self._lock:
-            self.events.append(evt)
-
-    def snapshot(self, limit: int = 200) -> List[dict]:
-        with self._lock:
-            data = list(self.events)
-        return data[-limit:][::-1]
-
-ACTIVITY = ActivityStream(maxlen=500)
-BOT_REF = None
-
-# ═══════════════════════════════════════════════════════════════════
 # VIEWS & MODALS
 # ═══════════════════════════════════════════════════════════════════
 class CaptchaModal(discord.ui.Modal, title="Verifizierung"):
