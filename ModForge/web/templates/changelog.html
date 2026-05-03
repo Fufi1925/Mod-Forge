@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Changelog – ModForge{% endblock %}
+{% block content %}
+<div class="container" style="max-width:900px;padding-top:40px;padding-bottom:60px">
+  <div class="sec-head reveal" style="text-align:left;margin-bottom:40px">
+    <div class="sec-badge" style="margin-bottom:12px">📋 Changelog</div>
+    <h1 style="font-size:clamp(1.8rem,4vw,2.4rem);font-weight:800;margin-bottom:8px">Was ist neu?</h1>
+    <p style="color:var(--muted)">Alle Änderungen, Bugfixes und neuen Features im Überblick.</p>
+  </div>
+  <div class="timeline">
+    {% for v in versions %}
+    <div class="tl-item reveal">
+      <div class="tl-dot">{{ v.icon }}</div>
+      <div class="tl-body">
+        <div class="tl-head">
+          <span class="tl-ver">v{{ v.ver }}</span>
+          <span class="tl-badge {{ v.badge_cls }}">{{ v.badge }}</span>
+          <span class="tl-date">{{ v.date }}</span>
+        </div>
+        <ul class="tl-changes">
+          {% for c in v.changes %}<li>{{ c }}</li>{% endfor %}
+        </ul>
+      </div>
+    </div>{% endfor %}
+  </div>
+</div>
+{% endblock %}
