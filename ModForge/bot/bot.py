@@ -3600,7 +3600,17 @@ async def on_app_command_error(interaction: discord.Interaction,
             user=interaction.user if isinstance(interaction.user, discord.Member) else None,
             module="errors",
       )
-                module="errors",
-)          # ← schließt bot.log_action
-           # ← schließt die if-Abfrage
-           # ← schließt die Funktion
+        
+if interaction.guild:
+    snippet = tb[-1500:] if len(tb) > 1500 else tb
+    await bot.log_action(
+        interaction.guild,
+        f"{E.FAIL} Slash-Command Exception",
+        f"**Befehl:** `/{cmd_name}`\n"
+        f"**Nutzer:** {interaction.user.mention} (`{interaction.user.id}`)\n"
+        f"**Typ:** `{type(original).__name__}`\n"
+        f"```py\n{snippet}\n```",
+        COLOR_DANGER,
+        user=interaction.user if isinstance(interaction.user, discord.Member) else None,
+        module="errors",
+    )
