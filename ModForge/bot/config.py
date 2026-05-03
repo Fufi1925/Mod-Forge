@@ -416,3 +416,47 @@ VERSIONS = [
 LOG_MODS = ["Moderation","Anti-Spam","Anti-Nuke","Anti-Raid","Anti-Mention","AutoMod",
     "Anti-Scam","Anti-Shortener","Members","Nicknames","Channels","Roles","Permissions",
     "Webhooks","Appeal","Verify","Tickets","Warns","Errors","Cases","Audit","Backup","Welcome","Leave","Default"]
+
+# ═══════════════════════════════════════════════════════════════
+# ACTIVITY-STREAM (IN-MEMORY RING-BUFFER)
+# ═══════════════════════════════════════════════════════════════
+import threading
+from collections import deque
+from typing import Dict, Any, List, Optional
+
+class ActivityStream:
+    def __init__(self, maxlen: int = 500) -> None:
+        self.events: deque = deque(maxlen=maxlen)
+        self._lock = threading.Lock()
+
+    def push(
+        self,
+        kind: str,
+        text: str,
+        guild_id: Optional[int] = None,
+        guild_name: Optional[str] = None,
+        user_id: Optional[int] = None,
+        user_name: Optional[str] = None,
+        extra: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        import datetime
+        evt = {
+            "kind": kind,
+            "text": text,
+            "guild_id": guild_id,
+            "guild_name": guild_name,
+            "user_id": user_id,
+            "user_name": user_name,
+            "extra": extra or {},
+            "ts": datetime.datetime.utcnow().isoformat() + "Z",
+        }
+        with self._lock:
+            self.events.append(evt)
+
+    def snapshot(self, limit: int = 200) -> List[dict]:
+        with self._lock:
+            data = list(self.events)
+        return data[-limit:][::-1]
+
+
+ACTIVITY = ActivityStream(maxlen=500)
