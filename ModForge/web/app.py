@@ -1,14 +1,15 @@
 from flask import Flask
-import os
-import threading
+import os, threading
 from .config import SESSION_SECRET
 
-flask_app = Flask(__name__)
+flask_app = Flask(__name__,
+                  template_folder='templates',
+                  static_folder='static',
+                  static_url_path='/static')
 flask_app.secret_key = SESSION_SECRET
 flask_app.config["PERMANENT_SESSION_LIFETIME"] = 60 * 60 * 6
 
-# !!! WICHTIG – diese Zeile darf NIE fehlen !!!
-from . import routes
+from . import routes   # Routen registrieren
 
 def run_flask():
     port = int(os.getenv("PORT", "7860"))
