@@ -4,6 +4,7 @@ import asyncio
 import logging
 import urllib.parse
 import secrets
+from bot.utils import _run_async
 
 from .app import flask_app
 from .auth import _discord_api_call, _get_user_guilds_with_bot, _get_session_user, _user_can_manage_guild
