@@ -671,6 +671,7 @@ class ModForge(commands.Bot):
 # Wir definieren sie nach der Klasse und nutzen `@bot.event`.
 
 # Erstelle die Bot-Instanz vorläufig, dann Events.
+BOT_REF = None
 bot = ModForge()
 
 @bot.event
