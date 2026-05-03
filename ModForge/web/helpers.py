@@ -5,6 +5,13 @@ from bot.bot import BOT_REF, bot
 from bot.config import DEFAULT_CONFIG, VALID_PUNISHMENTS
 from bot.utils import _run_async
 from database.db import Database
+# ganz oben die importierten Zeilen ergänzen/ändern
+from bot.config import get_uptime, BOT_START_TIME
+
+# in der Funktion _bot_stats() diese Zeile
+up = bot.get_uptime(BOT_REF.start_time) if hasattr(bot, 'get_uptime') else 0
+# ersetzen durch:
+up = get_uptime(BOT_REF.start_time) if BOT_REF else 0
 
 log = logging.getLogger("ModForge.Web.Helpers")
 
