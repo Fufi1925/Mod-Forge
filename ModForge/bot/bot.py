@@ -3296,6 +3296,7 @@ async def slash_help(interaction: discord.Interaction) -> None:
 @app_commands.describe(channel="Der Log-Kanal")
 @app_commands.default_permissions(administrator=True)
 async def slash_logs(interaction: discord.Interaction, channel: discord.TextChannel) -> None:
+    await interaction.response.defer(ephemeral=True)    # ← NEU: sofort Bescheid geben, dass es dauert
     cfg = bot.db.get_config(interaction.guild.id)
     cfg["log_channel"] = channel.id
     await bot.db.set_config(interaction.guild.id, cfg)
@@ -3303,7 +3304,7 @@ async def slash_logs(interaction: discord.Interaction, channel: discord.TextChan
                          f"Standard-Log-Kanal auf {channel.mention} gesetzt.\n"
                          "Nutze `/logset <module> <channel>` für modul-spezifische Kanäle.",
                          COLOR_SUCCESS)
-    await interaction.response.send_message(embed=embed)
+    await interaction.followup.send(embed=embed)        # ← statt response.send_message
 
 
 def _module_choices() -> List[app_commands.Choice[str]]:
