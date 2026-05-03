@@ -14,6 +14,8 @@ import discord
 from discord.ext import commands, tasks
 from discord import app_commands
 
+from bot.config import ACTIVITY
+
 from bot.config import (
     BOT_TOKEN, COLOR_PRIMARY, COLOR_SUCCESS, COLOR_WARNING, COLOR_DANGER,
     COLOR_INFO, COLOR_PURPLE, FOOTER_TEXT, FOOTER_ICON, VERIFY_BANNER_URL,
@@ -50,12 +52,7 @@ class Tracker:
 
 # ═══════════════════════════════════════════════════════════════════
 # ACTIVITY-STREAM (IN-MEMORY RING-BUFFER)
-# ═══════════════════════════════════════════════════════════════════
-import threading
-class ActivityStream:
-    def __init__(self, maxlen: int = 500) -> None:
-        self.events: deque = deque(maxlen=maxlen)
-        self._lock = threading.Lock()
+# ═════════════════════════════════════════════════════════════════
 
     def push(
         self,
