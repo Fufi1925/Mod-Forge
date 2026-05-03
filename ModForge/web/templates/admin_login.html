@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin Login – ModForge</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="page-bg">
+<div class="login-wrap">
+  <div class="login-box">
+    <div style="display:flex;align-items:center;gap:9px;margin-bottom:22px">
+      <div class="brand-icon">🔑</div>
+      <span style="font-weight:900;font-size:1.15rem" class="grad">Admin Panel</span>
+    </div>
+    <h1>Admin Login</h1>
+    <p class="lead">Nur für Bot-Owner. Brute-Force-Schutz aktiv.</p>
+    {% if error %}<div class="alert-err">{{ error }}</div>{% endif %}
+    <form method="post">
+      <div class="form-group" style="margin-bottom:14px">
+        <label class="form-label">Benutzername</label>
+        <input class="form-input" type="text" name="username" autocomplete="username" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Passwort</label>
+        <input class="form-input" type="password" name="password" autocomplete="current-password" required>
+      </div>
+      <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:18px" type="submit">Einloggen</button>
+    </form>
+    <p style="text-align:center;margin-top:14px;font-size:.72rem;color:var(--muted)">Constant-Time-Vergleich · Rate-Limiting</p>
+  </div>
+</div>
+</body>
+</html>
