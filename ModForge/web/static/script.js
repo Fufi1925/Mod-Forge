@@ -1,96 +1,44 @@
-// === 2059 3D HOLOGRAM CUBE + FUTURISTIC CURSOR + SCROLL ANIMATIONS ===
-
-// ----- 3D Würfel im Hero -----
+// ── Mouse Tracker ──
 (function() {
-  const hero = document.querySelector('.hero');
-  if (!hero) return;
-
-  const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(45, hero.clientWidth / hero.clientHeight, 0.1, 1000);
-  camera.position.z = 5;
-
-  const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-  renderer.setSize(hero.clientWidth, hero.clientHeight);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
-  renderer.domElement.style.position = 'absolute';
-  renderer.domElement.style.top = '0';
-  renderer.domElement.style.left = '0';
-  renderer.domElement.style.pointerEvents = 'none';
-  hero.insertBefore(renderer.domElement, hero.firstChild);
-
-  // Holografischer Würfel
-  const geometry = new THREE.BoxGeometry(1.5, 1.5, 1.5);
-  const edges = new THREE.EdgesGeometry(geometry);
-  const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x00ffff, linewidth: 1 }));
-  scene.add(line);
-
-  // Zusätzlicher innerer Würfel (cyan)
-  const innerGeo = new THREE.BoxGeometry(1.2, 1.2, 1.2);
-  const innerEdges = new THREE.EdgesGeometry(innerGeo);
-  const innerLine = new THREE.LineSegments(innerEdges, new THREE.LineBasicMaterial({ color: 0xff00ff }));
-  scene.add(innerLine);
-
-  // Partikel um den Würfel
-  const particlesGeo = new THREE.BufferGeometry();
-  const particlesCount = 200;
-  const posArray = new Float32Array(particlesCount * 3);
-  for (let i = 0; i < particlesCount * 3; i += 3) {
-    posArray[i] = (Math.random() - 0.5) * 4;
-    posArray[i+1] = (Math.random() - 0.5) * 4;
-    posArray[i+2] = (Math.random() - 0.5) * 4;
-  }
-  particlesGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
-  const particlesMat = new THREE.PointsMaterial({size: 0.02, color: 0x00ffff, blending: THREE.AdditiveBlending});
-  const particles = new THREE.Points(particlesGeo, particlesMat);
-  scene.add(particles);
-
-  // Animation
-  function animate() {
-    requestAnimationFrame(animate);
-    line.rotation.x += 0.005;
-    line.rotation.y += 0.01;
-    innerLine.rotation.x -= 0.003;
-    innerLine.rotation.y -= 0.008;
-    particles.rotation.y += 0.002;
-    renderer.render(scene, camera);
-  }
-  animate();
-
-  // Responsive
-  window.addEventListener('resize', () => {
-    camera.aspect = hero.clientWidth / hero.clientHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(hero.clientWidth, hero.clientHeight);
-  });
-})();
-
-// ----- Custom Cursor (Laserpunkt) -----
-(function() {
-  const cursor = document.createElement('div');
-  cursor.classList.add('custom-cursor');
-  document.body.appendChild(cursor);
-  const dot = document.createElement('div');
-  dot.classList.add('custom-cursor-dot');
-  document.body.appendChild(dot);
+  const circle = document.getElementById('mouse-circle');
+  const dot = document.getElementById('mouse-dot');
+  if (!circle || !dot) return;
+  let mouseX = 0, mouseY = 0;
+  let circleX = 0, circleY = 0;
+  let dotX = 0, dotY = 0;
+  const speed = 0.1;
 
   document.addEventListener('mousemove', (e) => {
-    cursor.style.transform = `translate(${e.clientX - 10}px, ${e.clientY - 10}px)`;
-    dot.style.transform = `translate(${e.clientX - 3}px, ${e.clientY - 3}px)`;
+    mouseX = e.clientX;
+    mouseY = e.clientY;
   });
+
+  function animate() {
+    circleX += (mouseX - circleX) * speed;
+    circleY += (mouseY - circleY) * speed;
+    circle.style.transform = `translate(${circleX}px, ${circleY}px) translate(-50%, -50%)`;
+    dotX += (mouseX - dotX) * speed * 2;
+    dotY += (mouseY - dotY) * speed * 2;
+    dot.style.transform = `translate(${dotX}px, ${dotY}px) translate(-50%, -50%)`;
+    requestAnimationFrame(animate);
+  }
+  animate();
 })();
 
-// ----- Scroll Reveal (3D) -----
+// ── Scroll Reveal ──
 (function() {
   const observer = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
-      if (entry.isIntersecting) entry.target.classList.add('visible');
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+      }
     });
-  }, { threshold: 0.1 });
+  }, { threshold: 0.15 });
 
   document.querySelectorAll('.reveal, .reveal-left, .reveal-right').forEach(el => observer.observe(el));
 })();
 
-// ----- Count-up Animation -----
+// ── Count-up Animation ──
 (function() {
   const nums = document.querySelectorAll('[data-count]');
   const counterObserver = new IntersectionObserver((entries) => {
@@ -115,26 +63,83 @@
   nums.forEach(el => counterObserver.observe(el));
 })();
 
-// ----- Demo Live Update (unverändert) -----
-(function(){
-  var rows=[
-    {tag:'BAN',tc:'rgba(255,51,102,.3)',fc:'#ff3366',user:'User#'+Math.floor(Math.random()*9000+1000)},
-    {tag:'WARN',tc:'rgba(255,204,0,.3)',fc:'#ffcc00',user:'User#'+Math.floor(Math.random()*9000+1000)},
-    {tag:'MUTE',tc:'rgba(0,191,255,.3)',fc:'#00bfff',user:'User#'+Math.floor(Math.random()*9000+1000)},
-    {tag:'KICK',tc:'rgba(255,204,0,.3)',fc:'#ffcc00',user:'User#'+Math.floor(Math.random()*9000+1000)},
-    {tag:'SPAM',tc:'rgba(0,255,255,.3)',fc:'#00ffff',user:'User#'+Math.floor(Math.random()*9000+1000)},
+// ── Demo Live Update ──
+(function() {
+  const rows = [
+    { tag: 'BAN', tc: 'rgba(248,113,113,.2)', fc: '#f87171', user: 'User#' + Math.floor(Math.random()*9000+1000) },
+    { tag: 'WARN', tc: 'rgba(251,191,36,.2)', fc: '#fbbf24', user: 'User#' + Math.floor(Math.random()*9000+1000) },
+    { tag: 'MUTE', tc: 'rgba(56,189,248,.2)', fc: '#38bdf8', user: 'User#' + Math.floor(Math.random()*9000+1000) },
+    { tag: 'KICK', tc: 'rgba(251,191,36,.2)', fc: '#fbbf24', user: 'User#' + Math.floor(Math.random()*9000+1000) },
+    { tag: 'SPAM', tc: 'rgba(91,127,255,.2)', fc: '#5b7fff', user: 'User#' + Math.floor(Math.random()*9000+1000) }
   ];
-  var li=0;
-  setInterval(function(){
-    var r=rows[li%rows.length];li++;
-    var list=document.getElementById('d-list');if(!list)return;
-    var newRow=document.createElement('div');newRow.className='demo-list-row';
-    newRow.style.animation='fadeIn .4s ease';
-    newRow.innerHTML='<span class="demo-tag" style="background:'+r.tc+';color:'+r.fc+'">'+r.tag+'</span>'
-      +'<span>'+r.user+'</span><span style="margin-left:auto;opacity:.5">jetzt</span>';
-    list.insertBefore(newRow,list.firstChild);
-    if(list.children.length>3)list.removeChild(list.lastChild);
-    var dc=document.getElementById('d-c');
-    if(dc)dc.textContent=parseInt(dc.textContent||0)+1;
-  },3200);
+  let li = 0;
+  setInterval(() => {
+    const r = rows[li % rows.length]; li++;
+    const list = document.getElementById('d-list'); if (!list) return;
+    const newRow = document.createElement('div'); newRow.className = 'demo-list-row';
+    newRow.style.animation = 'fadeIn .4s ease';
+    newRow.innerHTML = '<span class="demo-tag" style="background:'+r.tc+';color:'+r.fc+'">'+r.tag+'</span>'
+      + '<span>'+r.user+'</span><span style="margin-left:auto;opacity:.5">jetzt</span>';
+    list.insertBefore(newRow, list.firstChild);
+    if (list.children.length > 3) list.removeChild(list.lastChild);
+    const dc = document.getElementById('d-c');
+    if (dc) dc.textContent = parseInt(dc.textContent || 0) + 1;
+  }, 3200);
+})();
+
+// ── 3D Background (Three.js) ──
+(function() {
+  const container = document.getElementById('hero-canvas');
+  if (!container || !window.THREE) return;
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+  camera.position.z = 7;
+
+  const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+  container.appendChild(renderer.domElement);
+
+  // Soft geometric shape
+  const geometry = new THREE.IcosahedronGeometry(1.6, 0);
+  const material = new THREE.MeshStandardMaterial({
+    color: 0x5b7fff,
+    roughness: 0.3,
+    metalness: 0.1,
+    transparent: true,
+    opacity: 0.15,
+  });
+  const mesh = new THREE.Mesh(geometry, material);
+  scene.add(mesh);
+
+  const wireframe = new THREE.LineSegments(
+    new THREE.EdgesGeometry(geometry),
+    new THREE.LineBasicMaterial({ color: 0x9275ff, transparent: true, opacity: 0.3 })
+  );
+  scene.add(wireframe);
+
+  // Lights
+  const ambientLight = new THREE.AmbientLight(0x404080);
+  scene.add(ambientLight);
+  const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
+  directionalLight.position.set(5, 5, 5);
+  scene.add(directionalLight);
+
+  // Animation
+  function animate() {
+    requestAnimationFrame(animate);
+    mesh.rotation.x += 0.001;
+    mesh.rotation.y += 0.003;
+    wireframe.rotation.x = mesh.rotation.x;
+    wireframe.rotation.y = mesh.rotation.y;
+    renderer.render(scene, camera);
+  }
+  animate();
+
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
 })();
