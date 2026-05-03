@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dashboard – ModForge</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="page-bg">
+<div class="topnav">
+  <a class="brand" href="/"><div class="brand-icon">🛡️</div><span class="grad">ModForge</span></a>
+  <div class="nav-links" style="gap:14px">
+    <span style="font-size:.8rem;color:var(--muted)">👤 {{ user.username }}</span>
+    <a href="/logout" class="btn btn-ghost btn-sm">Logout</a>
+  </div>
+</div>
+<div class="dash-main">
+  <div class="dash-sec-head">
+    <h1>Wähle einen Server</h1>
+    <p>Nur Server auf denen du <strong>Manage Server</strong> hast und der Bot eingeladen ist.</p>
+  </div>
+  {% if servers %}
+  <div class="srv-grid">
+    {% for s in servers %}
+    <div class="srv-card">
+      <div class="srv-av">
+        {% if s.icon %}
+        <img src="https://cdn.discordapp.com/icons/{{ s.id }}/{{ s.icon }}.png" alt="{{ s.name }}">
+        {% else %}{{ s.name[0] }}{% endif %}
+      </div>
+      <div style="flex:1;min-width:0">
+        <div class="srv-name">{{ s.name }}</div>
+        <div class="srv-meta">{{ s.member_count }} Mitglieder · Bot aktiv ✅</div>
+        <a class="srv-btn" href="/dashboard/{{ s.id }}/overview">Dashboard öffnen →</a>
+      </div>
+    </div>{% endfor %}
+  </div>
+  {% else %}
+  <div style="text-align:center;padding:60px;color:var(--muted)">
+    <div style="font-size:3rem;margin-bottom:14px">🤖</div>
+    <h3 style="margin-bottom:8px">Kein Server gefunden</h3>
+    <p>Der Bot ist auf keinem deiner Server eingeladen, oder du hast keine Admin-Rechte.</p>
+    <a class="btn btn-primary" style="margin-top:16px" href="https://discord.com/oauth2/authorize?client_id={{ cid }}&scope=bot+applications.commands&permissions=8" target="_blank">Bot einladen</a>
+  </div>{% endif %}
+</div>
+</body>
+</html>
