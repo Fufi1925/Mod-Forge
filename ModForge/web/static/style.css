@@ -1,3 +1,13 @@
+/* Quick‑fix: Alte Klassen auf neue mappen */
+.topnav { @extend .navbar; }
+.brand { @extend .nav-brand; }
+.brand-icon { @extend .logo-icon; }
+.nav-cta { @extend .btn-dashboard; }
+.feat-grid { @extend .features-grid; }
+.feat-card { @extend .feature-card; }
+.stats-grid { @extend .hero-stats; }
+.sec-badge { @extend .section-label; }
+
 /* ═══════════════════════════════════════════════════════════
    ModForge — Ultra Modern Design System v3.0
    Aesthetic: Military-Grade Dark Cyber · Glassmorphism · 3D
