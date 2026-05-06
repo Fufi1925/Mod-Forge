@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Server Accounts – Admin</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="page-bg">
+<div class="dash-wrap">
+  <div class="main-area" style="flex:1">
+    <div class="topbar">
+      <div><h1>Server Accounts</h1><p>Admin Panel</p></div>
+      <a href="/admin/dashboard" class="btn btn-ghost btn-sm">← Zurück</a>
+    </div>
+    <div class="content-scroll" style="padding:20px">
+      {% if msg %}<div class="alert-info">{{ msg }}</div>{% endif %}
+      <div class="settings-panel">
+        <h3>Neuen Server hinzufügen</h3>
+        <form method="post" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+          <input type="hidden" name="action" value="add">
+          <div class="form-group">
+            <label class="form-label">Guild‑ID</label>
+            <input class="form-input" type="text" name="guild_id" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Server‑Name</label>
+            <input class="form-input" type="text" name="guild_name" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Passwort</label>
+            <input class="form-input" type="password" name="password" required>
+          </div>
+          <button class="btn btn-primary" type="submit">Speichern</button>
+        </form>
+      </div>
+      <table class="tbl-wrap" style="margin-top:20px">
+        <thead><tr><th>Guild‑ID</th><th>Name</th><th>Aktion</th></tr></thead>
+        <tbody>
+          {% for acc in accounts %}
+          <tr>
+            <td>{{ acc.guild_id }}</td>
+            <td>{{ acc.guild_name }}</td>
+            <td>
+              <form method="post" style="display:inline">
+                <input type="hidden" name="action" value="delete">
+                <input type="hidden" name="guild_id" value="{{ acc.guild_id }}">
+                <button class="btn btn-danger btn-sm" type="submit">Löschen</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</body>
+</html>
