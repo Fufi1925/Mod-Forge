@@ -1641,6 +1641,191 @@ async def on_guild_remove(guild: discord.Guild) -> None:
         guild.id, guild.name, guild.member_count or 0, "leave",
     )
 
+# ═══════════════════════════════════════════════════════════════════
+# ON GUILD JOIN  —  Welcome-Embed
+# Einfügen direkt in bot.py, z.B. nach on_ready oder nach on_guild_remove
+# ═══════════════════════════════════════════════════════════════════
+
+@bot.event
+async def on_guild_join(guild: discord.Guild) -> None:
+    """Sendet beim Bot-Beitritt ein vollständiges Feature-Embed in den ersten beschreibbaren Kanal."""
+
+    # ── Besten Kanal finden ────────────────────────────────
+    target_channel = None
+    # 1. System-Kanal (falls vorhanden & beschreibbar)
+    if guild.system_channel and guild.system_channel.permissions_for(guild.me).send_messages:
+        target_channel = guild.system_channel
+    # 2. Ersten beschreibbaren Text-Kanal
+    if not target_channel:
+        for ch in guild.text_channels:
+            if ch.permissions_for(guild.me).send_messages and ch.permissions_for(guild.me).embed_links:
+                target_channel = ch
+                break
+
+    if not target_channel:
+        log.warning(f"on_guild_join: Kein Kanal gefunden in {guild.name} ({guild.id})")
+        return
+
+    # ── Embed bauen ────────────────────────────────────────
+    embed = discord.Embed(
+        title="🛡️ ModForge wurde hinzugefügt!",
+        description=(
+            f"Hey {guild.owner.mention if guild.owner else '**Admin**'}, danke dass du "
+            f"**ModForge** auf **{guild.name}** eingeladen hast! 🎉\n\n"
+            f"Ich bin dein All-in-One **Security & AutoMod Bot** — "
+            f"kein Stress mit 10 verschiedenen Bots.\n"
+            f"Richte mich mit `/setup` ein oder öffne das **Web-Dashboard**.\n"
+            f"──────────────────────────────────"
+        ),
+        color=COLOR_PRIMARY,
+        timestamp=discord.utils.utcnow(),
+    )
+
+    # ── Thumbnail: Bot-Avatar ──────────────────────────────
+    if bot.user.display_avatar:
+        embed.set_thumbnail(url=bot.user.display_avatar.url)
+
+    # ── Banner / Image ─────────────────────────────────────
+    # Optional: embed.set_image(url="https://dein-banner-link.png")
+
+    # ── SECURITY FEATURES ─────────────────────────────────
+    embed.add_field(
+        name="🔒 Security & Schutz",
+        value=(
+            "```\n"
+            "🛡️  Anti-Nuke     — Massen-Bans / Kicks / Wipes\n"
+            "⚡  Anti-Spam     — Nachrichten-, CAPS-, Emoji-Flood\n"
+            "🚨  Anti-Raid     — Koordinierte Beitritts-Angriffe\n"
+            "🔔  Anti-Mention  — Massen-Erwähnungen\n"
+            "🎣  Anti-Scam     — Scam-Domains, Nitro-Fakes\n"
+            "🌐  Anti-Shortener— Kurz-URL Erkennung\n"
+            "```"
+        ),
+        inline=False,
+    )
+
+    # ── AUTOMOD FEATURES ──────────────────────────────────
+    embed.add_field(
+        name="🤖 AutoMod",
+        value=(
+            "```\n"
+            "📝  BadWords-Filter  — Eigene Wortliste\n"
+            "🔍  Regex-Filter     — Custom Patterns\n"
+            "📩  Invite-Blocker   — Discord Invite Links\n"
+            "⚠️  Zalgo-Schutz     — Zalgo / Unicode-Spam\n"
+            "🎣  Phishing-Schutz  — Externe URL-Prüfung\n"
+            "```"
+        ),
+        inline=True,
+    )
+
+    # ── MODERATION FEATURES ───────────────────────────────
+    embed.add_field(
+        name="⚖️ Moderation",
+        value=(
+            "```\n"
+            "📋  Case-System    — IDs, Beweise, Archiv\n"
+            "⚠️  Warn-System    — Schwellen + Auto-Punish\n"
+            "✅  Verifizierung  — One-Click oder CAPTCHA\n"
+            "🎫  Tickets        — Support-Ticket-System\n"
+            "🔍  Perms-Audit    — Rollen-Hierarchie Check\n"
+            "🔒  Appeal-System  — Entbannungs-Anträge\n"
+            "```"
+        ),
+        inline=True,
+    )
+
+    # ── LOGGING ───────────────────────────────────────────
+    embed.add_field(
+        name="📝 Logging — 26 Module",
+        value=(
+            "> Jedes Modul bekommt seinen **eigenen Log-Kanal**.\n"
+            "> Kein Event bleibt unbemerkt.\n\n"
+            "**Module:** `moderation` `anti-spam` `anti-nuke` `anti-raid`\n"
+            "`automod` `anti-scam` `members` `channels` `roles`\n"
+            "`permissions` `webhooks` `tickets` `verify` `cases`\n"
+            "`warns` `appeal` `backup` `welcome` `audit` `+mehr`"
+        ),
+        inline=False,
+    )
+
+    # ── WELCOME & DASHBOARD ───────────────────────────────
+    embed.add_field(
+        name="👋 Welcome & Leave",
+        value=(
+            "> Vollständiger **Embed-Builder** im Dashboard.\n"
+            "> Eigene Bilder, Texte, Rollen-Vergabe."
+        ),
+        inline=True,
+    )
+
+    embed.add_field(
+        name="📊 Web-Dashboard",
+        value=(
+            "> Alle Module grafisch konfigurieren.\n"
+            "> **Discord OAuth2** Login · Live-Charts."
+        ),
+        inline=True,
+    )
+
+    # ── COMMANDS OVERVIEW ─────────────────────────────────
+    embed.add_field(
+        name="⌨️ Über 40 Commands · Slash & Prefix",
+        value=(
+            "`/ban` `/tempban` `/kick` `/warn` `/mute` `/unmute`\n"
+            "`/case` `/cases` `/warnlist` `/clearwarn` `/massban`\n"
+            "`/audit-perms` `/security view` `/setup` `/whitelist`\n"
+            "`/logsetup` `/warnsetup` `/backupsetup` `/forcereset`\n"
+            "`/ticket-setup` `/verify-setup` `/logban` `/help`"
+        ),
+        inline=False,
+    )
+
+    # ── QUICK START ───────────────────────────────────────
+    embed.add_field(
+        name="🚀 Quick-Start",
+        value=(
+            "**1.** Gib mir die Rolle **`Administrator`** oder alle nötigen Perms\n"
+            "**2.** Tippe `/setup` — interaktives Setup-Panel\n"
+            "**3.** Konfiguriere deine Module im **Web-Dashboard**\n"
+            "**4.** Setze deine Log-Kanäle mit `/logsetup`\n\n"
+            f"**Fertig in unter 2 Minuten! ⚡**"
+        ),
+        inline=False,
+    )
+
+    # ── LINKS ─────────────────────────────────────────────
+    embed.add_field(
+        name="🔗 Links",
+        value=(
+            "🌐 **[Dashboard öffnen](https://mod-forge.up.railway.app/login)**"
+            "　・　"
+            "💬 **[Support Server](https://discord.gg/gwryX3dbkt)**"
+            "　・　"
+            "📄 **[Terms of Service](https://mod-forge.up.railway.app/terms)**"
+        ),
+        inline=False,
+    )
+
+    # ── FOOTER ────────────────────────────────────────────
+    embed.set_footer(
+        text=f"{FOOTER_TEXT}  ·  Server-ID: {guild.id}  ·  v3.0.0",
+        icon_url=FOOTER_ICON if FOOTER_ICON else (bot.user.display_avatar.url if bot.user.display_avatar else None),
+    )
+
+    # ── Senden ────────────────────────────────────────────
+    try:
+        await target_channel.send(
+            content=f"👋 Hey {guild.owner.mention if guild.owner else ''}! Danke für die Einladung.",
+            embed=embed,
+        )
+        log.info(f"on_guild_join: Welcome-Embed gesendet in #{target_channel.name} ({guild.name})")
+    except discord.Forbidden:
+        log.warning(f"on_guild_join: Keine Rechte in #{target_channel.name} ({guild.name})")
+    except discord.HTTPException as ex:
+        log.error(f"on_guild_join: HTTP-Fehler: {ex}")
+
+
 
 # ═══════════════════════════════════════════════════════════════
 # PREFIX COMMANDS
