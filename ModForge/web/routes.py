@@ -6,6 +6,7 @@ import secrets
 import time
 import threading
 from collections import defaultdict, deque
+from functools import wraps
 
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -45,7 +46,7 @@ from bot.utils import _run_async
 log = logging.getLogger("ModForge.Web.Routes")
 
 # ---------- SAFE ASYNC ----------
-def safe_async(coro, default=0):
+def safe_async(coro, default=None):
     try:
         return _run_async(coro)
     except Exception as e:
@@ -54,6 +55,15 @@ def safe_async(coro, default=0):
 
 # ---------- CACHE ----------
 _admin_cache = {"data": None, "ts": 0}
+
+# ---------- ADMIN CHECK ----------
+def admin_required(f):
+    @wraps(f)
+    def decorated(*a, **kw):
+        if not session.get("admin"):
+            return redirect(url_for("admin_login"))
+        return f(*a, **kw)
+    return decorated
 
 # ---------- Public Pages ----------
 @flask_app.route("/")
@@ -174,6 +184,24 @@ def oauth_callback():
 
     return redirect(url_for("user_dash_home"))
 
+# ---------- SERVER LOGIN (eigenes System) ----------
+@flask_app.route('/server-login', methods=['GET', 'POST'])
+def server_login():
+    error = None
+    if request.method == 'POST':
+        guild_name = (request.form.get('guild_name') or '').strip()
+        password = request.form.get('password') or ''
+        if not guild_name or not password:
+            error = 'Bitte Server‑Name und Passwort eingeben.'
+        else:
+            acc = safe_async(bot.db.db.server_accounts.find_one({'guild_name': guild_name}))
+            if acc and check_password_hash(acc['password_hash'], password):
+                session['server_guild_id'] = acc['guild_id']
+                return redirect(url_for('user_dash_guild', guild_id=str(acc['guild_id']), section='overview'))
+            error = 'Ungültige Zugangsdaten.'
+    return render_template('server_login.html', error=error)
+
+# ---------- Logout ----------
 @flask_app.route("/logout")
 def logout():
     session.clear()
@@ -182,6 +210,7 @@ def logout():
 # ---------- Dashboard ----------
 @flask_app.route("/dashboard")
 def user_dash_home():
+    # Nur für Discord Login
     user = _get_session_user()
     if not user:
         return redirect(url_for("discord_login_page"))
@@ -193,10 +222,19 @@ def user_dash_home():
 
 @flask_app.route("/dashboard/<guild_id>/<section>")
 def user_dash_guild(guild_id, section):
+    # Zugriff via Server-Login oder Discord-Login prüfen
     user = _get_session_user()
-
-    if not user or not _user_can_manage_guild(guild_id):
-        return redirect(url_for("user_dash_home"))
+    if session.get('server_guild_id') and str(session['server_guild_id']) == guild_id:
+        # Server-Login: Zugriff gewähren, user aus Session holen (kann None sein)
+        user = session.get("discord_user")  # kann auch None sein, dann ohne Discord-User
+    elif user and _user_can_manage_guild(guild_id):
+        # Discord-Login mit Manage-Server-Recht
+        pass
+    else:
+        # Keine Berechtigung -> zum Login
+        if session.get('server_guild_id'):
+            return redirect(url_for('server_login'))
+        return redirect(url_for("discord_login_page"))
 
     cfg = _get_guild_config(guild_id)
 
@@ -212,7 +250,7 @@ def user_dash_guild(guild_id, section):
 
     return render_template(
         "dashboard_guild.html",
-        user=user,
+        user=user or {"username": guild_name, "id": guild_id},
         guild_id=guild_id,
         guild_name=guild_name,
         section=section,
@@ -223,7 +261,9 @@ def user_dash_guild(guild_id, section):
 
 @flask_app.route("/dashboard/<guild_id>/api/save", methods=["POST"])
 def user_dash_save(guild_id):
-    if not _user_can_manage_guild(guild_id):
+    # Berechtigung wie oben prüfen
+    user = _get_session_user()
+    if not (session.get('server_guild_id') == guild_id or (user and _user_can_manage_guild(guild_id))):
         return jsonify({"error": "no permission"}), 403
 
     data = request.get_json()
@@ -333,3 +373,30 @@ def admin_api_state():
     _admin_cache["ts"] = time.time()
 
     return jsonify(data)
+
+# ---------- ADMIN: Server-Accounts verwalten ----------
+@flask_app.route('/admin/accounts', methods=['GET', 'POST'])
+@admin_required
+def admin_accounts():
+    msg = None
+    if request.method == 'POST':
+        if request.form.get('action') == 'delete':
+            guild_id = int(request.form.get('guild_id'))
+            await bot.db.db.server_accounts.delete_one({'guild_id': guild_id})
+            msg = 'Account gelöscht.'
+        else:
+            guild_id = int(request.form.get('guild_id'))
+            guild_name = (request.form.get('guild_name') or '').strip()
+            password = request.form.get('password') or ''
+            if not guild_name or not password:
+                msg = 'Name und Passwort erforderlich.'
+            else:
+                pw_hash = generate_password_hash(password)
+                await bot.db.db.server_accounts.update_one(
+                    {'guild_id': guild_id},
+                    {'$set': {'guild_id': guild_id, 'guild_name': guild_name, 'password_hash': pw_hash}},
+                    upsert=True
+                )
+                msg = 'Account gespeichert.'
+    accounts = safe_async(bot.db.db.server_accounts.find().to_list(100)) or []
+    return render_template('admin_accounts.html', accounts=accounts, msg=msg)
