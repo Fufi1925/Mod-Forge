@@ -35,53 +35,66 @@
   );
 
   /* ═══════════════════════════════════════════════════════
-     CUSTOM CURSOR
+     CUSTOM CURSOR – Großer Farbfleck, 100% zentriert
      ═══════════════════════════════════════════════════════ */
   function setupCustomCursor() {
-    if (window.innerWidth < 768) return;
+    // Nur auf Geräten mit Maus aktivieren (kein Touch)
+    if (!window.matchMedia('(pointer: fine)').matches) return;
 
-    const dot  = document.createElement('div');
-    const ring = document.createElement('div');
-    dot.className  = 'cursor-dot';
-    ring.className = 'cursor-ring';
-    document.body.appendChild(dot);
-    document.body.appendChild(ring);
+    const blob = document.createElement('div');
+    blob.className = 'cursor-blob';
+    document.body.appendChild(blob);
 
-    let mx = 0, my = 0;
-    let rx = 0, ry = 0;
-    let rafId;
+    let mx = 0, my = 0;          // Zielposition
+    let cx = window.innerWidth / 2, cy = window.innerHeight / 2;  // aktuelle Position des Flecks
+    let velX = 0, velY = 0;      // Geschwindigkeit für Stauch‑Effekt
 
     document.addEventListener('mousemove', e => {
       mx = e.clientX;
       my = e.clientY;
-      dot.style.left = mx + 'px';
-      dot.style.top  = my + 'px';
+
+      // Geschwindigkeit berechnen (für dynamische Verzerrung)
+      velX = mx - cx;
+      velY = my - cy;
     });
 
-    function animRing() {
-      rx += (mx - rx) * 0.14;
-      ry += (my - ry) * 0.14;
-      ring.style.left = rx + 'px';
-      ring.style.top  = ry + 'px';
-      rafId = requestAnimationFrame(animRing);
-    }
-    animRing();
-
-    // Hover state
-    const hoverTargets = 'a, button, .feature-card, .command-card, .log-tag, .stat-item';
-    document.querySelectorAll(hoverTargets).forEach(el => {
-      el.addEventListener('mouseenter', () => ring.classList.add('hovering'));
-      el.addEventListener('mouseleave', () => ring.classList.remove('hovering'));
+    // Hover‑State für interaktive Elemente
+    const hoverTargets = 'a, button, .feature-card, .command-card, .log-tag, .stat-item, .btn, input, select, textarea';
+    document.addEventListener('mouseover', e => {
+      if (e.target.closest(hoverTargets)) {
+        blob.classList.add('hovering');
+      } else {
+        blob.classList.remove('hovering');
+      }
     });
 
+    // Fleck verschwindet, wenn Maus das Fenster verlässt
     document.addEventListener('mouseleave', () => {
-      dot.style.opacity  = '0';
-      ring.style.opacity = '0';
+      blob.style.opacity = '0';
     });
     document.addEventListener('mouseenter', () => {
-      dot.style.opacity  = '1';
-      ring.style.opacity = '1';
+      blob.style.opacity = '1';
     });
+
+    function animate() {
+      // Weiche Verfolgung der Maus (100% zentriert)
+      cx += (mx - cx) * 0.3;
+      cy += (my - cy) * 0.3;
+
+      // Dynamische Verzerrung basierend auf Geschwindigkeit
+      const speed = Math.sqrt(velX * velX + velY * velY);
+      const stretch = Math.min(speed / 4, 1.8);  // max. Stauchung
+      const angle = Math.atan2(velY, velX);
+
+      blob.style.transform = `translate(${cx}px, ${cy}px) scaleX(${1 + stretch * 0.15}) scaleY(${1 - stretch * 0.1}) rotate(${angle}rad)`;
+
+      // Geschwindigkeit langsam abbauen
+      velX *= 0.85;
+      velY *= 0.85;
+
+      requestAnimationFrame(animate);
+    }
+    animate();
   }
 
   /* ═══════════════════════════════════════════════════════
@@ -224,7 +237,7 @@
     // ── Ambient fog ───────────────────────────────────────
     scene.fog = new THREE.FogExp2(0x030712, 0.025);
 
-    // ── MOUSE TRACKER 3D-RING (nur mit Maus) ──────────────
+    // ── 3D Mouse Tracker Ring (dezent) ────────────────────
     const hasFinePointer = window.matchMedia('(pointer: fine)').matches;
     let mouseTracker = null;
     let targetWorldX = 0, targetWorldY = 0;
@@ -521,11 +534,10 @@
       const wrapper = document.createElement('div');
       wrapper.className = 'page-wrapper';
 
-      // Move everything except canvas into wrapper
+      // Move everything except canvas and cursor blob into wrapper
       Array.from(body.children).forEach(child => {
         if (child.id !== 'three-canvas' &&
-            !child.classList.contains('cursor-dot') &&
-            !child.classList.contains('cursor-ring')) {
+            !child.classList.contains('cursor-blob')) {
           wrapper.appendChild(child);
         }
       });
