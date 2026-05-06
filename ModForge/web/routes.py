@@ -7,6 +7,8 @@ import time
 import threading
 from collections import defaultdict, deque
 
+from werkzeug.security import check_password_hash, generate_password_hash
+
 from .app import flask_app
 from .auth import (
     _discord_api_call,
