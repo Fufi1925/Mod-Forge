@@ -47,6 +47,7 @@ log = logging.getLogger("ModForge.Web.Routes")
 
 # ---------- SAFE ASYNC ----------
 def safe_async(coro, default=None):
+    """Führt eine Coroutine threadsafe aus und fängt Fehler ab."""
     try:
         return _run_async(coro)
     except Exception as e:
@@ -196,7 +197,7 @@ def server_login():
         else:
             acc = safe_async(bot.db.db.server_accounts.find_one({'guild_name': guild_name}))
             if acc and check_password_hash(acc['password_hash'], password):
-                session['server_guild_id'] = acc['guild_id']
+                session['server_guild_id'] = str(acc['guild_id'])
                 return redirect(url_for('user_dash_guild', guild_id=str(acc['guild_id']), section='overview'))
             error = 'Ungültige Zugangsdaten.'
     return render_template('server_login.html', error=error)
@@ -225,13 +226,10 @@ def user_dash_guild(guild_id, section):
     # Zugriff via Server-Login oder Discord-Login prüfen
     user = _get_session_user()
     if session.get('server_guild_id') and str(session['server_guild_id']) == guild_id:
-        # Server-Login: Zugriff gewähren, user aus Session holen (kann None sein)
-        user = session.get("discord_user")  # kann auch None sein, dann ohne Discord-User
+        user = session.get("discord_user")  # kann None sein
     elif user and _user_can_manage_guild(guild_id):
-        # Discord-Login mit Manage-Server-Recht
         pass
     else:
-        # Keine Berechtigung -> zum Login
         if session.get('server_guild_id'):
             return redirect(url_for('server_login'))
         return redirect(url_for("discord_login_page"))
@@ -261,9 +259,9 @@ def user_dash_guild(guild_id, section):
 
 @flask_app.route("/dashboard/<guild_id>/api/save", methods=["POST"])
 def user_dash_save(guild_id):
-    # Berechtigung wie oben prüfen
+    # Berechtigung prüfen
     user = _get_session_user()
-    if not (session.get('server_guild_id') == guild_id or (user and _user_can_manage_guild(guild_id))):
+    if not (str(session.get('server_guild_id')) == guild_id or (user and _user_can_manage_guild(guild_id))):
         return jsonify({"error": "no permission"}), 403
 
     data = request.get_json()
@@ -353,7 +351,7 @@ def build_admin_data():
             "guild_count": len(guilds_payload),
             "member_total": mt,
             "uptime": time.time() - bot.start_time,
-            "latency": bot.latency * 1000,
+            "latency": bot.latency * 1000 if bot.latency else 0,
             "cases": ct,
             "archive": at,
         },
@@ -380,9 +378,10 @@ def admin_api_state():
 def admin_accounts():
     msg = None
     if request.method == 'POST':
-        if request.form.get('action') == 'delete':
+        action = request.form.get('action')
+        if action == 'delete':
             guild_id = int(request.form.get('guild_id'))
-            await bot.db.db.server_accounts.delete_one({'guild_id': guild_id})
+            safe_async(bot.db.db.server_accounts.delete_one({'guild_id': guild_id}))
             msg = 'Account gelöscht.'
         else:
             guild_id = int(request.form.get('guild_id'))
@@ -392,11 +391,11 @@ def admin_accounts():
                 msg = 'Name und Passwort erforderlich.'
             else:
                 pw_hash = generate_password_hash(password)
-                await bot.db.db.server_accounts.update_one(
+                safe_async(bot.db.db.server_accounts.update_one(
                     {'guild_id': guild_id},
                     {'$set': {'guild_id': guild_id, 'guild_name': guild_name, 'password_hash': pw_hash}},
                     upsert=True
-                )
+                ))
                 msg = 'Account gespeichert.'
     accounts = safe_async(bot.db.db.server_accounts.find().to_list(100)) or []
     return render_template('admin_accounts.html', accounts=accounts, msg=msg)
