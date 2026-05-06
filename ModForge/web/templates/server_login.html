@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Server Login – ModForge</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="page-bg">
+<div class="login-wrap">
+  <div class="login-box">
+    <div style="display:flex;align-items:center;gap:9px;margin-bottom:22px">
+      <div class="brand-icon">🛡️</div>
+      <span style="font-weight:900;font-size:1.15rem" class="grad">ModForge</span>
+    </div>
+    <h1>Server Login</h1>
+    <p class="lead">Melde dich mit den Zugangsdaten deines Servers an.</p>
+    {% if error %}<div class="alert-err">{{ error }}</div>{% endif %}
+    <form method="post">
+      <div class="form-group" style="margin-bottom:14px">
+        <label class="form-label">Server‑Name</label>
+        <input class="form-input" type="text" name="guild_name" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Passwort</label>
+        <input class="form-input" type="password" name="password" required>
+      </div>
+      <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:18px">Einloggen</button>
+    </form>
+    <p style="text-align:center;margin-top:14px;font-size:.78rem;color:var(--muted)">
+      <a href="/login">Discord Login</a> &nbsp;|&nbsp; <a href="/">Startseite</a>
+    </p>
+  </div>
+</div>
+</body>
+</html>
