@@ -224,6 +224,25 @@
     // ── Ambient fog ───────────────────────────────────────
     scene.fog = new THREE.FogExp2(0x030712, 0.025);
 
+    // ── MOUSE TRACKER 3D-RING (nur mit Maus) ──────────────
+    const hasFinePointer = window.matchMedia('(pointer: fine)').matches;
+    let mouseTracker = null;
+    let targetWorldX = 0, targetWorldY = 0;
+
+    if (hasFinePointer) {
+      const ringGeo = new THREE.TorusGeometry(0.6, 0.02, 16, 32);
+      const ringMat = new THREE.MeshBasicMaterial({
+        color: 0x5b7fff,
+        transparent: true,
+        opacity: 0.6,
+      });
+      mouseTracker = new THREE.Mesh(ringGeo, ringMat);
+      mouseTracker.position.z = 8;
+      mouseTracker.renderOrder = 999;
+      mouseTracker.material.depthTest = false;
+      scene.add(mouseTracker);
+    }
+
     // ── Mouse parallax ────────────────────────────────────
     let mouseX = 0, mouseY = 0;
     let targetX = 0, targetY = 0;
@@ -231,6 +250,11 @@
     document.addEventListener('mousemove', e => {
       mouseX = (e.clientX / window.innerWidth  - 0.5) * 2;
       mouseY = (e.clientY / window.innerHeight - 0.5) * 2;
+
+      if (mouseTracker) {
+        targetWorldX = (e.clientX / window.innerWidth) * 20 - 10;
+        targetWorldY = -(e.clientY / window.innerHeight) * 12 + 6;
+      }
     });
 
     // ── Scroll effect ─────────────────────────────────────
@@ -279,6 +303,15 @@
 
       // Grid pulse
       gridHelper.material.opacity = 0.2 + Math.sin(t * 0.5) * 0.08;
+
+      // Mouse-Tracker folgen lassen
+      if (mouseTracker) {
+        const lerpFactor = 0.08;
+        mouseTracker.position.x += (targetWorldX - mouseTracker.position.x) * lerpFactor;
+        mouseTracker.position.y += (targetWorldY - mouseTracker.position.y) * lerpFactor;
+        mouseTracker.rotation.z += 0.01;
+        mouseTracker.rotation.x = Math.sin(t * 2) * 0.1;
+      }
 
       renderer.render(scene, camera);
     }
