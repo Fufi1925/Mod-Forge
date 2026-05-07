@@ -1,9 +1,9 @@
-# -*- coding: utf-8 -*-
+# database/db.py
 import asyncio
 import datetime
 import logging
 import os
-import certifi
+import time
 from typing import Any, Dict, List, Optional
 
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorCollection
@@ -14,17 +14,17 @@ from cachetools import TTLCache
 log = logging.getLogger("ModForge.DB")
 
 class Database:
-    CONFIG_CACHE_TTL = 300
+    CONFIG_CACHE_TTL = 300          # 5 Minuten
     CONFIG_CACHE_MAXSIZE = 10000
     WHITELIST_CACHE_TTL = 300
     WHITELIST_CACHE_MAXSIZE = 10000
 
     def __init__(self, mongo_url: str = None) -> None:
         mongo_url = os.getenv("MONGO_URL") or mongo_url or "mongodb://localhost:27017"
+        # Nur tlsAllowInvalidCertificates verwenden, kein tlsCAFile
         self.client: AsyncIOMotorClient = AsyncIOMotorClient(
             mongo_url,
             serverSelectionTimeoutMS=8000,
-            tlsCAFile=certifi.where(),
             tlsAllowInvalidCertificates=True
         )
         self.db = self.client["ModForge"]
@@ -45,16 +45,20 @@ class Database:
             maxsize=self.WHITELIST_CACHE_MAXSIZE, ttl=self.WHITELIST_CACHE_TTL
         )
 
+        # Locks aufräumen mit max. 100 Einträgen
         self._config_locks: Dict[int, asyncio.Lock] = {}
         self._whitelist_locks: Dict[int, asyncio.Lock] = {}
 
-    def invalidate_config(self, guild_id: int) -> None:
-        self._config_cache.pop(guild_id, None)
-
-    def invalidate_whitelist(self, guild_id: int) -> None:
-        self._whitelist_cache.pop(guild_id, None)
+    # ── Hilfsfunktionen ─────────────────────────────────────
+    def _trim_locks(self, locks_dict: Dict[int, asyncio.Lock], max_size: int = 100) -> None:
+        """Entfernt die ältesten Einträge, wenn die Map zu groß wird."""
+        if len(locks_dict) > max_size:
+            keys = list(locks_dict.keys())[:-max_size]
+            for k in keys:
+                del locks_dict[k]
 
     def _config_lock(self, guild_id: int) -> asyncio.Lock:
+        self._trim_locks(self._config_locks)
         lock = self._config_locks.get(guild_id)
         if lock is None:
             lock = asyncio.Lock()
@@ -62,6 +66,7 @@ class Database:
         return lock
 
     def _whitelist_lock(self, guild_id: int) -> asyncio.Lock:
+        self._trim_locks(self._whitelist_locks)
         lock = self._whitelist_locks.get(guild_id)
         if lock is None:
             lock = asyncio.Lock()
@@ -77,24 +82,39 @@ class Database:
 
     @staticmethod
     def _ensure_defaults(cfg: dict) -> dict:
+        """Stellt sicher, dass alle Standard-Keys vorhanden sind. Erzeugt eine Kopie."""
         from bot.config import DEFAULT_CONFIG
+        cfg = dict(cfg)  # Shallow Copy, tiefe Werte sind unveränderlich
         for k, v in DEFAULT_CONFIG.items():
             if k not in cfg:
                 cfg[k] = v.copy() if isinstance(v, (dict, list)) else v
             elif isinstance(v, dict) and isinstance(cfg[k], dict):
+                # Fehlende sub‑keys setzen, ohne existierende zu überschreiben
                 for sub_k, sub_v in v.items():
                     cfg[k].setdefault(sub_k, sub_v)
+        # Entferne _id, damit sie nicht im Cache oder bei Updates stört
+        cfg.pop("_id", None)
         return cfg
 
-    # ── Config ──────────────────────────────────────────
+    # ── Verbindungsprüfung (wird in setup_hook aufgerufen) ──
+    async def test_connection(self) -> bool:
+        try:
+            await self.client.admin.command("ping")
+            log.info("MongoDB‑Verbindung erfolgreich getestet.")
+            return True
+        except PyMongoError as e:
+            log.error(f"MongoDB‑Verbindungstest fehlgeschlagen: {e}")
+            return False
+
+    # ── Config ──────────────────────────────────────────────
     def get_config(self, guild_id: int) -> dict:
+        """Synchroner Cache‑Lookup, Fallback Defaults."""
         cached = self._config_cache.get(guild_id)
         if cached is not None:
             return cached
+        # Kein Cache‑Hit → Defaults ausliefern und im Hintergrund laden
         from bot.config import DEFAULT_CONFIG
-        default = DEFAULT_CONFIG.copy()
-        default["_id"] = guild_id
-        default = self._ensure_defaults(default)
+        default = self._ensure_defaults(DEFAULT_CONFIG.copy())
         self._config_cache[guild_id] = default
         try:
             loop = asyncio.get_running_loop()
@@ -118,16 +138,21 @@ class Database:
                     await self.config.insert_one(data)
                 except PyMongoError as e:
                     log.error(f"DB insert_one (config) Fehler: {e}")
-            data = self._ensure_defaults(data)
-            self._config_cache[guild_id] = data
-            return data
+            # Sicherstellen, dass Defaults und keine _id im Cache landen
+            cleaned = self._ensure_defaults(data)
+            self._config_cache[guild_id] = cleaned
+            return cleaned
 
     async def set_config(self, guild_id: int, cfg: dict) -> None:
+        cfg = dict(cfg)
         cfg["_id"] = guild_id
         try:
-            await self.config.update_one({"_id": guild_id}, {"$set": cfg}, upsert=True)
+            await self.config.update_one(
+                {"_id": guild_id}, {"$set": cfg}, upsert=True
+            )
         except PyMongoError as e:
             log.error(f"DB set_config Fehler: {e}")
+        # Cache aktualisieren (ohne _id)
         self._config_cache[guild_id] = self._ensure_defaults(cfg)
 
     async def update_module(self, guild_id: int, module: str, key: str, value: Any) -> None:
@@ -152,7 +177,7 @@ class Database:
     async def aupdate_module(self, guild_id: int, module: str, key: str, value: Any) -> None:
         await self.update_module(guild_id, module, key, value)
 
-    # ── Whitelist ───────────────────────────────────────
+    # ── Whitelist (analog mit Kopie und _id entfernt) ───────
     def get_whitelist(self, guild_id: int) -> dict:
         cached = self._whitelist_cache.get(guild_id)
         if cached is not None:
@@ -177,15 +202,20 @@ class Database:
                 data = self._empty_whitelist()
             for k in ("users", "roles", "channels", "bypass_antispam", "bypass_antinuke"):
                 data.setdefault(k, [])
+            data.pop("_id", None)
             self._whitelist_cache[guild_id] = data
             return data
 
     async def set_whitelist(self, guild_id: int, whitelist: dict) -> None:
+        whitelist = dict(whitelist)
         whitelist["_id"] = guild_id
         try:
-            await self.whitelist.update_one({"_id": guild_id}, {"$set": whitelist}, upsert=True)
+            await self.whitelist.update_one(
+                {"_id": guild_id}, {"$set": whitelist}, upsert=True
+            )
         except PyMongoError as e:
             log.error(f"DB set_whitelist Fehler: {e}")
+        whitelist.pop("_id", None)
         self._whitelist_cache[guild_id] = whitelist
 
     async def add_whitelist(self, guild_id: int, category: str, entry_id: int) -> None:
@@ -215,7 +245,7 @@ class Database:
     async def aremove_whitelist(self, guild_id: int, category: str, entry_id: int) -> None:
         await self.remove_whitelist(guild_id, category, entry_id)
 
-    # ── Warnungen ───────────────────────────────────────
+    # ── Warnungen ───────────────────────────────────────────
     async def aadd_warning(self, guild_id: int, user_id: int, reason: str, mod_id: int) -> int:
         try:
             await self.data.insert_one({
@@ -254,7 +284,7 @@ class Database:
                 log.error(f"DB aremove_warning Fehler: {e}")
         return False
 
-    # ── Mutes ───────────────────────────────────────────
+    # ── Mutes ───────────────────────────────────────────────
     async def aadd_mute(self, guild_id: int, user_id: int, reason: str, mod_id: int,
                         duration: Optional[int] = None) -> None:
         end = None
@@ -291,7 +321,7 @@ class Database:
         except PyMongoError as e:
             log.error(f"DB adeactivate_mute Fehler: {e}")
 
-    # ── TempActions ─────────────────────────────────────
+    # ── TempActions ─────────────────────────────────────────
     async def aadd_tempaction(self, action: str, guild_id: int, user_id: int,
                               end_time: datetime.datetime, reason: str, mod_id: int) -> None:
         try:
@@ -320,7 +350,7 @@ class Database:
         except PyMongoError as e:
             log.error(f"DB adeactivate_tempaction Fehler: {e}")
 
-    # ── Indexes ─────────────────────────────────────────
+    # ── Indexes ─────────────────────────────────────────────
     async def ensure_indexes(self) -> None:
         try:
             await self.message_archive.create_index("timestamp", expireAfterSeconds=48*3600, name="ttl_archive_48h")
@@ -335,7 +365,7 @@ class Database:
         except PyMongoError as e:
             log.error(f"DB ensure_indexes Fehler: {e}")
 
-    # ── Cases ───────────────────────────────────────────
+    # ── Cases ───────────────────────────────────────────────
     async def anext_case_id(self, guild_id: int) -> int:
         try:
             doc = await self.counters.find_one_and_update(
@@ -347,7 +377,7 @@ class Database:
             return int(doc["seq"])
         except PyMongoError as e:
             log.error(f"DB anext_case_id Fehler: {e}")
-            return int(asyncio.get_event_loop().time())
+            return int(time.time())  # Fallback ohne asyncio.get_event_loop()
 
     async def acreate_case(self, guild_id: int, user_id: int, mod_id: int,
                            action: str, reason: str, duration: Optional[int] = None) -> int:
@@ -398,7 +428,7 @@ class Database:
             return False
 
     async def aadd_case_evidence(self, guild_id: int, case_id: int, url: str,
-                                added_by: int, note: str = "") -> bool:
+                                 added_by: int, note: str = "") -> bool:
         try:
             res = await self.cases.update_one(
                 {"guild_id": guild_id, "case_id": case_id},
@@ -422,7 +452,7 @@ class Database:
         except PyMongoError as e:
             log.error(f"DB aattach_messages_to_case Fehler: {e}")
 
-    # ── Message-Archiv ─────────────────────────────────
+    # ── Message-Archiv ─────────────────────────────────────
     async def arecord_message(self, guild_id: int, channel_id: int, message_id: int,
                               user_id: int, content: str, attachments: List[str]) -> None:
         try:
@@ -459,7 +489,7 @@ class Database:
             log.error(f"DB aappend_message_edit Fehler: {e}")
 
     async def aget_user_messages(self, guild_id: int, user_id: int,
-                                hours: int = 48, limit: int = 500) -> List[dict]:
+                                 hours: int = 48, limit: int = 500) -> List[dict]:
         cutoff = datetime.datetime.utcnow() - datetime.timedelta(hours=hours)
         try:
             cursor = self.message_archive.find({
@@ -471,9 +501,9 @@ class Database:
             log.error(f"DB aget_user_messages Fehler: {e}")
             return []
 
-    # ── Guild-Events ────────────────────────────────────
+    # ── Guild-Events ────────────────────────────────────────
     async def arecord_guild_event(self, guild_id: int, guild_name: str,
-                                 member_count: int, event: str) -> None:
+                                  member_count: int, event: str) -> None:
         try:
             await self.guild_events.insert_one({
                 "guild_id": guild_id, "guild_name": guild_name,
