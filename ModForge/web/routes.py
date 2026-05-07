@@ -378,13 +378,11 @@ def admin_accounts():
     accounts = safe_async(bot.db.server_accounts.find().to_list(100)) or []
     return render_template('admin_accounts.html', accounts=accounts, msg=msg)
 
-# ---------- LIVE TERMINAL ----------
+# ---------- LIVE ACTIVITY PAGE ----------
 @flask_app.route('/live')
-@admin_required
-def live_terminal():
+def live_activity():
     return render_template('live.html')
 
-@flask_app.route('/live/api/logs')
-@admin_required
-def live_api_logs():
-    return jsonify(get_live_logs())
+@flask_app.route('/live/api/activity')
+def live_api_activity():
+    return jsonify(ACTIVITY.snapshot(50))
