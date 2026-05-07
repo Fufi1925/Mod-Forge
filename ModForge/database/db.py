@@ -19,11 +19,18 @@ class Database:
     WHITELIST_CACHE_MAXSIZE = 10000
 
     def __init__(self, mongo_url: str = None) -> None:
+        # 1. Umgebungsvariable 2. Parameter 3. Fallback
         mongo_url = os.getenv("MONGO_URL") or mongo_url or "mongodb://localhost:27017"
         self.client: AsyncIOMotorClient = AsyncIOMotorClient(
             mongo_url,
             serverSelectionTimeoutMS=8000,
-            tlsAllowInvalidCertificates=True
+            tls=True,
+            tlsAllowInvalidCertificates=True,
+            tlsAllowInvalidHostnames=True,
+            connectTimeoutMS=15000,
+            socketTimeoutMS=15000,
+            retryWrites=True,
+            w="majority"
         )
         self.db = self.client["ModForge"]
 
@@ -45,7 +52,7 @@ class Database:
 
         self._config_locks: Dict[int, asyncio.Lock] = {}
         self._whitelist_locks: Dict[int, asyncio.Lock] = {}
-        
+
     def invalidate_config(self, guild_id: int) -> None:
         self._config_cache.pop(guild_id, None)
 
@@ -345,7 +352,7 @@ class Database:
             return int(doc["seq"])
         except PyMongoError as e:
             log.error(f"DB anext_case_id Fehler: {e}")
-            return int(asyncio.get_event_loop().time())  # Fallback
+            return int(asyncio.get_event_loop().time())
 
     async def acreate_case(self, guild_id: int, user_id: int, mod_id: int,
                            action: str, reason: str, duration: Optional[int] = None) -> int:
