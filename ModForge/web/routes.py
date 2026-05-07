@@ -9,6 +9,9 @@ import threading
 from collections import defaultdict, deque
 from functools import wraps
 
+from bot.utils import get_live_logs
+
+
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from .app import flask_app
@@ -374,3 +377,14 @@ def admin_accounts():
                 msg = 'Account gespeichert.'
     accounts = safe_async(bot.db.server_accounts.find().to_list(100)) or []
     return render_template('admin_accounts.html', accounts=accounts, msg=msg)
+
+# ---------- LIVE TERMINAL ----------
+@flask_app.route('/live')
+@admin_required
+def live_terminal():
+    return render_template('live.html')
+
+@flask_app.route('/live/api/logs')
+@admin_required
+def live_api_logs():
+    return jsonify(get_live_logs())
