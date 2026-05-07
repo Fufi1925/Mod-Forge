@@ -104,8 +104,8 @@ def privacy():
 
 @flask_app.route("/imprint")
 def imprint():
-    return render_template("imprint.html", title="Impressum", content="Imprint...")
-
+    return render_template("imprint.html", title="Impressum", today=str(datetime.date.today()))
+    
 @flask_app.route("/healthz")
 def healthz():
     return jsonify({"ok": True, "bot_ready": bot.is_ready(), "ts": datetime.datetime.utcnow().isoformat() + "Z"})
