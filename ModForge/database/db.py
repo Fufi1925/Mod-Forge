@@ -48,7 +48,7 @@ class Database:
         self._config_locks: Dict[int, asyncio.Lock] = {}
         self._whitelist_locks: Dict[int, asyncio.Lock] = {}
 
-        def invalidate_config(self, guild_id: int) -> None:
+    def invalidate_config(self, guild_id: int) -> None:
         self._config_cache.pop(guild_id, None)
 
     def invalidate_whitelist(self, guild_id: int) -> None:
