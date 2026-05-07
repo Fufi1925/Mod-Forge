@@ -1131,3 +1131,19 @@ details[open] summary::after {
     grid-template-columns: 1fr;
   }
   }
+
+/* Global Notice Banner */
+.global-notice {
+  background: rgba(254, 231, 92, 0.15);
+  border-bottom: 1px solid rgba(254, 231, 92, 0.4);
+  color: var(--warn);
+  padding: 10px 0;
+  font-size: 0.9rem;
+  position: sticky;
+  top: 0;
+  z-index: 1001;
+  backdrop-filter: blur(8px);
+}
+.global-notice a {
+  text-decoration: underline;
+}
