@@ -87,76 +87,42 @@
         </ul>
         <a class="btn btn-primary" href="/login">Dashboard öffnen ↗</a>
       </div>
-<!-- Live Demo Window -->
-<div class="reveal-right">
-  <div class="demo-window">
-    <div class="demo-titlebar">
-      <div class="demo-dots"><span style="background:#ef4444"></span><span style="background:#eab308"></span><span style="background:#22c55e"></span></div>
-      <div class="demo-url">modforge.up.railway.app/dashboard/xxx/overview</div>
-    </div>
-    <div class="demo-inner">
-      <div class="demo-sidebar">
-        <div class="demo-nav-item on">📊 Übersicht</div>
-        <div class="demo-nav-item">⚡ Anti-Spam</div>
-        <div class="demo-nav-item">💥 Anti-Nuke</div>
-        <div class="demo-nav-item">🚨 Anti-Raid</div>
-        <div class="demo-nav-item">🤖 AutoMod</div>
-        <div class="demo-nav-item">👋 Welcome</div>
-        <div class="demo-nav-item">📋 Cases</div>
-      </div>
-      <div class="demo-content">
-        <div class="demo-kpis">
-          <div class="demo-kpi"><div class="v" id="d-m" style="color:#4169E1">1,247</div><div class="l">Mitglieder</div></div>
-          <div class="demo-kpi"><div class="v" id="d-c" style="color:#9B59B6">48</div><div class="l">Cases</div></div>
-          <div class="demo-kpi"><div class="v" id="d-w" style="color:#FEE75C">31</div><div class="l">Warns</div></div>
-          <div class="demo-kpi"><div class="v" id="d-b" style="color:#ED4245">3</div><div class="l">Bans</div></div>
-        </div>
-        <div class="demo-list" id="d-list">
-          <div class="demo-list-row"><span class="demo-tag" style="background:rgba(239,68,68,.2);color:#fca5a5">BAN</span><span>User#1234</span><span style="margin-left:auto;opacity:.5">2m</span></div>
-          <div class="demo-list-row"><span class="demo-tag" style="background:rgba(234,179,8,.2);color:#fcd34d">WARN</span><span>User#5678</span><span style="margin-left:auto;opacity:.5">5m</span></div>
-          <div class="demo-list-row"><span class="demo-tag" style="background:rgba(56,189,248,.2);color:#7dd3fc">MUTE</span><span>User#9012</span><span style="margin-left:auto;opacity:.5">8m</span></div>
+      <!-- Live Demo Window -->
+      <div class="reveal-right">
+        <div class="demo-window">
+          <div class="demo-titlebar">
+            <div class="demo-dots"><span style="background:#ef4444"></span><span style="background:#eab308"></span><span style="background:#22c55e"></span></div>
+            <div class="demo-url">modforge.up.railway.app/dashboard/xxx/overview</div>
+          </div>
+          <div class="demo-inner">
+            <div class="demo-sidebar">
+              <div class="demo-nav-item on">📊 Übersicht</div>
+              <div class="demo-nav-item">⚡ Anti-Spam</div>
+              <div class="demo-nav-item">💥 Anti-Nuke</div>
+              <div class="demo-nav-item">🚨 Anti-Raid</div>
+              <div class="demo-nav-item">🤖 AutoMod</div>
+              <div class="demo-nav-item">👋 Welcome</div>
+              <div class="demo-nav-item">📋 Cases</div>
+            </div>
+            <div class="demo-content">
+              <div class="demo-kpis">
+                <div class="demo-kpi"><div class="v" id="d-m" style="color:#4169E1">1,247</div><div class="l">Mitglieder</div></div>
+                <div class="demo-kpi"><div class="v" id="d-c" style="color:#9B59B6">48</div><div class="l">Cases</div></div>
+                <div class="demo-kpi"><div class="v" id="d-w" style="color:#FEE75C">31</div><div class="l">Warns</div></div>
+                <div class="demo-kpi"><div class="v" id="d-b" style="color:#ED4245">3</div><div class="l">Bans</div></div>
+              </div>
+              <div class="demo-list" id="d-list">
+                <div class="demo-list-row"><span class="demo-tag" style="background:rgba(239,68,68,.2);color:#fca5a5">BAN</span><span>User#1234</span><span style="margin-left:auto;opacity:.5">2m</span></div>
+                <div class="demo-list-row"><span class="demo-tag" style="background:rgba(234,179,8,.2);color:#fcd34d">WARN</span><span>User#5678</span><span style="margin-left:auto;opacity:.5">5m</span></div>
+                <div class="demo-list-row"><span class="demo-tag" style="background:rgba(56,189,248,.2);color:#7dd3fc">MUTE</span><span>User#9012</span><span style="margin-left:auto;opacity:.5">8m</span></div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   </div>
-</div>
-
-<!-- INLINE-SCRIPT: Demo Live Update -->
-<style>
-  @keyframes demoFadeIn { from { opacity: 0; } to { opacity: 1; } }
-</style>
-<script>
-  (function() {
-    if (!document.getElementById('d-list')) return;
-
-    const rows = [
-      { tag: 'BAN',  tc: 'rgba(239,68,68,.2)', fc: '#fca5a5', user: 'User#' + Math.floor(Math.random() * 9000 + 1000) },
-      { tag: 'WARN', tc: 'rgba(234,179,8,.2)', fc: '#fcd34d', user: 'User#' + Math.floor(Math.random() * 9000 + 1000) },
-      { tag: 'MUTE', tc: 'rgba(56,189,248,.2)', fc: '#7dd3fc', user: 'User#' + Math.floor(Math.random() * 9000 + 1000) },
-      { tag: 'KICK', tc: 'rgba(234,179,8,.2)', fc: '#fcd34d', user: 'User#' + Math.floor(Math.random() * 9000 + 1000) },
-      { tag: 'SPAM', tc: 'rgba(91,110,255,.2)', fc: '#5b7fff', user: 'User#' + Math.floor(Math.random() * 9000 + 1000) }
-    ];
-
-    let li = 0;
-    setInterval(function() {
-      const r = rows[li % rows.length]; li++;
-      const list = document.getElementById('d-list');
-      if (!list) return;
-
-      const newRow = document.createElement('div');
-      newRow.className = 'demo-list-row';
-      newRow.style.animation = 'demoFadeIn .4s ease';
-      newRow.innerHTML = '<span class="demo-tag" style="background:' + r.tc + ';color:' + r.fc + '">' + r.tag + '</span>'
-        + '<span>' + r.user + '</span><span style="margin-left:auto;opacity:.5">jetzt</span>';
-
-      list.insertBefore(newRow, list.firstChild);
-      if (list.children.length > 3) list.removeChild(list.lastChild);
-
-      const dc = document.getElementById('d-c');
-      if (dc) dc.textContent = parseInt(dc.textContent || 0) + 1;
-    }, 3200);
-  })();
-</script>
+</section>
 
 <!-- LOG MODULES -->
 <section class="section section-alt">
