@@ -21,7 +21,6 @@ class Database:
 
     def __init__(self, mongo_url: str = None) -> None:
         mongo_url = os.getenv("MONGO_URL") or mongo_url or "mongodb://localhost:27017"
-        # Nur tlsAllowInvalidCertificates verwenden, kein tlsCAFile
         self.client: AsyncIOMotorClient = AsyncIOMotorClient(
             mongo_url,
             serverSelectionTimeoutMS=8000,
@@ -37,6 +36,7 @@ class Database:
         self.counters: AsyncIOMotorCollection = self.db["counters"]
         self.message_archive: AsyncIOMotorCollection = self.db["message_archive"]
         self.guild_events: AsyncIOMotorCollection = self.db["guild_events"]
+        self.server_accounts: AsyncIOMotorCollection = self.db["server_accounts"]
 
         self._config_cache: TTLCache = TTLCache(
             maxsize=self.CONFIG_CACHE_MAXSIZE, ttl=self.CONFIG_CACHE_TTL
@@ -45,7 +45,6 @@ class Database:
             maxsize=self.WHITELIST_CACHE_MAXSIZE, ttl=self.WHITELIST_CACHE_TTL
         )
 
-        # Locks aufräumen mit max. 100 Einträgen
         self._config_locks: Dict[int, asyncio.Lock] = {}
         self._whitelist_locks: Dict[int, asyncio.Lock] = {}
 
@@ -89,14 +88,12 @@ class Database:
             if k not in cfg:
                 cfg[k] = v.copy() if isinstance(v, (dict, list)) else v
             elif isinstance(v, dict) and isinstance(cfg[k], dict):
-                # Fehlende sub‑keys setzen, ohne existierende zu überschreiben
                 for sub_k, sub_v in v.items():
                     cfg[k].setdefault(sub_k, sub_v)
-        # Entferne _id, damit sie nicht im Cache oder bei Updates stört
         cfg.pop("_id", None)
         return cfg
 
-    # ── Verbindungsprüfung (wird in setup_hook aufgerufen) ──
+    # ── Verbindungsprüfung (optional, wird in setup_hook aufgerufen) ──
     async def test_connection(self) -> bool:
         try:
             await self.client.admin.command("ping")
@@ -112,7 +109,6 @@ class Database:
         cached = self._config_cache.get(guild_id)
         if cached is not None:
             return cached
-        # Kein Cache‑Hit → Defaults ausliefern und im Hintergrund laden
         from bot.config import DEFAULT_CONFIG
         default = self._ensure_defaults(DEFAULT_CONFIG.copy())
         self._config_cache[guild_id] = default
@@ -138,7 +134,6 @@ class Database:
                     await self.config.insert_one(data)
                 except PyMongoError as e:
                     log.error(f"DB insert_one (config) Fehler: {e}")
-            # Sicherstellen, dass Defaults und keine _id im Cache landen
             cleaned = self._ensure_defaults(data)
             self._config_cache[guild_id] = cleaned
             return cleaned
@@ -152,7 +147,6 @@ class Database:
             )
         except PyMongoError as e:
             log.error(f"DB set_config Fehler: {e}")
-        # Cache aktualisieren (ohne _id)
         self._config_cache[guild_id] = self._ensure_defaults(cfg)
 
     async def update_module(self, guild_id: int, module: str, key: str, value: Any) -> None:
@@ -177,7 +171,7 @@ class Database:
     async def aupdate_module(self, guild_id: int, module: str, key: str, value: Any) -> None:
         await self.update_module(guild_id, module, key, value)
 
-    # ── Whitelist (analog mit Kopie und _id entfernt) ───────
+    # ── Whitelist ──────────────────────────────────────────
     def get_whitelist(self, guild_id: int) -> dict:
         cached = self._whitelist_cache.get(guild_id)
         if cached is not None:
@@ -361,6 +355,7 @@ class Database:
             await self.cases.create_index(
                 [("guild_id", ASCENDING), ("user_id", ASCENDING)], name="cases_user_lookup")
             await self.guild_events.create_index([("timestamp", DESCENDING)], name="events_recent")
+            await self.server_accounts.create_index("guild_id", unique=True, name="sa_guild_unique")
             log.info("MongoDB-Indizes erstellt/verifiziert.")
         except PyMongoError as e:
             log.error(f"DB ensure_indexes Fehler: {e}")
@@ -377,7 +372,7 @@ class Database:
             return int(doc["seq"])
         except PyMongoError as e:
             log.error(f"DB anext_case_id Fehler: {e}")
-            return int(time.time())  # Fallback ohne asyncio.get_event_loop()
+            return int(time.time())
 
     async def acreate_case(self, guild_id: int, user_id: int, mod_id: int,
                            action: str, reason: str, duration: Optional[int] = None) -> int:
