@@ -1147,3 +1147,65 @@ details[open] summary::after {
 .global-notice a {
   text-decoration: underline;
 }
+
+/* ── Live Activity Page ── */
+.live-event-card {
+    transition: all 0.3s var(--t);
+}
+
+.live-event-card:hover {
+    border-color: rgba(91, 110, 255, 0.4) !important;
+    box-shadow: 0 12px 32px rgba(91, 110, 255, 0.15) !important;
+    transform: translateY(-2px);
+}
+
+.live-log {
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    background: var(--card);
+}
+
+.live-log > div:first-child {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--fg);
+    background: rgba(255, 255, 255, 0.02);
+}
+
+#activity-list {
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+#activity-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+#activity-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#activity-list::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 3px;
+}
+
+#activity-list > div {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 10px 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    transition: background 0.15s ease;
+}
+
+#activity-list > div:hover {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+#activity-list > div:last-child {
+    border-bottom: none;
+}
