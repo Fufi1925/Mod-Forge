@@ -9,7 +9,7 @@ import threading
 from collections import defaultdict, deque
 from functools import wraps
 
-from bot.utils import get_live_logs
+from bot.config import ACTIVITY
 
 
 from werkzeug.security import check_password_hash, generate_password_hash
