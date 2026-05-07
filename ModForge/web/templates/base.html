@@ -14,6 +14,18 @@
   <!-- Seite über den Canvas heben -->
   <div class="page-wrapper">
 
+    <!-- ⚠️ HINWEIS-BANNER -->
+    <div id="global-notice" class="global-notice" style="display: none;">
+      <div class="container" style="display: flex; align-items: center; justify-content: space-between;">
+        <span>
+          ⚠️ <strong>Admin‑Dashboard vorübergehend ausgefallen</strong> –
+          <span style="color: var(--ok);">🟢 NEU:</span>
+          <a href="/live" style="color: var(--p); font-weight: 600; text-decoration: underline;">/live – Echtzeit‑Bot‑Aktivität jetzt verfolgen</a>
+        </span>
+        <button id="close-notice" style="background: none; border: none; color: var(--fg); font-size: 1.3rem; cursor: pointer; line-height: 1;">&times;</button>
+      </div>
+    </div>
+
     <nav class="topnav">
       <a class="brand" href="/">
         <div class="brand-icon">🛡️</div>
@@ -23,6 +35,7 @@
         <a href="/">Home</a>
         <a href="/status">Status</a>
         <a href="/changelog">Changelog</a>
+        <a href="/live" style="color: var(--ok);">⚡ Live</a>
         <a href="/terms">Terms</a>
         <a href="/privacy">Privacy</a>
         <a href="/login" class="nav-cta">Dashboard ↗</a>
@@ -44,6 +57,7 @@
           <h4>Links</h4>
           <a href="/status">Status</a>
           <a href="/changelog">Changelog</a>
+          <a href="/live">Live Aktivität</a>
           <a href="/login">Dashboard</a>
         </div>
         <div>
@@ -65,5 +79,20 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="/static/script.js"></script>
+
+  <!-- Banner-Logik -->
+  <script>
+    (function() {
+      var notice = document.getElementById('global-notice');
+      var closeBtn = document.getElementById('close-notice');
+      if (!localStorage.getItem('global-notice-closed')) {
+        notice.style.display = 'block';
+      }
+      closeBtn.addEventListener('click', function() {
+        notice.style.display = 'none';
+        localStorage.setItem('global-notice-closed', 'true');
+      });
+    })();
+  </script>
 </body>
 </html>
