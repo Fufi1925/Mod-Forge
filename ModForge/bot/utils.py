@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 import asyncio
+import logging
+from collections import deque
 import io
 import random
 import string
@@ -136,3 +138,28 @@ def _run_async(coro, timeout: float = 8.0):
     except Exception as ex:
         log.debug(f"_run_async: {ex}")
         return None
+
+class RingLogHandler(logging.Handler):
+    """Speichert die letzten `max_entries` Logs in einer Liste."""
+    def __init__(self, max_entries=200):
+        super().__init__()
+        self.max_entries = max_entries
+        self.entries = deque(maxlen=max_entries)
+
+    def emit(self, record):
+        msg = self.format(record)
+        self.entries.append({
+            "time": datetime.datetime.utcnow().strftime("%H:%M:%S"),
+            "level": record.levelname,
+            "name": record.name,
+            "msg": msg
+        })
+
+# Globalen Handler erstellen und zum Root-Logger hinzufügen
+_live_handler = RingLogHandler(max_entries=200)
+_live_handler.setFormatter(logging.Formatter("%(message)s"))
+_live_handler.setLevel(logging.DEBUG)
+logging.getLogger().addHandler(_live_handler)
+
+def get_live_logs():
+    return list(_live_handler.entries)
