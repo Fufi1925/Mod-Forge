@@ -1,3 +1,4 @@
+# web/routes.py
 from flask import render_template, request, redirect, url_for, session, jsonify, Response
 import datetime
 import logging
@@ -47,7 +48,6 @@ log = logging.getLogger("ModForge.Web.Routes")
 
 # ---------- SAFE ASYNC ----------
 def safe_async(coro, default=None):
-    """Führt eine Coroutine threadsafe aus und fängt Fehler ab."""
     try:
         return _run_async(coro)
     except Exception as e:
@@ -96,16 +96,16 @@ def changelog():
 
 @flask_app.route("/terms")
 def terms():
-    return render_template("terms.html", title="Terms of Service", today=str(datetime.date.today()), content="Terms...")
+    return render_template("terms.html", title="Terms of Service", today=str(datetime.date.today()))
 
 @flask_app.route("/privacy")
 def privacy():
-    return render_template("privacy.html", title="Privacy Policy", today=str(datetime.date.today()), content="Privacy...")
+    return render_template("privacy.html", title="Privacy Policy", today=str(datetime.date.today()))
 
 @flask_app.route("/imprint")
 def imprint():
     return render_template("imprint.html", title="Impressum", today=str(datetime.date.today()))
-    
+
 @flask_app.route("/healthz")
 def healthz():
     return jsonify({"ok": True, "bot_ready": bot.is_ready(), "ts": datetime.datetime.utcnow().isoformat() + "Z"})
@@ -118,7 +118,6 @@ def metrics():
         at = safe_async(bot.db.message_archive.count_documents({})) if bot.is_ready() and bot.db else 0
     except Exception:
         ct, at = 0, 0
-
     return Response(
         f"modforge_uptime_seconds {up}\n"
         f"modforge_latency_ms {lat}\n"
@@ -154,7 +153,6 @@ def oauth_callback():
     code = request.args.get("code")
     state = request.args.get("state")
     session_state = session.pop("oauth_state", None)
-
     if not code or state != session_state:
         return redirect(url_for("discord_login_page"))
 
@@ -165,14 +163,12 @@ def oauth_callback():
         "code": code,
         "redirect_uri": OAUTH2_REDIRECT,
     })
-
     if not token_data or "access_token" not in token_data:
         return render_template("login.html", error="OAuth fehlgeschlagen.", info=None, admin_available=bool(ADMIN_PASSWORD))
 
     access_token = token_data["access_token"]
     user = _discord_api_call("/users/@me", token=access_token)
     guilds = _discord_api_call("/users/@me/guilds", token=access_token) or []
-
     if not user or "id" not in user:
         return render_template("login.html", error="User fetch failed.", info=None, admin_available=bool(ADMIN_PASSWORD))
 
@@ -180,9 +176,7 @@ def oauth_callback():
     session["discord_user"] = user
     session["user_guilds"] = guilds
     session["access_token"] = access_token
-
     ACTIVITY.push("oauth_login", f"{user.get('username')} ({user.get('id')})")
-
     return redirect(url_for("user_dash_home"))
 
 # ---------- SERVER LOGIN (eigenes System) ----------
@@ -195,7 +189,8 @@ def server_login():
         if not guild_name or not password:
             error = 'Bitte Server‑Name und Passwort eingeben.'
         else:
-            acc = safe_async(bot.db.db.server_accounts.find_one({'guild_name': guild_name}))
+            # Collection 'server_accounts' muss in db.py existieren
+            acc = safe_async(bot.db.server_accounts.find_one({'guild_name': guild_name}))
             if acc and check_password_hash(acc['password_hash'], password):
                 session['server_guild_id'] = str(acc['guild_id'])
                 return redirect(url_for('user_dash_guild', guild_id=str(acc['guild_id']), section='overview'))
@@ -211,19 +206,15 @@ def logout():
 # ---------- Dashboard ----------
 @flask_app.route("/dashboard")
 def user_dash_home():
-    # Nur für Discord Login
     user = _get_session_user()
     if not user:
         return redirect(url_for("discord_login_page"))
-
     servers = _get_user_guilds_with_bot(session.get("user_guilds", []))
     cid = str(bot.user.id) if bot.user else str(DISCORD_CLIENT_ID or "")
-
     return render_template("dashboard_home.html", user=user, servers=servers, cid=cid)
 
 @flask_app.route("/dashboard/<guild_id>/<section>")
 def user_dash_guild(guild_id, section):
-    # Zugriff via Server-Login oder Discord-Login prüfen
     user = _get_session_user()
     if session.get('server_guild_id') and str(session['server_guild_id']) == guild_id:
         user = session.get("discord_user")  # kann None sein
@@ -235,7 +226,6 @@ def user_dash_guild(guild_id, section):
         return redirect(url_for("discord_login_page"))
 
     cfg = _get_guild_config(guild_id)
-
     guild_name = f"Server {guild_id}"
     if bot.is_ready():
         g = bot.get_guild(int(guild_id))
@@ -259,18 +249,14 @@ def user_dash_guild(guild_id, section):
 
 @flask_app.route("/dashboard/<guild_id>/api/save", methods=["POST"])
 def user_dash_save(guild_id):
-    # Berechtigung prüfen
     user = _get_session_user()
     if not (str(session.get('server_guild_id')) == guild_id or (user and _user_can_manage_guild(guild_id))):
         return jsonify({"error": "no permission"}), 403
-
     data = request.get_json()
     module = data.get("module")
     settings = data.get("settings")
-
     if not module or not isinstance(settings, dict):
         return jsonify({"error": "invalid"}), 400
-
     if bot.is_ready() and bot.db:
         try:
             cfg = safe_async(bot.db.aget_config(int(guild_id))) or {}
@@ -279,7 +265,6 @@ def user_dash_save(guild_id):
             return jsonify({"ok": True})
         except Exception as e:
             return jsonify({"error": str(e)}), 500
-
     return jsonify({"error": "bot offline"}), 503
 
 # ---------- Admin ----------
@@ -305,24 +290,20 @@ def _fail(ip):
 def admin_login():
     if not ADMIN_PASSWORD:
         return "Admin disabled"
-
     ip = _ip()
     err = None
-
     if request.method == "POST":
         if _blocked(ip):
             err = "Too many tries"
         else:
             u = request.form.get("username", "")
             p = request.form.get("password", "")
-
             if secrets.compare_digest(u, ADMIN_USERNAME) and secrets.compare_digest(p, ADMIN_PASSWORD):
                 session["admin"] = True
                 return redirect(url_for("admin_dashboard"))
             else:
                 _fail(ip)
                 err = "Wrong login"
-
     return render_template("admin_login.html", error=err)
 
 @flask_app.route("/admin/dashboard")
@@ -334,7 +315,6 @@ def admin_dashboard():
 def build_admin_data():
     guilds_payload = []
     mt = 0
-
     for g in bot.guilds:
         mt += g.member_count or 0
         guilds_payload.append({
@@ -342,10 +322,8 @@ def build_admin_data():
             "name": g.name,
             "member_count": g.member_count or 0,
         })
-
     ct = safe_async(bot.db.cases.count_documents({}))
     at = safe_async(bot.db.message_archive.count_documents({}))
-
     return {
         "stats": {
             "guild_count": len(guilds_payload),
@@ -362,14 +340,11 @@ def build_admin_data():
 def admin_api_state():
     if not session.get("admin") or not bot.is_ready():
         return jsonify({})
-
     if time.time() - _admin_cache["ts"] < 5:
         return jsonify(_admin_cache["data"])
-
     data = build_admin_data()
     _admin_cache["data"] = data
     _admin_cache["ts"] = time.time()
-
     return jsonify(data)
 
 # ---------- ADMIN: Server-Accounts verwalten ----------
@@ -381,7 +356,7 @@ def admin_accounts():
         action = request.form.get('action')
         if action == 'delete':
             guild_id = int(request.form.get('guild_id'))
-            safe_async(bot.db.db.server_accounts.delete_one({'guild_id': guild_id}))
+            safe_async(bot.db.server_accounts.delete_one({'guild_id': guild_id}))
             msg = 'Account gelöscht.'
         else:
             guild_id = int(request.form.get('guild_id'))
@@ -391,11 +366,11 @@ def admin_accounts():
                 msg = 'Name und Passwort erforderlich.'
             else:
                 pw_hash = generate_password_hash(password)
-                safe_async(bot.db.db.server_accounts.update_one(
+                safe_async(bot.db.server_accounts.update_one(
                     {'guild_id': guild_id},
                     {'$set': {'guild_id': guild_id, 'guild_name': guild_name, 'password_hash': pw_hash}},
                     upsert=True
                 ))
                 msg = 'Account gespeichert.'
-    accounts = safe_async(bot.db.db.server_accounts.find().to_list(100)) or []
+    accounts = safe_async(bot.db.server_accounts.find().to_list(100)) or []
     return render_template('admin_accounts.html', accounts=accounts, msg=msg)
