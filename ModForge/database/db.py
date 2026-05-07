@@ -20,9 +20,13 @@ class Database:
 
     def __init__(self, mongo_url: str = None) -> None:
         mongo_url = os.getenv("MONGO_URL") or mongo_url or "mongodb://localhost:27017"
-        self.client: AsyncIOMotorClient = AsyncIOMotorClient(mongo_url, serverSelectionTimeoutMS=8000)
+        self.client: AsyncIOMotorClient = AsyncIOMotorClient(
+            mongo_url,
+            serverSelectionTimeoutMS=8000,
+            tlsAllowInvalidCertificates=True
+        )
         self.db = self.client["ModForge"]
-    
+
         self.config: AsyncIOMotorCollection = self.db["config"]
         self.whitelist: AsyncIOMotorCollection = self.db["whitelist"]
         self.data: AsyncIOMotorCollection = self.db["data"]
@@ -32,12 +36,16 @@ class Database:
         self.message_archive: AsyncIOMotorCollection = self.db["message_archive"]
         self.guild_events: AsyncIOMotorCollection = self.db["guild_events"]
 
-        self._config_cache: TTLCache = TTLCache(maxsize=self.CONFIG_CACHE_MAXSIZE, ttl=self.CONFIG_CACHE_TTL)
-        self._whitelist_cache: TTLCache = TTLCache(maxsize=self.WHITELIST_CACHE_MAXSIZE, ttl=self.WHITELIST_CACHE_TTL)
+        self._config_cache: TTLCache = TTLCache(
+            maxsize=self.CONFIG_CACHE_MAXSIZE, ttl=self.CONFIG_CACHE_TTL
+        )
+        self._whitelist_cache: TTLCache = TTLCache(
+            maxsize=self.WHITELIST_CACHE_MAXSIZE, ttl=self.WHITELIST_CACHE_TTL
+        )
 
         self._config_locks: Dict[int, asyncio.Lock] = {}
         self._whitelist_locks: Dict[int, asyncio.Lock] = {}
-
+        
     def invalidate_config(self, guild_id: int) -> None:
         self._config_cache.pop(guild_id, None)
 
