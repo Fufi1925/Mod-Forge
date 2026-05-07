@@ -3,6 +3,7 @@ import asyncio
 import datetime
 import logging
 import os
+import certifi
 from typing import Any, Dict, List, Optional
 
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorCollection
@@ -19,18 +20,12 @@ class Database:
     WHITELIST_CACHE_MAXSIZE = 10000
 
     def __init__(self, mongo_url: str = None) -> None:
-        # 1. Umgebungsvariable 2. Parameter 3. Fallback
         mongo_url = os.getenv("MONGO_URL") or mongo_url or "mongodb://localhost:27017"
         self.client: AsyncIOMotorClient = AsyncIOMotorClient(
             mongo_url,
             serverSelectionTimeoutMS=8000,
-            tls=True,
-            tlsAllowInvalidCertificates=True,
-            tlsAllowInvalidHostnames=True,
-            connectTimeoutMS=15000,
-            socketTimeoutMS=15000,
-            retryWrites=True,
-            w="majority"
+            tlsCAFile=certifi.where(),
+            tlsAllowInvalidCertificates=True
         )
         self.db = self.client["ModForge"]
 
@@ -53,7 +48,7 @@ class Database:
         self._config_locks: Dict[int, asyncio.Lock] = {}
         self._whitelist_locks: Dict[int, asyncio.Lock] = {}
 
-    def invalidate_config(self, guild_id: int) -> None:
+        def invalidate_config(self, guild_id: int) -> None:
         self._config_cache.pop(guild_id, None)
 
     def invalidate_whitelist(self, guild_id: int) -> None:
