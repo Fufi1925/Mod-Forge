@@ -2,6 +2,7 @@
 import asyncio
 import datetime
 import logging
+import os
 from typing import Any, Dict, List, Optional
 
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorCollection
@@ -18,11 +19,9 @@ class Database:
     WHITELIST_CACHE_MAXSIZE = 10000
 
     def __init__(self, mongo_url: str = None) -> None:
-    import os
-    # 1. Umgebungsvariable lesen, 2. übergebenen Parameter, 3. lokaler Fallback
-    mongo_url = os.getenv("MONGO_URL") or mongo_url or "mongodb://localhost:27017"
-    self.client: AsyncIOMotorClient = AsyncIOMotorClient(mongo_url, serverSelectionTimeoutMS=8000)
-    self.db = self.client["ModForge"]
+        mongo_url = os.getenv("MONGO_URL") or mongo_url or "mongodb://localhost:27017"
+        self.client: AsyncIOMotorClient = AsyncIOMotorClient(mongo_url, serverSelectionTimeoutMS=8000)
+        self.db = self.client["ModForge"]
     
         self.config: AsyncIOMotorCollection = self.db["config"]
         self.whitelist: AsyncIOMotorCollection = self.db["whitelist"]
