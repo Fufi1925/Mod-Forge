@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import asyncio
-import bot
 import datetime
 import logging
 import random
@@ -28,6 +27,7 @@ from bot.utils import (
     GLOBAL_API_SEMAPHORE, rate_limited, create_embed,
     generate_captcha, check_phishing_url, can_moderate, parse_duration
 )
+
 
 
 # ═══════════════════════════════════════════════════════════════════
