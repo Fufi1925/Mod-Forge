@@ -30,21 +30,6 @@ from bot.utils import (
 )
 
 
-from bot import bot
-
-logging.basicConfig(level=logging.INFO)
-
-while True:
-    try:
-        logging.info("Starte Bot...")
-        bot.run(BOT_TOKEN, log_handler=None)
-
-    except Exception as e:
-        logging.error(f"Bot Crash: {e}")
-
-        # wartet bevor reconnect
-        time.sleep(10)
-
 # ═══════════════════════════════════════════════════════════════════
 # TRACKER (IN-MEMORY)
 # ═══════════════════════════════════════════════════════════════════
@@ -3947,3 +3932,12 @@ async def on_app_command_error(interaction: discord.Interaction,
             user=interaction.user if isinstance(interaction.user, discord.Member) else None,
             module="errors",
     )
+        
+        
+if __name__ == "__main__":
+    try:
+        logging.info("Starte Bot...")
+        bot.run(BOT_TOKEN, log_handler=None)
+    except Exception as e:
+        logging.error(f"Bot Crash: {e}")
+        time.sleep(10)
