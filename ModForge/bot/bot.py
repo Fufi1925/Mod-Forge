@@ -29,6 +29,20 @@ from bot.utils import (
 )
 from database.db import Database
 
+
+logging.basicConfig(level=logging.INFO)
+
+while True:
+    try:
+        logging.info("Starte Bot...")
+        bot.run(BOT_TOKEN, log_handler=None)
+
+    except Exception as e:
+        logging.error(f"Bot Crash: {e}")
+
+        # wartet bevor reconnect
+        time.sleep(10)
+
 # ═══════════════════════════════════════════════════════════════════
 # TRACKER (IN-MEMORY)
 # ═══════════════════════════════════════════════════════════════════
