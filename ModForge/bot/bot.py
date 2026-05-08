@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import asyncio
+import bot
 import datetime
 import logging
 import random
@@ -29,7 +30,7 @@ from bot.utils import (
 )
 
 
-from bot.config import bot
+from bot import bot
 
 logging.basicConfig(level=logging.INFO)
 
