@@ -871,6 +871,7 @@ async def _submit_appeal(user: discord.User, session: dict) -> None:
 # HILFSFUNKTIONEN FÜR LOCKDOWN & NUKE
 # ═══════════════════════════════════════════════════════════════
 async def _activate_lockdown(guild: discord.Guild) -> None:
+    """Sperrt alle Textkanäle für @everyone."""
     for channel in guild.text_channels:
         try:
             await channel.set_permissions(guild.default_role, send_messages=False,
@@ -884,6 +885,7 @@ async def _activate_lockdown(guild: discord.Guild) -> None:
 
 
 async def _deactivate_lockdown(guild: discord.Guild) -> None:
+    """Hebt den Lockdown vollständig auf."""
     for channel in guild.text_channels:
         try:
             await channel.set_permissions(guild.default_role, send_messages=None,
@@ -897,7 +899,133 @@ async def _deactivate_lockdown(guild: discord.Guild) -> None:
                          COLOR_SUCCESS, module="antiraid")
 
 
+async def _auto_deactivate_lockdown(guild: discord.Guild, delay: int) -> None:
+    """Hebt den Lockdown nach `delay` Sekunden auf, falls er noch aktiv ist."""
+    await asyncio.sleep(delay)
+    if bot.tracker.lockdown_active[guild.id]:
+        await _deactivate_lockdown(guild)
+
+
+async def _notify_owner_nuke(guild: discord.Guild, executor: Optional[discord.Member],
+                             executor_id: int, action: str, punishment: str) -> None:
+    """Sendet eine detaillierte Anti-Nuke-Alarm-DM an den Server-Owner."""
+    owner = guild.owner
+    if not owner:
+        try:
+            owner = await guild.fetch_member(guild.owner_id)
+        except Exception:
+            return
+    if not owner:
+        return
+
+    now = datetime.datetime.now(datetime.timezone.utc)
+    timestamp_f = f"<t:{int(now.timestamp())}:F>"
+    timestamp_r = f"<t:{int(now.timestamp())}:R>"
+
+    user_line = executor.mention if executor else f"Unbekannter User (`{executor_id}`)"
+    if executor:
+        account_created = f"<t:{int(executor.created_at.timestamp())}:R>"
+        account_age = f"\n**Account erstellt:** {account_created}"
+        roles = ", ".join(r.name for r in executor.roles if r.name != "@everyone") or "Keine"
+    else:
+        account_age = ""
+        roles = "Nicht verfügbar"
+
+    embed = create_embed(
+        title=f"{E.NUKE} KRITISCHER ANTI-NUKE ALARM",
+        description=(
+            f"### ⚠️ Sicherheitsverstoß auf deinem Server!\n\n"
+            f"Auf **{guild.name}** wurde eine potenziell zerstörerische Massenaktivität erkannt "
+            f"und **automatisch gestoppt**. Um deinen Server zu schützen, hat ModForge sofort "
+            f"einen **Lockdown aktiviert** und den Täter bestraft.\n\n"
+            f"Bitte lies die folgenden Details sorgfältig durch – sie helfen dir, den Vorfall "
+            f"vollständig zu verstehen und ggf. weitere Maßnahmen zu ergreifen."
+        ),
+        color=COLOR_DANGER,
+        thumbnail=guild.icon.url if guild.icon else None
+    )
+
+    embed.add_field(
+        name="📊 Analyse des Vorfalls",
+        value=(
+            f"**Erkannte Aktion:** `{action}`\n"
+            f"**Status:** 🛑 Gestoppt & Isoliert\n"
+            f"**Zeitpunkt:** {timestamp_f} ({timestamp_r})\n"
+            f"**Betroffener Server:** {guild.name} (`{guild.id}`)"
+        ),
+        inline=False
+    )
+
+    embed.add_field(
+        name="👤 Verursacher",
+        value=(
+            f"{user_line}{account_age}\n"
+            f"**User‑ID:** `{executor_id}`\n"
+            f"**Rollen:** {roles}\n"
+            f"**Verhängte Strafe:** {punishment}"
+        ),
+        inline=False
+    )
+
+    embed.add_field(
+        name="🔒 Sofortmaßnahmen",
+        value=(
+            f"1. **Server‑Lockdown** – alle Kanäle sind für Mitglieder gesperrt (Dauer: 10 Minuten).\n"
+            f"2. **Rollenentzug** – der Täter hat alle Rollen verloren (falls aktiviert).\n"
+            f"3. **Bestrafung** – der Täter wurde mit `{punishment}` bestraft.\n"
+            f"4. **Audit‑Log** – ein detaillierter Eintrag wurde im Log‑Kanal hinterlegt."
+        ),
+        inline=False
+    )
+
+    embed.add_field(
+        name="⏳ Lockdown-Informationen",
+        value=(
+            f"Der Lockdown wurde automatisch für **10 Minuten** aktiviert und wird danach "
+            f"selbstständig aufgehoben. Während dieser Zeit können normale Nutzer **keine Nachrichten senden**.\n\n"
+            f"Falls du den Lockdown vorzeitig beenden möchtest, nutze den Befehl `/unlockdown` "
+            f"oder ändere die Kanaleinstellungen manuell."
+        ),
+        inline=False
+    )
+
+    embed.add_field(
+        name="🛡️ Empfehlungen für dich",
+        value=(
+            "• **Audit‑Logs prüfen:** Gehe in die Server‑Einstellungen → Audit‑Log und "
+            "durchsuche den Zeitraum nach dem Vorfall.\n"
+            "• **Rollen & Berechtigungen:** Überprüfe, warum der Täter diese Aktionen ausführen "
+            "konnte, und passe ggf. die Rechte an.\n"
+            "• **Sicherheitsstufe erhöhen:** Erwäge `/security_level` auf 2 oder 3 zu setzen.\n"
+            "• **Team informieren:** Alarmiere dein Admin‑Team über diesen Vorfall.\n"
+            "• **Kontakt:** Bei Fragen oder Hilfe erstelle ein Ticket im Support‑Server."
+        ),
+        inline=False
+    )
+
+    embed.add_field(
+        name="📋 Protokollierung",
+        value=(
+            "Dieser Vorfall wurde automatisch in der ModForge‑Datenbank als **Case** gespeichert "
+            "und kann von Administratoren mit `/case <id>` eingesehen werden."
+        ),
+        inline=False
+    )
+
+    embed.set_footer(
+        text=f"ModForge Security · Server: {guild.name}",
+        icon_url=FOOTER_ICON
+    )
+    embed.timestamp = now
+
+    try:
+        await owner.send(embed=embed)
+    except (discord.Forbidden, discord.HTTPException):
+        pass
+
+
 async def _nuke_check(guild: discord.Guild, executor_id: int, action: str) -> None:
+    """Überwacht verdächtige Massenaktionen und leitet Gegenmaßnahmen ein."""
     cfg = bot.db.get_config(guild.id)
     nuke_cfg = cfg.get("anti_nuke", {})
     if not nuke_cfg.get("enabled"):
@@ -913,21 +1041,38 @@ async def _nuke_check(guild: discord.Guild, executor_id: int, action: str) -> No
         executor = guild.get_member(executor_id)
         if not executor or bot.is_whitelisted(executor):
             return
+
+        # Rolle(n) entfernen, falls konfiguriert
         if nuke_cfg.get("remove_roles") and executor:
             try:
                 await executor.edit(roles=[], reason="Anti-Nuke: Rollen entfernt")
-            except discord.Forbidden:
+            except (discord.Forbidden, discord.HTTPException):
                 pass
-            except discord.HTTPException:
-                pass
-        await bot.punish(executor, nuke_cfg.get("punishment", "ban"),
+
+        # Täter bestrafen
+        punishment = nuke_cfg.get("punishment", "ban")
+        await bot.punish(executor, punishment,
                          f"Anti-Nuke: Verdächtige Aktivität ({action})")
+
+        # Automatischer Lockdown (10 Minuten) – nur einmal aktivieren
+        if not bot.tracker.lockdown_active[guild.id]:
+            bot.tracker.lockdown_active[guild.id] = True
+            asyncio.create_task(_auto_deactivate_lockdown(guild, 600))
+            await _activate_lockdown(guild)
+
+        # Server-Owner per DM informieren
+        await _notify_owner_nuke(guild, executor, executor_id, action, punishment)
+
+        # Ausführlicher Log-Eintrag
         await bot.log_action(
             guild,
-            f"{E.SCAM} ANTI-NUKE AUSGELÖST",
-            f"**{executor.mention if executor else executor_id}** hat verdächtige Massenaktionen durchgeführt!",
+            f"{E.NUKE} ANTI-NUKE AUSGELÖST",
+            f"**{executor.mention if executor else executor_id}** hat verdächtige Massenaktionen durchgeführt!\n"
+            f"**Lockdown:** automatisch aktiviert (10 min).",
             COLOR_DANGER,
-            [("Aktion", action, True), ("Strafe", nuke_cfg.get("punishment", "ban"), True)],
+            [("Aktion", action, True),
+             ("Strafe", punishment, True),
+             ("Lockdown", "10 Minuten", True)],
             user=executor,
             module="antinuke"
         )
@@ -943,6 +1088,7 @@ async def _audit_actor(guild: discord.Guild, action: discord.AuditLogAction,
     except discord.Forbidden:
         return None
     return None
+        
 
 
 # ═══════════════════════════════════════════════════════════════
