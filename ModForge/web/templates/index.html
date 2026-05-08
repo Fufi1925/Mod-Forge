@@ -29,14 +29,21 @@
   .stat-lbl{font-size:.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
 
   /* Server Ticker unter Stats */
-  .server-ticker-wrap{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px 0;margin-top:25px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+  .server-ticker-wrap{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px 0;margin-top:25px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.4);position:relative}
   .server-ticker-title{text-align:center;font-size:.85rem;color:var(--muted);margin-bottom:12px;text-transform:uppercase;letter-spacing:1px}
-  .server-ticker{display:flex;width:max-content;animation:ticker 40s linear infinite}
+  .server-ticker{display:flex;width:max-content;will-change:transform;transform:translate3d(0,0,0);animation:ticker 40s linear infinite}
   .server-ticker:hover{animation-play-state:paused}
-  .ticker-card{display:flex;align-items:center;gap:8px;padding:8px 20px;border-right:1px solid var(--border);flex-shrink:0;font-size:.82rem;font-weight:600;color:var(--text);opacity:.7;transition:.2s}
+  .ticker-card{display:flex;align-items:center;gap:8px;padding:8px 20px;border-right:1px solid var(--border);flex-shrink:0;font-size:.82rem;font-weight:600;color:var(--text);opacity:.7;transition:.2s;position:relative}
   .ticker-card:hover{opacity:1;background:rgba(91,110,255,.05)}
   .ticker-card img{width:28px;height:28px;border-radius:50%;border:2px solid var(--p)}
-  @keyframes ticker{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+  .ticker-card .server-security{font-size:.65rem;color:var(--green);margin-left:4px}
+  @keyframes ticker{0%{transform:translate3d(0,0,0)}100%{transform:translate3d(-50%,0,0)}}
+
+  /* Hover Preview Card */
+  .hover-preview{display:none;position:absolute;bottom:120%;left:50%;transform:translateX(-50%);background:#1e1f22;border:1px solid var(--p);border-radius:12px;padding:16px;width:240px;z-index:100;box-shadow:0 12px 30px rgba(0,0,0,.6);pointer-events:none}
+  .ticker-card:hover .hover-preview{display:block}
+  .hover-preview .preview-header{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-weight:700}
+  .hover-preview .preview-stat{font-size:.78rem;color:var(--muted);display:flex;justify-content:space-between;margin-bottom:4px}
 
   /* Features Grid */
   .feat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:20px}
@@ -257,7 +264,7 @@
     </div>
   </div>
 
-  <!-- Vertrauens-Ticker: Server mit 100+ Mitgliedern -->
+  <!-- Vertrauens-Ticker: dynamisch geladen von API -->
   <div class="server-ticker-wrap" data-aos="fade-up">
     <div class="server-ticker-title">Vertraut von über 100+ Member‑Servern</div>
     <div class="server-ticker" id="server-ticker"></div>
@@ -482,7 +489,7 @@
       <h2>Globales Sicherheits-Dashboard</h2>
       <div class="live-pill"><span class="live-dot" style="width:6px;height:6px;"></span> Echtzeit-Daten</div>
     </div>
-    <div class="gstats-grid" data-aos="fade-up">
+    <div class="gstats-grid" data-aos="fade-up" id="global-stats-grid">
       <div class="gstat-card"><div class="gstat-num" id="gs1">0</div><div class="gstat-lbl">Raids verhindert (24h)</div></div>
       <div class="gstat-card"><div class="gstat-num" id="gs2">0</div><div class="gstat-lbl">Spam gefiltert (24h)</div></div>
       <div class="gstat-card"><div class="gstat-num" id="gs3">0</div><div class="gstat-lbl">Phishing-Links blockiert</div></div>
@@ -652,22 +659,123 @@
 <script>
   // Globale Daten
   const BOT_CLIENT_ID = "{{ cid }}";
+  let LIVE_SERVERS = [];   // Wird per API geladen, Fallback: TRUSTED_SERVERS
 
-  // Serverliste für Ticker (Beispieldaten, falls keine dynamische Liste existiert)
-  const TRUSTED_SERVERS = [
-    {name:"Elite Gaming Hub", avatar:0, members:1240},
-    {name:"Dev Community", avatar:1, members:850},
-    {name:"Support HQ", avatar:2, members:630},
-    {name:"Global Lounge", avatar:3, members:3200},
-    {name:"Nitro Zone", avatar:4, members:520},
-    {name:"Anime Paradise", avatar:5, members:990},
-    {name:"Tech Talk", avatar:0, members:410},
-    {name:"FPS Masters", avatar:1, members:720},
-    {name:"Chill Vibes", avatar:2, members:1800},
-    {name:"Code & Coffee", avatar:3, members:310},
-    {name:"Roblox Central", avatar:4, members:2400},
-    {name:"Music Lounge", avatar:5, members:560}
+  // Fallback-Serverliste (wird überschrieben)
+  const FALLBACK_SERVERS = [
+    {name:"Elite Gaming Hub", avatar:0, members:1240, online: 311, security: 98},
+    {name:"Dev Community", avatar:1, members:850, online: 221, security: 99},
+    {name:"Support HQ", avatar:2, members:630, online: 178, security: 95},
+    {name:"Global Lounge", avatar:3, members:3200, online: 1024, security: 91},
+    {name:"Nitro Zone", avatar:4, members:520, online: 143, security: 88},
+    {name:"Anime Paradise", avatar:5, members:990, online: 312, security: 97},
+    {name:"Tech Talk", avatar:0, members:410, online: 98, security: 100},
+    {name:"FPS Masters", avatar:1, members:720, online: 201, security: 94},
+    {name:"Chill Vibes", avatar:2, members:1800, online: 612, security: 93},
+    {name:"Code & Coffee", avatar:3, members:310, online: 87, security: 100},
+    {name:"Roblox Central", avatar:4, members:2400, online: 890, security: 96},
+    {name:"Music Lounge", avatar:5, members:560, online: 155, security: 92}
   ];
+
+  // ----- WebSocket für Live-Updates -----
+  let socket;
+  function connectWebSocket() {
+    // Demo-URL – ersetzen durch echten Gateway-Endpunkt
+    socket = new WebSocket('wss://gateway.modforge.app/events');
+    socket.onmessage = function(event) {
+      const data = JSON.parse(event.data);
+      if (data.type === 'server_update') {
+        // Live-Updates der Server-Daten (z.B. Memberzahl)
+        const server = LIVE_SERVERS.find(s => s.id === data.id);
+        if (server) {
+          server.members = data.members;
+          server.online = data.online;
+          // Optional: Ticker neu bauen (smooth)
+          buildServerTicker();
+        }
+      } else if (data.type === 'global_stats') {
+        updateGlobalStatsLive(data);
+      }
+    };
+    socket.onclose = function() {
+      // Reconnect nach 5 Sekunden
+      setTimeout(connectWebSocket, 5000);
+    };
+    socket.onerror = function() {
+      socket.close(); // onclose wird ausgelöst
+    };
+  }
+
+  // ----- API: Live-Server laden -----
+  async function fetchLiveServers() {
+    try {
+      const resp = await fetch('/api/live-servers');
+      if (resp.ok) {
+        LIVE_SERVERS = await resp.json();
+      } else {
+        LIVE_SERVERS = [...FALLBACK_SERVERS];
+      }
+    } catch (e) {
+      LIVE_SERVERS = [...FALLBACK_SERVERS];
+    }
+    buildServerTicker();
+  }
+
+  // ----- Server-Ticker (dynamisch, mit Hover-Preview) -----
+  function buildServerTicker() {
+    const ticker = document.getElementById('server-ticker');
+    let html = '';
+    // Doppelt für Endlosschleife
+    for (let i = 0; i < 2; i++) {
+      LIVE_SERVERS.forEach((s, idx) => {
+        const avatarUrl = s.avatar.startsWith('http') ? s.avatar : `https://cdn.discordapp.com/embed/avatars/${s.avatar}.png`;
+        html += `
+          <div class="ticker-card">
+            <img src="${avatarUrl}" alt="${s.name}">
+            <span>${s.name}</span>
+            <span style="color:var(--p); font-weight:700;">${s.members}+</span>
+            <span class="server-security">🛡️ ${s.security}</span>
+            <!-- Hover Preview -->
+            <div class="hover-preview">
+              <div class="preview-header">
+                <img src="${avatarUrl}" style="width:24px;height:24px;border-radius:50%;">
+                <span>${s.name}</span>
+              </div>
+              <div class="preview-stat"><span>👥 Mitglieder</span><span>${s.members}</span></div>
+              <div class="preview-stat"><span>🟢 Online</span><span>${s.online || '—'}</span></div>
+              <div class="preview-stat"><span>🛡️ Security Score</span><span style="color:var(--green)">${s.security}</span></div>
+            </div>
+          </div>
+        `;
+      });
+    }
+    ticker.innerHTML = html;
+  }
+
+  // ----- Global Stats Live (WebSocket) -----
+  function updateGlobalStatsLive(data) {
+    document.getElementById('gs1').innerText = data.raids_prevented.toLocaleString();
+    document.getElementById('gs2').innerText = data.spam_filtered.toLocaleString();
+    document.getElementById('gs3').innerText = data.phishing_blocked.toLocaleString();
+    document.getElementById('gs4').innerText = data.cases_created.toLocaleString();
+    document.getElementById('gs5').innerText = data.warns_issued.toLocaleString();
+  }
+
+  // Alte Fallback-Funktion (für Offline-Zustand) – langsam hochzählend
+  function oldGlobalStatsFallback() {
+    // Nur aufrufen, wenn WebSocket nicht verbunden ist
+    if (socket && socket.readyState === WebSocket.OPEN) return;
+    ['gs1','gs2','gs3','gs4','gs5'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        let cur = parseInt(el.innerText) || 0;
+        cur += Math.floor(Math.random() * 3);
+        el.innerText = cur.toLocaleString();
+      }
+    });
+  }
+
+  // ========== ALLE BESTEHENDEN FUNKTIONEN UNVERÄNDERT ==========
 
   document.addEventListener('DOMContentLoaded', function() {
     AOS.init({ duration: 800, once: true, offset: 80 });
@@ -684,10 +792,11 @@
       pts.appendChild(p);
     }
 
-    // Server Ticker bauen
-    buildServerTicker();
+    // Server Ticker: Daten laden & WebSocket starten
+    fetchLiveServers();
+    connectWebSocket();
 
-    // Alle dynamischen Komponenten
+    // Alle dynamischen Komponenten original aufbauen
     buildQuiz();
     buildDnD();
     buildCases();
@@ -698,8 +807,8 @@
     buildApi();
     initBaSlider();
 
-    // Live Stats Update
-    setInterval(updateGlobalStats, 5000);
+    // Live Stats Fallback (alle 5s, falls kein WebSocket)
+    setInterval(oldGlobalStatsFallback, 5000);
 
     // Benchmark Autostart
     const benchObs = new IntersectionObserver(entries => {
@@ -708,22 +817,6 @@
     const benchWrapper = document.querySelector('.bench-wrapper');
     if(benchWrapper) benchObs.observe(benchWrapper);
   });
-
-  // Server Ticker
-  function buildServerTicker(){
-    const ticker = document.getElementById('server-ticker');
-    let html = '';
-    for(let i=0;i<2;i++){ // doppelt für Endlosschleife
-      TRUSTED_SERVERS.forEach(s => {
-        html += `<div class="ticker-card">
-          <img src="https://cdn.discordapp.com/embed/avatars/${s.avatar}.png" alt="${s.name}">
-          <span>${s.name}</span>
-          <span style="color:var(--p); font-weight:700;">${s.members}+</span>
-        </div>`;
-      });
-    }
-    ticker.innerHTML = html;
-  }
 
   // Quiz (unverändert)
   const QUIZ_DATA = [
@@ -913,18 +1006,6 @@
     window.addEventListener('mouseup', () => dragging = false);
     window.addEventListener('mousemove', e => { if(dragging) move(e.clientX); });
     wrap.addEventListener('touchmove', e => { e.preventDefault(); move(e.touches[0].clientX); }, {passive: false});
-  }
-
-  // Live Stats
-  function updateGlobalStats(){
-    ['gs1','gs2','gs3','gs4','gs5'].forEach(id => {
-      const el = document.getElementById(id);
-      if(el){
-        let cur = parseInt(el.innerText) || 0;
-        cur += Math.floor(Math.random() * 3);
-        el.innerText = cur.toLocaleString();
-      }
-    });
   }
 
   // Benchmark
