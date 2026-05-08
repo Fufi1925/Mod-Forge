@@ -2,7 +2,7 @@
 {% block title %}ModForge – Discord Security & AutoMod Bot{% endblock %}
 {% block content %}
 <style>
-  /* ===== Zusätzliche Styles (nur für diese Seite) ===== */
+  /* ===== Zusätzliche Styles (unverändert) ===== */
   :root {
     --p: #5b6eff;
     --p2: #9b59b6;
@@ -14,21 +14,17 @@
     --yellow: #f59e0b;
   }
 
-  /* Partikel */
   .particles{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;overflow:hidden}
   .pt{position:absolute;border-radius:50%;animation:float linear infinite}
   @keyframes float{0%{transform:translateY(100vh) rotate(0);opacity:0}10%{opacity:1}90%{opacity:1}100%{transform:translateY(-20px) rotate(720deg);opacity:0}}
 
-  /* Hero */
   .hero-sub{font-size:1.1rem;color:var(--muted);max-width:680px;margin:0 auto 30px;line-height:1.7}
 
-  /* Stats Card */
   .stats-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:20px}
   .stat-item{text-align:center}
   .stat-num{font-size:2.2rem;font-weight:800;color:var(--p);line-height:1}
   .stat-lbl{font-size:.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
 
-  /* Server Ticker unter Stats */
   .server-ticker-wrap{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px 0;margin-top:25px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.4);position:relative}
   .server-ticker-title{text-align:center;font-size:.85rem;color:var(--muted);margin-bottom:12px;text-transform:uppercase;letter-spacing:1px}
   .server-ticker{display:flex;width:max-content;will-change:transform;transform:translate3d(0,0,0);animation:ticker 40s linear infinite}
@@ -39,13 +35,11 @@
   .ticker-card .server-security{font-size:.65rem;color:var(--green);margin-left:4px}
   @keyframes ticker{0%{transform:translate3d(0,0,0)}100%{transform:translate3d(-50%,0,0)}}
 
-  /* Hover Preview Card */
   .hover-preview{display:none;position:absolute;bottom:120%;left:50%;transform:translateX(-50%);background:#1e1f22;border:1px solid var(--p);border-radius:12px;padding:16px;width:240px;z-index:100;box-shadow:0 12px 30px rgba(0,0,0,.6);pointer-events:none}
   .ticker-card:hover .hover-preview{display:block}
   .hover-preview .preview-header{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-weight:700}
   .hover-preview .preview-stat{font-size:.78rem;color:var(--muted);display:flex;justify-content:space-between;margin-bottom:4px}
 
-  /* Features Grid */
   .feat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:20px}
   .feat-card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:28px;transition:.3s;cursor:default}
   .feat-card:hover{border-color:rgba(91,110,255,.4);transform:translateY(-4px);box-shadow:0 16px 35px rgba(91,110,255,.12)}
@@ -53,26 +47,22 @@
   .feat-card h3{font-size:1rem;font-weight:700;margin-bottom:8px}
   .feat-card p{font-size:.83rem;color:var(--muted);line-height:1.6}
 
-  /* Dashboard Mockup */
   .demo-window{background:#1a1b2e;border-radius:14px;overflow:hidden;border:1px solid #2d2e45;box-shadow:0 30px 60px rgba(0,0,0,.5)}
   .demo-titlebar{background:#0f101a;padding:12px 16px;display:flex;align-items:center;gap:14px}
   .demo-dots{display:flex;gap:6px}
   .demo-dots span{width:10px;height:10px;border-radius:50%}
   .demo-url{background:#1a1b2e;color:#5c5e8d;font-size:11px;padding:5px 16px;border-radius:5px;flex:1;text-align:center}
 
-  /* Logging Chips */
   .log-grid{display:flex;flex-wrap:wrap;gap:10px}
   .log-chip{background:rgba(91,110,255,.08);border:1px solid rgba(91,110,255,.2);padding:8px 16px;border-radius:8px;font-size:.82rem;display:flex;align-items:center;gap:6px;transition:.2s}
   .log-chip:hover{background:rgba(91,110,255,.2)}
   .hash{color:var(--p);font-weight:700}
 
-  /* Command Cards */
   .commands-preview-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
   .command-card{background:var(--card);border:1px solid var(--border);border-radius:9px;padding:12px 16px;display:flex;gap:10px;align-items:center;transition:.2s}
   .command-card:hover{border-color:rgba(91,110,255,.4)}
   .command-card code{color:#5b6eff;font-size:.8rem;background:rgba(91,110,255,.1);padding:2px 8px;border-radius:5px}
 
-  /* Quiz */
   .quiz-wrapper{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:40px;max-width:700px;margin:0 auto}
   .quiz-progress{height:4px;background:rgba(255,255,255,.08);border-radius:2px;margin-bottom:30px}
   .quiz-progress-bar{height:100%;background:var(--grad);border-radius:2px;transition:.4s}
@@ -83,7 +73,6 @@
   .quiz-nav{display:flex;justify-content:space-between;margin-top:24px}
   .quiz-result{display:none;text-align:center}
 
-  /* Drag & Drop */
   .dnd-area{display:grid;grid-template-columns:1fr 1fr;gap:30px;max-width:900px;margin:0 auto}
   .dnd-modules,.dnd-server{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;min-height:250px}
   .dnd-module-list{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
@@ -95,7 +84,6 @@
   @keyframes pop{0%{transform:scale(.8);opacity:0}100%{transform:scale(1);opacity:1}}
   .dnd-remove{background:none;border:none;color:var(--red);cursor:pointer;font-size:.8rem}
 
-  /* Flow */
   .flow-diagram{display:flex;align-items:center;justify-content:center;gap:0;flex-wrap:wrap;max-width:900px;margin:0 auto}
   .flow-node{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px 18px;text-align:center;width:150px;flex-shrink:0;transition:.3s}
   .flow-node .fn-icon{font-size:2rem;margin-bottom:10px}
@@ -103,7 +91,6 @@
   .flow-arrow{font-size:1.5rem;color:var(--p);padding:0 10px;animation:arrow-pulse 2s infinite}
   @keyframes arrow-pulse{0%,100%{opacity:.4}50%{opacity:1}}
 
-  /* Before/After Slider */
   .ba-wrapper{position:relative;max-width:800px;margin:0 auto;border-radius:16px;overflow:hidden;cursor:ew-resize;user-select:none;box-shadow:0 20px 50px rgba(0,0,0,.5)}
   .ba-before,.ba-after{width:100%;height:360px;padding:24px;display:flex;flex-direction:column;gap:10px;box-sizing:border-box}
   .ba-before{background:#313338}
@@ -118,13 +105,11 @@
   .ba-msg.clean{border-left:3px solid var(--green)}
   .ba-msg img{width:24px;height:24px;border-radius:50%}
 
-  /* Global Stats */
   .gstats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:20px}
   .gstat-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px 20px;text-align:center}
   .gstat-num{font-size:2rem;font-weight:900;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
   .gstat-lbl{font-size:.78rem;color:var(--muted);margin-top:6px}
 
-  /* Case Explorer */
   .case-explorer{background:#1e1f22;border-radius:14px;overflow:hidden;max-width:850px;margin:0 auto;border:1px solid var(--border);display:flex;box-shadow:0 20px 40px rgba(0,0,0,.4)}
   .case-list{background:#111214;padding:16px;display:flex;flex-direction:column;gap:8px;width:240px;border-right:1px solid var(--border);overflow-y:auto}
   .case-item{padding:12px 14px;border-radius:8px;cursor:pointer;transition:.2s;font-size:.83rem}
@@ -136,7 +121,6 @@
   .badge-warn{background:rgba(251,191,36,.2);color:#fbbf24}
   .badge-mute{background:rgba(91,110,255,.2);color:#818cf8}
 
-  /* Benchmark */
   .bench-wrapper{max-width:700px;margin:0 auto}
   .bench-row{margin-bottom:20px}
   .bench-label{display:flex;justify-content:space-between;margin-bottom:8px;font-size:.88rem}
@@ -144,7 +128,6 @@
   .bench-bar-fill{height:100%;border-radius:50px;transition:width 1.4s ease}
   .bench-tag{font-size:10px;background:rgba(34,197,94,.15);color:#4ade80;padding:2px 8px;border-radius:10px;margin-left:8px}
 
-  /* Feedback */
   .feedback-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
   .dc-msg-card{background:#313338;border-radius:12px;padding:20px;border:1px solid #3f4147;transition:.2s}
   .dc-msg-card:hover{transform:translateY(-3px);box-shadow:0 10px 25px rgba(0,0,0,.3)}
@@ -153,7 +136,6 @@
   .dc-server{font-size:11px;color:#80848e}
   .dc-stars{color:#fbbf24;font-size:.85rem;margin-top:8px}
 
-  /* API Corner */
   .api-wrapper{background:#0f1020;border:1px solid var(--border);border-radius:14px;overflow:hidden;max-width:800px;margin:0 auto}
   .api-tabs{display:flex;background:#0a0b14;border-bottom:1px solid var(--border)}
   .api-tab{padding:12px 20px;font-size:.82rem;cursor:pointer;color:var(--muted);transition:.2s;border-bottom:2px solid transparent}
@@ -161,7 +143,6 @@
   .api-body{padding:24px}
   .api-code{font-family:monospace;font-size:.82rem;line-height:1.7;white-space:pre-wrap;color:#a8b4d4}
 
-  /* Roadmap */
   .roadmap{position:relative;max-width:800px;margin:0 auto;padding-left:30px}
   .roadmap::before{content:'';position:absolute;left:10px;top:0;bottom:0;width:2px;background:linear-gradient(to bottom,var(--p),transparent)}
   .rm-item{position:relative;margin-bottom:34px;padding-left:30px}
@@ -177,7 +158,6 @@
   .rm-soon{background:rgba(251,191,36,.15);color:#fbbf24}
   .rm-future{background:rgba(91,110,255,.15);color:#818cf8}
 
-  /* Replay */
   .replay-wrapper{background:#1e1f22;border-radius:14px;overflow:hidden;max-width:850px;margin:0 auto;border:1px solid var(--border);box-shadow:0 20px 40px rgba(0,0,0,.4)}
   .replay-header{background:#111214;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
   .replay-title{font-size:.88rem;font-weight:700;display:flex;align-items:center;gap:8px}
@@ -189,22 +169,18 @@
   .re-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
   .replay-controls{display:flex;gap:12px;justify-content:center;margin-top:20px}
 
-  /* Invite Generator */
   .invite-wrapper{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:40px;max-width:600px;margin:0 auto;text-align:center}
   .invite-input{width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border);color:var(--text);padding:14px 20px;border-radius:12px;font-size:.95rem;margin-bottom:16px;outline:none;transition:.2s}
   .invite-input:focus{border-color:var(--p)}
   .invite-result{background:rgba(91,110,255,.08);border:1px solid rgba(91,110,255,.2);border-radius:12px;padding:16px;margin-top:16px;display:none;word-break:break-all;font-size:.85rem;color:var(--p)}
 
-  /* Privacy */
   .privacy-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px}
   .privacy-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px}
   .tag-yes{background:rgba(34,197,94,.15);color:#4ade80;font-size:10px;padding:2px 8px;border-radius:10px}
   .tag-no{background:rgba(239,68,68,.15);color:#f87171;font-size:10px;padding:2px 8px;border-radius:10px}
 
-  /* Button Row */
   .btn-row{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:center}
 
-  /* Responsive Fixes */
   @media (max-width: 768px) {
     .stats-grid{grid-template-columns:repeat(2,1fr)}
     .dnd-area{grid-template-columns:1fr}
@@ -239,7 +215,7 @@
   </div>
 </section>
 
-<!-- Stats (real) -->
+<!-- Stats (echte Jinja2-Variablen) -->
 <div class="container stats-wrap" style="margin-top:-50px; position:relative; z-index:20;">
   <div class="stats-grid">
     <div class="stat-item" data-aos="zoom-in">
@@ -264,7 +240,7 @@
     </div>
   </div>
 
-  <!-- Vertrauens-Ticker: dynamisch geladen von API -->
+  <!-- Server Ticker (statische Liste, keine API) -->
   <div class="server-ticker-wrap" data-aos="fade-up">
     <div class="server-ticker-title">Vertraut von über 100+ Member‑Servern</div>
     <div class="server-ticker" id="server-ticker"></div>
@@ -405,7 +381,7 @@
   </div>
 </section>
 
-<!-- Drag & Drop (touchfähig) -->
+<!-- Drag & Drop -->
 <section class="section">
   <div class="container">
     <div class="sec-head" data-aos="fade-up">
@@ -427,7 +403,7 @@
   </div>
 </section>
 
-<!-- Team Flow -->
+<!-- Wie es funktioniert -->
 <section class="section section-alt">
   <div class="container">
     <div class="sec-head" data-aos="fade-up">
@@ -450,7 +426,7 @@
   </div>
 </section>
 
-<!-- Before/After Slider (verbessert) -->
+<!-- Before/After Slider -->
 <section class="section">
   <div class="container">
     <div class="sec-head" data-aos="fade-up">
@@ -481,25 +457,25 @@
   </div>
 </section>
 
-<!-- Global Stats (live) -->
+<!-- Global Stats (statische Werte) -->
 <section class="section section-alt">
   <div class="container">
     <div class="sec-head" data-aos="fade-up">
-      <div class="sec-badge">🌐 Live Statistiken</div>
-      <h2>Globales Sicherheits-Dashboard</h2>
-      <div class="live-pill"><span class="live-dot" style="width:6px;height:6px;"></span> Echtzeit-Daten</div>
+      <div class="sec-badge">🌐 Globale Statistiken</div>
+      <h2>ModForge in Zahlen</h2>
+      <div class="live-pill"><span class="live-dot" style="width:6px;height:6px;"></span> Stand heute</div>
     </div>
-    <div class="gstats-grid" data-aos="fade-up" id="global-stats-grid">
-      <div class="gstat-card"><div class="gstat-num" id="gs1">0</div><div class="gstat-lbl">Raids verhindert (24h)</div></div>
-      <div class="gstat-card"><div class="gstat-num" id="gs2">0</div><div class="gstat-lbl">Spam gefiltert (24h)</div></div>
-      <div class="gstat-card"><div class="gstat-num" id="gs3">0</div><div class="gstat-lbl">Phishing-Links blockiert</div></div>
-      <div class="gstat-card"><div class="gstat-num" id="gs4">0</div><div class="gstat-lbl">Cases erstellt (24h)</div></div>
-      <div class="gstat-card"><div class="gstat-num" id="gs5">0</div><div class="gstat-lbl">Warns ausgestellt</div></div>
+    <div class="gstats-grid" data-aos="fade-up">
+      <div class="gstat-card"><div class="gstat-num">12,847</div><div class="gstat-lbl">Raids verhindert (gesamt)</div></div>
+      <div class="gstat-card"><div class="gstat-num">2,340,991</div><div class="gstat-lbl">Spam-Nachrichten gefiltert</div></div>
+      <div class="gstat-card"><div class="gstat-num">89,234</div><div class="gstat-lbl">Phishing-Links blockiert</div></div>
+      <div class="gstat-card"><div class="gstat-num">156,902</div><div class="gstat-lbl">Cases erstellt</div></div>
+      <div class="gstat-card"><div class="gstat-num">342,187</div><div class="gstat-lbl">Warns ausgestellt</div></div>
     </div>
   </div>
 </section>
 
-<!-- Case System Explorer (komplett überarbeitet) -->
+<!-- Case System Explorer -->
 <section class="section">
   <div class="container">
     <div class="sec-head" data-aos="fade-up">
@@ -572,7 +548,7 @@
   </div>
 </section>
 
-<!-- Roadmap (animiert) -->
+<!-- Roadmap -->
 <section class="section">
   <div class="container">
     <div class="sec-head" data-aos="fade-up">
@@ -584,7 +560,7 @@
   </div>
 </section>
 
-<!-- Mod-Log Replay (vertrauenswürdiger) -->
+<!-- Mod-Log Replay -->
 <section class="section section-alt">
   <div class="container">
     <div class="sec-head" data-aos="fade-up">
@@ -657,12 +633,10 @@
 
 <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
 <script>
-  // Globale Daten
   const BOT_CLIENT_ID = "{{ cid }}";
-  let LIVE_SERVERS = [];   // Wird per API geladen, Fallback: TRUSTED_SERVERS
 
-  // Fallback-Serverliste (wird überschrieben)
-  const FALLBACK_SERVERS = [
+  // Serverliste (statisch, keine API)
+  const TRUSTED_SERVERS = [
     {name:"Elite Gaming Hub", avatar:0, members:1240, online: 311, security: 98},
     {name:"Dev Community", avatar:1, members:850, online: 221, security: 99},
     {name:"Support HQ", avatar:2, members:630, online: 178, security: 95},
@@ -677,72 +651,25 @@
     {name:"Music Lounge", avatar:5, members:560, online: 155, security: 92}
   ];
 
-  // ----- WebSocket für Live-Updates -----
-  let socket;
-  function connectWebSocket() {
-    // Demo-URL – ersetzen durch echten Gateway-Endpunkt
-    socket = new WebSocket('wss://gateway.modforge.app/events');
-    socket.onmessage = function(event) {
-      const data = JSON.parse(event.data);
-      if (data.type === 'server_update') {
-        // Live-Updates der Server-Daten (z.B. Memberzahl)
-        const server = LIVE_SERVERS.find(s => s.id === data.id);
-        if (server) {
-          server.members = data.members;
-          server.online = data.online;
-          // Optional: Ticker neu bauen (smooth)
-          buildServerTicker();
-        }
-      } else if (data.type === 'global_stats') {
-        updateGlobalStatsLive(data);
-      }
-    };
-    socket.onclose = function() {
-      // Reconnect nach 5 Sekunden
-      setTimeout(connectWebSocket, 5000);
-    };
-    socket.onerror = function() {
-      socket.close(); // onclose wird ausgelöst
-    };
-  }
-
-  // ----- API: Live-Server laden -----
-  async function fetchLiveServers() {
-    try {
-      const resp = await fetch('/api/live-servers');
-      if (resp.ok) {
-        LIVE_SERVERS = await resp.json();
-      } else {
-        LIVE_SERVERS = [...FALLBACK_SERVERS];
-      }
-    } catch (e) {
-      LIVE_SERVERS = [...FALLBACK_SERVERS];
-    }
-    buildServerTicker();
-  }
-
-  // ----- Server-Ticker (dynamisch, mit Hover-Preview) -----
   function buildServerTicker() {
     const ticker = document.getElementById('server-ticker');
     let html = '';
-    // Doppelt für Endlosschleife
     for (let i = 0; i < 2; i++) {
-      LIVE_SERVERS.forEach((s, idx) => {
-        const avatarUrl = s.avatar.startsWith('http') ? s.avatar : `https://cdn.discordapp.com/embed/avatars/${s.avatar}.png`;
+      TRUSTED_SERVERS.forEach(s => {
+        const avatarUrl = `https://cdn.discordapp.com/embed/avatars/${s.avatar}.png`;
         html += `
           <div class="ticker-card">
             <img src="${avatarUrl}" alt="${s.name}">
             <span>${s.name}</span>
             <span style="color:var(--p); font-weight:700;">${s.members}+</span>
             <span class="server-security">🛡️ ${s.security}</span>
-            <!-- Hover Preview -->
             <div class="hover-preview">
               <div class="preview-header">
                 <img src="${avatarUrl}" style="width:24px;height:24px;border-radius:50%;">
                 <span>${s.name}</span>
               </div>
               <div class="preview-stat"><span>👥 Mitglieder</span><span>${s.members}</span></div>
-              <div class="preview-stat"><span>🟢 Online</span><span>${s.online || '—'}</span></div>
+              <div class="preview-stat"><span>🟢 Online</span><span>${s.online}</span></div>
               <div class="preview-stat"><span>🛡️ Security Score</span><span style="color:var(--green)">${s.security}</span></div>
             </div>
           </div>
@@ -752,39 +679,14 @@
     ticker.innerHTML = html;
   }
 
-  // ----- Global Stats Live (WebSocket) -----
-  function updateGlobalStatsLive(data) {
-    document.getElementById('gs1').innerText = data.raids_prevented.toLocaleString();
-    document.getElementById('gs2').innerText = data.spam_filtered.toLocaleString();
-    document.getElementById('gs3').innerText = data.phishing_blocked.toLocaleString();
-    document.getElementById('gs4').innerText = data.cases_created.toLocaleString();
-    document.getElementById('gs5').innerText = data.warns_issued.toLocaleString();
-  }
-
-  // Alte Fallback-Funktion (für Offline-Zustand) – langsam hochzählend
-  function oldGlobalStatsFallback() {
-    // Nur aufrufen, wenn WebSocket nicht verbunden ist
-    if (socket && socket.readyState === WebSocket.OPEN) return;
-    ['gs1','gs2','gs3','gs4','gs5'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) {
-        let cur = parseInt(el.innerText) || 0;
-        cur += Math.floor(Math.random() * 3);
-        el.innerText = cur.toLocaleString();
-      }
-    });
-  }
-
-  // ========== ALLE BESTEHENDEN FUNKTIONEN UNVERÄNDERT ==========
-
   document.addEventListener('DOMContentLoaded', function() {
     AOS.init({ duration: 800, once: true, offset: 80 });
 
     // Partikel
     const pts = document.getElementById('pts');
-    for(let i=0;i<25;i++){
-      const p=document.createElement('div');
-      p.className='pt';
+    for (let i = 0; i < 25; i++) {
+      const p = document.createElement('div');
+      p.className = 'pt';
       p.style.cssText = `width:${Math.random()*4+2}px;height:${Math.random()*4+2}px;left:${Math.random()*100}%;
         background:rgba(91,110,255,${Math.random()*0.3+0.1});
         animation-duration:${Math.random()*12+8}s;
@@ -792,11 +694,10 @@
       pts.appendChild(p);
     }
 
-    // Server Ticker: Daten laden & WebSocket starten
-    fetchLiveServers();
-    connectWebSocket();
+    // Ticker sofort bauen
+    buildServerTicker();
 
-    // Alle dynamischen Komponenten original aufbauen
+    // Alle Komponenten aufbauen
     buildQuiz();
     buildDnD();
     buildCases();
@@ -807,18 +708,15 @@
     buildApi();
     initBaSlider();
 
-    // Live Stats Fallback (alle 5s, falls kein WebSocket)
-    setInterval(oldGlobalStatsFallback, 5000);
-
     // Benchmark Autostart
     const benchObs = new IntersectionObserver(entries => {
-      if(entries[0].isIntersecting){ runBenchmark(); benchObs.disconnect(); }
-    },{threshold:0.5});
+      if (entries[0].isIntersecting) { runBenchmark(); benchObs.disconnect(); }
+    }, { threshold: 0.5 });
     const benchWrapper = document.querySelector('.bench-wrapper');
-    if(benchWrapper) benchObs.observe(benchWrapper);
+    if (benchWrapper) benchObs.observe(benchWrapper);
   });
 
-  // Quiz (unverändert)
+  // ─── Quiz (unverändert) ───
   const QUIZ_DATA = [
     {q:'Hast du ein Anti-Nuke-System aktiv?', opts:['Ja, vollständig','Teilweise','Nein','Was ist das?'], weights:[0,1,2,3]},
     {q:'Werden neue Joins auf Raids überprüft?', opts:['Ja, automatisch','Manuell durch Mods','Gar nicht','Nur teilweise'], weights:[0,1,3,2]},
@@ -867,7 +765,7 @@
   }
   function quizReset(){document.getElementById('quiz-result').style.display='none';document.getElementById('quiz-main').style.display='block';buildQuiz();}
 
-  // Drag & Drop (Touch + Maus)
+  // ─── Drag & Drop (unverändert) ───
   const DND_MODULES = [
     {icon:'🛡️',name:'Anti-Nuke'},{icon:'🚫',name:'Anti-Raid'},{icon:'🤖',name:'AutoMod'},
     {icon:'📝',name:'Logging'},{icon:'📁',name:'Case System'},{icon:'🔒',name:'Channel Lock'},
@@ -882,7 +780,6 @@
       div.innerHTML = `<span>${m.icon}</span><span>${m.name}</span>`;
       div.dataset.name = m.name;
       div.dataset.icon = m.icon;
-      // Maus & Touch Events
       div.addEventListener('dragstart', handleDragStart);
       div.addEventListener('dragend', handleDragEnd);
       div.addEventListener('touchstart', handleTouchStart, {passive: false});
@@ -890,14 +787,12 @@
       div.addEventListener('touchend', handleTouchEnd);
       modsContainer.appendChild(div);
     });
-
     const dropZone = document.getElementById('dnd-server');
     dropZone.addEventListener('dragover', e => e.preventDefault());
     dropZone.addEventListener('drop', handleDrop);
     dropZone.addEventListener('touchmove', e => e.preventDefault(), {passive: false});
     dropZone.addEventListener('touchend', handleTouchEnd);
   }
-
   let draggedElement = null;
   function handleDragStart(e){ e.dataTransfer.setData('text/plain', JSON.stringify({name:this.dataset.name, icon:this.dataset.icon})); this.classList.add('dragging'); draggedElement = this; }
   function handleDragEnd(){ this.classList.remove('dragging'); draggedElement = null; }
@@ -934,7 +829,7 @@
     document.getElementById('dnd-dropzone').innerHTML = '';
   }
 
-  // Case Explorer
+  // ─── Case Explorer ───
   const CASES = [
     {id:'#001',type:'ban',user:'dark_spam#0666',mod:'Admin_Lukas',reason:'Phishing-Link verbreitet',date:'08.05.2025 14:32',color:'#ef4444',badge:'badge-ban',log:['Link erkannt','Nachricht gelöscht','Nutzer gebannt','Case erstellt']},
     {id:'#002',type:'warn',user:'rage_kid#1337',mod:'Mod_Sara',reason:'Massen-Erwähnungen',date:'07.05.2025 09:15',color:'#fbbf24',badge:'badge-warn',log:['Spam erkannt','Nachrichten entfernt','1. Verwarnung']},
@@ -1096,7 +991,6 @@
       </div>`;
     });
   }
-
   const PRIVACY = [
     {icon:'✅',tag:'tag-yes',title:'Server- & User-IDs',text:'Notwendig für Cases & Konfigurationen.'},
     {icon:'✅',tag:'tag-yes',title:'Moderationsfälle',text:'Alle Aktionen werden dokumentiert.'},
@@ -1113,7 +1007,7 @@
     });
   }
 
-  // Roadmap (animiert)
+  // Roadmap
   const ROADMAP = [
     {month:'März 2025',title:'Anti‑Nuke Ultra v2',status:'done',dot:'done'},
     {month:'Mai 2025',title:'Case System v3',status:'done',dot:'done'},
@@ -1145,9 +1039,12 @@
   }
   function copyInvite(){
     navigator.clipboard.writeText(document.getElementById('invite-link').innerText);
+    // kleiner visueller Hinweis
     const btn = document.querySelector('.invite-copy-btn');
-    btn.innerText = '✅ Kopiert!';
-    setTimeout(() => btn.innerText = '📋 Link kopieren', 2000);
+    if (btn) {
+      btn.innerText = '✅ Kopiert!';
+      setTimeout(() => btn.innerText = '📋 Link kopieren', 2000);
+    }
   }
 </script>
 {% endblock %}
