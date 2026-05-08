@@ -28,6 +28,7 @@ from bot.utils import (
     generate_captcha, check_phishing_url, can_moderate, parse_duration
 )
 
+from database.db import Database
 
 
 # ═══════════════════════════════════════════════════════════════════
