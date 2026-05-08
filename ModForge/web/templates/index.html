@@ -1,18 +1,25 @@
 {% extends "base.html" %}
-{% block title %}ModForge – Discord Security &amp; AutoMod Bot{% endblock %}
+
+{% block title %}ModForge – Discord Security & AutoMod Bot{% endblock %}
+
 {% block content %}
 
-<!-- HERO -->
-<section class="hero" style="position:relative">
-  <div class="particles" id="pts"></div>
-  <div style="position:relative;z-index:1" class="container">
-    <div class="hero-badge"><span class="pulse-dot"></span>Version 3.0.0 · Jetzt verfügbar</div>
-    <h1><span class="grad">ModForge</span><br>
-      <span style="font-size:52%;font-weight:700;color:var(--fg)">Security &amp; AutoMod Bot</span></h1>
-    <p class="hero-sub">Der leistungsstärkste Discord-Moderationsbot mit vollständigem <strong>Web-Dashboard</strong>,
+<section class="hero" style="position:relative; overflow:hidden; min-height: 80vh; display: flex; align-items: center;">
+  <div class="particles" id="pts" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none;"></div>
+  <div style="position:relative; z-index:10" class="container">
+    <div class="hero-badge" data-aos="fade-down">
+      <span class="pulse-dot"></span>Version 3.0.0 · Jetzt verfügbar
+    </div>
+    <h1 data-aos="fade-up">
+      <span class="grad">ModForge</span><br>
+      <span style="font-size:52%; font-weight:700; color:var(--fg)">Security & AutoMod Bot</span>
+    </h1>
+    <p class="hero-sub" data-aos="fade-up" data-aos-delay="100">
+      Der leistungsstärkste Discord-Moderationsbot mit vollständigem <strong>Web-Dashboard</strong>,
       <strong>Anti-Nuke</strong>, <strong>Anti-Raid</strong>, <strong>AutoMod</strong>,
-      <strong>Case-System</strong> und viel mehr — in einem Bot.</p>
-    <div class="btn-row">
+      <strong>Case-System</strong> und viel mehr — alles in einer Lösung.
+    </p>
+    <div class="btn-row" data-aos="fade-up" data-aos-delay="200">
       <a class="btn btn-primary" href="https://discord.com/oauth2/authorize?client_id={{ cid }}&scope=bot+applications.commands&permissions=8" target="_blank">🛡️ Bot einladen</a>
       <a class="btn btn-ghost" href="/login">📊 Dashboard öffnen</a>
       <a class="btn btn-ghost" href="https://discord.gg/gwryX3dbkt" target="_blank">💬 Support</a>
@@ -20,102 +27,94 @@
   </div>
 </section>
 
-<!-- STATS -->
-<div class="container stats-wrap">
+<div class="container stats-wrap" style="margin-top: -50px; position: relative; z-index: 20;">
   <div class="stats-grid">
-    <div class="stat-item reveal">
+    <div class="stat-item" data-aos="zoom-in">
       <div class="stat-num" data-count="{{ gc_raw }}" data-suffix="+">{{ gc }}</div>
-      <div class="stat-lbl">Aktive Server</div></div>
-    <div class="stat-item reveal">
+      <div class="stat-lbl">Aktive Server</div>
+    </div>
+    <div class="stat-item" data-aos="zoom-in" data-aos-delay="100">
       <div class="stat-num" data-count="{{ mc_raw }}" data-suffix="+">{{ mc }}</div>
-      <div class="stat-lbl">Geschützte Mitglieder</div></div>
-    <div class="stat-item reveal">
-      <div class="stat-num" id="uptime-stat"></div>
-      <div class="stat-lbl">Uptime</div></div>
-    <div class="stat-item reveal">
+      <div class="stat-lbl">Geschützte Mitglieder</div>
+    </div>
+    <div class="stat-item" data-aos="zoom-in" data-aos-delay="200">
+      <div class="stat-num" id="uptime-stat">99.9%</div>
+      <div class="stat-lbl">Uptime</div>
+    </div>
+    <div class="stat-item" data-aos="zoom-in" data-aos-delay="300">
       <div class="stat-num">{{ lat }}ms</div>
-      <div class="stat-lbl">Gateway Latenz</div></div>
-    <div class="stat-item reveal">
+      <div class="stat-lbl">Gateway Latenz</div>
+    </div>
+    <div class="stat-item" data-aos="zoom-in" data-aos-delay="400">
       <div class="stat-num">0</div>
-      <div class="stat-lbl">Datenlecks</div></div>
+      <div class="stat-lbl">Datenlecks</div>
+    </div>
   </div>
 </div>
 
-<!-- FEATURES -->
 <section class="section section-alt">
   <div class="container">
-    <div class="sec-head reveal">
+    <div class="sec-head" data-aos="fade-up">
       <div class="sec-badge">🚀 Features</div>
       <h2>Alles was du für deinen Server brauchst</h2>
-      <p>ModForge vereint alle wichtigen Sicherheits- und Moderations-Features in einem einzigen Bot — kein Stress mit 10 verschiedenen Bots.</p>
+      <p>ModForge vereint alle wichtigen Sicherheits- und Moderations-Features — kein Stress mehr mit unzähligen Bots.</p>
     </div>
     <div class="feat-grid">
       {% for f in features %}
-      <div class="feat-card reveal">
+      <div class="feat-card" data-aos="fade-up" data-aos-delay="{{ loop.index0 * 50 }}">
         <div class="feat-icon" style="background:{{ f.bg }}">{{ f.icon }}</div>
-        <h3>{{ f.title }}</h3><p>{{ f.desc }}</p>
-      </div>{% endfor %}
+        <h3>{{ f.title }}</h3>
+        <p>{{ f.desc }}</p>
+      </div>
+      {% endfor %}
     </div>
   </div>
 </section>
 
-<!-- LIVE DEMO -->
 <section class="section">
   <div class="container">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:clamp(28px,5vw,60px);align-items:center;max-width:1000px;margin:0 auto">
-      <div class="reveal-left">
+    <div class="live-demo-grid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap:60px; align-items:center;">
+      <div data-aos="fade-right">
         <div class="sec-badge" style="margin-bottom:14px">📊 Web Dashboard</div>
-        <h2 style="font-size:clamp(1.6rem,3.5vw,2.2rem);font-weight:800;margin-bottom:14px">
-          Alles im Blick –<br><span class="grad">direkt im Browser</span></h2>
-        <p style="color:var(--muted);margin-bottom:18px;line-height:1.7">
+        <h2 style="font-size:clamp(1.6rem, 3.5vw, 2.2rem); font-weight:800; margin-bottom:14px">
+          Alles im Blick –<br><span class="grad">direkt im Browser</span>
+        </h2>
+        <p style="color:var(--muted); margin-bottom:18px; line-height:1.7">
           Konfiguriere alle Module deines Servers ohne einen einzigen Befehl zu tippen.
-          <strong style="color:var(--fg)">Discord OAuth2 Login</strong>, grafische Einstellungen,
-          Embed-Builder für Welcome/Leave, Live-Charts und mehr.</p>
-        <ul style="list-style:none;margin-bottom:22px">
-          <li style="display:flex;align-items:center;gap:9px;font-size:.85rem;margin-bottom:7px;color:var(--muted)">
-            <span style="color:var(--ok);flex-shrink:0">✅</span> <span>Discord OAuth2 Login</span></li>
-          <li style="display:flex;align-items:center;gap:9px;font-size:.85rem;margin-bottom:7px;color:var(--muted)">
-            <span style="color:var(--ok);flex-shrink:0">✅</span> <span>30+ konfigurierbare Module</span></li>
-          <li style="display:flex;align-items:center;gap:9px;font-size:.85rem;margin-bottom:7px;color:var(--muted)">
-            <span style="color:var(--ok);flex-shrink:0">✅</span> <span>Welcome &amp; Leave Embed-Builder</span></li>
-          <li style="display:flex;align-items:center;gap:9px;font-size:.85rem;margin-bottom:7px;color:var(--muted)">
-            <span style="color:var(--ok);flex-shrink:0">✅</span> <span>Log-Kanal pro Modul</span></li>
-          <li style="display:flex;align-items:center;gap:9px;font-size:.85rem;margin-bottom:7px;color:var(--muted)">
-            <span style="color:var(--ok);flex-shrink:0">✅</span> <span>Case-System &amp; Audit-Log</span></li>
-          <li style="display:flex;align-items:center;gap:9px;font-size:.85rem;margin-bottom:7px;color:var(--muted)">
-            <span style="color:var(--ok);flex-shrink:0">✅</span> <span>Live-Activity-Stream</span></li>
+          <strong style="color:var(--fg)">Discord OAuth2 Login</strong>, grafische Einstellungen und Live-Aktivitäten.
+        </p>
+        <ul class="feature-list" style="list-style:none; margin-bottom:22px; padding:0;">
+          <li style="display:flex; align-items:center; gap:9px; font-size:.9rem; margin-bottom:8px; color:var(--muted)">
+            <span style="color:#22c55e">✅</span> <span>Discord OAuth2 Login</span>
+          </li>
+          <li style="display:flex; align-items:center; gap:9px; font-size:.9rem; margin-bottom:8px; color:var(--muted)">
+            <span style="color:#22c55e">✅</span> <span>30+ konfigurierbare Module</span>
+          </li>
+          <li style="display:flex; align-items:center; gap:9px; font-size:.9rem; margin-bottom:8px; color:var(--muted)">
+            <span style="color:#22c55e">✅</span> <span>Live-Activity-Stream</span>
+          </li>
         </ul>
         <a class="btn btn-primary" href="/login">Dashboard öffnen ↗</a>
       </div>
-      <!-- Live Demo Window -->
-      <div class="reveal-right">
+
+      <div class="demo-window-wrapper" data-aos="fade-left">
         <div class="demo-window">
           <div class="demo-titlebar">
             <div class="demo-dots"><span style="background:#ef4444"></span><span style="background:#eab308"></span><span style="background:#22c55e"></span></div>
-            <div class="demo-url">modforge.up.railway.app/dashboard/xxx/overview</div>
+            <div class="demo-url">modforge.app/dashboard/overview</div>
           </div>
-          <div class="demo-inner">
-            <div class="demo-sidebar">
-              <div class="demo-nav-item on">📊 Übersicht</div>
-              <div class="demo-nav-item">⚡ Anti-Spam</div>
-              <div class="demo-nav-item">💥 Anti-Nuke</div>
-              <div class="demo-nav-item">🚨 Anti-Raid</div>
-              <div class="demo-nav-item">🤖 AutoMod</div>
-              <div class="demo-nav-item">👋 Welcome</div>
-              <div class="demo-nav-item">📋 Cases</div>
+          <div class="demo-inner" style="display:flex; height:280px;">
+            <div class="demo-sidebar" style="width:80px; border-right:1px solid var(--border); padding:10px;">
+              <div style="width:100%; height:8px; background:var(--border); border-radius:4px; margin-bottom:10px;"></div>
+              <div style="width:80%; height:8px; background:var(--border); border-radius:4px; margin-bottom:10px; opacity:0.5;"></div>
             </div>
-            <div class="demo-content">
-              <div class="demo-kpis">
-                <div class="demo-kpi"><div class="v" id="d-m" style="color:#4169E1">1,247</div><div class="l">Mitglieder</div></div>
-                <div class="demo-kpi"><div class="v" id="d-c" style="color:#9B59B6">48</div><div class="l">Cases</div></div>
-                <div class="demo-kpi"><div class="v" id="d-w" style="color:#FEE75C">31</div><div class="l">Warns</div></div>
-                <div class="demo-kpi"><div class="v" id="d-b" style="color:#ED4245">3</div><div class="l">Bans</div></div>
+            <div class="demo-content" style="flex:1; padding:15px;">
+              <div class="demo-kpis" style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:15px;">
+                <div class="demo-kpi" style="background:var(--border); height:40px; border-radius:6px;"></div>
+                <div class="demo-kpi" style="background:var(--border); height:40px; border-radius:6px;"></div>
               </div>
-              <div class="demo-list" id="d-list">
-                <div class="demo-list-row"><span class="demo-tag" style="background:rgba(239,68,68,.2);color:#fca5a5">BAN</span><span>User#1234</span><span style="margin-left:auto;opacity:.5">2m</span></div>
-                <div class="demo-list-row"><span class="demo-tag" style="background:rgba(234,179,8,.2);color:#fcd34d">WARN</span><span>User#5678</span><span style="margin-left:auto;opacity:.5">5m</span></div>
-                <div class="demo-list-row"><span class="demo-tag" style="background:rgba(56,189,248,.2);color:#7dd3fc">MUTE</span><span>User#9012</span><span style="margin-left:auto;opacity:.5">8m</span></div>
-              </div>
+              <div class="demo-list-row" style="height:12px; background:var(--border); margin-bottom:8px; border-radius:4px;"></div>
+              <div class="demo-list-row" style="height:12px; background:var(--border); margin-bottom:8px; border-radius:4px; width:70%;"></div>
             </div>
           </div>
         </div>
@@ -124,47 +123,81 @@
   </div>
 </section>
 
-<!-- LOG MODULES -->
 <section class="section section-alt">
   <div class="container">
-    <div class="sec-head reveal"><div class="sec-badge">📝 Logging</div>
+    <div class="sec-head" data-aos="fade-up">
+      <div class="sec-badge">📝 Logging</div>
       <h2>Vollständiges Logging – 24 Module</h2>
-      <p>Pro Modul ein eigener Log-Kanal. Kein Event bleibt unbemerkt.</p></div>
-    <div class="log-grid reveal">
+      <p>Pro Modul ein eigener Log-Kanal. Kein Event bleibt unbemerkt.</p>
+    </div>
+    <div class="log-grid" data-aos="fade-up">
       {% for m in log_mods %}
-      <div class="log-chip"><span class="hash">#</span>{{ m }}</div>{% endfor %}
+      <div class="log-chip"><span class="hash">#</span>{{ m }}</div>
+      {% endfor %}
     </div>
   </div>
 </section>
 
-<!-- COMMANDS PREVIEW -->
 <section class="section">
   <div class="container">
-    <div class="sec-head reveal"><div class="sec-badge">⌨️ Commands</div>
+    <div class="sec-head" data-aos="fade-up">
+      <div class="sec-badge">⌨️ Commands</div>
       <h2>Über 40 Befehle</h2>
-      <p>Slash-Commands + Prefix-Commands für jeden Anwendungsfall.</p></div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px" class="reveal">
+      <p>Moderne Slash-Commands für schnelle Moderation.</p>
+    </div>
+    <div class="commands-preview-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:12px;" data-aos="fade-up">
       {% for c in cmds_preview %}
-      <div style="background:var(--card);border:1px solid var(--border);border-radius:9px;padding:12px 16px;display:flex;gap:10px;align-items:center">
-        <code style="color:var(--p);font-size:.8rem;background:rgba(91,110,255,.1);padding:2px 8px;border-radius:5px;white-space:nowrap">{{ c.cmd }}</code>
-        <span style="font-size:.78rem;color:var(--muted)">{{ c.desc }}</span>
-      </div>{% endfor %}
+      <div class="command-card" style="background:var(--card); border:1px solid var(--border); border-radius:9px; padding:12px 16px; display:flex; gap:10px; align-items:center;">
+        <code style="color:#5b6eff; font-size:.8rem; background:rgba(91,110,255,.1); padding:2px 8px; border-radius:5px;">{{ c.cmd }}</code>
+        <span style="font-size:.78rem; color:var(--muted)">{{ c.desc }}</span>
+      </div>
+      {% endfor %}
     </div>
   </div>
 </section>
 
-<!-- CTA -->
-<section class="section"><div class="container">
-  <div class="cta-box reveal">
-    <div style="font-size:3rem;margin-bottom:14px;position:relative;z-index:1">🛡️</div>
-    <h2 class="grad" style="position:relative;z-index:1">Bereit, deinen Server zu schützen?</h2>
-    <p style="position:relative;z-index:1">Lade ModForge jetzt ein. In weniger als 2 Minuten eingerichtet — kostenlos.</p>
-    <div class="btn-row" style="justify-content:center;position:relative;z-index:1">
-      <a class="btn btn-primary" href="https://discord.com/oauth2/authorize?client_id={{ cid }}&scope=bot+applications.commands&permissions=8" target="_blank">Bot einladen</a>
-      <a class="btn btn-ghost" href="/login">Dashboard öffnen</a>
-      <a class="btn btn-ghost" href="https://discord.gg/gwryX3dbkt" target="_blank">Support Server</a>
+<section class="section">
+  <div class="container">
+    <div class="cta-box" data-aos="zoom-in" style="text-align:center; padding:60px 20px; background:var(--card); border-radius:24px; border:1px solid var(--border); overflow:hidden; position:relative;">
+      <div style="font-size:3.5rem; margin-bottom:20px;">🛡️</div>
+      <h2 class="grad" style="font-size:2.5rem; margin-bottom:15px;">Bereit, deinen Server zu schützen?</h2>
+      <p style="margin-bottom:30px; color:var(--muted); max-width:600px; margin-left:auto; margin-right:auto;">Lade ModForge jetzt ein. In weniger als 2 Minuten eingerichtet — völlig kostenlos.</p>
+      <div class="btn-row" style="justify-content:center;">
+        <a class="btn btn-primary" href="https://discord.com/oauth2/authorize?client_id={{ cid }}&scope=bot+applications.commands&permissions=8" target="_blank">Bot einladen</a>
+        <a class="btn btn-ghost" href="/login">Dashboard</a>
+      </div>
     </div>
   </div>
-</div></section>
+</section>
+
+<link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+<script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+<script>
+  // Initialisiere Animationen
+  document.addEventListener('DOMContentLoaded', function() {
+    AOS.init({
+      duration: 800,
+      once: true,
+      offset: 100
+    });
+  });
+</script>
+
+<style>
+  /* Verhindert unsichtbare Elemente falls JS versagt */
+  .js-enabled [data-aos] {
+    opacity: 0;
+    transition-property: opacity, transform;
+  }
+  .aos-animate {
+    opacity: 1 !important;
+    transform: translate(0) scale(1) !important;
+  }
+  
+  /* Fix für den Mobile-Abstand */
+  .section {
+    padding: clamp(40px, 8vw, 100px) 0;
+  }
+</style>
 
 {% endblock %}
