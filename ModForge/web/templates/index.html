@@ -1,283 +1,1493 @@
-{% extends "base.html" %}
-
-{% block title %}ModForge – High-End Discord Security{% endblock %}
-
-{% block content %}
-
+<!DOCTYPE html>
+<html lang="de">
 <head>
-    <meta property="og:title" content="ModForge – Dein Discord Schutzschild" />
-    <meta property="og:description" content="Anti-Nuke, AutoMod und High-End Web-Dashboard." />
-    <meta property="og:image" content="https://mod-forge.up.railway.app/assets/og-preview.png" />
-    <meta name="theme-color" content="#5b6eff">
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>ModForge – High-End Discord Security</title>
+  <meta property="og:title" content="ModForge – Dein Discord Schutzschild"/>
+  <meta property="og:description" content="Anti-Nuke, AutoMod und High-End Web-Dashboard."/>
+  <meta property="og:image" content="https://mod-forge.up.railway.app/assets/og-preview.png"/>
+  <meta property="og:url" content="https://mod-forge.up.railway.app/"/>
+  <meta name="twitter:card" content="summary_large_image"/>
+  <meta name="theme-color" content="#5b6eff"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css"/>
+  <style>
+    /* ===== VARIABLES ===== */
+    :root {
+      --p:#5b6eff; --p2:#9b59b6;
+      --bg:#0b0c14; --card:#161827; --text:#fff; --muted:#8b92b7;
+      --border:rgba(255,255,255,0.08);
+      --grad:linear-gradient(135deg,#5b6eff 0%,#9b59b6 100%);
+      --green:#22c55e;
+    }
+    [data-theme="dark"]{--bg:#000;--card:#080808;}
+    *{box-sizing:border-box;margin:0;padding:0;}
+    html{scroll-behavior:smooth;}
+    body{background:var(--bg);color:var(--text);font-family:'Segoe UI',Inter,sans-serif;overflow-x:hidden;transition:background .4s;}
+    .container{max-width:1200px;margin:0 auto;padding:0 20px;}
+    .grad-text{background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+    .section{padding:clamp(50px,8vw,110px) 0;}
+    .section-alt{background:rgba(255,255,255,0.02);}
+    .sec-head{text-align:center;margin-bottom:50px;}
+    .sec-head h2{font-size:clamp(1.8rem,4vw,2.6rem);font-weight:800;margin-bottom:10px;}
+    .sec-head p{color:var(--muted);max-width:600px;margin:0 auto;}
+    .sec-badge{display:inline-block;background:rgba(91,110,255,.12);border:1px solid rgba(91,110,255,.25);color:var(--p);padding:6px 16px;border-radius:50px;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:14px;}
+    .btn{display:inline-block;padding:13px 28px;border-radius:10px;font-weight:700;font-size:.9rem;text-decoration:none;cursor:pointer;border:none;transition:.25s;white-space:nowrap;}
+    .btn-primary{background:var(--grad);color:#fff;box-shadow:0 6px 20px rgba(91,110,255,.35);}
+    .btn-primary:hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(91,110,255,.5);}
+    .btn-ghost{background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--text);}
+    .btn-ghost:hover{background:rgba(255,255,255,.12);}
+    .btn-row{display:flex;flex-wrap:wrap;gap:12px;align-items:center;}
+    .shadow-ultra{box-shadow:0 30px 60px rgba(0,0,0,.5);}
+    .shadow-glow{box-shadow:0 0 30px rgba(91,110,255,.2);}
+
+    /* ===== NAVBAR ===== */
+    nav{position:fixed;top:0;left:0;right:0;z-index:999;background:rgba(11,12,20,.85);backdrop-filter:blur(14px);border-bottom:1px solid var(--border);padding:0 20px;height:60px;display:flex;align-items:center;justify-content:space-between;}
+    .nav-logo{font-weight:900;font-size:1.2rem;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+    .nav-links{display:flex;gap:24px;list-style:none;}
+    .nav-links a{color:var(--muted);text-decoration:none;font-size:.88rem;transition:.2s;}
+    .nav-links a:hover{color:#fff;}
+    .nav-right{display:flex;align-items:center;gap:14px;}
+
+    /* ===== OLED TOGGLE ===== */
+    .theme-switch-wrapper{display:flex;align-items:center;gap:8px;}
+    .theme-switch{display:inline-block;height:24px;position:relative;width:50px;}
+    .theme-switch input{display:none;}
+    .slider{background:#333;bottom:0;cursor:pointer;left:0;position:absolute;right:0;top:0;transition:.4s;border-radius:34px;display:flex;align-items:center;justify-content:space-around;padding:0 5px;font-size:9px;}
+    .slider:before{background:#fff;bottom:4px;content:"";height:16px;left:4px;position:absolute;transition:.4s;width:16px;border-radius:50%;z-index:2;}
+    input:checked+.slider{background:var(--p);}
+    input:checked+.slider:before{transform:translateX(26px);}
+    .oled-label{font-size:11px;color:var(--muted);}
+
+    /* ===== PARTICLES ===== */
+    #pts{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;overflow:hidden;}
+    .pt{position:absolute;border-radius:50%;animation:float linear infinite;}
+    @keyframes float{0%{transform:translateY(100vh) rotate(0);opacity:0;}10%{opacity:1;}90%{opacity:1;}100%{transform:translateY(-20px) rotate(720deg);opacity:0;}}
+
+    /* ===== HERO ===== */
+    .hero-main{position:relative;overflow:hidden;min-height:90vh;display:flex;align-items:center;text-align:center;padding-top:80px;background:radial-gradient(circle at top,rgba(91,110,255,.18) 0%,transparent 65%);}
+    .hero-badge{background:rgba(91,110,255,.1);border:1px solid rgba(91,110,255,.22);padding:10px 22px;border-radius:50px;display:inline-flex;align-items:center;gap:8px;font-size:13px;margin-bottom:28px;}
+    .pulse-dot{width:8px;height:8px;background:var(--green);border-radius:50%;box-shadow:0 0 10px var(--green);animation:pulse 2s infinite;}
+    .hero-main h1{font-size:clamp(2.6rem,7vw,5rem);font-weight:900;line-height:1.1;margin-bottom:22px;}
+    .hero-sub{font-size:clamp(1rem,2vw,1.2rem);color:var(--muted);max-width:680px;margin:0 auto 30px;line-height:1.7;}
+    .live-bar{background:rgba(22,24,39,.8);border:1px solid rgba(91,110,255,.3);padding:11px 24px;border-radius:50px;display:inline-flex;align-items:center;gap:10px;font-size:13px;color:var(--muted);margin-bottom:28px;backdrop-filter:blur(6px);}
+    .live-dot{width:8px;height:8px;background:var(--green);border-radius:50%;box-shadow:0 0 10px var(--green);animation:pulse 2s infinite;}
+    @keyframes pulse{0%,100%{opacity:.4;}50%{opacity:1;}}
+
+    /* ===== TICKER ===== */
+    .ticker-section{padding:30px 0;background:rgba(255,255,255,.02);border-top:1px solid var(--border);border-bottom:1px solid var(--border);overflow:hidden;}
+    .ticker-title{text-align:center;font-size:11px;text-transform:uppercase;letter-spacing:2px;color:var(--muted);margin-bottom:18px;}
+    .ticker-track{display:flex;width:max-content;animation:ticker 35s linear infinite;}
+    .ticker-track:hover{animation-play-state:paused;}
+    .ticker-item{flex-shrink:0;display:flex;align-items:center;gap:10px;padding:0 35px;font-weight:600;font-size:.85rem;opacity:.65;transition:.2s;}
+    .ticker-item:hover{opacity:1;}
+    .ticker-item img{width:32px;height:32px;border-radius:50%;border:2px solid var(--border);}
+    .ticker-item .t-badge{font-size:10px;background:rgba(91,110,255,.2);color:var(--p);padding:2px 7px;border-radius:10px;}
+    @keyframes ticker{0%{transform:translateX(0);}100%{transform:translateX(-50%);}}
+
+    /* ===== STATS ===== */
+    .stats-overlap{margin-top:-70px;position:relative;z-index:30;}
+    .stats-card{background:var(--card);border:1px solid var(--border);border-radius:24px;padding:40px;box-shadow:0 24px 50px rgba(0,0,0,.45);display:grid;grid-template-columns:repeat(5,1fr);gap:20px;}
+    .stat-item{text-align:center;}
+    .stat-num{font-size:2.2rem;font-weight:800;color:var(--p);line-height:1;}
+    .stat-lbl{font-size:.78rem;color:var(--muted);margin-top:6px;text-transform:uppercase;letter-spacing:.5px;}
+
+    /* ===== FEATURES ===== */
+    .feat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:20px;}
+    .feat-card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:28px;transition:.3s;cursor:default;}
+    .feat-card:hover{border-color:rgba(91,110,255,.4);transform:translateY(-4px);box-shadow:0 16px 35px rgba(91,110,255,.12);}
+    .feat-icon{width:50px;height:50px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:1.4rem;margin-bottom:16px;}
+    .feat-card h3{font-size:1rem;font-weight:700;margin-bottom:8px;}
+    .feat-card p{font-size:.83rem;color:var(--muted);line-height:1.6;}
+
+    /* ===== DASHBOARD MOCKUP ===== */
+    .dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center;}
+    .dash-info .feature-selector{display:flex;gap:10px;margin-top:26px;flex-wrap:wrap;}
+    .f-btn{background:rgba(255,255,255,.05);border:1px solid var(--border);color:var(--text);padding:9px 18px;border-radius:8px;cursor:pointer;transition:.25s;font-size:.85rem;}
+    .f-btn.active,.f-btn:hover{background:var(--p);border-color:var(--p);}
+    .browser-ui{background:#1a1b2e;border-radius:14px;overflow:hidden;border:1px solid #2d2e45;}
+    .browser-hdr{background:#0f101a;padding:12px 16px;display:flex;align-items:center;gap:14px;}
+    .b-dots{display:flex;gap:6px;}
+    .b-dots span{width:10px;height:10px;border-radius:50%;}
+    .b-url{background:#1a1b2e;color:#5c5e8d;font-size:11px;padding:5px 16px;border-radius:5px;flex:1;text-align:center;}
+    .browser-body{height:320px;padding:20px;overflow:hidden;transition:.3s;}
+    .mock-dash{display:flex;height:100%;gap:12px;}
+    .mock-sb{width:70px;background:rgba(255,255,255,.04);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:8px;}
+    .mock-sb-item{height:8px;background:rgba(255,255,255,.08);border-radius:4px;}
+    .mock-sb-item.active{background:rgba(91,110,255,.5);}
+    .mock-main{flex:1;display:flex;flex-direction:column;gap:10px;}
+    .mock-kpi-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+    .mock-kpi{background:rgba(255,255,255,.04);border-radius:8px;height:50px;display:flex;align-items:center;padding:10px;gap:8px;border:1px solid var(--border);}
+    .mock-kpi-icon{width:20px;height:20px;border-radius:6px;}
+    .mock-toggle-row{display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,.03);padding:10px 14px;border-radius:8px;border:1px solid var(--border);}
+    .mock-toggle{width:32px;height:16px;border-radius:8px;transition:.3s;cursor:pointer;}
+    .mock-toggle.on{background:var(--green);}
+    .mock-toggle.off{background:#555;}
+    .mock-bar{height:10px;border-radius:5px;margin-bottom:8px;}
+
+    /* ===== SIMULATOR ===== */
+    .sim-wrapper{display:grid;grid-template-columns:2fr 1fr;background:#2b2d31;border-radius:14px;overflow:hidden;max-width:850px;margin:0 auto;border:1px solid var(--border);}
+    .sim-discord{background:#313338;padding:22px;min-height:240px;}
+    .sim-topbar{color:#80848e;border-bottom:1px solid #3f4147;padding-bottom:11px;margin-bottom:16px;font-weight:700;font-size:13px;display:flex;align-items:center;gap:8px;}
+    .sim-msg{display:flex;gap:14px;margin-bottom:12px;align-items:flex-start;}
+    .sim-avatar{width:38px;height:38px;border-radius:50%;flex-shrink:0;}
+    .bot-name{font-weight:700;font-size:.88rem;color:#fff;}
+    .bot-badge{background:#5865f2;font-size:10px;padding:2px 5px;border-radius:3px;color:#fff;vertical-align:middle;}
+    .embed-block{border-radius:4px;padding:12px;margin-top:6px;font-size:.83rem;color:#dbdee1;}
+    .sim-sidebar{background:#1e1f22;padding:18px;display:flex;flex-direction:column;gap:10px;}
+    .sim-btn{background:#4e5058;color:#fff;border:none;padding:11px;border-radius:6px;cursor:pointer;transition:.2s;font-size:12px;font-weight:600;text-align:left;}
+    .sim-btn:hover{background:#5d6068;}
+    .sim-btn.active{background:var(--p);}
+
+    /* ===== PRICING ===== */
+    .price-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px;margin-top:50px;}
+    .price-card{background:var(--card);border:1px solid var(--border);border-radius:24px;padding:44px 36px;text-align:center;position:relative;transition:.3s;}
+    .price-card.featured{border:2px solid var(--p);transform:scale(1.04);background:linear-gradient(180deg,rgba(91,110,255,.06) 0%,transparent 100%);}
+    .price-tag{position:absolute;top:-15px;left:50%;transform:translateX(-50%);background:var(--grad);padding:5px 18px;border-radius:50px;font-size:11px;font-weight:800;white-space:nowrap;}
+    .price-tier{font-size:1rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;}
+    .price-amount{font-size:3.2rem;font-weight:900;margin-bottom:6px;}
+    .price-amount span{font-size:1rem;color:var(--muted);}
+    .price-features{list-style:none;margin:20px 0 32px;text-align:left;}
+    .price-features li{padding:8px 0;color:var(--muted);font-size:.88rem;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);}
+    .price-features li:last-child{border-bottom:none;}
+    .price-features i{color:var(--p);}
+
+    /* ===== LOG GRID ===== */
+    .log-grid{display:flex;flex-wrap:wrap;gap:10px;}
+    .log-chip{background:rgba(91,110,255,.08);border:1px solid rgba(91,110,255,.2);padding:8px 16px;border-radius:8px;font-size:.82rem;display:flex;align-items:center;gap:6px;transition:.2s;}
+    .log-chip:hover{background:rgba(91,110,255,.2);}
+    .hash{color:var(--p);font-weight:700;}
+
+    /* ===== COMMANDS ===== */
+    .cmd-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;}
+    .cmd-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 16px;display:flex;gap:10px;align-items:center;transition:.2s;}
+    .cmd-card:hover{border-color:rgba(91,110,255,.4);}
+    .cmd-name{color:var(--p);font-size:.8rem;background:rgba(91,110,255,.1);padding:3px 10px;border-radius:5px;font-family:monospace;white-space:nowrap;}
+    .cmd-desc{font-size:.78rem;color:var(--muted);}
+
+    /* ===== SECURITY QUIZ ===== */
+    .quiz-wrapper{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:40px;max-width:700px;margin:0 auto;}
+    .quiz-progress{height:4px;background:rgba(255,255,255,.08);border-radius:2px;margin-bottom:30px;}
+    .quiz-progress-bar{height:100%;background:var(--grad);border-radius:2px;transition:.4s;}
+    .quiz-q{font-size:1.2rem;font-weight:700;margin-bottom:20px;}
+    .quiz-options{display:flex;flex-direction:column;gap:10px;}
+    .quiz-opt{background:rgba(255,255,255,.04);border:1px solid var(--border);padding:14px 20px;border-radius:10px;cursor:pointer;transition:.2s;text-align:left;color:var(--text);font-size:.9rem;}
+    .quiz-opt:hover,.quiz-opt.selected{border-color:var(--p);background:rgba(91,110,255,.1);}
+    .quiz-nav{display:flex;justify-content:space-between;margin-top:24px;}
+    .quiz-result{display:none;text-align:center;}
+    .quiz-score{font-size:3rem;font-weight:900;margin-bottom:14px;}
+    .quiz-rec{display:flex;flex-direction:column;gap:10px;margin-top:20px;text-align:left;}
+    .quiz-rec-item{background:rgba(91,110,255,.08);border:1px solid rgba(91,110,255,.2);padding:12px 16px;border-radius:10px;font-size:.85rem;}
+
+    /* ===== DRAG & DROP SHOWCASE ===== */
+    .dnd-area{display:grid;grid-template-columns:1fr 1fr;gap:30px;max-width:900px;margin:0 auto;}
+    .dnd-modules{display:flex;flex-direction:column;gap:10px;}
+    .dnd-mod{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 16px;cursor:grab;display:flex;align-items:center;gap:12px;font-size:.88rem;transition:.25s;user-select:none;}
+    .dnd-mod:hover{border-color:rgba(91,110,255,.4);transform:translateX(4px);}
+    .dnd-mod.dragging{opacity:.5;cursor:grabbing;}
+    .dnd-server{background:linear-gradient(145deg,#1a1b2e,#0f1020);border:2px dashed rgba(91,110,255,.3);border-radius:16px;padding:24px;min-height:300px;display:flex;flex-direction:column;gap:10px;transition:.2s;}
+    .dnd-server.drag-over{border-color:var(--p);background:rgba(91,110,255,.06);}
+    .dnd-server-title{font-size:.8rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;}
+    .dnd-placed{background:rgba(91,110,255,.12);border:1px solid rgba(91,110,255,.3);border-radius:8px;padding:10px 14px;font-size:.82rem;display:flex;align-items:center;justify-content:space-between;gap:8px;animation:pop .25s ease;}
+    @keyframes pop{0%{transform:scale(.8);opacity:0;}100%{transform:scale(1);opacity:1;}}
+    .dnd-remove{cursor:pointer;color:var(--muted);font-size:.8rem;background:none;border:none;color:#ef4444;}
+
+    /* ===== TEAM FLOW DIAGRAM ===== */
+    .flow-diagram{display:flex;align-items:center;justify-content:center;gap:0;flex-wrap:wrap;max-width:900px;margin:0 auto;}
+    .flow-node{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px 18px;text-align:center;width:150px;flex-shrink:0;transition:.3s;}
+    .flow-node .fn-icon{font-size:2rem;margin-bottom:10px;}
+    .flow-node .fn-label{font-size:.78rem;color:var(--muted);}
+    .flow-node .fn-title{font-size:.88rem;font-weight:700;}
+    .flow-arrow{font-size:1.5rem;color:var(--p);padding:0 10px;animation:arrow-pulse 2s infinite;}
+    @keyframes arrow-pulse{0%,100%{opacity:.4;}50%{opacity:1;}}
+    .flow-node.highlight{border-color:var(--p);box-shadow:0 0 20px rgba(91,110,255,.2);}
+
+    /* ===== BEFORE / AFTER SLIDER ===== */
+    .ba-wrapper{position:relative;max-width:800px;margin:0 auto;border-radius:16px;overflow:hidden;cursor:ew-resize;user-select:none;box-shadow:0 20px 50px rgba(0,0,0,.5);}
+    .ba-after,.ba-before{width:100%;height:340px;padding:24px;display:flex;flex-direction:column;gap:10px;}
+    .ba-before{background:#313338;}
+    .ba-after{background:linear-gradient(135deg,#1a1b2e,#0f1020);border:1px solid rgba(91,110,255,.3);position:absolute;top:0;left:0;overflow:hidden;}
+    .ba-divider{position:absolute;top:0;bottom:0;width:3px;background:var(--grad);cursor:ew-resize;z-index:10;transition:none;}
+    .ba-handle{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:36px;height:36px;background:var(--grad);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:.8rem;box-shadow:0 4px 14px rgba(91,110,255,.5);}
+    .ba-label{position:absolute;bottom:12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;padding:4px 12px;border-radius:20px;}
+    .ba-label.left{left:14px;background:rgba(239,68,68,.2);color:#f87171;}
+    .ba-label.right{right:14px;background:rgba(34,197,94,.2);color:#4ade80;}
+    .ba-msg{background:rgba(255,255,255,.05);border-radius:8px;padding:10px 14px;font-size:.8rem;color:#dbdee1;display:flex;align-items:center;gap:10px;}
+    .ba-msg.spam{border-left:3px solid #ef4444;}
+    .ba-msg.clean{border-left:3px solid var(--green);}
+    .ba-msg img{width:24px;height:24px;border-radius:50%;}
+
+    /* ===== PRIVACY ===== */
+    .privacy-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;}
+    .privacy-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px;}
+    .privacy-card h4{font-size:.9rem;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:8px;}
+    .privacy-card p{font-size:.8rem;color:var(--muted);line-height:1.6;}
+    .tag-yes{background:rgba(34,197,94,.15);color:#4ade80;font-size:10px;padding:2px 8px;border-radius:10px;}
+    .tag-no{background:rgba(239,68,68,.15);color:#f87171;font-size:10px;padding:2px 8px;border-radius:10px;}
+
+    /* ===== GLOBAL STATS ===== */
+    .gstats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:20px;}
+    .gstat-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px 20px;text-align:center;}
+    .gstat-num{font-size:2rem;font-weight:900;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+    .gstat-lbl{font-size:.78rem;color:var(--muted);margin-top:6px;}
+    .live-pill{display:inline-flex;align-items:center;gap:6px;background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.3);color:#4ade80;font-size:11px;padding:4px 12px;border-radius:20px;margin-bottom:20px;}
+
+    /* ===== CASE EXPLORER ===== */
+    .case-explorer{background:#1e1f22;border-radius:14px;overflow:hidden;max-width:850px;margin:0 auto;border:1px solid var(--border);}
+    .case-list{background:#111214;padding:16px;display:flex;flex-direction:column;gap:8px;width:240px;border-right:1px solid var(--border);}
+    .case-item{padding:12px 14px;border-radius:8px;cursor:pointer;transition:.2s;font-size:.83rem;}
+    .case-item:hover,.case-item.active{background:rgba(91,110,255,.15);}
+    .case-id{font-size:10px;color:var(--p);font-weight:700;}
+    .case-detail{flex:1;padding:24px;}
+    .case-header{display:flex;align-items:center;gap:14px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border);}
+    .case-badge{padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;}
+    .badge-ban{background:rgba(239,68,68,.2);color:#f87171;}
+    .badge-warn{background:rgba(251,191,36,.2);color:#fbbf24;}
+    .badge-mute{background:rgba(91,110,255,.2);color:#818cf8;}
+    .case-field{margin-bottom:14px;}
+    .case-field label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px;}
+    .case-field span{font-size:.88rem;}
+    .case-timeline{display:flex;flex-direction:column;gap:8px;margin-top:16px;}
+    .tl-item{display:flex;gap:12px;align-items:flex-start;font-size:.8rem;}
+    .tl-dot{width:8px;height:8px;border-radius:50%;margin-top:4px;flex-shrink:0;}
+    .tl-text{color:var(--muted);}
+
+    /* ===== SPEED BENCHMARK ===== */
+    .bench-wrapper{max-width:700px;margin:0 auto;}
+    .bench-row{margin-bottom:20px;}
+    .bench-label{display:flex;justify-content:space-between;margin-bottom:8px;font-size:.88rem;}
+    .bench-bar-bg{background:rgba(255,255,255,.05);border-radius:50px;height:14px;overflow:hidden;}
+    .bench-bar-fill{height:100%;border-radius:50px;transition:width 1.4s ease;}
+    .bench-time{font-weight:800;}
+    .bench-tag{font-size:11px;background:rgba(34,197,94,.15);color:#4ade80;padding:2px 8px;border-radius:10px;}
+
+    /* ===== FEEDBACK WALL ===== */
+    .feedback-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;}
+    .dc-msg-card{background:#313338;border-radius:12px;padding:20px;border:1px solid #3f4147;transition:.2s;}
+    .dc-msg-card:hover{transform:translateY(-3px);box-shadow:0 10px 25px rgba(0,0,0,.3);}
+    .dc-author{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+    .dc-avatar{width:36px;height:36px;border-radius:50%;}
+    .dc-username{font-weight:700;font-size:.88rem;}
+    .dc-server{font-size:11px;color:#80848e;}
+    .dc-text{font-size:.85rem;color:#dbdee1;line-height:1.6;}
+    .dc-stars{color:#fbbf24;font-size:.85rem;margin-top:8px;}
+
+    /* ===== API CORNER ===== */
+    .api-wrapper{background:#0f1020;border:1px solid var(--border);border-radius:14px;overflow:hidden;max-width:800px;margin:0 auto;}
+    .api-tabs{display:flex;background:#0a0b14;border-bottom:1px solid var(--border);}
+    .api-tab{padding:12px 20px;font-size:.82rem;cursor:pointer;color:var(--muted);transition:.2s;border-bottom:2px solid transparent;}
+    .api-tab.active{color:var(--p);border-bottom-color:var(--p);}
+    .api-body{padding:24px;}
+    .api-code{font-family:monospace;font-size:.82rem;line-height:1.7;white-space:pre-wrap;color:#a8b4d4;}
+    .api-code .kw{color:#c792ea;}
+    .api-code .str{color:#c3e88d;}
+    .api-code .fn{color:#82aaff;}
+    .api-code .cm{color:#546e7a;}
+
+    /* ===== ROADMAP ===== */
+    .roadmap{position:relative;max-width:800px;margin:0 auto;padding:0 0 0 30px;}
+    .roadmap::before{content:'';position:absolute;left:10px;top:0;bottom:0;width:2px;background:linear-gradient(to bottom,var(--p),transparent);}
+    .rm-item{position:relative;margin-bottom:34px;padding-left:30px;}
+    .rm-dot{position:absolute;left:-26px;top:4px;width:14px;height:14px;border-radius:50%;border:2px solid var(--p);background:var(--bg);}
+    .rm-dot.done{background:var(--p);}
+    .rm-dot.soon{background:rgba(91,110,255,.4);}
+    .rm-month{font-size:11px;color:var(--p);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
+    .rm-title{font-size:1rem;font-weight:700;margin-bottom:4px;}
+    .rm-desc{font-size:.83rem;color:var(--muted);}
+    .rm-status{display:inline-block;font-size:10px;padding:2px 10px;border-radius:10px;margin-left:8px;vertical-align:middle;}
+    .rm-done{background:rgba(34,197,94,.15);color:#4ade80;}
+    .rm-soon{background:rgba(251,191,36,.15);color:#fbbf24;}
+    .rm-future{background:rgba(91,110,255,.15);color:#818cf8;}
+
+    /* ===== INVITE GENERATOR ===== */
+    .invite-wrapper{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:40px;max-width:600px;margin:0 auto;text-align:center;}
+    .invite-input{width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border);color:var(--text);padding:14px 20px;border-radius:12px;font-size:.95rem;margin-bottom:16px;outline:none;transition:.2s;}
+    .invite-input:focus{border-color:var(--p);}
+    .invite-result{background:rgba(91,110,255,.08);border:1px solid rgba(91,110,255,.2);border-radius:12px;padding:16px;margin-top:16px;display:none;word-break:break-all;font-size:.85rem;color:var(--p);}
+    .invite-copy-btn{background:rgba(255,255,255,.05);border:1px solid var(--border);color:var(--text);padding:8px 16px;border-radius:8px;cursor:pointer;font-size:.8rem;margin-top:10px;transition:.2s;}
+    .invite-copy-btn:hover{background:rgba(255,255,255,.1);}
+
+    /* ===== MOD-LOG REPLAY ===== */
+    .replay-wrapper{background:#1e1f22;border-radius:14px;overflow:hidden;max-width:850px;margin:0 auto;border:1px solid var(--border);}
+    .replay-header{background:#111214;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);}
+    .replay-title{font-size:.88rem;font-weight:700;display:flex;align-items:center;gap:8px;}
+    .replay-body{padding:24px;min-height:200px;}
+    .replay-timeline{display:flex;flex-direction:column;gap:8px;}
+    .replay-event{background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:.8rem;display:flex;align-items:center;gap:12px;opacity:0;transform:translateX(-20px);transition:.4s;}
+    .replay-event.show{opacity:1;transform:translateX(0);}
+    .re-time{color:var(--p);font-weight:700;width:60px;flex-shrink:0;font-family:monospace;}
+    .re-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+    .replay-controls{display:flex;gap:12px;justify-content:center;margin-top:20px;}
+
+    /* ===== CTA ===== */
+    .cta-box{text-align:center;padding:70px 20px;background:var(--card);border-radius:24px;border:1px solid var(--border);position:relative;overflow:hidden;}
+    .cta-box::before{content:'';position:absolute;top:-80px;left:50%;transform:translateX(-50%);width:400px;height:400px;background:radial-gradient(circle,rgba(91,110,255,.18),transparent);pointer-events:none;}
+    .cta-box h2{font-size:clamp(1.8rem,4vw,2.6rem);font-weight:900;margin-bottom:14px;}
+    .cta-box p{color:var(--muted);max-width:580px;margin:0 auto 30px;}
+
+    /* ===== FOOTER ===== */
+    footer{border-top:1px solid var(--border);padding:40px 20px;text-align:center;color:var(--muted);font-size:.82rem;}
+    footer a{color:var(--muted);text-decoration:none;transition:.2s;}
+    footer a:hover{color:#fff;}
+
+    /* ===== RESPONSIVE ===== */
+    @media(max-width:900px){
+      .stats-card{grid-template-columns:repeat(3,1fr);}
+      .dash-grid{grid-template-columns:1fr;}
+      .sim-wrapper{grid-template-columns:1fr;}
+      .dnd-area{grid-template-columns:1fr;}
+      .case-explorer{flex-direction:column;}
+      .case-list{width:100%;}
+      nav .nav-links{display:none;}
+    }
+    @media(max-width:600px){
+      .stats-card{grid-template-columns:1fr 1fr;}
+      .flow-diagram{flex-direction:column;}
+      .flow-arrow{transform:rotate(90deg);}
+      .ba-after,.ba-before{height:260px;}
+    }
+  </style>
 </head>
+<body>
 
-<div class="theme-switch-wrapper">
-    <label class="theme-switch" for="checkbox">
-        <input type="checkbox" id="checkbox" />
+<!-- ===== NAVBAR ===== -->
+<nav>
+  <span class="nav-logo">⚒ ModForge</span>
+  <ul class="nav-links">
+    <li><a href="#features">Features</a></li>
+    <li><a href="#simulator">Simulator</a></li>
+    <li><a href="#pricing">Preise</a></li>
+    <li><a href="#roadmap">Roadmap</a></li>
+    <li><a href="https://discord.gg/gwryX3dbkt" target="_blank">Support</a></li>
+  </ul>
+  <div class="nav-right">
+    <div class="theme-switch-wrapper">
+      <label class="theme-switch" for="oled-toggle">
+        <input type="checkbox" id="oled-toggle"/>
         <div class="slider round"><i class="fas fa-moon"></i><i class="fas fa-sun"></i></div>
-    </label>
-    <span class="oled-label">OLED Mode</span>
-</div>
+      </label>
+      <span class="oled-label">OLED</span>
+    </div>
+    <a class="btn btn-primary" href="https://discord.com/oauth2/authorize?client_id=BOT_CLIENT_ID&scope=bot+applications.commands&permissions=8" target="_blank" style="font-size:.8rem;padding:9px 18px;">Bot einladen</a>
+  </div>
+</nav>
 
-<section class="hero-main">
-  <div class="particles" id="pts"></div>
-  <div class="container relative z-10">
+<!-- ===== HERO ===== -->
+<section class="hero-main" id="home">
+  <div id="pts"></div>
+  <div class="container" style="position:relative;z-index:10;">
     <div class="hero-badge" data-aos="fade-down">
       <span class="pulse-dot"></span> NEU: ModForge v3.0 Ultra ist da
     </div>
-    <h1 data-aos="fade-up">Sicherheit auf einem<br><span class="grad">neuen Level.</span></h1>
+    <h1 data-aos="fade-up">
+      Sicherheit auf einem<br><span class="grad-text">neuen Level.</span>
+    </h1>
     <p class="hero-sub" data-aos="fade-up" data-aos-delay="100">
-      Schütze deine Community mit der fortschrittlichsten KI-Moderation und einem Echtzeit-Dashboard.
+      Der leistungsstärkste Discord-Moderationsbot mit vollständigem <strong>Web-Dashboard</strong>,
+      <strong>Anti-Nuke</strong>, <strong>Anti-Raid</strong>, <strong>AutoMod</strong>,
+      <strong>Case-System</strong> und viel mehr — alles in einer Lösung.
     </p>
-    
-    <div class="live-activity-bar" data-aos="zoom-in">
-        <div class="live-dot"></div>
-        <span id="live-text">Initialisiere Sicherheits-Protokolle...</span>
+    <div class="live-bar" data-aos="zoom-in">
+      <div class="live-dot"></div>
+      <span id="live-text">Initialisiere Sicherheits-Protokolle...</span>
     </div>
-
-    <div class="btn-row-center" data-aos="fade-up" data-aos-delay="200">
-      <a class="btn btn-primary btn-lg" href="https://discord.com/oauth2/authorize?client_id={{ cid }}&scope=bot+applications.commands&permissions=8">🛡️ Jetzt schützen</a>
-      <a class="btn btn-ghost btn-lg" href="#dashboard">📊 Live Demo</a>
+    <div class="btn-row" style="justify-content:center;" data-aos="fade-up" data-aos-delay="200">
+      <a class="btn btn-primary" href="https://discord.com/oauth2/authorize?client_id=BOT_CLIENT_ID&scope=bot+applications.commands&permissions=8" target="_blank">🛡️ Jetzt schützen</a>
+      <a class="btn btn-ghost" href="#simulator">📊 Simulator</a>
+      <a class="btn btn-ghost" href="/login">Dashboard öffnen</a>
     </div>
   </div>
 </section>
 
-<section class="trusted-ticker-section">
-    <div class="ticker-title">Vertraut von Servern mit 100+ Mitgliedern</div>
-    <div class="ticker-wrap">
-        <div class="ticker">
-            <div class="ticker-item"><img src="https://cdn.discordapp.com/embed/avatars/0.png"> <span>Elite Gaming</span></div>
-            <div class="ticker-item"><img src="https://cdn.discordapp.com/embed/avatars/1.png"> <span>Dev Community</span></div>
-            <div class="ticker-item"><img src="https://cdn.discordapp.com/embed/avatars/2.png"> <span>Support HQ</span></div>
-            <div class="ticker-item"><img src="https://cdn.discordapp.com/embed/avatars/3.png"> <span>Global Lounge</span></div>
-            <div class="ticker-item"><img src="https://cdn.discordapp.com/embed/avatars/4.png"> <span>Nitro Zone</span></div>
-            <div class="ticker-item"><img src="https://cdn.discordapp.com/embed/avatars/0.png"> <span>Elite Gaming</span></div>
-            <div class="ticker-item"><img src="https://cdn.discordapp.com/embed/avatars/1.png"> <span>Dev Community</span></div>
-        </div>
-    </div>
-</section>
+<!-- ===== TRUSTED BY TICKER (100+ member servers) ===== -->
+<div class="ticker-section">
+  <div class="ticker-title">Vertraut von Servern mit 100+ Mitgliedern</div>
+  <div class="ticker-track" id="ticker-track"></div>
+</div>
 
+<!-- ===== STATS ===== -->
 <div class="container stats-overlap">
-  <div class="stats-card-grid">
-    <div class="stat-card" data-aos="zoom-in">
-      <div class="stat-val counter" data-target="{{ gc_raw }}">{{ gc }}</div>
-      <div class="stat-name">Aktive Server</div>
+  <div class="stats-card">
+    <div class="stat-item" data-aos="zoom-in">
+      <div class="stat-num counter" data-target="250">0</div>
+      <div class="stat-lbl">Aktive Server</div>
     </div>
-    <div class="stat-card" data-aos="zoom-in" data-aos-delay="100">
-      <div class="stat-val counter" data-target="{{ mc_raw }}">{{ mc }}</div>
-      <div class="stat-name">User geschützt</div>
+    <div class="stat-item" data-aos="zoom-in" data-aos-delay="80">
+      <div class="stat-num counter" data-target="15000">0</div>
+      <div class="stat-lbl">Geschützte User</div>
     </div>
-    <div class="stat-card" data-aos="zoom-in" data-aos-delay="200">
-      <div class="stat-val">{{ lat }}ms</div>
-      <div class="stat-name">Global Ping</div>
+    <div class="stat-item" data-aos="zoom-in" data-aos-delay="160">
+      <div class="stat-num">99.9%</div>
+      <div class="stat-lbl">Uptime</div>
+    </div>
+    <div class="stat-item" data-aos="zoom-in" data-aos-delay="240">
+      <div class="stat-num">42ms</div>
+      <div class="stat-lbl">Gateway Latenz</div>
+    </div>
+    <div class="stat-item" data-aos="zoom-in" data-aos-delay="320">
+      <div class="stat-num">0</div>
+      <div class="stat-lbl">Datenlecks</div>
     </div>
   </div>
 </div>
 
-<section id="dashboard" class="section section-glow">
+<!-- ===== FEATURES ===== -->
+<section id="features" class="section section-alt">
   <div class="container">
-    <div class="dash-preview-grid">
+    <div class="sec-head" data-aos="fade-up">
+      <div class="sec-badge">🚀 Features</div>
+      <h2>Alles was du für deinen Server brauchst</h2>
+      <p>ModForge vereint alle wichtigen Sicherheits- & Moderations-Features in einer Lösung.</p>
+    </div>
+    <div class="feat-grid" id="feat-grid"></div>
+  </div>
+</section>
+
+<!-- ===== DASHBOARD MOCKUP ===== -->
+<section class="section">
+  <div class="container">
+    <div class="dash-grid">
       <div class="dash-info" data-aos="fade-right">
-        <div class="badge-small">WEB DASHBOARD</div>
-        <h2>Volle Kontrolle,<br><span class="grad">Null Code.</span></h2>
-        <p>Konfiguriere jedes Detail deines Servers in Sekunden. Unser Dashboard ist so schnell wie dein Browser.</p>
+        <div class="sec-badge" style="margin-bottom:14px">📊 Web Dashboard</div>
+        <h2 style="font-size:clamp(1.8rem,3.5vw,2.4rem);font-weight:900;margin-bottom:14px;">
+          Volle Kontrolle,<br><span class="grad-text">Null Code.</span>
+        </h2>
+        <p style="color:var(--muted);line-height:1.7;margin-bottom:14px;">
+          Konfiguriere jedes Detail deines Servers in Sekunden. Discord OAuth2 Login, grafische Einstellungen, Live-Aktivitäten.
+        </p>
+        <ul style="list-style:none;margin-bottom:22px;display:flex;flex-direction:column;gap:8px;">
+          <li style="font-size:.88rem;color:var(--muted);display:flex;align-items:center;gap:8px;"><span style="color:var(--green);">✅</span> Discord OAuth2 Login</li>
+          <li style="font-size:.88rem;color:var(--muted);display:flex;align-items:center;gap:8px;"><span style="color:var(--green);">✅</span> 30+ konfigurierbare Module</li>
+          <li style="font-size:.88rem;color:var(--muted);display:flex;align-items:center;gap:8px;"><span style="color:var(--green);">✅</span> Live-Activity-Stream</li>
+        </ul>
         <div class="feature-selector">
-            <button class="f-select-btn active" onclick="switchDash('auto')">AutoMod</button>
-            <button class="f-select-btn" onclick="switchDash('nuke')">Anti-Nuke</button>
-            <button class="f-select-btn" onclick="switchDash('logs')">Logging</button>
+          <button class="f-btn active" onclick="switchDash('auto',this)">AutoMod</button>
+          <button class="f-btn" onclick="switchDash('nuke',this)">Anti-Nuke</button>
+          <button class="f-btn" onclick="switchDash('logs',this)">Logging</button>
         </div>
       </div>
-      <div class="dash-visual" data-aos="fade-left">
+      <div data-aos="fade-left">
         <div class="browser-ui shadow-ultra">
-            <div class="browser-header">
-                <div class="b-dots"><span></span><span></span><span></span></div>
-                <div class="b-url">modforge.app/dashboard/settings</div>
+          <div class="browser-hdr">
+            <div class="b-dots">
+              <span style="background:#ff5f56"></span>
+              <span style="background:#ffbd2e"></span>
+              <span style="background:#27c93f"></span>
             </div>
-            <div class="browser-body" id="dash-img-container">
-                <div class="mock-dash-content">
-                    <div class="mock-sidebar"></div>
-                    <div class="mock-main">
-                        <div class="mock-card"></div>
-                        <div class="mock-line"></div>
-                        <div class="mock-line" style="width:60%"></div>
-                    </div>
-                </div>
+            <div class="b-url" id="dash-url">modforge.app/dashboard/automod</div>
+          </div>
+          <div class="browser-body" id="dash-body">
+            <div class="mock-dash">
+              <div class="mock-sb">
+                <div class="mock-sb-item active"></div>
+                <div class="mock-sb-item"></div>
+                <div class="mock-sb-item"></div>
+                <div class="mock-sb-item"></div>
+                <div class="mock-sb-item"></div>
+              </div>
+              <div class="mock-main" id="mock-content"></div>
             </div>
+          </div>
         </div>
       </div>
     </div>
   </div>
 </section>
 
+<!-- ===== COMMAND SIMULATOR ===== -->
+<section id="simulator" class="section section-alt">
+  <div class="container">
+    <div class="sec-head" data-aos="fade-up">
+      <div class="sec-badge">⌨️ Simulator</div>
+      <h2>Befehls-Simulator</h2>
+      <p>Teste live, wie ModForge in Discord antwortet.</p>
+    </div>
+    <div class="sim-wrapper shadow-ultra" data-aos="zoom-in">
+      <div class="sim-discord">
+        <div class="sim-topbar"><i class="fas fa-hashtag" style="font-size:.9rem;"></i> moderation-logs</div>
+        <div id="sim-chat">
+          <div class="sim-msg">
+            <img src="https://cdn.discordapp.com/embed/avatars/0.png" class="sim-avatar"/>
+            <div>
+              <span class="bot-name">ModForge <span class="bot-badge">BOT</span></span>
+              <p style="font-size:.83rem;color:#dbdee1;margin-top:4px;">Bereit für Befehle. Nutze die Buttons!</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="sim-sidebar">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Befehle</div>
+        <button class="sim-btn" onclick="runSim('ban')">/ban @User</button>
+        <button class="sim-btn" onclick="runSim('warn')">/warn @User</button>
+        <button class="sim-btn" onclick="runSim('lock')">/channel lock</button>
+        <button class="sim-btn" onclick="runSim('nuke')">/anti-nuke status</button>
+        <button class="sim-btn" onclick="runSim('case')">/case view #42</button>
+        <button class="sim-btn" onclick="runSim('purge')">/purge 50</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== PRICING ===== -->
+<section id="pricing" class="section">
+  <div class="container">
+    <div class="sec-head" data-aos="fade-up">
+      <div class="sec-badge">💎 Preise</div>
+      <h2>Wähle deinen Schutz</h2>
+      <p>Sicherheit muss nicht teuer sein.</p>
+    </div>
+    <div class="price-grid">
+      <div class="price-card" data-aos="fade-right">
+        <div class="price-tier">Standard</div>
+        <div class="price-amount">0€<span>/Monat</span></div>
+        <ul class="price-features">
+          <li><i class="fas fa-check"></i> Alle Basis-Moderationen</li>
+          <li><i class="fas fa-check"></i> Web Dashboard Zugriff</li>
+          <li><i class="fas fa-check"></i> Standard AutoMod</li>
+          <li><i class="fas fa-check"></i> Case System</li>
+          <li><i class="fas fa-check"></i> 24 Log-Module</li>
+        </ul>
+        <a class="btn btn-ghost" href="#" style="width:100%;text-align:center;">Kostenlos nutzen</a>
+      </div>
+      <div class="price-card featured" data-aos="zoom-in" data-aos-delay="100">
+        <div class="price-tag">BESTE WAHL · COMING SOON</div>
+        <div class="price-tier">Ultra / Premium</div>
+        <div class="price-amount">4.99€<span>/Monat</span></div>
+        <ul class="price-features">
+          <li><i class="fas fa-star"></i> Alles aus Standard</li>
+          <li><i class="fas fa-star"></i> <strong>Anti-Nuke Ultra</strong></li>
+          <li><i class="fas fa-star"></i> Eigene Embed-Farben</li>
+          <li><i class="fas fa-star"></i> Keine Branding-Logs</li>
+          <li><i class="fas fa-star"></i> 24/7 VIP Support</li>
+          <li><i class="fas fa-star"></i> Beta-Features sofort</li>
+        </ul>
+        <button class="btn btn-primary" disabled style="width:100%;opacity:.6;cursor:not-allowed;">Bald verfügbar</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SECURITY QUIZ ===== -->
 <section class="section section-alt">
-    <div class="container">
-        <div class="sec-head center">
-            <h2>Wähle deinen Schutz</h2>
-            <p>Vom kleinen Community-Server bis zum riesigen Netzwerk.</p>
-        </div>
-        <div class="pricing-grid">
-            <div class="price-box" data-aos="fade-up">
-                <div class="p-tier">Standard</div>
-                <div class="p-price">0€<span>/Monat</span></div>
-                <ul class="p-features">
-                    <li><i class="fas fa-check"></i> Basis AutoMod</li>
-                    <li><i class="fas fa-check"></i> Dashboard Zugriff</li>
-                    <li><i class="fas fa-check"></i> Case System</li>
-                </ul>
-                <a href="#" class="btn btn-ghost w-full">Kostenlos nutzen</a>
-            </div>
-
-            <div class="price-box premium featured" data-aos="fade-up" data-aos-delay="100">
-                <div class="p-tag">BESTE WAHL</div>
-                <div class="p-tier">Ultra / Premium</div>
-                <div class="p-price">10,99€<span>/Monat</span></div>
-                <ul class="p-features">
-                    <li><i class="fas fa-star"></i> <strong>Anti-Nuke Ultra</strong></li>
-                    <li><i class="fas fa-star"></i> Eigene Bot-Embed Farben</li>
-                    <li><i class="fas fa-star"></i> Keine Branding-Logs</li>
-                    <li><i class="fas fa-star"></i> 24/7 VIP Support</li>
-                    <li><i class="fas fa-star"></i> Beta-Features sofort</li>
-                </ul>
-                <a href="#" class="btn btn-primary w-full">Premium holen</a>
-            </div>
-        </div>
+  <div class="container">
+    <div class="sec-head" data-aos="fade-up">
+      <div class="sec-badge">🔍 Sicherheits-Check</div>
+      <h2>Wie sicher ist dein Server?</h2>
+      <p>Beantworte 4 kurze Fragen und erfahre, welche ModForge-Module dich schützen würden.</p>
     </div>
+    <div class="quiz-wrapper shadow-ultra" data-aos="zoom-in">
+      <div class="quiz-progress"><div class="quiz-progress-bar" id="qprogress" style="width:0%"></div></div>
+      <div id="quiz-main">
+        <div class="quiz-q" id="quiz-question"></div>
+        <div class="quiz-options" id="quiz-options"></div>
+        <div class="quiz-nav">
+          <button class="btn btn-ghost" id="quiz-prev" onclick="quizPrev()">← Zurück</button>
+          <span id="quiz-counter" style="color:var(--muted);font-size:.85rem;align-self:center;"></span>
+          <button class="btn btn-primary" id="quiz-next" onclick="quizNext()">Weiter →</button>
+        </div>
+      </div>
+      <div class="quiz-result" id="quiz-result">
+        <div class="quiz-score" id="quiz-score-val"></div>
+        <p id="quiz-verdict"></p>
+        <div class="quiz-rec" id="quiz-recs"></div>
+        <button class="btn btn-ghost" style="margin-top:20px;" onclick="quizReset()">Nochmal versuchen</button>
+      </div>
+    </div>
+  </div>
 </section>
 
+<!-- ===== DRAG & DROP SHOWCASE ===== -->
 <section class="section">
-    <div class="container">
-        <div class="sec-head"><h2>Befehls-Simulator</h2></div>
-        <div class="sim-wrapper shadow-ultra">
-            <div class="sim-sidebar">
-                <button onclick="runSim('ban')">/ban</button>
-                <button onclick="runSim('lock')">/lock</button>
-                <button onclick="runSim('warn')">/warn</button>
-            </div>
-            <div class="sim-screen" id="sim-chat">
-                <div class="sim-msg">Wähle einen Befehl links...</div>
-            </div>
-        </div>
+  <div class="container">
+    <div class="sec-head" data-aos="fade-up">
+      <div class="sec-badge">🧩 Modulares System</div>
+      <h2>Drag & Drop – Baue deinen Bot</h2>
+      <p>Ziehe Module in deinen Server und aktiviere nur was du brauchst.</p>
     </div>
+    <div class="dnd-area" data-aos="fade-up">
+      <div>
+        <div style="font-size:.8rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;">Verfügbare Module</div>
+        <div class="dnd-modules" id="dnd-modules"></div>
+      </div>
+      <div>
+        <div style="font-size:.8rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;">Dein Server</div>
+        <div class="dnd-server" id="dnd-server">
+          <div class="dnd-server-title">⬅ Module hierher ziehen</div>
+        </div>
+        <button class="btn btn-ghost" style="margin-top:12px;width:100%;font-size:.8rem;" onclick="dndReset()">Reset</button>
+      </div>
+    </div>
+  </div>
 </section>
 
-<style>
-    /* VARIABLES */
-    :root {
-        --p: #5b6eff; --bg: #0b0c14; --card: #161827; --text: #fff; --muted: #8b92b7;
-        --grad: linear-gradient(135deg, #5b6eff 0%, #9b59b6 100%);
-    }
-    [data-theme="dark"] { --bg: #000; --card: #080808; }
+<!-- ===== TEAM FLOW DIAGRAM ===== -->
+<section class="section section-alt">
+  <div class="container">
+    <div class="sec-head" data-aos="fade-up">
+      <div class="sec-badge">👥 Wie es funktioniert</div>
+      <h2>ModForge & dein Team</h2>
+      <p>Automatisch erkennen, handeln & dein Mod-Team informieren.</p>
+    </div>
+    <div class="flow-diagram" data-aos="zoom-in">
+      <div class="flow-node">
+        <div class="fn-icon">👤</div>
+        <div class="fn-title">User</div>
+        <div class="fn-label">postet Scam-Link</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node highlight">
+        <div class="fn-icon">🤖</div>
+        <div class="fn-title">ModForge</div>
+        <div class="fn-label" id="flow-action">erkennt in 0.2s</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node">
+        <div class="fn-icon">🔨</div>
+        <div class="fn-title">AutoAction</div>
+        <div class="fn-label">löscht & bannt</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node">
+        <div class="fn-icon">📢</div>
+        <div class="fn-title">Mod-Team</div>
+        <div class="fn-label">erhält Log + Case</div>
+      </div>
+    </div>
+    <div style="text-align:center;margin-top:30px;">
+      <button class="btn btn-ghost" onclick="animateFlow()">▶ Simulation starten</button>
+    </div>
+  </div>
+</section>
 
-    /* CORE */
-    body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; transition: 0.4s; overflow-x: hidden; }
-    .container { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
-    .grad { background: var(--grad); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+<!-- ===== BEFORE / AFTER SLIDER ===== -->
+<section class="section">
+  <div class="container">
+    <div class="sec-head" data-aos="fade-up">
+      <div class="sec-badge">🔄 Vergleich</div>
+      <h2>Vorher vs. Nachher</h2>
+      <p>Ziehe den Regler und sieh den Unterschied.</p>
+    </div>
+    <div class="ba-wrapper shadow-ultra" id="ba-wrapper" data-aos="zoom-in">
+      <div class="ba-before">
+        <div style="font-size:.75rem;color:#80848e;margin-bottom:8px;"># general – ohne ModForge</div>
+        <div class="ba-msg spam"><img src="https://cdn.discordapp.com/embed/avatars/2.png">💀 Free Nitro!! click.evil/free</div>
+        <div class="ba-msg spam"><img src="https://cdn.discordapp.com/embed/avatars/3.png">@everyone @everyone @everyone RAID!!!</div>
+        <div class="ba-msg spam"><img src="https://cdn.discordapp.com/embed/avatars/4.png">AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA</div>
+        <div class="ba-msg"><img src="https://cdn.discordapp.com/embed/avatars/1.png">kann jemand mods holen??</div>
+        <div class="ba-msg spam"><img src="https://cdn.discordapp.com/embed/avatars/0.png">💣 buy accounts | best prices 💣</div>
+        <div class="ba-label left">OHNE MODFORGE</div>
+      </div>
+      <div class="ba-after" id="ba-after" style="clip-path:inset(0 50% 0 0);">
+        <div style="font-size:.75rem;color:#80848e;margin-bottom:8px;"># general – mit ModForge</div>
+        <div class="ba-msg clean"><img src="https://cdn.discordapp.com/embed/avatars/1.png">Hey, wie geht's allen?</div>
+        <div class="ba-msg clean"><img src="https://cdn.discordapp.com/embed/avatars/0.png">Ganz gut! Habt ihr das neue Update gesehen?</div>
+        <div class="ba-msg clean" style="background:rgba(91,110,255,.08);border-left:3px solid var(--p);">🤖 ModForge: Scam-Link erkannt & entfernt. Case #88 erstellt.</div>
+        <div class="ba-msg clean"><img src="https://cdn.discordapp.com/embed/avatars/3.png">Danke ModForge 🙏</div>
+        <div class="ba-label right">MIT MODFORGE</div>
+      </div>
+      <div class="ba-divider" id="ba-divider" style="left:50%;">
+        <div class="ba-handle">◀▶</div>
+      </div>
+    </div>
+  </div>
+</section>
 
-    /* HERO */
-    .hero-main { padding: 150px 0 100px; text-align: center; background: radial-gradient(circle at top, rgba(91,110,255,0.15) 0%, transparent 70%); }
-    .hero-badge { background: rgba(91,110,255,0.1); border: 1px solid rgba(91,110,255,0.2); padding: 10px 20px; border-radius: 50px; display: inline-block; font-size: 14px; margin-bottom: 25px; }
+<!-- ===== GLOBAL STATS ===== -->
+<section class="section section-alt">
+  <div class="container">
+    <div class="sec-head" data-aos="fade-up">
+      <div class="sec-badge">🌐 Live Statistiken</div>
+      <h2>Globales Sicherheits-Dashboard</h2>
+      <div class="live-pill"><span class="live-dot" style="width:6px;height:6px;"></span> Echtzeit-Daten</div>
+    </div>
+    <div class="gstats-grid" data-aos="fade-up">
+      <div class="gstat-card">
+        <div class="gstat-num" id="gs1">500+</div>
+        <div class="gstat-lbl">Raids verhindert (24h)</div>
+      </div>
+      <div class="gstat-card">
+        <div class="gstat-num" id="gs2">12,440</div>
+        <div class="gstat-lbl">Spam gefiltert (24h)</div>
+      </div>
+      <div class="gstat-card">
+        <div class="gstat-num" id="gs3">98</div>
+        <div class="gstat-lbl">Phishing-Links blockiert</div>
+      </div>
+      <div class="gstat-card">
+        <div class="gstat-num" id="gs4">342</div>
+        <div class="gstat-lbl">Cases erstellt (24h)</div>
+      </div>
+      <div class="gstat-card">
+        <div class="gstat-num" id="gs5">1,200+</div>
+        <div class="gstat-lbl">Warns ausgestellt</div>
+      </div>
+    </div>
+  </div>
+</section>
 
-    /* TICKER */
-    .trusted-ticker-section { padding: 40px 0; background: rgba(255,255,255,0.02); overflow: hidden; }
-    .ticker-title { text-align: center; font-size: 12px; text-transform: uppercase; letter-spacing: 2px; color: var(--muted); margin-bottom: 20px; }
-    .ticker-wrap { display: flex; overflow: hidden; }
-    .ticker { display: flex; animation: ticker 20s linear infinite; }
-    .ticker-item { flex-shrink: 0; display: flex; align-items: center; gap: 10px; padding: 0 40px; font-weight: 600; opacity: 0.6; }
-    .ticker-item img { width: 30px; height: 30px; border-radius: 50%; }
-    @keyframes ticker { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+<!-- ===== CASE SYSTEM EXPLORER ===== -->
+<section class="section">
+  <div class="container">
+    <div class="sec-head" data-aos="fade-up">
+      <div class="sec-badge">📁 Case System</div>
+      <h2>Case-System Explorer</h2>
+      <p>Klicke auf einen Fall und sieh wie übersichtlich ModForge Moderationsaktionen aufbereitet.</p>
+    </div>
+    <div class="case-explorer shadow-ultra" style="display:flex;" data-aos="zoom-in">
+      <div class="case-list" id="case-list"></div>
+      <div class="case-detail" id="case-detail"></div>
+    </div>
+  </div>
+</section>
 
-    /* STATS */
-    .stats-overlap { margin-top: -60px; position: relative; z-index: 30; }
-    .stats-card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; background: var(--card); padding: 40px; border-radius: 24px; border: 1px solid rgba(255,255,255,0.05); box-shadow: 0 20px 40px rgba(0,0,0,0.4); }
-    .stat-val { font-size: 2.5rem; font-weight: 800; color: var(--p); }
+<!-- ===== SPEED BENCHMARK ===== -->
+<section class="section section-alt">
+  <div class="container">
+    <div class="sec-head" data-aos="fade-up">
+      <div class="sec-badge">⚡ Performance</div>
+      <h2>Speed-Benchmark</h2>
+      <p>ModForge reagiert schneller als ein Mensch überhaupt tippen kann.</p>
+    </div>
+    <div class="bench-wrapper" data-aos="fade-up">
+      <div class="bench-row">
+        <div class="bench-label">
+          <span>🤖 ModForge</span>
+          <span class="bench-time" style="color:var(--green);">0.2s <span class="bench-tag">WINNER</span></span>
+        </div>
+        <div class="bench-bar-bg">
+          <div class="bench-bar-fill" id="b1" style="width:0%;background:var(--green);"></div>
+        </div>
+      </div>
+      <div class="bench-row">
+        <div class="bench-label">
+          <span>👤 Mensch (Moderator)</span>
+          <span class="bench-time" style="color:var(--muted);">5.0s</span>
+        </div>
+        <div class="bench-bar-bg">
+          <div class="bench-bar-fill" id="b2" style="width:0%;background:#ef4444;"></div>
+        </div>
+      </div>
+      <div class="bench-row">
+        <div class="bench-label">
+          <span>🤖 Anderer Bot</span>
+          <span class="bench-time" style="color:var(--muted);">1.8s</span>
+        </div>
+        <div class="bench-bar-bg">
+          <div class="bench-bar-fill" id="b3" style="width:0%;background:#f59e0b;"></div>
+        </div>
+      </div>
+    </div>
+    <div style="text-align:center;margin-top:20px;">
+      <button class="btn btn-ghost" onclick="runBenchmark()">▶ Benchmark starten</button>
+    </div>
+  </div>
+</section>
 
-    /* PRICING (10.99) */
-    .pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; margin-top: 50px; }
-    .price-box { background: var(--card); padding: 50px 40px; border-radius: 30px; border: 1px solid var(--border); text-align: center; transition: 0.3s; position: relative; }
-    .price-box.featured { border: 2px solid var(--p); transform: scale(1.05); background: linear-gradient(180deg, rgba(91,110,255,0.05) 0%, transparent 100%); }
-    .p-price { font-size: 3.5rem; font-weight: 800; margin: 20px 0; }
-    .p-price span { font-size: 1.2rem; color: var(--muted); }
-    .p-tag { position: absolute; top: -15px; left: 50%; transform: translateX(-50%); background: var(--grad); padding: 6px 20px; border-radius: 50px; font-size: 12px; font-weight: bold; }
-    .p-features { list-style: none; padding: 0; margin-bottom: 40px; text-align: left; }
-    .p-features li { margin-bottom: 15px; color: var(--muted); }
-    .p-features i { color: var(--p); margin-right: 10px; }
+<!-- ===== COMMUNITY FEEDBACK ===== -->
+<section class="section">
+  <div class="container">
+    <div class="sec-head" data-aos="fade-up">
+      <div class="sec-badge">💬 Community</div>
+      <h2>Das sagen Server-Inhaber</h2>
+    </div>
+    <div class="feedback-grid" data-aos="fade-up" id="feedback-grid"></div>
+  </div>
+</section>
 
-    /* DASHBOARD MOCKUP */
-    .browser-ui { background: #1a1b2e; border-radius: 12px; overflow: hidden; border: 1px solid #2d2e45; }
-    .browser-header { background: #0f101a; padding: 12px; display: flex; align-items: center; gap: 15px; }
-    .b-dots { display: flex; gap: 6px; }
-    .b-dots span { width: 8px; height: 8px; border-radius: 50%; background: #ff5f56; }
-    .b-dots span:nth-child(2) { background: #ffbd2e; }
-    .b-dots span:nth-child(3) { background: #27c93f; }
-    .b-url { background: #1a1b2e; color: #5c5e8d; font-size: 11px; padding: 4px 15px; border-radius: 4px; flex-grow: 1; text-align: center; }
-    .browser-body { height: 350px; padding: 20px; position: relative; }
-    .feature-selector { display: flex; gap: 10px; margin-top: 30px; }
-    .f-select-btn { background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text); padding: 10px 20px; border-radius: 8px; cursor: pointer; transition: 0.3s; }
-    .f-select-btn.active { background: var(--p); border-color: var(--p); }
+<!-- ===== LOGGING MODULES ===== -->
+<section class="section section-alt">
+  <div class="container">
+    <div class="sec-head" data-aos="fade-up">
+      <div class="sec-badge">📝 Logging</div>
+      <h2>Vollständiges Logging – 24 Module</h2>
+      <p>Pro Modul ein eigener Log-Kanal. Kein Event bleibt unbemerkt.</p>
+    </div>
+    <div class="log-grid" data-aos="fade-up" id="log-grid"></div>
+  </div>
+</section>
 
-    /* SIMULATOR */
-    .sim-wrapper { display: flex; background: #2b2d31; border-radius: 12px; height: 300px; overflow: hidden; }
-    .sim-sidebar { width: 120px; background: #1e1f22; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
-    .sim-sidebar button { background: #4e5058; color: #fff; border: none; padding: 8px; border-radius: 4px; cursor: pointer; font-size: 12px; }
-    .sim-screen { flex-grow: 1; padding: 20px; color: #dbdee1; font-family: 'Inter', sans-serif; }
+<!-- ===== COMMANDS ===== -->
+<section class="section">
+  <div class="container">
+    <div class="sec-head" data-aos="fade-up">
+      <div class="sec-badge">⌨️ Commands</div>
+      <h2>Über 40 Befehle</h2>
+      <p>Moderne Slash-Commands für schnelle Moderation.</p>
+    </div>
+    <div class="cmd-grid" data-aos="fade-up" id="cmd-grid"></div>
+  </div>
+</section>
 
-    /* UTILS */
-    .theme-switch-wrapper { position: fixed; top: 20px; right: 20px; z-index: 1000; display: flex; align-items: center; gap: 10px; }
-    .oled-label { font-size: 12px; color: var(--muted); }
-    .shadow-ultra { box-shadow: 0 30px 60px rgba(0,0,0,0.5); }
-    @media (max-width: 768px) { .stats-card-grid { grid-template-columns: 1fr; } .hero-main h1 { font-size: 2.5rem; } }
-</style>
+<!-- ===== API CORNER ===== -->
+<section class="section section-alt">
+  <div class="container">
+    <div class="sec-head" data-aos="fade-up">
+      <div class="sec-badge">🔧 Developer</div>
+      <h2>API-Corner</h2>
+      <p>Erweitere ModForge ganz einfach mit unserer REST-API.</p>
+    </div>
+    <div class="api-wrapper shadow-ultra" data-aos="zoom-in">
+      <div class="api-tabs">
+        <button class="api-tab active" onclick="switchApi('get',this)">GET /cases</button>
+        <button class="api-tab" onclick="switchApi('post',this)">POST /action</button>
+        <button class="api-tab" onclick="switchApi('ws',this)">WebSocket</button>
+      </div>
+      <div class="api-body">
+        <pre class="api-code" id="api-code"></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== ROADMAP ===== -->
+<section id="roadmap" class="section">
+  <div class="container">
+    <div class="sec-head" data-aos="fade-up">
+      <div class="sec-badge">🗺 Roadmap</div>
+      <h2>Was kommt als Nächstes?</h2>
+      <p>Bleib auf dem Laufenden über neue Features.</p>
+    </div>
+    <div class="roadmap" data-aos="fade-up" id="roadmap-list"></div>
+  </div>
+</section>
+
+<!-- ===== MOD-LOG REPLAY ===== -->
+<section class="section section-alt">
+  <div class="container">
+    <div class="sec-head" data-aos="fade-up">
+      <div class="sec-badge">▶ Replay</div>
+      <h2>Mod-Log Replay</h2>
+      <p>Sieh, wie ModForge einen Raid in Echtzeit stoppt.</p>
+    </div>
+    <div class="replay-wrapper shadow-ultra" data-aos="zoom-in">
+      <div class="replay-header">
+        <div class="replay-title">
+          <span class="live-dot" style="width:8px;height:8px;"></span>
+          Raid erkannt – Server: Elite Gaming Hub
+        </div>
+        <span style="font-size:.78rem;color:var(--muted);" id="replay-timer">00:00</span>
+      </div>
+      <div class="replay-body">
+        <div class="replay-timeline" id="replay-events"></div>
+      </div>
+      <div class="replay-controls">
+        <button class="btn btn-primary" onclick="startReplay()">▶ Replay starten</button>
+        <button class="btn btn-ghost" onclick="resetReplay()">↺ Reset</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== INVITE GENERATOR ===== -->
+<section class="section">
+  <div class="container">
+    <div class="sec-head" data-aos="fade-up">
+      <div class="sec-badge">🔗 Einladungs-Generator</div>
+      <h2>Schnell-Einladungs-Generator</h2>
+      <p>Gib deinen Server-Namen ein und erhalte deinen personalisierten Einladungslink.</p>
+    </div>
+    <div class="invite-wrapper shadow-ultra" data-aos="zoom-in">
+      <input class="invite-input" id="server-name-input" placeholder="z.B. Elite Gaming Hub" oninput="generateInvite()"/>
+      <button class="btn btn-primary" onclick="generateInvite()" style="width:100%;">🔗 Link generieren</button>
+      <div class="invite-result" id="invite-result">
+        <div id="invite-link"></div>
+        <button class="invite-copy-btn" onclick="copyInvite()">📋 Link kopieren</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== PRIVACY / TRANSPARENCY ===== -->
+<section class="section section-alt">
+  <div class="container">
+    <div class="sec-head" data-aos="fade-up">
+      <div class="sec-badge">🔒 Datenschutz</div>
+      <h2>Transparenz – Was wir speichern</h2>
+      <p>Vertrauen entsteht durch Transparenz. Hier ist genau, was ModForge speichert.</p>
+    </div>
+    <div class="privacy-grid" data-aos="fade-up" id="privacy-grid"></div>
+  </div>
+</section>
+
+<!-- ===== CTA ===== -->
+<section class="section">
+  <div class="container">
+    <div class="cta-box" data-aos="zoom-in">
+      <div style="font-size:3.5rem;margin-bottom:16px;">🛡️</div>
+      <h2><span class="grad-text">Bereit, deinen Server zu schützen?</span></h2>
+      <p>Lade ModForge jetzt ein. In weniger als 2 Minuten eingerichtet — völlig kostenlos.</p>
+      <div class="btn-row" style="justify-content:center;">
+        <a class="btn btn-primary" href="https://discord.com/oauth2/authorize?client_id=BOT_CLIENT_ID&scope=bot+applications.commands&permissions=8" target="_blank">🛡️ Bot einladen</a>
+        <a class="btn btn-ghost" href="/login">Dashboard</a>
+        <a class="btn btn-ghost" href="https://discord.gg/gwryX3dbkt" target="_blank">💬 Support</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== FOOTER ===== -->
+<footer>
+  <div class="container">
+    <div style="font-size:1.2rem;font-weight:900;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:14px;">⚒ ModForge</div>
+    <div style="display:flex;justify-content:center;gap:24px;flex-wrap:wrap;margin-bottom:14px;">
+      <a href="#">Features</a><a href="#">Preise</a><a href="#">Datenschutz</a>
+      <a href="#">Terms of Service</a><a href="https://discord.gg/gwryX3dbkt" target="_blank">Discord</a>
+    </div>
+    <p style="color:var(--muted);">© 2025 ModForge. Made with 💜 by Fufi. Nicht offiziell mit Discord verbunden.</p>
+  </div>
+</footer>
 
 <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        AOS.init({ duration: 800, once: true });
+// ===== DATA =====
+const BOT_CLIENT_ID = 'BOT_CLIENT_ID'; // Hier deine echte Client-ID eintragen
 
-        // COUNTER ANIMATION
-        const counters = document.querySelectorAll('.counter');
-        counters.forEach(c => {
-            const target = +c.getAttribute('data-target');
-            const update = () => {
-                const count = +c.innerText.replace(/[^\d]/g, '');
-                const inc = target / 50;
-                if(count < target) {
-                    c.innerText = Math.ceil(count + inc).toLocaleString() + "+";
-                    setTimeout(update, 30);
-                } else { c.innerText = target.toLocaleString() + "+"; }
-            };
-            update();
-        });
+const SERVERS = [
+  {name:'Elite Gaming Hub',   avatar:0, members:1240},
+  {name:'Dev Community',      avatar:1, members:850},
+  {name:'Support HQ',         avatar:2, members:630},
+  {name:'Global Lounge',      avatar:3, members:3200},
+  {name:'Nitro Zone',         avatar:4, members:520},
+  {name:'Anime Paradise',     avatar:5, members:990},
+  {name:'Tech Talk',          avatar:0, members:410},
+  {name:'FPS Masters',        avatar:1, members:720},
+  {name:'Chill Vibes',        avatar:2, members:1800},
+  {name:'Code & Coffee',      avatar:3, members:310},
+  {name:'Roblox Central',     avatar:4, members:2400},
+  {name:'Music Lounge',       avatar:5, members:560},
+  {name:'Minecraft Builds',   avatar:0, members:1100},
+  {name:'Crypto Hub',         avatar:1, members:450},
+  {name:'Art Gallery',        avatar:2, members:880},
+];
 
-        // LIVE STATUS
-        const stats = ["Scan: Anti-Spam Modul aktiv", "Audit: 42 Events heute geloggt", "System: Gateway v3 bereit", "Ultra: 10.99€/Monat verfügbar"];
-        let i = 0;
-        setInterval(() => {
-            const el = document.getElementById('live-text');
-            if(el) { el.innerText = stats[i]; i = (i + 1) % stats.length; }
-        }, 4000);
+const FEATURES = [
+  {icon:'🛡️', bg:'rgba(91,110,255,.15)', title:'Anti-Nuke Pro',      desc:'Erkennt und stoppt Server-Nuke-Angriffe innerhalb von Millisekunden automatisch.'},
+  {icon:'🚫', bg:'rgba(239,68,68,.15)',   title:'Anti-Raid Ultra',    desc:'Schützt deinen Server vor koordinierten Massen-Join-Angriffen und Spam-Bots.'},
+  {icon:'🤖', bg:'rgba(34,197,94,.15)',   title:'AutoMod Ultra',      desc:'KI-gestützte Inhaltsfilterung, Spam-Erkennung und Phishing-Schutz.'},
+  {icon:'📊', bg:'rgba(251,191,36,.15)',  title:'Web Dashboard',      desc:'Vollständiges Kontrollpanel im Browser. Kein Code nötig – alles per Klick.'},
+  {icon:'📁', bg:'rgba(168,85,247,.15)',  title:'Case System',        desc:'Jede Moderation-Aktion wird als Fall gespeichert. Vollständige Mod-Historie.'},
+  {icon:'📝', bg:'rgba(6,182,212,.15)',   title:'24 Log-Module',      desc:'Pro Kategorie ein eigener Log-Kanal. Kein Event bleibt unbemerkt.'},
+  {icon:'🔒', bg:'rgba(239,68,68,.15)',   title:'Channel Lock',       desc:'Sperre einzelne Channels oder den ganzen Server auf Knopfdruck.'},
+  {icon:'⚡', bg:'rgba(91,110,255,.15)',  title:'Blitz-Response',     desc:'ModForge reagiert in unter 200ms – schneller als jeder menschliche Moderator.'},
+  {icon:'🎭', bg:'rgba(34,197,94,.15)',   title:'Rollen-Management',  desc:'Automatische Rollenvergabe, Rollen-Logging und Custom Permission Sets.'},
+  {icon:'🌐', bg:'rgba(251,191,36,.15)',  title:'Multi-Sprachen',     desc:'Unterstützt Deutsch, Englisch und mehr. Vollständig lokalisiert.'},
+  {icon:'🔑', bg:'rgba(168,85,247,.15)',  title:'Whitelist-System',   desc:'Vertrauenswürdige Nutzer und Bots auf die Whitelist setzen – kein falscher Alarm.'},
+  {icon:'📢', bg:'rgba(6,182,212,.15)',   title:'Warn-System',        desc:'Stufenbasierte Verwarnungen mit automatischen Eskalations-Aktionen.'},
+];
+
+const LOG_MODS = [
+  'message-delete','message-edit','member-join','member-leave','member-ban','member-unban',
+  'member-kick','member-warn','role-create','role-delete','role-update','channel-create',
+  'channel-delete','channel-update','invite-create','invite-delete','voice-join','voice-leave',
+  'nickname-change','avatar-change','server-update','thread-create','reaction-add','mod-actions'
+];
+
+const COMMANDS = [
+  {cmd:'/ban',desc:'Nutzer dauerhaft bannen'},{cmd:'/kick',desc:'Nutzer kicken'},
+  {cmd:'/warn',desc:'Verwarnung erteilen'},{cmd:'/mute',desc:'Nutzer stummschalten'},
+  {cmd:'/unmute',desc:'Stummschaltung aufheben'},{cmd:'/lock',desc:'Channel sperren'},
+  {cmd:'/unlock',desc:'Channel entsperren'},{cmd:'/purge',desc:'Nachrichten löschen'},
+  {cmd:'/case',desc:'Fall-Details anzeigen'},{cmd:'/modcase',desc:'Moderationsfall anlegen'},
+  {cmd:'/antinuke',desc:'Anti-Nuke konfigurieren'},{cmd:'/antiraid',desc:'Anti-Raid konfigurieren'},
+  {cmd:'/automod',desc:'AutoMod Einstellungen'},{cmd:'/logging',desc:'Log-Module verwalten'},
+  {cmd:'/setup',desc:'Erstkonfiguration starten'},{cmd:'/botinfo',desc:'Bot-Informationen'},
+  {cmd:'/ping',desc:'Latenz prüfen'},{cmd:'/slowmode',desc:'Slowmode setzen'},
+  {cmd:'/lockdown',desc:'Ganzen Server sperren'},{cmd:'/timeout',desc:'Nutzer pausieren'},
+  {cmd:'/unban',desc:'Ban aufheben'},{cmd:'/history',desc:'Mod-Historie anzeigen'},
+  {cmd:'/whitelist',desc:'Whitelist verwalten'},{cmd:'/config',desc:'Server konfigurieren'},
+  {cmd:'/stats',desc:'Bot-Statistiken'},{cmd:'/report',desc:'Nutzer melden'},
+  {cmd:'/verify',desc:'Verifikation starten'},{cmd:'/roleadd',desc:'Rolle zuweisen'},
+  {cmd:'/roleremove',desc:'Rolle entfernen'},{cmd:'/note',desc:'Notiz zu User hinzufügen'},
+];
+
+const CASES = [
+  {id:'#001',type:'ban',   user:'darkspam#0666', mod:'Admin_Lukas', reason:'Phishing Link', date:'08.05.2025 14:32', color:'#ef4444', badge:'badge-ban',   log:['Nachricht erkannt','Inhalt gelöscht','Nutzer gebannt','Case erstellt','Team benachrichtigt']},
+  {id:'#002',type:'warn',  user:'rage_kid#1337', mod:'Mod_Sara',    reason:'Mass Mention Spam', date:'07.05.2025 09:15', color:'#fbbf24', badge:'badge-warn', log:['Spam erkannt','Nachrichten gelöscht','Verwarnung (1/3)','Case #002 erstellt']},
+  {id:'#003',type:'mute',  user:'troll99#4200',  mod:'AutoMod',     reason:'Wiederholter Regelverstoß', date:'06.05.2025 22:58', color:'#818cf8', badge:'badge-mute', log:['Regelverstoß #3 erkannt','60min Mute angewandt','DM gesendet','Case erstellt']},
+];
+
+const QUIZ_DATA = [
+  {q:'Hast du ein Anti-Nuke-System aktiv?', opts:['Ja, vollständig','Teilweise','Nein','Was ist das?'], weights:[0,1,2,3]},
+  {q:'Werden neue Joins auf Raids überprüft?', opts:['Ja, automatisch','Manuell durch Mods','Gar nicht','Nur teilweise'], weights:[0,1,3,2]},
+  {q:'Wie wird Spam in deinem Server behandelt?', opts:['AutoMod löscht sofort','Mods müssen manuell','Wird toleriert','Bot vorhanden aber langsam'], weights:[0,2,3,1]},
+  {q:'Gibt es ein Logging-System für Moderationsaktionen?', opts:['Ja, mit Case-System','Nur einfache Logs','Kein Logging','Teilweise'], weights:[0,1,3,2]},
+];
+
+const FEEDBACK = [
+  {name:'Lukas#0001',server:'Elite Gaming Hub',avatar:0,text:'ModForge hat einen Raid auf unserem 1.200-Member-Server in Sekunden gestoppt. Absolut beeindruckend!',stars:5},
+  {name:'Sara_Dev#9999',server:'Dev Community',avatar:1,text:'Das Dashboard ist so sauber gebaut. Ich konnte alles in 5 Minuten einrichten – kein Coding nötig.',stars:5},
+  {name:'MaxoMod#4242',server:'Global Lounge',avatar:2,text:'Anti-Nuke hat unser Leben als Mod-Team komplett verändert. Kein Stress mehr um 3 Uhr nachts.',stars:5},
+  {name:'TechVibes#7777',server:'Tech Talk',avatar:3,text:'Die 24 Log-Module sind ein Game-Changer. Endlich sehen wir alles, was auf dem Server passiert.',stars:5},
+  {name:'RaidStopper#1234',server:'Nitro Zone',avatar:4,text:'3 Raids in einem Monat vollautomatisch gestoppt. ModForge zahlt sich sofort aus.',stars:5},
+  {name:'CoolAdmin#8888',server:'Chill Vibes',avatar:5,text:'Case-System ist perfekt für unser Mod-Team. Alle Infos auf einen Blick, keine Verwirrung mehr.',stars:5},
+];
+
+const PRIVACY_DATA = [
+  {icon:'✅',label:'GESPEICHERT',color:'tag-yes',title:'Server & User IDs',  text:'Wir speichern IDs für das Case-System, Whitelist und Konfiguration deines Servers.'},
+  {icon:'✅',label:'GESPEICHERT',color:'tag-yes',title:'Moderations-Cases', text:'Verwarnung, Ban, Kick – alles wird als Fall mit Grund, Datum und Moderator gespeichert.'},
+  {icon:'✅',label:'GESPEICHERT',color:'tag-yes',title:'Server-Konfiguration',text:'Deine AutoMod-, Log- und Sicherheits-Einstellungen werden pro Server gespeichert.'},
+  {icon:'❌',label:'NIEMALS',     color:'tag-no', title:'Nachrichten-Inhalte',text:'Wir lesen oder speichern NIEMALS den Inhalt von Nachrichten. Nur Events werden verarbeitet.'},
+  {icon:'❌',label:'NIEMALS',     color:'tag-no', title:'Passwörter & Tokens',text:'Kein OAuth-Token, kein Passwort wird jemals gespeichert oder weitergegeben.'},
+  {icon:'❌',label:'NIEMALS',     color:'tag-no', title:'Daten an Dritte',   text:'Wir verkaufen oder teilen keine Nutzerdaten mit Dritten – garantiert.'},
+];
+
+const ROADMAP_DATA = [
+  {month:'März 2025',title:'Anti-Nuke Ultra v2',desc:'Verbesserter Nuke-Schutz mit ML-Erkennung.',status:'done',dot:'done'},
+  {month:'April 2025',title:'24 Log-Module',desc:'Pro Kategorie ein eigener Log-Kanal.',status:'done',dot:'done'},
+  {month:'Mai 2025',title:'Case System v3',desc:'Vollständige Mod-Fall-Verwaltung mit Timeline.',status:'done',dot:'done'},
+  {month:'Juni 2025',title:'KI-Spam Filter',desc:'Neuronales Netz erkennt kontextbasierten Spam.',status:'soon',dot:'soon'},
+  {month:'Juli 2025',title:'Premium Launch',desc:'Premium-Plan mit Anti-Nuke Ultra & VIP Support.',status:'soon',dot:'soon'},
+  {month:'Q3 2025',  title:'KI-Audio-Moderation',desc:'Automatische Erkennung von Regelverstößen im Voice.',status:'future',dot:''},
+  {month:'Q4 2025',  title:'Mobile App',desc:'ModForge Dashboard direkt auf dem Smartphone.',status:'future',dot:''},
+];
+
+const DND_MODULES = [
+  {icon:'🛡️',name:'Anti-Nuke'},{icon:'🚫',name:'Anti-Raid'},{icon:'🤖',name:'AutoMod'},
+  {icon:'📝',name:'Logging'},{icon:'📁',name:'Case System'},{icon:'🔒',name:'Channel Lock'},
+  {icon:'📢',name:'Warn System'},{icon:'🎭',name:'Auto-Rollen'},{icon:'✅',name:'Verifikation'},
+];
+
+const REPLAY_EVENTS = [
+  {time:'00:00',color:'#ef4444',text:'🚨 Raid erkannt – 25 Accounts in 3s beigetreten'},
+  {time:'00:02',color:'#fbbf24',text:'⚡ Anti-Raid ausgelöst – Join-Gate aktiviert'},
+  {time:'00:03',color:'#ef4444',text:'🔨 23 Raid-Accounts automatisch gebannt'},
+  {time:'00:04',color:'#818cf8',text:'🔒 Joins vorübergehend gesperrt (5 Minuten)'},
+  {time:'00:05',color:'#22c55e',text:'📢 Mod-Team benachrichtigt – Case #999 erstellt'},
+  {time:'00:07',color:'#22c55e',text:'📋 Log-Eintrag: Raid gestoppt – Server sicher'},
+  {time:'00:08',color:'#4ade80',text:'✅ Alle Raid-Konten entfernt – System bereit'},
+];
+
+const API_CODES = {
+  get:`<span class="cm">// Alle Cases eines Servers abrufen</span>
+<span class="kw">const</span> res = <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">'https://api.modforge.app/v1/cases'</span>, {
+  headers: {
+    <span class="str">'Authorization'</span>: <span class="str">'Bearer YOUR_API_KEY'</span>,
+    <span class="str">'Guild-ID'</span>: <span class="str">'YOUR_SERVER_ID'</span>
+  }
+});
+<span class="kw">const</span> cases = <span class="kw">await</span> res.<span class="fn">json</span>();
+<span class="cm">// Response: [{ id: 1, type: 'ban', user: '...', ... }]</span>`,
+
+  post:`<span class="cm">// Manuell eine Moderation-Aktion auslösen</span>
+<span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">'https://api.modforge.app/v1/action'</span>, {
+  method: <span class="str">'POST'</span>,
+  headers: { <span class="str">'Authorization'</span>: <span class="str">'Bearer YOUR_API_KEY'</span> },
+  body: <span class="fn">JSON.stringify</span>({
+    guild_id: <span class="str">'YOUR_SERVER_ID'</span>,
+    action: <span class="str">'warn'</span>,
+    user_id: <span class="str">'TARGET_USER_ID'</span>,
+    reason: <span class="str">'API-initiierte Aktion'</span>
+  })
+});`,
+
+  ws:`<span class="cm">// Echtzeit-Events via WebSocket empfangen</span>
+<span class="kw">const</span> ws = <span class="kw">new</span> <span class="fn">WebSocket</span>(
+  <span class="str">'wss://gateway.modforge.app/events?token=YOUR_TOKEN'</span>
+);
+ws.<span class="fn">onmessage</span> = (e) => {
+  <span class="kw">const</span> evt = <span class="fn">JSON.parse</span>(e.data);
+  <span class="cm">// evt: { type:'ban', user:'...', timestamp:... }</span>
+  console.<span class="fn">log</span>(<span class="str">'Neues Event:'</span>, evt);
+};`
+};
+
+// ===== INIT =====
+document.addEventListener('DOMContentLoaded', () => {
+  AOS.init({duration:800,once:true,offset:80});
+  buildTicker();
+  buildFeatures();
+  buildMockDash('auto');
+  buildLogGrid();
+  buildCmdGrid();
+  buildFeedback();
+  buildPrivacy();
+  buildRoadmap();
+  buildCaseExplorer();
+  buildDnD();
+  buildReplayEvents();
+  initQuiz();
+  initParticles();
+  initLiveText();
+  initCounters();
+  initBaSlider();
+  switchApi('get', document.querySelector('.api-tab.active'));
+  switchDash('auto', document.querySelector('.f-btn.active'));
+  document.getElementById('oled-toggle').addEventListener('change', e => {
+    document.documentElement.setAttribute('data-theme', e.target.checked ? 'dark' : '');
+  });
+  // live stats update
+  setInterval(updateGlobalStats, 5000);
+  // benchmark auto-start on scroll
+  const benchObs = new IntersectionObserver(entries => {
+    if(entries[0].isIntersecting){ runBenchmark(); benchObs.disconnect(); }
+  },{threshold:.5});
+  const bw = document.querySelector('.bench-wrapper');
+  if(bw) benchObs.observe(bw);
+});
+
+// ===== PARTICLES =====
+function initParticles(){
+  const c = document.getElementById('pts');
+  for(let i=0;i<25;i++){
+    const p=document.createElement('div');
+    const s=Math.random()*4+2;
+    p.className='pt';
+    p.style.cssText=`width:${s}px;height:${s}px;left:${Math.random()*100}%;
+      background:rgba(91,110,255,${Math.random()*.3+.1});
+      animation-duration:${Math.random()*12+8}s;
+      animation-delay:${Math.random()*8}s;`;
+    c.appendChild(p);
+  }
+}
+
+// ===== LIVE TEXT =====
+function initLiveText(){
+  const msgs = [
+    'Anti-Spam Modul aktiv','42 Events heute geloggt',
+    'Gateway v3 bereit','Anti-Nuke auf 4 Servern aktiv',
+    'Letzter Raid vor 2 Min. gestoppt','12.440 Nachrichten gefiltert'
+  ];
+  let i=0;
+  const el=document.getElementById('live-text');
+  setInterval(()=>{if(el){el.style.opacity=0;setTimeout(()=>{el.innerText=msgs[i];el.style.opacity=1;i=(i+1)%msgs.length;},300);}},4000);
+  if(el)el.style.transition='opacity .3s';
+}
+
+// ===== COUNTER =====
+function initCounters(){
+  const obs=new IntersectionObserver(entries=>{
+    entries.forEach(e=>{
+      if(e.isIntersecting){
+        const el=e.target, target=+el.dataset.target;
+        let cur=0, inc=target/60;
+        const t=setInterval(()=>{
+          cur=Math.min(cur+inc,target);
+          el.innerText=Math.floor(cur).toLocaleString()+(target>=1000?'+':'');
+          if(cur>=target)clearInterval(t);
+        },25);
+        obs.unobserve(el);
+      }
     });
+  },{threshold:.5});
+  document.querySelectorAll('.counter').forEach(el=>obs.observe(el));
+}
 
-    // DASHBOARD SWITCHER
-    function switchDash(type) {
-        const btns = document.querySelectorAll('.f-select-btn');
-        btns.forEach(b => b.classList.remove('active'));
-        event.target.classList.add('active');
-        const container = document.getElementById('dash-img-container');
-        // Hier könntest du echte Bilder laden
-        container.style.opacity = '0.5';
-        setTimeout(() => container.style.opacity = '1', 200);
-    }
+// ===== TICKER =====
+function buildTicker(){
+  const track=document.getElementById('ticker-track');
+  const all=[...SERVERS,...SERVERS];
+  all.forEach(s=>{
+    const d=document.createElement('div');
+    d.className='ticker-item';
+    d.innerHTML=`<img src="https://cdn.discordapp.com/embed/avatars/${s.avatar}.png" alt="${s.name}">
+      <span>${s.name}</span><span class="t-badge">${s.members.toLocaleString()}+ M</span>`;
+    track.appendChild(d);
+  });
+}
 
-    // SIMULATOR
-    function runSim(cmd) {
-        const chat = document.getElementById('sim-chat');
-        const icons = { ban: '#ed4245', lock: '#5865f2', warn: '#fec331' };
-        const texts = { ban: 'Nutzer gebannt (Phishing)', lock: 'Channel gesperrt', warn: 'Verwarnung erteilt' };
-        chat.innerHTML = `<div style="background:#2b2d31; border-left:4px solid ${icons[cmd]}; padding:15px; border-radius:4px;">
-            <strong style="color:white">ModForge</strong> <span style="font-size:10px; background:#5865f2; padding:2px 4px; border-radius:3px">BOT</span><br>
-            <p style="margin-top:10px">${texts[cmd]}</p>
-        </div>`;
-    }
+// ===== FEATURES =====
+function buildFeatures(){
+  const g=document.getElementById('feat-grid');
+  FEATURES.forEach((f,i)=>{
+    g.innerHTML+=`<div class="feat-card" data-aos="fade-up" data-aos-delay="${i*40}">
+      <div class="feat-icon" style="background:${f.bg}">${f.icon}</div>
+      <h3>${f.title}</h3><p>${f.desc}</p>
+    </div>`;
+  });
+}
+
+// ===== DASHBOARD MOCKUP =====
+const DASH_CONFIGS = {
+  auto:{url:'modforge.app/dashboard/automod',kpis:['AutoMod','Spam Filter','Link Block'],toggles:[{l:'Spam Erkennung',on:true},{l:'Link Filter',on:true},{l:'Mass Mention',on:true},{l:'Caps Filter',on:false}]},
+  nuke:{url:'modforge.app/dashboard/antinuke',kpis:['Anti-Nuke','Anti-Raid','Whitelist'],toggles:[{l:'Anti-Nuke',on:true},{l:'Anti-Raid',on:true},{l:'Join-Gate',on:false},{l:'Role Guard',on:true}]},
+  logs:{url:'modforge.app/dashboard/logging',kpis:['Log Kanäle','24 Module','Events'],toggles:[{l:'Message Delete',on:true},{l:'Member Join',on:true},{l:'Voice Log',on:false},{l:'Role Log',on:true}]},
+};
+function switchDash(type, btn){
+  document.querySelectorAll('.f-btn').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  const cfg=DASH_CONFIGS[type];
+  document.getElementById('dash-url').innerText=cfg.url;
+  const mc=document.getElementById('mock-content');
+  mc.innerHTML=`<div class="mock-kpi-row">${cfg.kpis.map(k=>`<div class="mock-kpi"><div class="mock-kpi-icon" style="background:rgba(91,110,255,.3);border-radius:6px;"></div><div style="height:8px;background:rgba(255,255,255,.1);border-radius:4px;flex:1;"></div></div>`).join('')}</div>
+  ${cfg.toggles.map(t=>`<div class="mock-toggle-row"><span style="font-size:.78rem;color:var(--muted);">${t.l}</span><div class="mock-toggle ${t.on?'on':'off'}" onclick="this.classList.toggle('on');this.classList.toggle('off');"></div></div>`).join('')}`;
+}
+
+// ===== SIMULATOR =====
+function runSim(cmd){
+  const chat=document.getElementById('sim-chat');
+  const av='https://cdn.discordapp.com/embed/avatars/0.png';
+  const msgs={
+    ban:{color:'#ed4245',title:'🔨 Nutzer gebannt',body:'Nutzer: BadActor#6666<br>Grund: Phishing Link erkannt.<br>Case <span style="color:var(--p);">#42</span> erstellt.'},
+    warn:{color:'#fec331',title:'⚠️ Verwarnung erteilt',body:'Nutzer: SpamUser#1337<br>Grund: Mass-Mention Spam.<br>Verwarnung 2/3 – nächste Stufe: Mute.'},
+    lock:{color:'#5865f2',title:'🔒 Channel gesperrt',body:'Channel: #general<br>Für alle Mitglieder eingefroren.<br>Entsperren mit /unlock.'},
+    nuke:{color:'#22c55e',title:'🛡️ Anti-Nuke Status',body:'Status: <span style="color:#22c55e;">AKTIV</span><br>Geschützte Aktionen: Role Delete, Channel Delete, Kick<br>Whitelist: 3 Bots'},
+    case:{color:'#818cf8',title:'📁 Case #42',body:'Typ: Ban | User: BadActor#6666<br>Moderator: Admin_Lukas<br>Datum: 08.05.2025 14:32<br>Grund: Phishing Link'},
+    purge:{color:'#f59e0b',title:'🗑 Purge abgeschlossen',body:'50 Nachrichten gelöscht aus #general.<br>Durch: Admin_Lukas<br>Case #43 erstellt.'},
+  };
+  const m=msgs[cmd];
+  chat.innerHTML=`<div class="sim-msg"><img src="${av}" class="sim-avatar"><div>
+    <span class="bot-name">ModForge <span class="bot-badge">BOT</span></span>
+    <div class="embed-block" style="border-left:4px solid ${m.color};background:rgba(0,0,0,.2);">
+      <strong>${m.title}</strong><br><span style="font-size:.8rem;">${m.body}</span>
+    </div></div></div>`;
+  document.querySelectorAll('.sim-btn').forEach(b=>b.classList.remove('active'));
+}
+
+// ===== LOG GRID =====
+function buildLogGrid(){
+  const g=document.getElementById('log-grid');
+  LOG_MODS.forEach(m=>{g.innerHTML+=`<div class="log-chip"><span class="hash">#</span>${m}</div>`;});
+}
+
+// ===== CMD GRID =====
+function buildCmdGrid(){
+  const g=document.getElementById('cmd-grid');
+  COMMANDS.forEach(c=>{g.innerHTML+=`<div class="cmd-card"><span class="cmd-name">${c.cmd}</span><span class="cmd-desc">${c.desc}</span></div>`;});
+}
+
+// ===== FEEDBACK =====
+function buildFeedback(){
+  const g=document.getElementById('feedback-grid');
+  FEEDBACK.forEach(f=>{
+    g.innerHTML+=`<div class="dc-msg-card">
+      <div class="dc-author">
+        <img src="https://cdn.discordapp.com/embed/avatars/${f.avatar}.png" class="dc-avatar">
+        <div><div class="dc-username">${f.name}</div><div class="dc-server">Server: ${f.server}</div></div>
+      </div>
+      <div class="dc-text">${f.text}</div>
+      <div class="dc-stars">${'⭐'.repeat(f.stars)}</div>
+    </div>`;
+  });
+}
+
+// ===== PRIVACY =====
+function buildPrivacy(){
+  const g=document.getElementById('privacy-grid');
+  PRIVACY_DATA.forEach(p=>{
+    g.innerHTML+=`<div class="privacy-card">
+      <h4>${p.icon} ${p.title} <span class="${p.color}">${p.label}</span></h4>
+      <p>${p.text}</p>
+    </div>`;
+  });
+}
+
+// ===== ROADMAP =====
+function buildRoadmap(){
+  const g=document.getElementById('roadmap-list');
+  ROADMAP_DATA.forEach(r=>{
+    g.innerHTML+=`<div class="rm-item">
+      <div class="rm-dot ${r.dot}"></div>
+      <div class="rm-month">${r.month}</div>
+      <div class="rm-title">${r.title} <span class="rm-status rm-${r.status}">${r.status==='done'?'✅ Fertig':r.status==='soon'?'🔄 Bald':'🔮 Geplant'}</span></div>
+      <div class="rm-desc">${r.desc}</div>
+    </div>`;
+  });
+}
+
+// ===== CASE EXPLORER =====
+function buildCaseExplorer(){
+  const list=document.getElementById('case-list');
+  CASES.forEach((c,i)=>{
+    const div=document.createElement('div');
+    div.className='case-item'+(i===0?' active':'');
+    div.innerHTML=`<div class="case-id">Case ${c.id}</div><div style="font-size:.82rem;">${c.user}</div><div style="font-size:10px;color:var(--muted);">${c.type.toUpperCase()}</div>`;
+    div.onclick=()=>{document.querySelectorAll('.case-item').forEach(x=>x.classList.remove('active'));div.classList.add('active');showCase(c);};
+    list.appendChild(div);
+  });
+  showCase(CASES[0]);
+}
+function showCase(c){
+  document.getElementById('case-detail').innerHTML=`
+    <div class="case-header">
+      <span style="font-size:1.2rem;">📁</span>
+      <div><div style="font-weight:800;font-size:1rem;">Case ${c.id}</div>
+      <span class="case-badge ${c.badge}">${c.type.toUpperCase()}</span></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <div class="case-field"><label>Nutzer</label><span>${c.user}</span></div>
+      <div class="case-field"><label>Moderator</label><span>${c.mod}</span></div>
+      <div class="case-field"><label>Datum</label><span>${c.date}</span></div>
+      <div class="case-field"><label>Typ</label><span style="color:${c.color};font-weight:700;">${c.type.toUpperCase()}</span></div>
+    </div>
+    <div class="case-field" style="margin-top:8px;"><label>Grund</label><span>${c.reason}</span></div>
+    <div class="case-field" style="margin-top:14px;"><label>Timeline</label>
+      <div class="case-timeline">${c.log.map(l=>`<div class="tl-item"><div class="tl-dot" style="background:${c.color};"></div><div class="tl-text">${l}</div></div>`).join('')}</div>
+    </div>`;
+}
+
+// ===== QUIZ =====
+let qStep=0, qAnswers=[];
+function initQuiz(){qStep=0;qAnswers=[];renderQ();}
+function renderQ(){
+  const d=QUIZ_DATA[qStep];
+  document.getElementById('quiz-question').innerText=d.q;
+  document.getElementById('quiz-counter').innerText=`${qStep+1} / ${QUIZ_DATA.length}`;
+  document.getElementById('qprogress').style.width=`${(qStep/QUIZ_DATA.length)*100}%`;
+  const opts=document.getElementById('quiz-options');
+  opts.innerHTML='';
+  d.opts.forEach((o,i)=>{
+    const b=document.createElement('button');
+    b.className='quiz-opt'+(qAnswers[qStep]===i?' selected':'');
+    b.innerText=o;
+    b.onclick=()=>{qAnswers[qStep]=i;document.querySelectorAll('.quiz-opt').forEach(x=>x.classList.remove('selected'));b.classList.add('selected');};
+    opts.appendChild(b);
+  });
+  document.getElementById('quiz-prev').style.opacity=qStep===0?'0.3':'1';
+}
+function quizNext(){
+  if(qAnswers[qStep]===undefined)return;
+  if(qStep<QUIZ_DATA.length-1){qStep++;renderQ();}else showQuizResult();
+}
+function quizPrev(){if(qStep>0){qStep--;renderQ();}}
+function showQuizResult(){
+  const score=qAnswers.reduce((s,a,i)=>s+QUIZ_DATA[i].weights[a],0);
+  const max=QUIZ_DATA.reduce((s,q)=>s+Math.max(...q.weights),0);
+  const pct=Math.round((1-score/max)*100);
+  document.getElementById('quiz-main').style.display='none';
+  const r=document.getElementById('quiz-result');r.style.display='block';
+  const sc=document.getElementById('quiz-score-val');
+  sc.innerText=pct+'%';
+  sc.style.color=pct>=80?'#22c55e':pct>=50?'#fbbf24':'#ef4444';
+  document.getElementById('quiz-verdict').innerText=pct>=80?'Sehr gut! Dein Server ist gut geschützt.':pct>=50?'Solider Schutz – aber es gibt noch Lücken.':'Dein Server braucht dringend Schutz!';
+  const recs=document.getElementById('quiz-recs');
+  recs.innerHTML='<div style="font-size:.85rem;font-weight:700;margin-bottom:8px;">Empfohlen für dich:</div>';
+  if(score>2)recs.innerHTML+=`<div class="quiz-rec-item">🛡️ <strong>Anti-Nuke Ultra</strong> – schützt vor Server-Nukes</div>`;
+  if(score>4)recs.innerHTML+=`<div class="quiz-rec-item">🚫 <strong>Anti-Raid</strong> – stoppt Massen-Join-Angriffe</div>`;
+  if(score>3)recs.innerHTML+=`<div class="quiz-rec-item">📝 <strong>Logging</strong> – 24 Module für volle Transparenz</div>`;
+  if(score>1)recs.innerHTML+=`<div class="quiz-rec-item">🤖 <strong>AutoMod Ultra</strong> – KI-gestützte Spam-Erkennung</div>`;
+}
+function quizReset(){document.getElementById('quiz-result').style.display='none';document.getElementById('quiz-main').style.display='block';initQuiz();}
+
+// ===== DND =====
+function buildDnD(){
+  const mods=document.getElementById('dnd-modules');
+  DND_MODULES.forEach(m=>{
+    const d=document.createElement('div');
+    d.className='dnd-mod';
+    d.draggable=true;
+    d.innerHTML=`<span>${m.icon}</span><span>${m.name}</span>`;
+    d.dataset.name=m.name;d.dataset.icon=m.icon;
+    d.addEventListener('dragstart',e=>{e.dataTransfer.setData('text',JSON.stringify({name:m.name,icon:m.icon}));d.classList.add('dragging');});
+    d.addEventListener('dragend',()=>d.classList.remove('dragging'));
+    mods.appendChild(d);
+  });
+  const srv=document.getElementById('dnd-server');
+  srv.addEventListener('dragover',e=>{e.preventDefault();srv.classList.add('drag-over');});
+  srv.addEventListener('dragleave',()=>srv.classList.remove('drag-over'));
+  srv.addEventListener('drop',e=>{
+    e.preventDefault();srv.classList.remove('drag-over');
+    const data=JSON.parse(e.dataTransfer.getData('text'));
+    if([...srv.querySelectorAll('.dnd-placed')].some(p=>p.dataset.name===data.name))return;
+    const p=document.createElement('div');
+    p.className='dnd-placed';p.dataset.name=data.name;
+    p.innerHTML=`<span>${data.icon} ${data.name}</span><button class="dnd-remove" onclick="this.parentElement.remove()">✕</button>`;
+    srv.appendChild(p);
+  });
+}
+function dndReset(){
+  const srv=document.getElementById('dnd-server');
+  srv.querySelectorAll('.dnd-placed').forEach(p=>p.remove());
+}
+
+// ===== FLOW ANIMATION =====
+function animateFlow(){
+  const nodes=document.querySelectorAll('.flow-node');
+  nodes.forEach((n,i)=>{
+    n.style.opacity='0.3';
+    setTimeout(()=>{n.style.opacity='1';n.style.transition='all .4s';n.style.transform='scale(1.05)';setTimeout(()=>n.style.transform='',500);},i*600);
+  });
+}
+
+// ===== BEFORE/AFTER SLIDER =====
+function initBaSlider(){
+  const wrap=document.getElementById('ba-wrapper'),after=document.getElementById('ba-after'),div=document.getElementById('ba-divider');
+  let drag=false;
+  function move(x){
+    const r=wrap.getBoundingClientRect();
+    let pct=Math.max(5,Math.min(95,((x-r.left)/r.width)*100));
+    after.style.clipPath=`inset(0 ${100-pct}% 0 0)`;
+    div.style.left=pct+'%';
+  }
+  wrap.addEventListener('mousedown',()=>drag=true);
+  window.addEventListener('mouseup',()=>drag=false);
+  window.addEventListener('mousemove',e=>{if(drag)move(e.clientX);});
+  wrap.addEventListener('touchmove',e=>{move(e.touches[0].clientX);},{passive:true});
+}
+
+// ===== GLOBAL STATS =====
+function updateGlobalStats(){
+  const ids=['gs1','gs2','gs3','gs4','gs5'];
+  const bases=[500,12440,98,342,1200];
+  ids.forEach((id,i)=>{
+    const el=document.getElementById(id);
+    if(el){const v=bases[i]+Math.floor(Math.random()*10);el.innerText=v.toLocaleString()+(i<2?'+':'');}
+  });
+}
+
+// ===== BENCHMARK =====
+function runBenchmark(){
+  document.getElementById('b1').style.width='0%';
+  document.getElementById('b2').style.width='0%';
+  document.getElementById('b3').style.width='0%';
+  setTimeout(()=>{document.getElementById('b1').style.width='4%';},100);
+  setTimeout(()=>{document.getElementById('b3').style.width='36%';},300);
+  setTimeout(()=>{document.getElementById('b2').style.width='100%';},600);
+}
+
+// ===== API CORNER =====
+function switchApi(type, btn){
+  document.querySelectorAll('.api-tab').forEach(t=>t.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  document.getElementById('api-code').innerHTML=API_CODES[type];
+}
+
+// ===== REPLAY =====
+function buildReplayEvents(){
+  const c=document.getElementById('replay-events');
+  REPLAY_EVENTS.forEach(e=>{
+    c.innerHTML+=`<div class="replay-event">
+      <span class="re-time">${e.time}</span>
+      <div class="re-dot" style="background:${e.color};"></div>
+      <span>${e.text}</span>
+    </div>`;
+  });
+}
+let replayRunning=false, replayTimer=null, replaySeconds=0;
+function startReplay(){
+  if(replayRunning)return;
+  replayRunning=true;resetReplayVisual();
+  const evs=document.querySelectorAll('.replay-event');
+  evs.forEach((e,i)=>setTimeout(()=>e.classList.add('show'),i*900));
+  replayTimer=setInterval(()=>{
+    replaySeconds++;
+    document.getElementById('replay-timer').innerText=`00:${String(replaySeconds).padStart(2,'0')}`;
+  },1000);
+  setTimeout(()=>{clearInterval(replayTimer);replayRunning=false;},REPLAY_EVENTS.length*900+500);
+}
+function resetReplay(){
+  clearInterval(replayTimer);replayRunning=false;replaySeconds=0;
+  document.getElementById('replay-timer').innerText='00:00';
+  resetReplayVisual();
+}
+function resetReplayVisual(){document.querySelectorAll('.replay-event').forEach(e=>e.classList.remove('show'));}
+
+// ===== INVITE GENERATOR =====
+function generateInvite(){
+  const name=document.getElementById('server-name-input').value.trim();
+  const res=document.getElementById('invite-result');
+  const link=document.getElementById('invite-link');
+  if(name){
+    const slug=encodeURIComponent(name.toLowerCase().replace(/\s+/g,'-'));
+    link.innerText=`https://discord.com/oauth2/authorize?client_id=${BOT_CLIENT_ID}&scope=bot+applications.commands&permissions=8&guild_name=${slug}`;
+    res.style.display='block';
+  }else{res.style.display='none';}
+}
+function copyInvite(){
+  navigator.clipboard.writeText(document.getElementById('invite-link').innerText);
+  const btn=document.querySelector('.invite-copy-btn');
+  btn.innerText='✅ Kopiert!';setTimeout(()=>btn.innerText='📋 Link kopieren',2000);
+}
 </script>
-
-{% endblock %}
+</body>
+                                          </html>
