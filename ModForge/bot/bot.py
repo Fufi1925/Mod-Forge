@@ -27,8 +27,9 @@ from bot.utils import (
     GLOBAL_API_SEMAPHORE, rate_limited, create_embed,
     generate_captcha, check_phishing_url, can_moderate, parse_duration
 )
-from database.db import Database
 
+
+from bot import bot
 
 logging.basicConfig(level=logging.INFO)
 
