@@ -3931,13 +3931,4 @@ async def on_app_command_error(interaction: discord.Interaction,
             COLOR_DANGER,
             user=interaction.user if isinstance(interaction.user, discord.Member) else None,
             module="errors",
-    )
-        
-        
-if __name__ == "__main__":
-    try:
-        logging.info("Starte Bot...")
-        bot.run(BOT_TOKEN, log_handler=None)
-    except Exception as e:
-        logging.error(f"Bot Crash: {e}")
-        time.sleep(10)
+        )
