@@ -1,33 +1,71 @@
 {% extends "base.html" %}
-
 {% block title %}ModForge – Discord Security & AutoMod Bot{% endblock %}
-
 {% block content %}
 <style>
-  /* ===== Zusätzliche Styles für interaktive Komponenten (nicht in base.html) ===== */
+  /* ===== Zusätzliche Styles (nur für diese Seite) ===== */
+  :root {
+    --p: #5b6eff;
+    --p2: #9b59b6;
+    --card: #161827;
+    --border: rgba(255,255,255,0.08);
+    --grad: linear-gradient(135deg, #5b6eff 0%, #9b59b6 100%);
+    --green: #22c55e;
+    --red: #ef4444;
+    --yellow: #f59e0b;
+  }
+
+  /* Partikel */
   .particles{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;overflow:hidden}
   .pt{position:absolute;border-radius:50%;animation:float linear infinite}
   @keyframes float{0%{transform:translateY(100vh) rotate(0);opacity:0}10%{opacity:1}90%{opacity:1}100%{transform:translateY(-20px) rotate(720deg);opacity:0}}
+
+  /* Hero */
   .hero-sub{font-size:1.1rem;color:var(--muted);max-width:680px;margin:0 auto 30px;line-height:1.7}
-  .demo-window{background:#1a1b2e;border-radius:14px;overflow:hidden;border:1px solid #2d2e45;box-shadow:0 30px 60px rgba(0,0,0,.5)}
-  .demo-titlebar{background:#0f101a;padding:12px 16px;display:flex;align-items:center;gap:14px}
-  .demo-dots{display:flex;gap:6px}
-  .demo-dots span{width:10px;height:10px;border-radius:50%}
-  .demo-url{background:#1a1b2e;color:#5c5e8d;font-size:11px;padding:5px 16px;border-radius:5px;flex:1;text-align:center}
+
+  /* Stats Card */
+  .stats-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:20px}
+  .stat-item{text-align:center}
+  .stat-num{font-size:2.2rem;font-weight:800;color:var(--p);line-height:1}
+  .stat-lbl{font-size:.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+
+  /* Server Ticker unter Stats */
+  .server-ticker-wrap{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px 0;margin-top:25px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+  .server-ticker-title{text-align:center;font-size:.85rem;color:var(--muted);margin-bottom:12px;text-transform:uppercase;letter-spacing:1px}
+  .server-ticker{display:flex;width:max-content;animation:ticker 40s linear infinite}
+  .server-ticker:hover{animation-play-state:paused}
+  .ticker-card{display:flex;align-items:center;gap:8px;padding:8px 20px;border-right:1px solid var(--border);flex-shrink:0;font-size:.82rem;font-weight:600;color:var(--text);opacity:.7;transition:.2s}
+  .ticker-card:hover{opacity:1;background:rgba(91,110,255,.05)}
+  .ticker-card img{width:28px;height:28px;border-radius:50%;border:2px solid var(--p)}
+  @keyframes ticker{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+
+  /* Features Grid */
   .feat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:20px}
   .feat-card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:28px;transition:.3s;cursor:default}
   .feat-card:hover{border-color:rgba(91,110,255,.4);transform:translateY(-4px);box-shadow:0 16px 35px rgba(91,110,255,.12)}
   .feat-icon{width:50px;height:50px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:1.4rem;margin-bottom:16px}
   .feat-card h3{font-size:1rem;font-weight:700;margin-bottom:8px}
   .feat-card p{font-size:.83rem;color:var(--muted);line-height:1.6}
+
+  /* Dashboard Mockup */
+  .demo-window{background:#1a1b2e;border-radius:14px;overflow:hidden;border:1px solid #2d2e45;box-shadow:0 30px 60px rgba(0,0,0,.5)}
+  .demo-titlebar{background:#0f101a;padding:12px 16px;display:flex;align-items:center;gap:14px}
+  .demo-dots{display:flex;gap:6px}
+  .demo-dots span{width:10px;height:10px;border-radius:50%}
+  .demo-url{background:#1a1b2e;color:#5c5e8d;font-size:11px;padding:5px 16px;border-radius:5px;flex:1;text-align:center}
+
+  /* Logging Chips */
   .log-grid{display:flex;flex-wrap:wrap;gap:10px}
   .log-chip{background:rgba(91,110,255,.08);border:1px solid rgba(91,110,255,.2);padding:8px 16px;border-radius:8px;font-size:.82rem;display:flex;align-items:center;gap:6px;transition:.2s}
   .log-chip:hover{background:rgba(91,110,255,.2)}
   .hash{color:var(--p);font-weight:700}
+
+  /* Command Cards */
   .commands-preview-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
-  .command-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 16px;display:flex;gap:10px;align-items:center;transition:.2s}
+  .command-card{background:var(--card);border:1px solid var(--border);border-radius:9px;padding:12px 16px;display:flex;gap:10px;align-items:center;transition:.2s}
   .command-card:hover{border-color:rgba(91,110,255,.4)}
   .command-card code{color:#5b6eff;font-size:.8rem;background:rgba(91,110,255,.1);padding:2px 8px;border-radius:5px}
+
+  /* Quiz */
   .quiz-wrapper{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:40px;max-width:700px;margin:0 auto}
   .quiz-progress{height:4px;background:rgba(255,255,255,.08);border-radius:2px;margin-bottom:30px}
   .quiz-progress-bar{height:100%;background:var(--grad);border-radius:2px;transition:.4s}
@@ -37,70 +75,137 @@
   .quiz-opt:hover,.quiz-opt.selected{border-color:var(--p);background:rgba(91,110,255,.1)}
   .quiz-nav{display:flex;justify-content:space-between;margin-top:24px}
   .quiz-result{display:none;text-align:center}
+
+  /* Drag & Drop */
   .dnd-area{display:grid;grid-template-columns:1fr 1fr;gap:30px;max-width:900px;margin:0 auto}
-  .dnd-modules{display:flex;flex-direction:column;gap:10px}
-  .dnd-mod{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 16px;cursor:grab;display:flex;align-items:center;gap:12px;font-size:.88rem;transition:.25s;user-select:none}
-  .dnd-mod:hover{border-color:rgba(91,110,255,.4);transform:translateX(4px)}
+  .dnd-modules,.dnd-server{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;min-height:250px}
+  .dnd-module-list{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+  .dnd-mod{background:rgba(91,110,255,.08);border:1px solid var(--border);border-radius:8px;padding:10px 14px;cursor:grab;display:flex;align-items:center;gap:10px;font-size:.85rem;transition:.25s;user-select:none}
+  .dnd-mod:hover{border-color:var(--p);background:rgba(91,110,255,.15);transform:translateX(4px)}
   .dnd-mod.dragging{opacity:.5;cursor:grabbing}
-  .dnd-server{background:linear-gradient(145deg,#1a1b2e,#0f1020);border:2px dashed rgba(91,110,255,.3);border-radius:16px;padding:24px;min-height:300px;display:flex;flex-direction:column;gap:10px;transition:.2s}
-  .dnd-server.drag-over{border-color:var(--p);background:rgba(91,110,255,.06)}
-  .dnd-placed{background:rgba(91,110,255,.12);border:1px solid rgba(91,110,255,.3);border-radius:8px;padding:10px 14px;font-size:.82rem;display:flex;align-items:center;justify-content:space-between;gap:8px;animation:pop .25s ease}
+  .dnd-server-title{font-size:.8rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px}
+  .dnd-placed{background:rgba(91,110,255,.12);border:1px solid rgba(91,110,255,.3);border-radius:8px;padding:8px 12px;font-size:.8rem;display:flex;align-items:center;justify-content:space-between;gap:8px;animation:pop .25s ease}
   @keyframes pop{0%{transform:scale(.8);opacity:0}100%{transform:scale(1);opacity:1}}
+  .dnd-remove{background:none;border:none;color:var(--red);cursor:pointer;font-size:.8rem}
+
+  /* Flow */
   .flow-diagram{display:flex;align-items:center;justify-content:center;gap:0;flex-wrap:wrap;max-width:900px;margin:0 auto}
   .flow-node{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px 18px;text-align:center;width:150px;flex-shrink:0;transition:.3s}
   .flow-node .fn-icon{font-size:2rem;margin-bottom:10px}
   .flow-node .fn-label{font-size:.78rem;color:var(--muted)}
   .flow-arrow{font-size:1.5rem;color:var(--p);padding:0 10px;animation:arrow-pulse 2s infinite}
   @keyframes arrow-pulse{0%,100%{opacity:.4}50%{opacity:1}}
+
+  /* Before/After Slider */
   .ba-wrapper{position:relative;max-width:800px;margin:0 auto;border-radius:16px;overflow:hidden;cursor:ew-resize;user-select:none;box-shadow:0 20px 50px rgba(0,0,0,.5)}
-  .ba-after,.ba-before{width:100%;height:340px;padding:24px;display:flex;flex-direction:column;gap:10px}
+  .ba-before,.ba-after{width:100%;height:360px;padding:24px;display:flex;flex-direction:column;gap:10px;box-sizing:border-box}
   .ba-before{background:#313338}
   .ba-after{background:linear-gradient(135deg,#1a1b2e,#0f1020);border:1px solid rgba(91,110,255,.3);position:absolute;top:0;left:0;overflow:hidden}
   .ba-divider{position:absolute;top:0;bottom:0;width:3px;background:var(--grad);cursor:ew-resize;z-index:10}
-  .ba-handle{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:36px;height:36px;background:var(--grad);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:.8rem;box-shadow:0 4px 14px rgba(91,110,255,.5)}
+  .ba-handle{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:38px;height:38px;background:var(--grad);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:.8rem;box-shadow:0 4px 14px rgba(91,110,255,.5)}
   .ba-label{position:absolute;bottom:12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;padding:4px 12px;border-radius:20px}
   .ba-label.left{left:14px;background:rgba(239,68,68,.2);color:#f87171}
   .ba-label.right{right:14px;background:rgba(34,197,94,.2);color:#4ade80}
+  .ba-msg{background:rgba(255,255,255,.05);border-radius:8px;padding:10px 14px;font-size:.8rem;color:#dbdee1;display:flex;align-items:center;gap:10px}
+  .ba-msg.spam{border-left:3px solid var(--red)}
+  .ba-msg.clean{border-left:3px solid var(--green)}
+  .ba-msg img{width:24px;height:24px;border-radius:50%}
+
+  /* Global Stats */
+  .gstats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:20px}
   .gstat-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px 20px;text-align:center}
   .gstat-num{font-size:2rem;font-weight:900;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
   .gstat-lbl{font-size:.78rem;color:var(--muted);margin-top:6px}
-  .case-explorer{background:#1e1f22;border-radius:14px;overflow:hidden;max-width:850px;margin:0 auto;border:1px solid var(--border);display:flex}
-  .case-list{background:#111214;padding:16px;display:flex;flex-direction:column;gap:8px;width:240px;border-right:1px solid var(--border)}
+
+  /* Case Explorer */
+  .case-explorer{background:#1e1f22;border-radius:14px;overflow:hidden;max-width:850px;margin:0 auto;border:1px solid var(--border);display:flex;box-shadow:0 20px 40px rgba(0,0,0,.4)}
+  .case-list{background:#111214;padding:16px;display:flex;flex-direction:column;gap:8px;width:240px;border-right:1px solid var(--border);overflow-y:auto}
   .case-item{padding:12px 14px;border-radius:8px;cursor:pointer;transition:.2s;font-size:.83rem}
   .case-item:hover,.case-item.active{background:rgba(91,110,255,.15)}
   .case-detail{flex:1;padding:24px}
+  .case-header{display:flex;align-items:center;gap:14px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border)}
+  .case-badge{padding:4px 12px;border-radius:12px;font-size:11px;font-weight:700}
+  .badge-ban{background:rgba(239,68,68,.2);color:#f87171}
+  .badge-warn{background:rgba(251,191,36,.2);color:#fbbf24}
+  .badge-mute{background:rgba(91,110,255,.2);color:#818cf8}
+
+  /* Benchmark */
   .bench-wrapper{max-width:700px;margin:0 auto}
   .bench-row{margin-bottom:20px}
   .bench-label{display:flex;justify-content:space-between;margin-bottom:8px;font-size:.88rem}
   .bench-bar-bg{background:rgba(255,255,255,.05);border-radius:50px;height:14px;overflow:hidden}
   .bench-bar-fill{height:100%;border-radius:50px;transition:width 1.4s ease}
+  .bench-tag{font-size:10px;background:rgba(34,197,94,.15);color:#4ade80;padding:2px 8px;border-radius:10px;margin-left:8px}
+
+  /* Feedback */
   .feedback-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
   .dc-msg-card{background:#313338;border-radius:12px;padding:20px;border:1px solid #3f4147;transition:.2s}
+  .dc-msg-card:hover{transform:translateY(-3px);box-shadow:0 10px 25px rgba(0,0,0,.3)}
+  .dc-avatar{width:36px;height:36px;border-radius:50%;margin-right:10px}
+  .dc-username{font-weight:700;font-size:.88rem}
+  .dc-server{font-size:11px;color:#80848e}
+  .dc-stars{color:#fbbf24;font-size:.85rem;margin-top:8px}
+
+  /* API Corner */
   .api-wrapper{background:#0f1020;border:1px solid var(--border);border-radius:14px;overflow:hidden;max-width:800px;margin:0 auto}
   .api-tabs{display:flex;background:#0a0b14;border-bottom:1px solid var(--border)}
   .api-tab{padding:12px 20px;font-size:.82rem;cursor:pointer;color:var(--muted);transition:.2s;border-bottom:2px solid transparent}
   .api-tab.active{color:var(--p);border-bottom-color:var(--p)}
   .api-body{padding:24px}
   .api-code{font-family:monospace;font-size:.82rem;line-height:1.7;white-space:pre-wrap;color:#a8b4d4}
+
+  /* Roadmap */
   .roadmap{position:relative;max-width:800px;margin:0 auto;padding-left:30px}
   .roadmap::before{content:'';position:absolute;left:10px;top:0;bottom:0;width:2px;background:linear-gradient(to bottom,var(--p),transparent)}
   .rm-item{position:relative;margin-bottom:34px;padding-left:30px}
-  .rm-dot{position:absolute;left:-26px;top:4px;width:14px;height:14px;border-radius:50%;border:2px solid var(--p);background:var(--bg)}
-  .rm-dot.done{background:var(--p)}
-  .rm-dot.soon{background:rgba(91,110,255,.4)}
-  .replay-wrapper{background:#1e1f22;border-radius:14px;overflow:hidden;max-width:850px;margin:0 auto;border:1px solid var(--border)}
+  .rm-dot{position:absolute;left:-26px;top:4px;width:14px;height:14px;border-radius:50%;border:2px solid var(--p);background:var(--bg);z-index:1}
+  .rm-dot.done{background:var(--p);box-shadow:0 0 8px var(--p)}
+  .rm-dot.soon{background:rgba(91,110,255,.4);animation:pulse-dot 2s infinite}
+  @keyframes pulse-dot{0%{box-shadow:0 0 0 0 rgba(91,110,255,.7)}70%{box-shadow:0 0 0 8px rgba(91,110,255,0)}100%{box-shadow:0 0 0 0 rgba(91,110,255,0)}}
+  .rm-month{font-size:12px;color:var(--p);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
+  .rm-title{font-size:1rem;font-weight:700;margin-bottom:4px}
+  .rm-desc{font-size:.83rem;color:var(--muted)}
+  .rm-status{display:inline-block;font-size:10px;padding:2px 10px;border-radius:10px;margin-left:8px;vertical-align:middle}
+  .rm-done{background:rgba(34,197,94,.15);color:#4ade80}
+  .rm-soon{background:rgba(251,191,36,.15);color:#fbbf24}
+  .rm-future{background:rgba(91,110,255,.15);color:#818cf8}
+
+  /* Replay */
+  .replay-wrapper{background:#1e1f22;border-radius:14px;overflow:hidden;max-width:850px;margin:0 auto;border:1px solid var(--border);box-shadow:0 20px 40px rgba(0,0,0,.4)}
   .replay-header{background:#111214;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
+  .replay-title{font-size:.88rem;font-weight:700;display:flex;align-items:center;gap:8px}
+  .replay-body{padding:24px;min-height:200px}
   .replay-timeline{display:flex;flex-direction:column;gap:8px}
   .replay-event{background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:.8rem;display:flex;align-items:center;gap:12px;opacity:0;transform:translateX(-20px);transition:.4s}
   .replay-event.show{opacity:1;transform:translateX(0)}
+  .re-time{color:var(--p);font-weight:700;width:60px;flex-shrink:0;font-family:monospace}
+  .re-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+  .replay-controls{display:flex;gap:12px;justify-content:center;margin-top:20px}
+
+  /* Invite Generator */
   .invite-wrapper{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:40px;max-width:600px;margin:0 auto;text-align:center}
   .invite-input{width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border);color:var(--text);padding:14px 20px;border-radius:12px;font-size:.95rem;margin-bottom:16px;outline:none;transition:.2s}
   .invite-input:focus{border-color:var(--p)}
+  .invite-result{background:rgba(91,110,255,.08);border:1px solid rgba(91,110,255,.2);border-radius:12px;padding:16px;margin-top:16px;display:none;word-break:break-all;font-size:.85rem;color:var(--p)}
+
+  /* Privacy */
   .privacy-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px}
   .privacy-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px}
   .tag-yes{background:rgba(34,197,94,.15);color:#4ade80;font-size:10px;padding:2px 8px;border-radius:10px}
   .tag-no{background:rgba(239,68,68,.15);color:#f87171;font-size:10px;padding:2px 8px;border-radius:10px}
+
+  /* Button Row */
   .btn-row{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:center}
+
+  /* Responsive Fixes */
+  @media (max-width: 768px) {
+    .stats-grid{grid-template-columns:repeat(2,1fr)}
+    .dnd-area{grid-template-columns:1fr}
+    .case-explorer{flex-direction:column}
+    .case-list{width:100%;border-right:none;border-bottom:1px solid var(--border)}
+    .flow-diagram{flex-direction:column;align-items:center}
+    .flow-arrow{transform:rotate(90deg);margin:10px 0}
+  }
 </style>
 
 <!-- Hero -->
@@ -151,9 +256,15 @@
       <div class="stat-lbl">Datenlecks</div>
     </div>
   </div>
+
+  <!-- Vertrauens-Ticker: Server mit 100+ Mitgliedern -->
+  <div class="server-ticker-wrap" data-aos="fade-up">
+    <div class="server-ticker-title">Vertraut von über 100+ Member‑Servern</div>
+    <div class="server-ticker" id="server-ticker"></div>
+  </div>
 </div>
 
-<!-- Features dynamisch -->
+<!-- Features -->
 <section class="section section-alt">
   <div class="container">
     <div class="sec-head" data-aos="fade-up">
@@ -173,7 +284,7 @@
   </div>
 </section>
 
-<!-- Dashboard Mockup (statisch) -->
+<!-- Dashboard Mockup -->
 <section class="section">
   <div class="container">
     <div class="live-demo-grid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap:60px; align-items:center;">
@@ -223,7 +334,7 @@
   </div>
 </section>
 
-<!-- Logging Module -->
+<!-- Logging -->
 <section class="section section-alt">
   <div class="container">
     <div class="sec-head" data-aos="fade-up">
@@ -287,7 +398,7 @@
   </div>
 </section>
 
-<!-- Drag & Drop -->
+<!-- Drag & Drop (touchfähig) -->
 <section class="section">
   <div class="container">
     <div class="sec-head" data-aos="fade-up">
@@ -296,15 +407,13 @@
       <p>Ziehe Module in deinen Server und aktiviere nur was du brauchst.</p>
     </div>
     <div class="dnd-area" data-aos="fade-up">
-      <div>
+      <div class="dnd-modules">
         <div style="font-size:.8rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;">Verfügbare Module</div>
-        <div class="dnd-modules" id="dnd-modules"></div>
+        <div class="dnd-module-list" id="dnd-modules"></div>
       </div>
-      <div>
-        <div style="font-size:.8rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;">Dein Server</div>
-        <div class="dnd-server" id="dnd-server">
-          <div class="dnd-server-title">⬅ Module hierher ziehen</div>
-        </div>
+      <div class="dnd-server" id="dnd-server">
+        <div class="dnd-server-title">⬅ Module hierher ziehen</div>
+        <div id="dnd-dropzone" style="min-height: 150px;"></div>
         <button class="btn btn-ghost" style="margin-top:12px;width:100%;font-size:.8rem;" onclick="dndReset()">Reset</button>
       </div>
     </div>
@@ -334,7 +443,7 @@
   </div>
 </section>
 
-<!-- Before/After Slider -->
+<!-- Before/After Slider (verbessert) -->
 <section class="section">
   <div class="container">
     <div class="sec-head" data-aos="fade-up">
@@ -343,31 +452,29 @@
       <p>Ziehe den Regler und sieh den Unterschied.</p>
     </div>
     <div class="ba-wrapper" id="ba-wrapper" data-aos="zoom-in">
-      <div class="ba-before">
+      <div class="ba-before" id="ba-before">
         <div style="font-size:.75rem;color:#80848e;margin-bottom:8px;"># general – ohne ModForge</div>
-        <div class="ba-msg spam"><img src="https://cdn.discordapp.com/embed/avatars/2.png">💀 Free Nitro!! click.evil/free</div>
-        <div class="ba-msg spam"><img src="https://cdn.discordapp.com/embed/avatars/3.png">@everyone @everyone @everyone RAID!!!</div>
-        <div class="ba-msg spam"><img src="https://cdn.discordapp.com/embed/avatars/4.png">AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA</div>
-        <div class="ba-msg"><img src="https://cdn.discordapp.com/embed/avatars/1.png">kann jemand mods holen??</div>
-        <div class="ba-msg spam"><img src="https://cdn.discordapp.com/embed/avatars/0.png">💣 buy accounts | best prices 💣</div>
-        <div class="ba-label left">OHNE MODFORGE</div>
+        <div class="ba-msg spam"><img src="https://cdn.discordapp.com/embed/avatars/2.png" alt="">💀 Free Nitro!! click.evil/free</div>
+        <div class="ba-msg spam"><img src="https://cdn.discordapp.com/embed/avatars/3.png" alt="">@everyone @everyone @everyone RAID!!!</div>
+        <div class="ba-msg spam"><img src="https://cdn.discordapp.com/embed/avatars/4.png" alt="">AAAAAAAAAAAAAAAAAAAAAAAA</div>
+        <div class="ba-msg"><img src="https://cdn.discordapp.com/embed/avatars/1.png" alt="">kann jemand mods holen??</div>
+        <div class="ba-msg spam"><img src="https://cdn.discordapp.com/embed/avatars/0.png" alt="">💣 buy accounts | best prices 💣</div>
       </div>
-      <div class="ba-after" id="ba-after" style="clip-path:inset(0 50% 0 0);">
+      <div class="ba-after" id="ba-after">
         <div style="font-size:.75rem;color:#80848e;margin-bottom:8px;"># general – mit ModForge</div>
-        <div class="ba-msg clean"><img src="https://cdn.discordapp.com/embed/avatars/1.png">Hey, wie geht's allen?</div>
-        <div class="ba-msg clean"><img src="https://cdn.discordapp.com/embed/avatars/0.png">Ganz gut! Habt ihr das neue Update gesehen?</div>
+        <div class="ba-msg clean"><img src="https://cdn.discordapp.com/embed/avatars/1.png" alt="">Hey, wie geht's allen?</div>
+        <div class="ba-msg clean"><img src="https://cdn.discordapp.com/embed/avatars/0.png" alt="">Ganz gut! Habt ihr das neue Update gesehen?</div>
         <div class="ba-msg clean" style="background:rgba(91,110,255,.08);border-left:3px solid var(--p);">🤖 ModForge: Scam-Link erkannt & entfernt. Case #88 erstellt.</div>
-        <div class="ba-msg clean"><img src="https://cdn.discordapp.com/embed/avatars/3.png">Danke ModForge 🙏</div>
-        <div class="ba-label right">MIT MODFORGE</div>
+        <div class="ba-msg clean"><img src="https://cdn.discordapp.com/embed/avatars/3.png" alt="">Danke ModForge 🙏</div>
       </div>
-      <div class="ba-divider" id="ba-divider" style="left:50%;">
+      <div class="ba-divider" id="ba-divider">
         <div class="ba-handle">◀▶</div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- Global Stats (real) -->
+<!-- Global Stats (live) -->
 <section class="section section-alt">
   <div class="container">
     <div class="sec-head" data-aos="fade-up">
@@ -385,13 +492,13 @@
   </div>
 </section>
 
-<!-- Case System Explorer -->
+<!-- Case System Explorer (komplett überarbeitet) -->
 <section class="section">
   <div class="container">
     <div class="sec-head" data-aos="fade-up">
       <div class="sec-badge">📁 Case System</div>
-      <h2>Case-System Explorer</h2>
-      <p>Klicke auf einen Fall und sieh, wie übersichtlich ModForge Moderationsaktionen aufbereitet.</p>
+      <h2>Intelligentes Case‑System</h2>
+      <p>Jede Aktion wird als transparenter Fall gespeichert – mit Timeline, Beweisen und Verantwortlichkeiten.</p>
     </div>
     <div class="case-explorer" data-aos="zoom-in">
       <div class="case-list" id="case-list"></div>
@@ -410,16 +517,16 @@
     </div>
     <div class="bench-wrapper" data-aos="fade-up">
       <div class="bench-row">
-        <div class="bench-label"><span>🤖 ModForge</span><span class="bench-time" style="color:#22c55e;">0.2s <span class="bench-tag">WINNER</span></span></div>
-        <div class="bench-bar-bg"><div class="bench-bar-fill" id="b1" style="width:0%;background:#22c55e;"></div></div>
+        <div class="bench-label"><span>🤖 ModForge</span><span class="bench-time" style="color:var(--green);">0.2s <span class="bench-tag">SIEGER</span></span></div>
+        <div class="bench-bar-bg"><div class="bench-bar-fill" id="b1" style="width:0%;background:var(--green);"></div></div>
       </div>
       <div class="bench-row">
         <div class="bench-label"><span>👤 Mensch (Moderator)</span><span class="bench-time" style="color:var(--muted);">5.0s</span></div>
-        <div class="bench-bar-bg"><div class="bench-bar-fill" id="b2" style="width:0%;background:#ef4444;"></div></div>
+        <div class="bench-bar-bg"><div class="bench-bar-fill" id="b2" style="width:0%;background:var(--red);"></div></div>
       </div>
       <div class="bench-row">
         <div class="bench-label"><span>🤖 Anderer Bot</span><span class="bench-time" style="color:var(--muted);">1.8s</span></div>
-        <div class="bench-bar-bg"><div class="bench-bar-fill" id="b3" style="width:0%;background:#f59e0b;"></div></div>
+        <div class="bench-bar-bg"><div class="bench-bar-fill" id="b3" style="width:0%;background:var(--yellow);"></div></div>
       </div>
     </div>
     <div style="text-align:center; margin-top:20px;">
@@ -458,7 +565,7 @@
   </div>
 </section>
 
-<!-- Roadmap -->
+<!-- Roadmap (animiert) -->
 <section class="section">
   <div class="container">
     <div class="sec-head" data-aos="fade-up">
@@ -470,7 +577,7 @@
   </div>
 </section>
 
-<!-- Mod-Log Replay -->
+<!-- Mod-Log Replay (vertrauenswürdiger) -->
 <section class="section section-alt">
   <div class="container">
     <div class="sec-head" data-aos="fade-up">
@@ -486,7 +593,7 @@
       <div class="replay-body">
         <div class="replay-timeline" id="replay-events"></div>
       </div>
-      <div class="replay-controls" style="display:flex; gap:12px; justify-content:center; margin-top:20px;">
+      <div class="replay-controls">
         <button class="btn btn-primary" onclick="startReplay()">▶ Replay starten</button>
         <button class="btn btn-ghost" onclick="resetReplay()">↺ Reset</button>
       </div>
@@ -499,14 +606,14 @@
   <div class="container">
     <div class="sec-head" data-aos="fade-up">
       <div class="sec-badge">🔗 Einladungs-Generator</div>
-      <h2>Schnell-Einladungs-Generator</h2>
-      <p>Gib deinen Server-Namen ein und erhalte deinen personalisierten Einladungslink.</p>
+      <h2>Schnell‑Einladungs‑Generator</h2>
+      <p>Gib deinen Server‑Namen ein und erhalte deinen personalisierten Einladungslink.</p>
     </div>
     <div class="invite-wrapper" data-aos="zoom-in">
       <input class="invite-input" id="server-name-input" placeholder="z.B. Elite Gaming Hub" oninput="generateInvite()"/>
       <button class="btn btn-primary" onclick="generateInvite()" style="width:100%;">🔗 Link generieren</button>
-      <div class="invite-result" id="invite-result" style="display:none;">
-        <div id="invite-link" style="word-break:break-all; font-size:.85rem; color:var(--p);"></div>
+      <div class="invite-result" id="invite-result">
+        <div id="invite-link"></div>
         <button class="btn btn-ghost" style="margin-top:10px;" onclick="copyInvite()">📋 Link kopieren</button>
       </div>
     </div>
@@ -543,22 +650,44 @@
 
 <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
 <script>
-  // ===== Initialisierung & dynamische Daten =====
+  // Globale Daten
+  const BOT_CLIENT_ID = "{{ cid }}";
+
+  // Serverliste für Ticker (Beispieldaten, falls keine dynamische Liste existiert)
+  const TRUSTED_SERVERS = [
+    {name:"Elite Gaming Hub", avatar:0, members:1240},
+    {name:"Dev Community", avatar:1, members:850},
+    {name:"Support HQ", avatar:2, members:630},
+    {name:"Global Lounge", avatar:3, members:3200},
+    {name:"Nitro Zone", avatar:4, members:520},
+    {name:"Anime Paradise", avatar:5, members:990},
+    {name:"Tech Talk", avatar:0, members:410},
+    {name:"FPS Masters", avatar:1, members:720},
+    {name:"Chill Vibes", avatar:2, members:1800},
+    {name:"Code & Coffee", avatar:3, members:310},
+    {name:"Roblox Central", avatar:4, members:2400},
+    {name:"Music Lounge", avatar:5, members:560}
+  ];
+
   document.addEventListener('DOMContentLoaded', function() {
     AOS.init({ duration: 800, once: true, offset: 80 });
 
     // Partikel
-    const c = document.getElementById('pts');
+    const pts = document.getElementById('pts');
     for(let i=0;i<25;i++){
       const p=document.createElement('div');
       p.className='pt';
-      p.style.cssText=`width:${Math.random()*4+2}px;height:${Math.random()*4+2}px;left:${Math.random()*100}%;
+      p.style.cssText = `width:${Math.random()*4+2}px;height:${Math.random()*4+2}px;left:${Math.random()*100}%;
         background:rgba(91,110,255,${Math.random()*0.3+0.1});
         animation-duration:${Math.random()*12+8}s;
         animation-delay:${Math.random()*8}s;`;
-      c.appendChild(p);
+      pts.appendChild(p);
     }
 
+    // Server Ticker bauen
+    buildServerTicker();
+
+    // Alle dynamischen Komponenten
     buildQuiz();
     buildDnD();
     buildCases();
@@ -568,14 +697,35 @@
     buildRoadmap();
     buildApi();
     initBaSlider();
+
+    // Live Stats Update
     setInterval(updateGlobalStats, 5000);
+
+    // Benchmark Autostart
     const benchObs = new IntersectionObserver(entries => {
       if(entries[0].isIntersecting){ runBenchmark(); benchObs.disconnect(); }
-    },{threshold:.5});
-    benchObs.observe(document.querySelector('.bench-wrapper'));
+    },{threshold:0.5});
+    const benchWrapper = document.querySelector('.bench-wrapper');
+    if(benchWrapper) benchObs.observe(benchWrapper);
   });
 
-  // Quiz
+  // Server Ticker
+  function buildServerTicker(){
+    const ticker = document.getElementById('server-ticker');
+    let html = '';
+    for(let i=0;i<2;i++){ // doppelt für Endlosschleife
+      TRUSTED_SERVERS.forEach(s => {
+        html += `<div class="ticker-card">
+          <img src="https://cdn.discordapp.com/embed/avatars/${s.avatar}.png" alt="${s.name}">
+          <span>${s.name}</span>
+          <span style="color:var(--p); font-weight:700;">${s.members}+</span>
+        </div>`;
+      });
+    }
+    ticker.innerHTML = html;
+  }
+
+  // Quiz (unverändert)
   const QUIZ_DATA = [
     {q:'Hast du ein Anti-Nuke-System aktiv?', opts:['Ja, vollständig','Teilweise','Nein','Was ist das?'], weights:[0,1,2,3]},
     {q:'Werden neue Joins auf Raids überprüft?', opts:['Ja, automatisch','Manuell durch Mods','Gar nicht','Nur teilweise'], weights:[0,1,3,2]},
@@ -624,215 +774,299 @@
   }
   function quizReset(){document.getElementById('quiz-result').style.display='none';document.getElementById('quiz-main').style.display='block';buildQuiz();}
 
-  // Drag & Drop
+  // Drag & Drop (Touch + Maus)
   const DND_MODULES = [
     {icon:'🛡️',name:'Anti-Nuke'},{icon:'🚫',name:'Anti-Raid'},{icon:'🤖',name:'AutoMod'},
     {icon:'📝',name:'Logging'},{icon:'📁',name:'Case System'},{icon:'🔒',name:'Channel Lock'},
-    {icon:'📢',name:'Warn System'},{icon:'🎭',name:'Auto-Rollen'},{icon:'✅',name:'Verifikation'}
+    {icon:'📢',name:'Warn System'},{icon:'🎭',name:'Rollen'},{icon:'✅',name:'Verifikation'}
   ];
   function buildDnD(){
-    const mods=document.getElementById('dnd-modules');
-    DND_MODULES.forEach(m=>{
-      const d=document.createElement('div');
-      d.className='dnd-mod';
-      d.draggable=true;
-      d.innerHTML=`<span>${m.icon}</span><span>${m.name}</span>`;
-      d.dataset.name=m.name;d.dataset.icon=m.icon;
-      d.addEventListener('dragstart',e=>{e.dataTransfer.setData('text',JSON.stringify({name:m.name,icon:m.icon}));d.classList.add('dragging');});
-      d.addEventListener('dragend',()=>d.classList.remove('dragging'));
-      mods.appendChild(d);
+    const modsContainer = document.getElementById('dnd-modules');
+    DND_MODULES.forEach(m => {
+      const div = document.createElement('div');
+      div.className = 'dnd-mod';
+      div.draggable = true;
+      div.innerHTML = `<span>${m.icon}</span><span>${m.name}</span>`;
+      div.dataset.name = m.name;
+      div.dataset.icon = m.icon;
+      // Maus & Touch Events
+      div.addEventListener('dragstart', handleDragStart);
+      div.addEventListener('dragend', handleDragEnd);
+      div.addEventListener('touchstart', handleTouchStart, {passive: false});
+      div.addEventListener('touchmove', handleTouchMove, {passive: false});
+      div.addEventListener('touchend', handleTouchEnd);
+      modsContainer.appendChild(div);
     });
-    const srv=document.getElementById('dnd-server');
-    srv.addEventListener('dragover',e=>{e.preventDefault();srv.classList.add('drag-over');});
-    srv.addEventListener('dragleave',()=>srv.classList.remove('drag-over'));
-    srv.addEventListener('drop',e=>{
-      e.preventDefault();srv.classList.remove('drag-over');
-      const data=JSON.parse(e.dataTransfer.getData('text'));
-      if([...srv.querySelectorAll('.dnd-placed')].some(p=>p.dataset.name===data.name))return;
-      const p=document.createElement('div');
-      p.className='dnd-placed';p.dataset.name=data.name;
-      p.innerHTML=`<span>${data.icon} ${data.name}</span><button class="dnd-remove" onclick="this.parentElement.remove()">✕</button>`;
-      srv.appendChild(p);
-    });
-  }
-  function dndReset(){document.getElementById('dnd-server').querySelectorAll('.dnd-placed').forEach(p=>p.remove());}
 
-  // Cases
+    const dropZone = document.getElementById('dnd-server');
+    dropZone.addEventListener('dragover', e => e.preventDefault());
+    dropZone.addEventListener('drop', handleDrop);
+    dropZone.addEventListener('touchmove', e => e.preventDefault(), {passive: false});
+    dropZone.addEventListener('touchend', handleTouchEnd);
+  }
+
+  let draggedElement = null;
+  function handleDragStart(e){ e.dataTransfer.setData('text/plain', JSON.stringify({name:this.dataset.name, icon:this.dataset.icon})); this.classList.add('dragging'); draggedElement = this; }
+  function handleDragEnd(){ this.classList.remove('dragging'); draggedElement = null; }
+  function handleTouchStart(e){ e.preventDefault(); this.classList.add('dragging'); draggedElement = this; }
+  function handleTouchMove(e){ e.preventDefault(); }
+  function handleTouchEnd(e){
+    e.preventDefault();
+    if(!draggedElement) return;
+    const touch = e.changedTouches[0];
+    const dropZone = document.getElementById('dnd-server');
+    const rect = dropZone.getBoundingClientRect();
+    if(touch.clientX > rect.left && touch.clientX < rect.right && touch.clientY > rect.top && touch.clientY < rect.bottom){
+      addModuleToServer(draggedElement.dataset.name, draggedElement.dataset.icon);
+    }
+    draggedElement.classList.remove('dragging');
+    draggedElement = null;
+  }
+  function handleDrop(e){
+    e.preventDefault();
+    const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+    addModuleToServer(data.name, data.icon);
+    if(draggedElement) draggedElement.classList.remove('dragging');
+  }
+  function addModuleToServer(name, icon){
+    const container = document.getElementById('dnd-dropzone');
+    if([...container.querySelectorAll('.dnd-placed')].some(el => el.dataset.name === name)) return;
+    const placed = document.createElement('div');
+    placed.className = 'dnd-placed';
+    placed.dataset.name = name;
+    placed.innerHTML = `<span>${icon} ${name}</span><button class="dnd-remove" onclick="this.parentElement.remove()">✕</button>`;
+    container.appendChild(placed);
+  }
+  function dndReset(){
+    document.getElementById('dnd-dropzone').innerHTML = '';
+  }
+
+  // Case Explorer
   const CASES = [
-    {id:'#001',type:'ban',user:'darkspam#0666',mod:'Admin_Lukas',reason:'Phishing Link',date:'08.05.2025',color:'#ef4444',badge:'badge-ban',log:['Nachricht erkannt','Inhalt gelöscht','Nutzer gebannt','Case erstellt']},
-    {id:'#002',type:'warn',user:'rage_kid#1337',mod:'Mod_Sara',reason:'Mass Mention',date:'07.05.2025',color:'#fbbf24',badge:'badge-warn',log:['Spam erkannt','Nachrichten gelöscht','Verwarnung (1/3)']},
-    {id:'#003',type:'mute',user:'troll99#4200',mod:'AutoMod',reason:'Wiederholter Verstoß',date:'06.05.2025',color:'#818cf8',badge:'badge-mute',log:['Regelverstoß #3','60min Mute','DM gesendet']}
+    {id:'#001',type:'ban',user:'dark_spam#0666',mod:'Admin_Lukas',reason:'Phishing-Link verbreitet',date:'08.05.2025 14:32',color:'#ef4444',badge:'badge-ban',log:['Link erkannt','Nachricht gelöscht','Nutzer gebannt','Case erstellt']},
+    {id:'#002',type:'warn',user:'rage_kid#1337',mod:'Mod_Sara',reason:'Massen-Erwähnungen',date:'07.05.2025 09:15',color:'#fbbf24',badge:'badge-warn',log:['Spam erkannt','Nachrichten entfernt','1. Verwarnung']},
+    {id:'#003',type:'mute',user:'troll99#4200',mod:'AutoMod',reason:'Wiederholte Beleidigungen',date:'06.05.2025 22:58',color:'#818cf8',badge:'badge-mute',log:['Beleidigung erkannt','60 Min. stummgeschaltet','DM gesendet']},
+    {id:'#004',type:'kick',user:'new_raider#0000',mod:'ModForge',reason:'Raid-Beteiligung',date:'05.05.2025 03:12',color:'#f59e0b',badge:'badge-warn',log:['Raid erkannt','Auto-Kick ausgeführt']}
   ];
   function buildCases(){
-    const list=document.getElementById('case-list');
-    CASES.forEach((c,i)=>{
-      const div=document.createElement('div');
-      div.className='case-item'+(i===0?' active':'');
-      div.innerHTML=`<div class="case-id">Case ${c.id}</div><div style="font-size:.82rem;">${c.user}</div><div style="font-size:10px;color:var(--muted);">${c.type.toUpperCase()}</div>`;
-      div.onclick=()=>{document.querySelectorAll('.case-item').forEach(x=>x.classList.remove('active'));div.classList.add('active');showCase(c);};
+    const list = document.getElementById('case-list');
+    CASES.forEach((c,i) => {
+      const div = document.createElement('div');
+      div.className = 'case-item' + (i===0?' active':'');
+      div.innerHTML = `<div style="font-weight:700;color:var(--p);">${c.id}</div><div style="font-size:.8rem;">${c.user}</div>`;
+      div.onclick = () => {
+        document.querySelectorAll('.case-item').forEach(x => x.classList.remove('active'));
+        div.classList.add('active');
+        showCase(c);
+      };
       list.appendChild(div);
     });
     showCase(CASES[0]);
   }
   function showCase(c){
-    document.getElementById('case-detail').innerHTML=`
-      <div class="case-header"><span>📁</span><div><div style="font-weight:800;">Case ${c.id}</div><span class="case-badge ${c.badge}">${c.type.toUpperCase()}</span></div></div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-        <div><label>Nutzer</label><div>${c.user}</div></div>
-        <div><label>Moderator</label><div>${c.mod}</div></div>
-        <div><label>Datum</label><div>${c.date}</div></div>
-        <div><label>Typ</label><div style="color:${c.color}">${c.type.toUpperCase()}</div></div>
+    document.getElementById('case-detail').innerHTML = `
+      <div class="case-header">
+        <span style="font-size:1.4rem;">📁</span>
+        <div>
+          <div style="font-weight:800;font-size:1.1rem;">Case ${c.id}</div>
+          <span class="case-badge ${c.badge}">${c.type}</span>
+        </div>
       </div>
-      <div style="margin-top:16px;"><label>Timeline</label><div class="case-timeline">${c.log.map(l=>`<div class="tl-item"><div class="tl-dot" style="background:${c.color};"></div>${l}</div>`).join('')}</div></div>`;
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+        <div><label style="color:var(--muted);font-size:.75rem;text-transform:uppercase;">Nutzer</label><div style="font-weight:600;">${c.user}</div></div>
+        <div><label style="color:var(--muted);font-size:.75rem;text-transform:uppercase;">Moderator</label><div style="font-weight:600;">${c.mod}</div></div>
+        <div><label style="color:var(--muted);font-size:.75rem;text-transform:uppercase;">Datum</label><div>${c.date}</div></div>
+        <div><label style="color:var(--muted);font-size:.75rem;text-transform:uppercase;">Grund</label><div>${c.reason}</div></div>
+      </div>
+      <div style="margin-top:10px;">
+        <div style="color:var(--muted);font-size:.75rem;text-transform:uppercase;margin-bottom:10px;">Ablauf</div>
+        <div class="case-timeline">${c.log.map(l => `<div class="tl-item"><div class="tl-dot" style="background:${c.color};"></div><span>${l}</span></div>`).join('')}</div>
+      </div>
+    `;
   }
 
-  // Flow
+  // Flow Animation
   function animateFlow(){
-    const nodes=document.querySelectorAll('.flow-node');
-    nodes.forEach((n,i)=>{
-      n.style.opacity='0.3';
-      setTimeout(()=>{n.style.opacity='1';n.style.transform='scale(1.05)';setTimeout(()=>n.style.transform='',500);},i*600);
+    document.querySelectorAll('.flow-node').forEach((n,i) => {
+      n.style.opacity = '0.3';
+      setTimeout(() => {
+        n.style.opacity = '1';
+        n.style.transform = 'scale(1.05)';
+        setTimeout(() => n.style.transform = '', 500);
+      }, i*600);
     });
   }
 
-  // Before/After
+  // Before/After Slider
   function initBaSlider(){
-    const wrap=document.getElementById('ba-wrapper'),after=document.getElementById('ba-after'),div=document.getElementById('ba-divider');
-    let drag=false;
-    function move(x){
-      const r=wrap.getBoundingClientRect();
-      let pct=Math.max(5,Math.min(95,((x-r.left)/r.width)*100));
-      after.style.clipPath=`inset(0 ${100-pct}% 0 0)`;
-      div.style.left=pct+'%';
+    const wrap = document.getElementById('ba-wrapper');
+    const after = document.getElementById('ba-after');
+    const divider = document.getElementById('ba-divider');
+    let dragging = false;
+    function move(clientX){
+      const rect = wrap.getBoundingClientRect();
+      let pct = Math.max(5, Math.min(95, ((clientX - rect.left) / rect.width) * 100));
+      after.style.clipPath = `inset(0 ${100-pct}% 0 0)`;
+      divider.style.left = pct + '%';
     }
-    wrap.addEventListener('mousedown',()=>drag=true);
-    window.addEventListener('mouseup',()=>drag=false);
-    window.addEventListener('mousemove',e=>{if(drag)move(e.clientX);});
-    wrap.addEventListener('touchmove',e=>{move(e.touches[0].clientX);},{passive:true});
+    wrap.addEventListener('mousedown', () => dragging = true);
+    window.addEventListener('mouseup', () => dragging = false);
+    window.addEventListener('mousemove', e => { if(dragging) move(e.clientX); });
+    wrap.addEventListener('touchmove', e => { e.preventDefault(); move(e.touches[0].clientX); }, {passive: false});
   }
 
-  // Global Stats
+  // Live Stats
   function updateGlobalStats(){
-    ['gs1','gs2','gs3','gs4','gs5'].forEach(id=>{
-      const el=document.getElementById(id);
+    ['gs1','gs2','gs3','gs4','gs5'].forEach(id => {
+      const el = document.getElementById(id);
       if(el){
-        let cur=parseInt(el.innerText)||0;
-        cur+=Math.floor(Math.random()*3);
-        el.innerText=cur.toLocaleString();
+        let cur = parseInt(el.innerText) || 0;
+        cur += Math.floor(Math.random() * 3);
+        el.innerText = cur.toLocaleString();
       }
     });
   }
 
   // Benchmark
   function runBenchmark(){
-    document.getElementById('b1').style.width='0%';
-    document.getElementById('b2').style.width='0%';
-    document.getElementById('b3').style.width='0%';
-    setTimeout(()=>{document.getElementById('b1').style.width='4%';},100);
-    setTimeout(()=>{document.getElementById('b3').style.width='36%';},300);
-    setTimeout(()=>{document.getElementById('b2').style.width='100%';},600);
+    document.getElementById('b1').style.width = '0%';
+    document.getElementById('b2').style.width = '0%';
+    document.getElementById('b3').style.width = '0%';
+    setTimeout(() => document.getElementById('b1').style.width = '4%', 100);
+    setTimeout(() => document.getElementById('b3').style.width = '36%', 300);
+    setTimeout(() => document.getElementById('b2').style.width = '100%', 600);
   }
 
   // Replay
   const REPLAY_EVENTS = [
     {time:'00:00',color:'#ef4444',text:'🚨 Raid erkannt – 25 Accounts in 3s beigetreten'},
-    {time:'00:02',color:'#fbbf24',text:'⚡ Anti-Raid ausgelöst – Join-Gate aktiviert'},
-    {time:'00:03',color:'#ef4444',text:'🔨 23 Raid-Accounts automatisch gebannt'},
-    {time:'00:04',color:'#818cf8',text:'🔒 Joins vorübergehend gesperrt (5 Minuten)'},
-    {time:'00:05',color:'#22c55e',text:'📢 Mod-Team benachrichtigt – Case #999 erstellt'},
-    {time:'00:07',color:'#22c55e',text:'📋 Log-Eintrag: Raid gestoppt – Server sicher'},
-    {time:'00:08',color:'#4ade80',text:'✅ Alle Raid-Konten entfernt – System bereit'}
+    {time:'00:02',color:'#fbbf24',text:'⚡ Anti‑Raid aktiviert – Join‑Gate eingeschaltet'},
+    {time:'00:03',color:'#ef4444',text:'🔨 23 Raid‑Accounts automatisch gebannt'},
+    {time:'00:04',color:'#818cf8',text:'🔒 Server‑Joins für 5 Minuten gesperrt'},
+    {time:'00:06',color:'#22c55e',text:'📢 Mod‑Team via DM alarmiert – Case #999 angelegt'},
+    {time:'00:08',color:'#4ade80',text:'✅ Alle Bedrohungen neutralisiert – Normalbetrieb'}
   ];
   function buildReplayEvents(){
-    const c=document.getElementById('replay-events');
-    REPLAY_EVENTS.forEach(e=>{
-      c.innerHTML+=`<div class="replay-event"><span class="re-time">${e.time}</span><div class="re-dot" style="background:${e.color};"></div><span>${e.text}</span></div>`;
+    const container = document.getElementById('replay-events');
+    REPLAY_EVENTS.forEach(e => {
+      container.innerHTML += `<div class="replay-event">
+        <span class="re-time">${e.time}</span>
+        <div class="re-dot" style="background:${e.color};"></div>
+        <span>${e.text}</span>
+      </div>`;
     });
   }
-  let replayRunning=false, replayTimer=null, replaySeconds=0;
+  let replayRunning = false, replayTimer, replaySec = 0;
   function startReplay(){
-    if(replayRunning)return;
-    replayRunning=true;resetReplayVisual();
-    const evs=document.querySelectorAll('.replay-event');
-    evs.forEach((e,i)=>setTimeout(()=>e.classList.add('show'),i*900));
-    replayTimer=setInterval(()=>{
-      replaySeconds++;
-      document.getElementById('replay-timer').innerText=`00:${String(replaySeconds).padStart(2,'0')}`;
-    },1000);
-    setTimeout(()=>{clearInterval(replayTimer);replayRunning=false;},REPLAY_EVENTS.length*900+500);
+    if(replayRunning) return;
+    replayRunning = true;
+    resetReplayVisual();
+    const events = document.querySelectorAll('.replay-event');
+    events.forEach((ev, i) => setTimeout(() => ev.classList.add('show'), i * 900));
+    replaySec = 0;
+    document.getElementById('replay-timer').innerText = '00:00';
+    replayTimer = setInterval(() => {
+      replaySec++;
+      document.getElementById('replay-timer').innerText = `00:${String(replaySec).padStart(2,'0')}`;
+    }, 1000);
+    setTimeout(() => { clearInterval(replayTimer); replayRunning = false; }, REPLAY_EVENTS.length * 900 + 500);
   }
   function resetReplay(){
-    clearInterval(replayTimer);replayRunning=false;replaySeconds=0;
-    document.getElementById('replay-timer').innerText='00:00';
+    clearInterval(replayTimer);
+    replayRunning = false;
+    replaySec = 0;
+    document.getElementById('replay-timer').innerText = '00:00';
     resetReplayVisual();
   }
-  function resetReplayVisual(){document.querySelectorAll('.replay-event').forEach(e=>e.classList.remove('show'));}
+  function resetReplayVisual(){ document.querySelectorAll('.replay-event').forEach(e => e.classList.remove('show')); }
 
   // API
   const API_CODES = {
-    get:'<span class="cm">// Alle Cases eines Servers abrufen</span>\n<span class="kw">const</span> res = <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">\'https://api.modforge.app/v1/cases\'</span>, {\n  headers: {\n    <span class="str">\'Authorization\'</span>: <span class="str">\'Bearer YOUR_API_KEY\'</span>,\n    <span class="str">\'Guild-ID\'</span>: <span class="str">\'YOUR_SERVER_ID\'</span>\n  }\n});\n<span class="kw">const</span> cases = <span class="kw">await</span> res.<span class="fn">json</span>();',
-    post:'<span class="cm">// Manuell eine Aktion auslösen</span>\n<span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">\'https://api.modforge.app/v1/action\'</span>, {\n  method: <span class="str">\'POST\'</span>,\n  headers: { <span class="str">\'Authorization\'</span>: <span class="str">\'Bearer YOUR_API_KEY\'</span> },\n  body: <span class="fn">JSON.stringify</span>({ guild_id: <span class="str">\'YOUR_SERVER_ID\'</span>, action: <span class="str">\'warn\'</span>, user_id: <span class="str">\'TARGET_USER_ID\'</span>, reason: <span class="str">\'API-initiierte Aktion\'</span> })\n});',
-    ws:'<span class="cm">// Echtzeit-Events via WebSocket</span>\n<span class="kw">const</span> ws = <span class="kw">new</span> <span class="fn">WebSocket</span>(<span class="str">\'wss://gateway.modforge.app/events?token=YOUR_TOKEN\'</span>);\nws.<span class="fn">onmessage</span> = (e) => {\n  <span class="kw">const</span> evt = <span class="fn">JSON.parse</span>(e.data);\n  console.<span class="fn">log</span>(<span class="str">\'Neues Event:\'</span>, evt);\n};'
+    get:'<span class="cm">/* Alle Fälle eines Servers abrufen */</span>\n<span class="kw">const</span> res = <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">\'https://api.modforge.app/v1/cases\'</span>, {\n  headers: { <span class="str">\'Authorization\'</span>: <span class="str">\'Bearer YOUR_KEY\'</span> }\n});',
+    post:'<span class="cm">/* Aktion manuell auslösen */</span>\n<span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">\'https://api.modforge.app/v1/action\'</span>, {\n  method: <span class="str">\'POST\'</span>,\n  headers: { <span class="str">\'Authorization\'</span>: <span class="str">\'Bearer YOUR_KEY\'</span> },\n  body: <span class="fn">JSON.stringify</span>({ guild_id, action: <span class="str">\'warn\'</span>, user_id })\n});',
+    ws:'<span class="cm">/* Echtzeit via WebSocket */</span>\n<span class="kw">const</span> ws = <span class="kw">new</span> <span class="fn">WebSocket</span>(<span class="str">\'wss://gateway.modforge.app/events?token=YOUR_TOKEN\'</span>);\nws.<span class="fn">onmessage</span> = e => console.<span class="fn">log</span>(<span class="fn">JSON.parse</span>(e.data));'
   };
-  function buildApi(){switchApi('get', document.querySelector('.api-tab.active'));}
+  function buildApi(){ switchApi('get', document.querySelector('.api-tab.active')); }
   function switchApi(type, btn){
-    document.querySelectorAll('.api-tab').forEach(t=>t.classList.remove('active'));
-    if(btn)btn.classList.add('active');
-    document.getElementById('api-code').innerHTML=API_CODES[type];
+    document.querySelectorAll('.api-tab').forEach(t => t.classList.remove('active'));
+    if(btn) btn.classList.add('active');
+    document.getElementById('api-code').innerHTML = API_CODES[type];
   }
 
-  // Feedback & Privacy (statisch)
+  // Feedback & Privacy
   const FEEDBACK = [
     {name:'Lukas#0001',server:'Elite Gaming Hub',avatar:0,text:'ModForge hat einen Raid in Sekunden gestoppt. Absolut beeindruckend!',stars:5},
-    {name:'Sara_Dev#9999',server:'Dev Community',avatar:1,text:'Das Dashboard konnte ich in 5 Minuten einrichten – perfekt.',stars:5}
+    {name:'Sara_Dev#9999',server:'Dev Community',avatar:1,text:'Das Dashboard konnte ich in 5 Minuten einrichten – perfekt.',stars:5},
+    {name:'MaxoMod#4242',server:'Global Lounge',avatar:2,text:'Anti‑Nuke hat unser Mod‑Leben komplett verändert.',stars:5}
   ];
   function buildFeedback(){
-    const g=document.getElementById('feedback-grid');
-    FEEDBACK.forEach(f=>{
-      g.innerHTML+=`<div class="dc-msg-card"><div class="dc-author"><img src="https://cdn.discordapp.com/embed/avatars/${f.avatar}.png" class="dc-avatar" style="width:36px;height:36px;border-radius:50%;"><div><div class="dc-username">${f.name}</div><div class="dc-server" style="font-size:11px;color:#80848e;">Server: ${f.server}</div></div></div><div class="dc-text" style="font-size:.85rem;color:#dbdee1;">${f.text}</div><div style="color:#fbbf24;">${'⭐'.repeat(f.stars)}</div></div>`;
-    });
-  }
-  const PRIVACY = [
-    {icon:'✅',tag:'tag-yes',title:'Server & User IDs',text:'IDs werden für Cases und Einstellungen gespeichert.'},
-    {icon:'✅',tag:'tag-yes',title:'Moderations-Cases',text:'Alle Aktionen als Fall mit Grund und Datum.'},
-    {icon:'❌',tag:'tag-no',title:'Nachrichteninhalte',text:'Wir lesen niemals den Inhalt von Nachrichten.'}
-  ];
-  function buildPrivacy(){
-    const g=document.getElementById('privacy-grid');
-    PRIVACY.forEach(p=>{
-      g.innerHTML+=`<div class="privacy-card"><h4>${p.icon} ${p.title} <span class="${p.tag}">${p.tag==='tag-yes'?'GESPEICHERT':'NIEMALS'}</span></h4><p>${p.text}</p></div>`;
+    const grid = document.getElementById('feedback-grid');
+    FEEDBACK.forEach(f => {
+      grid.innerHTML += `<div class="dc-msg-card">
+        <div class="dc-author" style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+          <img src="https://cdn.discordapp.com/embed/avatars/${f.avatar}.png" class="dc-avatar" alt="">
+          <div>
+            <div class="dc-username">${f.name}</div>
+            <div class="dc-server">${f.server}</div>
+          </div>
+        </div>
+        <div style="font-size:.85rem;color:#dbdee1;line-height:1.5;">${f.text}</div>
+        <div class="dc-stars">${'⭐'.repeat(f.stars)}</div>
+      </div>`;
     });
   }
 
-  // Roadmap (statisch)
+  const PRIVACY = [
+    {icon:'✅',tag:'tag-yes',title:'Server- & User-IDs',text:'Notwendig für Cases & Konfigurationen.'},
+    {icon:'✅',tag:'tag-yes',title:'Moderationsfälle',text:'Alle Aktionen werden dokumentiert.'},
+    {icon:'❌',tag:'tag-no',title:'Nachrichteninhalte',text:'Wir speichern niemals Chat-Inhalte.'},
+    {icon:'❌',tag:'tag-no',title:'Passwörter',text:'Keine Zugangsdaten werden gespeichert.'}
+  ];
+  function buildPrivacy(){
+    const grid = document.getElementById('privacy-grid');
+    PRIVACY.forEach(p => {
+      grid.innerHTML += `<div class="privacy-card">
+        <h4 style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">${p.icon} ${p.title} <span class="${p.tag}">${p.tag==='tag-yes'?'GESPEICHERT':'NIEMALS'}</span></h4>
+        <p style="font-size:.8rem;color:var(--muted);">${p.text}</p>
+      </div>`;
+    });
+  }
+
+  // Roadmap (animiert)
   const ROADMAP = [
-    {month:'März 2025',title:'Anti-Nuke Ultra v2',status:'done',dot:'done'},
+    {month:'März 2025',title:'Anti‑Nuke Ultra v2',status:'done',dot:'done'},
     {month:'Mai 2025',title:'Case System v3',status:'done',dot:'done'},
     {month:'Juli 2025',title:'Premium Launch',status:'soon',dot:'soon'},
-    {month:'Q4 2025',title:'Mobile App',status:'future',dot:''}
+    {month:'Q4 2025',title:'Mobile Dashboard',status:'future',dot:''}
   ];
   function buildRoadmap(){
-    const g=document.getElementById('roadmap-list');
-    ROADMAP.forEach(r=>{
-      g.innerHTML+=`<div class="rm-item"><div class="rm-dot ${r.dot}"></div><div class="rm-month">${r.month}</div><div class="rm-title">${r.title} <span class="rm-status rm-${r.status}">${r.status==='done'?'✅ Fertig':r.status==='soon'?'🔄 Bald':'🔮 Geplant'}</span></div></div>`;
+    const container = document.getElementById('roadmap-list');
+    ROADMAP.forEach(r => {
+      container.innerHTML += `<div class="rm-item">
+        <div class="rm-dot ${r.dot}"></div>
+        <div class="rm-month">${r.month}</div>
+        <div class="rm-title">${r.title} <span class="rm-status rm-${r.status}">${r.status==='done'?'✅ Fertig':r.status==='soon'?'🔄 Bald':'🔮 Geplant'}</span></div>
+      </div>`;
     });
   }
 
   // Invite Generator
   function generateInvite(){
-    const name=document.getElementById('server-name-input').value.trim();
-    const res=document.getElementById('invite-result');
-    const link=document.getElementById('invite-link');
+    const name = document.getElementById('server-name-input').value.trim();
+    const res = document.getElementById('invite-result');
+    const link = document.getElementById('invite-link');
     if(name){
-      const slug=encodeURIComponent(name.toLowerCase().replace(/\s+/g,'-'));
-      link.innerText=`https://discord.com/oauth2/authorize?client_id={{ cid }}&scope=bot+applications.commands&permissions=8&guild_name=${slug}`;
-      res.style.display='block';
-    }else{res.style.display='none';}
+      link.innerText = `https://discord.com/oauth2/authorize?client_id=${BOT_CLIENT_ID}&scope=bot+applications.commands&permissions=8&guild_name=${encodeURIComponent(name.toLowerCase().replace(/\s+/g,'-'))}`;
+      res.style.display = 'block';
+    } else {
+      res.style.display = 'none';
+    }
   }
   function copyInvite(){
     navigator.clipboard.writeText(document.getElementById('invite-link').innerText);
-    const btn=document.querySelector('.invite-copy-btn');
-    btn.innerText='✅ Kopiert!';setTimeout(()=>btn.innerText='📋 Link kopieren',2000);
+    const btn = document.querySelector('.invite-copy-btn');
+    btn.innerText = '✅ Kopiert!';
+    setTimeout(() => btn.innerText = '📋 Link kopieren', 2000);
   }
 </script>
 {% endblock %}
