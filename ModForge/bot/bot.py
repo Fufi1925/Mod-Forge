@@ -29,7 +29,7 @@ from bot.utils import (
 )
 
 
-from bot import bot
+from bot.config import bot
 
 logging.basicConfig(level=logging.INFO)
 
