@@ -2,25 +2,13 @@
 from flask import render_template, request, redirect, url_for, session, jsonify, Response
 import datetime
 import logging
-import urllib.parse
-import secrets
 import time
 import threading
 from collections import defaultdict, deque
 from functools import wraps
 
-from bot.config import ACTIVITY
-
-
-from werkzeug.security import check_password_hash, generate_password_hash
-
 from .app import flask_app
-from .auth import (
-    _discord_api_call,
-    _get_user_guilds_with_bot,
-    _get_session_user,
-    _user_can_manage_guild,
-)
+from .auth import get_session, require_auth
 from .helpers import (
     _bot_stats,
     _get_guild_config,
@@ -30,8 +18,6 @@ from .helpers import (
 )
 from .config import (
     DISCORD_CLIENT_ID,
-    DISCORD_CLIENT_SECRET,
-    OAUTH2_REDIRECT,
     ADMIN_USERNAME,
     ADMIN_PASSWORD,
 )
@@ -131,56 +117,12 @@ def metrics():
         mimetype="text/plain",
     )
 
-# ---------- OAuth ----------
+# ---------- LOGIN PAGE (leitet zu OAuth2) ----------
 @flask_app.route("/login")
 def discord_login_page():
-    if not DISCORD_CLIENT_ID or not DISCORD_CLIENT_SECRET or not OAUTH2_REDIRECT:
-        return render_template("login.html", error="OAuth nicht konfiguriert.", info=None, admin_available=bool(ADMIN_PASSWORD))
-    return render_template("login.html", error=None, info=None, admin_available=bool(ADMIN_PASSWORD))
-
-@flask_app.route("/auth/discord")
-def auth_discord():
-    state = secrets.token_urlsafe(16)
-    session["oauth_state"] = state
-    params = urllib.parse.urlencode({
-        "client_id": DISCORD_CLIENT_ID,
-        "redirect_uri": OAUTH2_REDIRECT,
-        "response_type": "code",
-        "scope": "identify guilds",
-        "state": state,
-    })
-    return redirect(f"https://discord.com/oauth2/authorize?{params}")
-
-@flask_app.route("/callback")
-def oauth_callback():
-    code = request.args.get("code")
-    state = request.args.get("state")
-    session_state = session.pop("oauth_state", None)
-    if not code or state != session_state:
-        return redirect(url_for("discord_login_page"))
-
-    token_data = _discord_api_call("/oauth2/token", method="POST", data={
-        "client_id": DISCORD_CLIENT_ID,
-        "client_secret": DISCORD_CLIENT_SECRET,
-        "grant_type": "authorization_code",
-        "code": code,
-        "redirect_uri": OAUTH2_REDIRECT,
-    })
-    if not token_data or "access_token" not in token_data:
-        return render_template("login.html", error="OAuth fehlgeschlagen.", info=None, admin_available=bool(ADMIN_PASSWORD))
-
-    access_token = token_data["access_token"]
-    user = _discord_api_call("/users/@me", token=access_token)
-    guilds = _discord_api_call("/users/@me/guilds", token=access_token) or []
-    if not user or "id" not in user:
-        return render_template("login.html", error="User fetch failed.", info=None, admin_available=bool(ADMIN_PASSWORD))
-
-    session.permanent = True
-    session["discord_user"] = user
-    session["user_guilds"] = guilds
-    session["access_token"] = access_token
-    ACTIVITY.push("oauth_login", f"{user.get('username')} ({user.get('id')})")
-    return redirect(url_for("user_dash_home"))
+    """Einfache Login‑Seite, verlinkt auf den Discord‑OAuth2‑Flow."""
+    cid = str(bot.user.id) if bot.user else str(DISCORD_CLIENT_ID or "")
+    return render_template("login.html", cid=cid)
 
 # ---------- SERVER LOGIN (eigenes System) ----------
 @flask_app.route('/server-login', methods=['GET', 'POST'])
@@ -192,7 +134,6 @@ def server_login():
         if not guild_name or not password:
             error = 'Bitte Server‑Name und Passwort eingeben.'
         else:
-            # Collection 'server_accounts' muss in db.py existieren
             acc = safe_async(bot.db.server_accounts.find_one({'guild_name': guild_name}))
             if acc and check_password_hash(acc['password_hash'], password):
                 session['server_guild_id'] = str(acc['guild_id'])
@@ -200,29 +141,54 @@ def server_login():
             error = 'Ungültige Zugangsdaten.'
     return render_template('server_login.html', error=error)
 
-# ---------- Logout ----------
+# ---------- LOGOUT ----------
 @flask_app.route("/logout")
 def logout():
     session.clear()
-    return redirect(url_for("home"))
+    # Auch den Auth‑Cookie löschen
+    resp = redirect(url_for("home"))
+    resp.delete_cookie("modforge_session")
+    return resp
 
-# ---------- Dashboard ----------
+# ---------- DASHBOARD (geschützt mit require_auth) ----------
 @flask_app.route("/dashboard")
+@require_auth
 def user_dash_home():
-    user = _get_session_user()
-    if not user:
+    """Dashboard‑Startseite – nur für eingeloggte Discord‑Nutzer."""
+    user_session = get_session()
+    if not user_session:
         return redirect(url_for("discord_login_page"))
-    servers = _get_user_guilds_with_bot(session.get("user_guilds", []))
+    user = user_session["user"]
+    raw_guilds = user_session.get("guilds", [])
+
+    # Filtere Server, die der User verwalten kann UND auf denen der Bot ist
+    manageable = []
+    if bot.is_ready():
+        bot_guild_ids = {str(g.id) for g in bot.guilds}
+        for g in raw_guilds:
+            permissions = int(g.get("permissions", 0))
+            if g.get("owner") or (permissions & 0x8) or (permissions & 0x20):
+                if str(g["id"]) in bot_guild_ids:
+                    manageable.append({
+                        "id": str(g["id"]),
+                        "name": g["name"],
+                        "icon": f"https://cdn.discordapp.com/icons/{g['id']}/{g.get('icon')}.png?size=128" if g.get("icon") else "https://cdn.discordapp.com/embed/avatars/0.png",
+                        "member_count": None,
+                    })
     cid = str(bot.user.id) if bot.user else str(DISCORD_CLIENT_ID or "")
-    return render_template("dashboard_home.html", user=user, servers=servers, cid=cid)
+    return render_template("dashboard_home.html", user=user, servers=manageable, cid=cid)
 
 @flask_app.route("/dashboard/<guild_id>/<section>")
 def user_dash_guild(guild_id, section):
-    user = _get_session_user()
+    """Guild‑Detailseite – Zugriff über Discord‑Login oder Server‑Login."""
+    user_session = get_session()
+
+    # Server‑Login hat Vorrang
     if session.get('server_guild_id') and str(session['server_guild_id']) == guild_id:
-        user = session.get("discord_user")  # kann None sein
-    elif user and _user_can_manage_guild(guild_id):
-        pass
+        user = {"username": f"Server {guild_id}", "id": guild_id, "avatar_url": "https://cdn.discordapp.com/embed/avatars/0.png"}
+    # Discord‑Login
+    elif user_session and _user_can_manage_guild_in_session(user_session, guild_id):
+        user = user_session["user"]
     else:
         if session.get('server_guild_id'):
             return redirect(url_for('server_login'))
@@ -241,7 +207,7 @@ def user_dash_guild(guild_id, section):
 
     return render_template(
         "dashboard_guild.html",
-        user=user or {"username": guild_name, "id": guild_id},
+        user=user,
         guild_id=guild_id,
         guild_name=guild_name,
         section=section,
@@ -250,16 +216,37 @@ def user_dash_guild(guild_id, section):
         module_content=module_content,
     )
 
+def _user_can_manage_guild_in_session(user_session, guild_id):
+    """Prüft, ob der Discord‑Benutzer eine bestimmte Guild verwalten darf."""
+    if not user_session or not bot.is_ready():
+        return False
+    bot_guild_ids = {str(g.id) for g in bot.guilds}
+    for g in user_session.get("guilds", []):
+        if str(g["id"]) != str(guild_id):
+            continue
+        permissions = int(g.get("permissions", 0))
+        if not (g.get("owner") or (permissions & 0x8) or (permissions & 0x20)):
+            return False
+        if str(g["id"]) not in bot_guild_ids:
+            return False
+        return True
+    return False
+
 @flask_app.route("/dashboard/<guild_id>/api/save", methods=["POST"])
 def user_dash_save(guild_id):
-    user = _get_session_user()
-    if not (str(session.get('server_guild_id')) == guild_id or (user and _user_can_manage_guild(guild_id))):
+    user_session = get_session()
+    server_allowed = (str(session.get('server_guild_id')) == guild_id)
+    discord_allowed = (user_session and _user_can_manage_guild_in_session(user_session, guild_id))
+
+    if not (server_allowed or discord_allowed):
         return jsonify({"error": "no permission"}), 403
+
     data = request.get_json()
     module = data.get("module")
     settings = data.get("settings")
     if not module or not isinstance(settings, dict):
         return jsonify({"error": "invalid"}), 400
+
     if bot.is_ready() and bot.db:
         try:
             cfg = safe_async(bot.db.aget_config(int(guild_id))) or {}
@@ -301,7 +288,7 @@ def admin_login():
         else:
             u = request.form.get("username", "")
             p = request.form.get("password", "")
-            if secrets.compare_digest(u, ADMIN_USERNAME) and secrets.compare_digest(p, ADMIN_PASSWORD):
+            if u == ADMIN_USERNAME and p == ADMIN_PASSWORD:
                 session["admin"] = True
                 return redirect(url_for("admin_dashboard"))
             else:
@@ -354,6 +341,7 @@ def admin_api_state():
 @flask_app.route('/admin/accounts', methods=['GET', 'POST'])
 @admin_required
 def admin_accounts():
+    from werkzeug.security import generate_password_hash, check_password_hash
     msg = None
     if request.method == 'POST':
         action = request.form.get('action')
