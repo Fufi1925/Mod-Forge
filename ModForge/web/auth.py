@@ -1,3 +1,4 @@
+
 # web/auth.py
 import os
 import time
@@ -19,7 +20,7 @@ REDIRECT_URI = f"{DASHBOARD_BASE_URL}/dashboard/auth/callback"
 DISCORD_API = "https://discord.com/api/v10"
 SESSION_COOKIE = "modforge_session"
 
-# Einfacher In‑Memory Session Store
+# In‑Memory Sessions
 sessions = {}
 
 auth_bp = Blueprint("auth", __name__, template_folder="templates")
@@ -30,7 +31,6 @@ def _make_session_id():
 
 
 def _api_request(url, method="GET", data=None, headers=None):
-    """Einfacher HTTP-Request mit urllib (Standardbibliothek)."""
     headers = headers or {}
     if data is not None:
         data = urlencode(data).encode("utf-8")
@@ -50,7 +50,6 @@ def _api_request(url, method="GET", data=None, headers=None):
 
 @auth_bp.route("/dashboard/login")
 def login():
-    """Weiterleitung zu Discord OAuth2."""
     if not DISCORD_CLIENT_ID or not DISCORD_CLIENT_SECRET:
         return "Dashboard auth not configured.", 503
 
@@ -70,16 +69,14 @@ def login():
 
 @auth_bp.route("/dashboard/auth/callback")
 def callback():
-    """Code gegen Token tauschen, Profil & Guilds laden, Session erstellen."""
     code = request.args.get("code")
     state = request.args.get("state")
     session_state = flask_session.pop("oauth_state", None)
 
     if not code or state != session_state:
-        return redirect("/dashboard?error=invalid_state_or_missing_code")
+        return redirect("/dashboard/login?error=invalid_state")
 
     try:
-        # Token holen
         token_data = _api_request(
             f"{DISCORD_API}/oauth2/token",
             method="POST",
@@ -93,19 +90,17 @@ def callback():
         )
         access_token = token_data["access_token"]
 
-        # Benutzer laden
         user = _api_request(
             f"{DISCORD_API}/users/@me",
             headers={"Authorization": f"Bearer {access_token}"},
         )
 
-        # Guilds laden
         guilds = _api_request(
             f"{DISCORD_API}/users/@me/guilds",
             headers={"Authorization": f"Bearer {access_token}"},
         )
     except Exception as e:
-        return redirect(f"/dashboard?error=api_error&detail={e}")
+        return redirect(f"/dashboard/login?error=api_error&detail={e}")
 
     avatar_hash = user.get("avatar")
     avatar_url = (
@@ -133,7 +128,8 @@ def callback():
         session_id,
         httponly=True,
         samesite="lax",
-        secure=False,  # in Produktion mit HTTPS auf True setzen
+        path="/",          # ← HIER WAR DER FEHLER! Cookie für gesamte Domain
+        secure=False,
         max_age=7 * 24 * 3600,
     )
     return resp
@@ -141,18 +137,16 @@ def callback():
 
 @auth_bp.route("/dashboard/logout")
 def logout():
-    """Session beenden und Cookie entfernen."""
     sid = request.cookies.get(SESSION_COOKIE)
     if sid:
         sessions.pop(sid, None)
     resp = make_response(redirect("/"))
-    resp.delete_cookie(SESSION_COOKIE)
+    resp.delete_cookie(SESSION_COOKIE, path="/")
     return resp
 
 
-# ---------- Hilfsfunktionen für andere Routen ----------
+# ---------- Hilfsfunktionen ----------
 def get_session():
-    """Aktuelle Session aus dem Cookie holen."""
     sid = request.cookies.get(SESSION_COOKIE)
     if not sid:
         return None
@@ -165,7 +159,6 @@ def get_session():
 
 
 def require_auth(f):
-    """Decorator, der unauthentifizierte Nutzer zum Login schickt."""
     @wraps(f)
     def wrapper(*args, **kwargs):
         if not get_session():
