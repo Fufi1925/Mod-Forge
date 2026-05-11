@@ -1,6 +1,8 @@
 from flask import Flask
-import os, threading
+import os
+import threading
 from .config import SESSION_SECRET
+from .auth import auth_bp, get_session, require_auth
 
 flask_app = Flask(__name__,
                   template_folder='templates',
@@ -9,7 +11,11 @@ flask_app = Flask(__name__,
 flask_app.secret_key = SESSION_SECRET
 flask_app.config["PERMANENT_SESSION_LIFETIME"] = 60 * 60 * 6
 
-from . import routes   # Routen registrieren
+# Auth‑Blueprint (OAuth2) registrieren
+flask_app.register_blueprint(auth_bp)
+
+# Deine bestehenden Routen (Landing, Dashboard, Live …)
+from . import routes
 
 def run_flask():
     port = int(os.getenv("PORT", "7860"))
