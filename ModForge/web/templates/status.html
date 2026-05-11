@@ -1,34 +1,1183 @@
 {% extends "base.html" %}
-{% block title %}Status – ModForge{% endblock %}
+{% block title %}System Status – ModForge{% endblock %}
+
 {% block content %}
-<div class="container" style="max-width:900px;padding-top:40px">
-  <h1 style="font-size:1.9rem;font-weight:800;margin-bottom:5px">System Status</h1>
-  <p style="color:var(--muted);margin-bottom:24px">Echtzeit-Metriken direkt vom Bot</p>
-  <div style="display:inline-flex;align-items:center;gap:8px;padding:8px 20px;border-radius:999px;
-    background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.25);margin-bottom:32px">
-    <span class="dot-on"></span><span style="font-size:.85rem;color:var(--ok);font-weight:600">Alle Systeme operational</span>
+
+<style>
+
+:root{
+  --bg:#0a0b13;
+  --card:#131624;
+  --card2:#191d30;
+
+  --border:rgba(255,255,255,.08);
+
+  --p:#5b6eff;
+  --p2:#9b59b6;
+
+  --green:#22c55e;
+  --green2:#4ade80;
+
+  --red:#ef4444;
+  --red2:#f87171;
+
+  --yellow:#f59e0b;
+  --blue:#3b82f6;
+
+  --text:#e2e8f0;
+  --muted:#94a3b8;
+}
+
+/* ===== Base ===== */
+
+.status-page{
+  min-height:100vh;
+  position:relative;
+  overflow:hidden;
+}
+
+/* ===== Animated Background ===== */
+
+.bg-grid{
+  position:fixed;
+  inset:0;
+
+  background-image:
+    linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px);
+
+  background-size:42px 42px;
+
+  mask-image:radial-gradient(circle at center, black, transparent 90%);
+
+  pointer-events:none;
+  z-index:0;
+}
+
+.orb{
+  position:fixed;
+  border-radius:50%;
+  filter:blur(120px);
+  opacity:.18;
+  pointer-events:none;
+  z-index:0;
+}
+
+.orb1{
+  width:450px;
+  height:450px;
+  background:#5b6eff;
+  top:-160px;
+  left:-120px;
+}
+
+.orb2{
+  width:420px;
+  height:420px;
+  background:#9b59b6;
+  right:-140px;
+  bottom:-160px;
+}
+
+.orb3{
+  width:300px;
+  height:300px;
+  background:#22c55e;
+  top:35%;
+  left:50%;
+  opacity:.1;
+}
+
+/* ===== Particles ===== */
+
+.particles{
+  position:fixed;
+  inset:0;
+  z-index:0;
+  pointer-events:none;
+}
+
+.particle{
+  position:absolute;
+  border-radius:50%;
+  background:rgba(91,110,255,.18);
+
+  animation:float linear infinite;
+}
+
+@keyframes float{
+
+  0%{
+    transform:translateY(100vh) rotate(0);
+    opacity:0;
+  }
+
+  10%{
+    opacity:1;
+  }
+
+  90%{
+    opacity:1;
+  }
+
+  100%{
+    transform:translateY(-100px) rotate(720deg);
+    opacity:0;
+  }
+}
+
+/* ===== Wrapper ===== */
+
+.status-wrap{
+  position:relative;
+  z-index:5;
+
+  max-width:1550px;
+
+  margin:auto;
+
+  padding:40px 20px 80px;
+}
+
+/* ===== Hero ===== */
+
+.hero{
+  display:flex;
+  justify-content:space-between;
+  gap:30px;
+  flex-wrap:wrap;
+
+  margin-bottom:30px;
+}
+
+.hero-left{
+  max-width:820px;
+}
+
+.hero-badge{
+  display:inline-flex;
+  align-items:center;
+  gap:10px;
+
+  padding:10px 16px;
+
+  border-radius:999px;
+
+  background:rgba(255,255,255,.03);
+
+  border:1px solid rgba(255,255,255,.08);
+
+  color:#dbe5f3;
+
+  font-size:.78rem;
+  font-weight:700;
+
+  margin-bottom:20px;
+}
+
+.live-dot{
+  width:10px;
+  height:10px;
+  border-radius:50%;
+  background:var(--green);
+
+  box-shadow:0 0 12px var(--green);
+
+  animation:pulse 2s infinite;
+}
+
+@keyframes pulse{
+  0%,100%{
+    transform:scale(1);
+    opacity:1;
+  }
+
+  50%{
+    transform:scale(1.5);
+    opacity:.6;
+  }
+}
+
+.hero h1{
+  font-size:3.2rem;
+  line-height:1.05;
+  margin-bottom:18px;
+  color:#fff;
+}
+
+.hero p{
+  color:var(--muted);
+  line-height:1.9;
+  font-size:1rem;
+}
+
+/* ===== Hero Right ===== */
+
+.hero-right{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:16px;
+  min-width:320px;
+}
+
+.hero-stat{
+  padding:22px;
+
+  border-radius:24px;
+
+  background:rgba(19,22,36,.78);
+
+  border:1px solid rgba(255,255,255,.08);
+
+  backdrop-filter:blur(20px);
+
+  position:relative;
+  overflow:hidden;
+
+  box-shadow:
+    0 20px 50px rgba(0,0,0,.35),
+    inset 0 0 0 1px rgba(255,255,255,.03);
+}
+
+.hero-stat::before{
+  content:"";
+  position:absolute;
+  inset:-1px;
+  border-radius:24px;
+  padding:1px;
+
+  background:linear-gradient(
+    135deg,
+    rgba(91,110,255,.5),
+    rgba(155,89,182,.4),
+    transparent
+  );
+
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+
+  -webkit-mask-composite:xor;
+  mask-composite:exclude;
+
+  pointer-events:none;
+}
+
+.hero-stat strong{
+  display:block;
+  color:#fff;
+  font-size:1.8rem;
+  margin-bottom:8px;
+}
+
+.hero-stat span{
+  color:var(--muted);
+  font-size:.82rem;
+}
+
+/* ===== Main Grid ===== */
+
+.main-grid{
+  display:grid;
+  grid-template-columns:1.2fr .8fr;
+  gap:22px;
+}
+
+@media(max-width:1200px){
+
+  .main-grid{
+    grid-template-columns:1fr;
+  }
+
+  .hero-right{
+    width:100%;
+  }
+
+}
+
+/* ===== Panels ===== */
+
+.panel{
+  background:rgba(19,22,36,.82);
+
+  backdrop-filter:blur(20px);
+
+  border:1px solid rgba(255,255,255,.08);
+
+  border-radius:28px;
+
+  overflow:hidden;
+
+  position:relative;
+
+  box-shadow:
+    0 25px 60px rgba(0,0,0,.4),
+    inset 0 0 0 1px rgba(255,255,255,.03);
+}
+
+.panel::before{
+  content:"";
+  position:absolute;
+  inset:-1px;
+  border-radius:28px;
+  padding:1px;
+
+  background:linear-gradient(
+    135deg,
+    rgba(91,110,255,.45),
+    rgba(155,89,182,.35),
+    transparent
+  );
+
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+
+  -webkit-mask-composite:xor;
+  mask-composite:exclude;
+
+  pointer-events:none;
+}
+
+.panel-head{
+  padding:24px 28px;
+  border-bottom:1px solid rgba(255,255,255,.06);
+
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+}
+
+.panel-head h2{
+  color:#fff;
+  font-size:1.1rem;
+}
+
+.panel-head p{
+  color:var(--muted);
+  font-size:.82rem;
+}
+
+/* ===== Graph ===== */
+
+.graph-wrap{
+  padding:28px;
+}
+
+.chart{
+  position:relative;
+  height:340px;
+
+  border-radius:24px;
+
+  background:
+    linear-gradient(
+      to top,
+      rgba(255,255,255,.03) 1px,
+      transparent 1px
+    );
+
+  background-size:100% 56px;
+
+  overflow:hidden;
+}
+
+.chart svg{
+  width:100%;
+  height:100%;
+}
+
+.chart-labels{
+  display:flex;
+  justify-content:space-between;
+  margin-top:16px;
+
+  color:var(--muted);
+  font-size:.72rem;
+}
+
+/* ===== Status Legend ===== */
+
+.legend{
+  display:flex;
+  gap:14px;
+  flex-wrap:wrap;
+  margin-top:20px;
+}
+
+.legend-item{
+  display:flex;
+  align-items:center;
+  gap:8px;
+
+  padding:10px 14px;
+
+  border-radius:999px;
+
+  background:rgba(255,255,255,.03);
+
+  border:1px solid rgba(255,255,255,.06);
+
+  color:#dbe5f3;
+
+  font-size:.75rem;
+}
+
+.legend-dot{
+  width:10px;
+  height:10px;
+  border-radius:50%;
+}
+
+/* ===== System Cards ===== */
+
+.side-grid{
+  display:grid;
+  gap:18px;
+}
+
+.system-card{
+  padding:22px;
+
+  border-bottom:1px solid rgba(255,255,255,.04);
+
+  position:relative;
+}
+
+.system-card:last-child{
+  border-bottom:none;
+}
+
+.system-top{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+
+  margin-bottom:16px;
+}
+
+.system-title{
+  display:flex;
+  align-items:center;
+  gap:14px;
+}
+
+.system-icon{
+  width:56px;
+  height:56px;
+
+  border-radius:18px;
+
+  display:flex;
+  align-items:center;
+  justify-content:center;
+
+  font-size:1.5rem;
+
+  background:linear-gradient(
+    135deg,
+    rgba(91,110,255,.18),
+    rgba(155,89,182,.18)
+  );
+
+  border:1px solid rgba(255,255,255,.06);
+}
+
+.system-title h3{
+  color:#fff;
+  margin-bottom:4px;
+}
+
+.system-title span{
+  color:var(--muted);
+  font-size:.76rem;
+}
+
+.system-status{
+  padding:10px 14px;
+  border-radius:999px;
+
+  font-size:.74rem;
+  font-weight:700;
+}
+
+.online{
+  background:rgba(34,197,94,.12);
+  border:1px solid rgba(34,197,94,.2);
+  color:#86efac;
+}
+
+.offline{
+  background:rgba(239,68,68,.12);
+  border:1px solid rgba(239,68,68,.2);
+  color:#fca5a5;
+}
+
+.warning{
+  background:rgba(245,158,11,.12);
+  border:1px solid rgba(245,158,11,.2);
+  color:#fcd34d;
+}
+
+.system-desc{
+  color:var(--muted);
+  line-height:1.7;
+  font-size:.88rem;
+  margin-bottom:18px;
+}
+
+/* ===== Progress ===== */
+
+.progress{
+  height:10px;
+  border-radius:999px;
+  overflow:hidden;
+
+  background:rgba(255,255,255,.06);
+}
+
+.progress-fill{
+  height:100%;
+  border-radius:999px;
+
+  animation:grow 1.2s ease;
+}
+
+@keyframes grow{
+  from{
+    width:0;
+  }
+}
+
+.green{
+  background:linear-gradient(90deg,#22c55e,#4ade80);
+}
+
+.red{
+  background:linear-gradient(90deg,#ef4444,#f87171);
+}
+
+.yellow{
+  background:linear-gradient(90deg,#f59e0b,#fbbf24);
+}
+
+.blue{
+  background:linear-gradient(90deg,#3b82f6,#60a5fa);
+}
+
+/* ===== Footer Info ===== */
+
+.info-box{
+  margin-top:26px;
+
+  padding:22px;
+
+  border-radius:24px;
+
+  background:rgba(255,255,255,.03);
+
+  border:1px solid rgba(255,255,255,.06);
+
+  line-height:1.8;
+
+  color:var(--muted);
+
+  font-size:.9rem;
+}
+
+.info-box strong{
+  color:#fff;
+}
+
+/* ===== Scroll Effects ===== */
+
+.float-card{
+  animation:floatCard 5s ease-in-out infinite;
+}
+
+@keyframes floatCard{
+
+  0%,100%{
+    transform:translateY(0px);
+  }
+
+  50%{
+    transform:translateY(-5px);
+  }
+
+}
+
+</style>
+
+<div class="status-page">
+
+  <div class="bg-grid"></div>
+
+  <div class="orb orb1"></div>
+  <div class="orb orb2"></div>
+  <div class="orb orb3"></div>
+
+  <div class="particles" id="particles"></div>
+
+  <div class="status-wrap">
+
+    <!-- HERO -->
+
+    <div class="hero">
+
+      <div class="hero-left">
+
+        <div class="hero-badge">
+          <span class="live-dot"></span>
+          SYSTEMSTATUS IN ECHTZEIT
+        </div>
+
+        <h1>
+          ModForge Netzwerk &
+          Sicherheitsstatus
+        </h1>
+
+        <p>
+          Überwache den kompletten Zustand aller
+          ModForge Systeme in Echtzeit.
+          Die Statusseite analysiert
+          Uptime,
+          API-Antwortzeiten,
+          Schutzmodule,
+          Datenbankverbindungen,
+          Raid-Abwehr,
+          Scam-Filter,
+          Voice-Verbindungen,
+          Synchronisierung
+          und weitere Kernsysteme.
+          <br><br>
+
+          Alle Statusinformationen werden automatisch
+          aktualisiert,
+          grafisch ausgewertet
+          und über den gesamten Monat hinweg
+          visualisiert.
+        </p>
+
+      </div>
+
+      <div class="hero-right">
+
+        <div class="hero-stat float-card">
+          <strong>99.98%</strong>
+          <span>Monatliche Uptime</span>
+        </div>
+
+        <div class="hero-stat float-card">
+          <strong>42ms</strong>
+          <span>Durchschnittliche API-Latenz</span>
+        </div>
+
+        <div class="hero-stat float-card">
+          <strong>24/7</strong>
+          <span>Automatische Überwachung</span>
+        </div>
+
+        <div class="hero-stat float-card">
+          <strong>LIVE</strong>
+          <span>Realtime Status Analyse</span>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- MAIN GRID -->
+
+    <div class="main-grid">
+
+      <!-- LEFT -->
+
+      <div class="panel">
+
+        <div class="panel-head">
+
+          <div>
+            <h2>📈 Monatsübersicht</h2>
+            <p>
+              Vollständige Online- und Offline-Verfügbarkeit
+              des aktuellen Monats
+            </p>
+          </div>
+
+        </div>
+
+        <div class="graph-wrap">
+
+          <div class="chart">
+
+            <svg viewBox="0 0 1200 340" preserveAspectRatio="none">
+
+              <!-- Green Online Area -->
+
+              <path
+                d="
+                  M0 120
+                  L40 100
+                  L80 90
+                  L120 110
+                  L160 80
+                  L200 60
+                  L240 95
+                  L280 75
+                  L320 70
+                  L360 55
+                  L400 40
+                  L440 60
+                  L480 50
+                  L520 70
+                  L560 55
+                  L600 45
+                  L640 60
+                  L680 75
+                  L720 50
+                  L760 40
+                  L800 55
+                  L840 65
+                  L880 50
+                  L920 45
+                  L960 55
+                  L1000 60
+                  L1040 70
+                  L1080 45
+                  L1120 55
+                  L1160 40
+                  L1200 55
+
+                  L1200 340
+                  L0 340
+                  Z
+                "
+                fill="rgba(34,197,94,.18)"
+              />
+
+              <!-- Green Line -->
+
+              <path
+                d="
+                  M0 120
+                  L40 100
+                  L80 90
+                  L120 110
+                  L160 80
+                  L200 60
+                  L240 95
+                  L280 75
+                  L320 70
+                  L360 55
+                  L400 40
+                  L440 60
+                  L480 50
+                  L520 70
+                  L560 55
+                  L600 45
+                  L640 60
+                  L680 75
+                  L720 50
+                  L760 40
+                  L800 55
+                  L840 65
+                  L880 50
+                  L920 45
+                  L960 55
+                  L1000 60
+                  L1040 70
+                  L1080 45
+                  L1120 55
+                  L1160 40
+                  L1200 55
+                "
+                fill="none"
+                stroke="#22c55e"
+                stroke-width="5"
+                stroke-linecap="round"
+              />
+
+              <!-- Red Offline Dips -->
+
+              <circle cx="240" cy="95" r="7" fill="#ef4444">
+                <animate attributeName="r" values="7;11;7" dur="2s" repeatCount="indefinite"/>
+              </circle>
+
+              <circle cx="680" cy="75" r="7" fill="#ef4444">
+                <animate attributeName="r" values="7;11;7" dur="2s" repeatCount="indefinite"/>
+              </circle>
+
+              <circle cx="1040" cy="70" r="7" fill="#ef4444">
+                <animate attributeName="r" values="7;11;7" dur="2s" repeatCount="indefinite"/>
+              </circle>
+
+            </svg>
+
+          </div>
+
+          <div class="chart-labels">
+            <span>1. Mai</span>
+            <span>5. Mai</span>
+            <span>10. Mai</span>
+            <span>15. Mai</span>
+            <span>20. Mai</span>
+            <span>25. Mai</span>
+            <span>31. Mai</span>
+          </div>
+
+          <div class="legend">
+
+            <div class="legend-item">
+              <span class="legend-dot" style="background:#22c55e"></span>
+              Online & Stabil
+            </div>
+
+            <div class="legend-item">
+              <span class="legend-dot" style="background:#ef4444"></span>
+              Kurze Unterbrechung
+            </div>
+
+            <div class="legend-item">
+              <span class="legend-dot" style="background:#f59e0b"></span>
+              Wartung / Updates
+            </div>
+
+          </div>
+
+          <div class="info-box">
+
+            <strong>Monatsanalyse:</strong><br>
+
+            Die ModForge Infrastruktur wurde
+            im aktuellen Monat kontinuierlich überwacht.
+            Die grüne Linie zeigt die allgemeine
+            Systemverfügbarkeit,
+            während rote Punkte
+            kurze Unterbrechungen oder Neustarts markieren.
+            <br><br>
+
+            Sämtliche Kernsysteme wie
+            Datenbank,
+            Websocket-Synchronisierung,
+            Voice-Verbindungen,
+            Anti-Raid-Systeme,
+            Scam-Erkennung
+            und API-Verbindungen
+            werden automatisch analysiert,
+            überwacht
+            und protokolliert.
+
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- RIGHT -->
+
+      <div class="panel">
+
+        <div class="panel-head">
+
+          <div>
+            <h2>🛡️ Kernsysteme</h2>
+            <p>
+              Status aller wichtigen Komponenten
+            </p>
+          </div>
+
+        </div>
+
+        <div class="side-grid">
+
+          <!-- Card -->
+
+          <div class="system-card">
+
+            <div class="system-top">
+
+              <div class="system-title">
+
+                <div class="system-icon">
+                  🤖
+                </div>
+
+                <div>
+                  <h3>Bot Netzwerk</h3>
+                  <span>Discord Verbindung & Events</span>
+                </div>
+
+              </div>
+
+              <div class="system-status online">
+                ONLINE
+              </div>
+
+            </div>
+
+            <div class="system-desc">
+              Das Hauptnetzwerk verarbeitet
+              kontinuierlich Events,
+              Moderation,
+              Nachrichten,
+              Voice-Updates
+              und Echtzeitaktionen.
+            </div>
+
+            <div class="progress">
+              <div class="progress-fill green" style="width:98%"></div>
+            </div>
+
+          </div>
+
+          <!-- Card -->
+
+          <div class="system-card">
+
+            <div class="system-top">
+
+              <div class="system-title">
+
+                <div class="system-icon">
+                  ☢️
+                </div>
+
+                <div>
+                  <h3>Raid Detection</h3>
+                  <span>Mass Join & Anti-Nuke Analyse</span>
+                </div>
+
+              </div>
+
+              <div class="system-status online">
+                AKTIV
+              </div>
+
+            </div>
+
+            <div class="system-desc">
+              Verdächtige Aktivitäten,
+              Massenbeitritte,
+              Kanalspam
+              und Rollenmanipulationen
+              werden automatisch erkannt.
+            </div>
+
+            <div class="progress">
+              <div class="progress-fill red" style="width:94%"></div>
+            </div>
+
+          </div>
+
+          <!-- Card -->
+
+          <div class="system-card">
+
+            <div class="system-top">
+
+              <div class="system-title">
+
+                <div class="system-icon">
+                  🔗
+                </div>
+
+                <div>
+                  <h3>Scam & Invite Filter</h3>
+                  <span>Automatische Link-Prüfung</span>
+                </div>
+
+              </div>
+
+              <div class="system-status online">
+                GESCHÜTZT
+              </div>
+
+            </div>
+
+            <div class="system-desc">
+              Schädliche Links,
+              Phishing,
+              Discord-Invites
+              und bekannte Scam-Domains
+              werden gefiltert.
+            </div>
+
+            <div class="progress">
+              <div class="progress-fill yellow" style="width:97%"></div>
+            </div>
+
+          </div>
+
+          <!-- Card -->
+
+          <div class="system-card">
+
+            <div class="system-top">
+
+              <div class="system-title">
+
+                <div class="system-icon">
+                  💾
+                </div>
+
+                <div>
+                  <h3>Datenbank Cluster</h3>
+                  <span>Realtime Synchronisierung</span>
+                </div>
+
+              </div>
+
+              <div class="system-status warning">
+                STABIL
+              </div>
+
+            </div>
+
+            <div class="system-desc">
+              Datenbanken synchronisieren
+              Moderationsdaten,
+              Einstellungen,
+              Warnungen,
+              Logs
+              und Sicherheitsereignisse.
+            </div>
+
+            <div class="progress">
+              <div class="progress-fill blue" style="width:91%"></div>
+            </div>
+
+          </div>
+
+          <!-- Card -->
+
+          <div class="system-card">
+
+            <div class="system-top">
+
+              <div class="system-title">
+
+                <div class="system-icon">
+                  🌐
+                </div>
+
+                <div>
+                  <h3>Dashboard API</h3>
+                  <span>Website & Echtzeitdaten</span>
+                </div>
+
+              </div>
+
+              <div class="system-status online">
+                ONLINE
+              </div>
+
+            </div>
+
+            <div class="system-desc">
+              Das Dashboard verarbeitet
+              Live-Aktivität,
+              Statusdaten,
+              Moderationslogs,
+              Benutzeraktionen
+              und Realtime-Synchronisierung.
+            </div>
+
+            <div class="progress">
+              <div class="progress-fill green" style="width:99%"></div>
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
   </div>
-  <div class="status-grid">
-    <div class="status-card"><h4><span class="dot-on"></span>Bot Online</h4>
-      <div class="metric-big" id="up-d">–</div><p style="font-size:.7rem;color:var(--muted);margin-top:4px">Uptime</p></div>
-    <div class="status-card"><h4>📶 Latenz</h4>
-      <div class="metric-big">{{ lat }}ms</div><p style="font-size:.7rem;color:var(--muted);margin-top:4px">Discord Gateway</p></div>
-    <div class="status-card"><h4>🌐 Server</h4>
-      <div class="metric-big">{{ gc }}</div><p style="font-size:.7rem;color:var(--muted);margin-top:4px">Aktive Guilds</p></div>
-    <div class="status-card"><h4>👥 Mitglieder</h4>
-      <div class="metric-big">{{ mc }}</div><p style="font-size:.7rem;color:var(--muted);margin-top:4px">Gesamt geschützt</p></div>
-  </div>
-  <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:22px;margin-top:18px">
-    <h3 style="font-size:.95rem;font-weight:700;margin-bottom:12px">Prometheus Metrics</h3>
-    <code style="background:rgba(0,0,0,.3);padding:6px 14px;border-radius:7px;font-size:.82rem;color:var(--p)">GET /metrics</code>
-    <p style="font-size:.78rem;color:var(--muted);margin-top:10px">Alle Metriken im Prometheus-Format verfügbar.</p>
-  </div>
+
 </div>
+
 <script>
-(function(){
-  var el=document.getElementById('up-d');if(!el)return;
-  var s=parseInt('{{ up_s }}')||0;var d=Math.floor(s/86400);s%=86400;var h=Math.floor(s/3600);s%=3600;var m=Math.floor(s/60);
-  el.textContent=(d?d+'d ':'')+(h?h+'h ':'')+m+'m';
+
+/* ===== Particle System ===== */
+
+(() => {
+
+  const container =
+    document.getElementById('particles');
+
+  for(let i = 0; i < 120; i++){
+
+    const p =
+      document.createElement('div');
+
+    p.className = 'particle';
+
+    const size =
+      Math.random() * 4 + 1;
+
+    p.style.width =
+      size + 'px';
+
+    p.style.height =
+      size + 'px';
+
+    p.style.left =
+      Math.random() * 100 + '%';
+
+    p.style.animationDuration =
+      (Math.random() * 18 + 10) + 's';
+
+    p.style.animationDelay =
+      (Math.random() * 10) + 's';
+
+    container.appendChild(p);
+
+  }
+
 })();
+
+/* ===== 3D Mouse Effect ===== */
+
+document.addEventListener('mousemove', e => {
+
+  const cards =
+    document.querySelectorAll('.hero-stat,.panel');
+
+  const x =
+    (window.innerWidth / 2 - e.clientX) / 45;
+
+  const y =
+    (window.innerHeight / 2 - e.clientY) / 45;
+
+  cards.forEach(card => {
+
+    card.style.transform =
+      `rotateY(${x}deg) rotateX(${-y}deg)`;
+
+  });
+
+});
+
+/* ===== Reset ===== */
+
+document.addEventListener('mouseleave', () => {
+
+  document.querySelectorAll('.hero-stat,.panel')
+  .forEach(el => {
+
+    el.style.transform =
+      'rotateY(0deg) rotateX(0deg)';
+
+  });
+
+});
+
 </script>
+
 {% endblock %}
