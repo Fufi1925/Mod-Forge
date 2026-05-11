@@ -1,129 +1,222 @@
 {% extends "base.html" %}
 {% block title %}Terms of Service – ModForge{% endblock %}
+
 {% block content %}
-<div class="legal-wrap container">
-  <h1>Terms of Service</h1>
-  <p class="date">Stand: {{ today }}</p>
-
-  <details open>
-    <summary>1. Allgemeine Bestimmungen</summary>
-    <div class="detail-body">
-      <h3>1.1 Geltungsbereich</h3>
-      <p>Diese Nutzungsbedingungen (im Folgenden „Bedingungen“) regeln die Nutzung des Discord‑Bots <strong>ModForge</strong> (nachfolgend „Bot“) sowie des zugehörigen Web‑Dashboards (nachfolgend „Dashboard“), die von BotForge (nachfolgend „Betreiber“) entwickelt und bereitgestellt werden. Mit der Hinzufügung des Bots zu einem Discord‑Server oder der Nutzung des Dashboards erklären Sie sich mit diesen Bedingungen einverstanden. Sollten Sie mit einzelnen Bestimmungen nicht einverstanden sein, ist die Nutzung unverzüglich einzustellen und der Bot von allen Servern zu entfernen.</p>
-
-      <h3>1.2 Vertragspartner</h3>
-      <p>Vertragspartner des Nutzers ist der Betreiber des Bots, erreichbar über den offiziellen <a href="https://discord.gg/gwryX3dbkt" target="_blank" style="color:var(--p)">ModForge Support‑Server</a>. Eine gesonderte Registrierung ist nicht erforderlich; das Vertragsverhältnis kommt durch die Nutzung des Bots zustande.</p>
-
-      <h3>1.3 Änderungen der Bedingungen</h3>
-      <p>Der Betreiber behält sich vor, diese Bedingungen jederzeit und ohne Nennung von Gründen zu ändern. Die geänderten Bedingungen werden auf der Website veröffentlicht und treten mit ihrer Veröffentlichung in Kraft. Durch die fortgesetzte Nutzung des Bots oder des Dashboards nach Inkrafttreten der geänderten Bedingungen stimmen Sie den Änderungen zu. Wir empfehlen, die Bedingungen regelmäßig auf Änderungen zu überprüfen.</p>
-
-      <h3>1.4 Sprachversionen</h3>
-      <p>Maßgeblich ist die deutsche Fassung dieser Bedingungen. Übersetzungen dienen nur der Information.</p>
+<main>
+  <section class="hero" style="min-height:30vh;padding-top:5rem;padding-bottom:2rem;">
+    <div class="container" style="text-align:center;">
+      <div class="hero-badge"><span class="badge-dot"></span>Rechtliches</div>
+      <h1 style="font-size:clamp(2rem,4vw,3rem);">Terms of <strong>Service</strong></h1>
+      <p class="hero-sub">Stand: 2026-05-11 · Für ModForge und das zugehörige Web-Dashboard</p>
     </div>
-  </details>
+  </section>
 
-  <details>
-    <summary>2. Vertragsgegenstand und Leistungsumfang</summary>
-    <div class="detail-body">
-      <h3>2.1 Beschreibung des Bots</h3>
-      <p>ModForge ist ein multifunktionaler Discord‑Bot, der Server‑Administratoren Moderatios‑, Sicherheits‑ und Automatisierungsfunktionen zur Verfügung stellt. Das Funktionsspektrum umfasst unter anderem:</p>
-      <ul>
-        <li>Anti‑Spam‑System mit einstellbaren Schwellenwerten und Strafen</li>
-        <li>Anti‑Nuke‑Erkennung, die automatisch Massen‑Aktionen (z. B. Kanal‑/Rollen‑Löschungen) unterbindet</li>
-        <li>Anti‑Raid‑Schutz, der auffällige Join‑Muster erkennt und Gegenmaßnahmen ergreift</li>
-        <li>AutoMod‑Filter (unerwünschte Wörter, Einladungslink‑Blockierung, Zalgo‑Text‑Erkennung, Phishing‑Schutz u. v. m.)</li>
-        <li>Verifizierungssystem (One‑Click oder Captcha)</li>
-        <li>Ticket‑System für Support‑Anfragen innerhalb eines Servers</li>
-        <li>Umfangreiches Logging‑System mit konfigurierbaren Kanälen pro Modul</li>
-        <li>Case‑System mit eindeutigen Fall‑IDs, Beweismittel‑Anhängen und Nachrichten‑Archiv</li>
-      </ul>
-      <p>Der Betreiber ist berechtigt, den Funktionsumfang jederzeit zu erweitern, einzuschränken oder einzelne Funktionen ganz einzustellen. Ein Anspruch auf unveränderte Funktionalität besteht nicht.</p>
+  <section>
+    <div class="container" style="max-width:820px;">
 
-      <h3>2.2 Web‑Dashboard</h3>
-      <p>Das Dashboard ermöglicht registrierten Nutzern die grafische Konfiguration der Bot‑Einstellungen über den Browser. Die Anmeldung erfolgt mittels Discord OAuth2. Die Verfügbarkeit des Dashboards kann vorübergehend eingeschränkt sein, insbesondere bei Wartungsarbeiten oder technischen Störungen.</p>
+      <!-- Quick Nav -->
+      <div class="feature-card reveal" style="border-radius:var(--r-xl);margin-bottom:3rem;">
+        <p style="font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text-2);margin-bottom:1rem;">Inhaltsverzeichnis</p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:.4rem;">
+          {% for i, title in [
+            ('1','Allgemeine Bestimmungen'),
+            ('2','Vertragsgegenstand & Leistungsumfang'),
+            ('3','Pflichten des Nutzers'),
+            ('4','Haftungsbeschränkung'),
+            ('5','Datenschutz'),
+            ('6','Schlussbestimmungen'),
+          ] %}
+          <a href="#s{{ i }}" style="
+            display:flex;align-items:center;gap:.5rem;
+            padding:.5rem .75rem;border-radius:var(--r-sm);
+            background:rgba(255,255,255,0.03);border:1px solid var(--border);
+            font-size:.82rem;color:var(--text-2);text-decoration:none;
+            transition:all .2s ease;">
+            <span style="font-family:var(--mono);font-size:.68rem;color:var(--blue-light);">§{{ i }}</span>
+            {{ title }}
+          </a>
+          {% endfor %}
+        </div>
+      </div>
 
-      <h3>2.3 Verfügbarkeit und Wartung</h3>
-      <p>Der Betreiber ist bemüht, eine möglichst hohe Verfügbarkeit des Bots und des Dashboards zu gewährleisten. Dennoch kann es zu Unterbrechungen kommen, die insbesondere auf folgende Ursachen zurückzuführen sind:</p>
-      <ul>
-        <li>Geplante Wartungsarbeiten, die nach Möglichkeit vorab angekündigt werden</li>
-        <li>Unvorhergesehene technische Störungen, Angriffe Dritter oder Ausfälle der genutzten Infrastruktur</li>
-        <li>Maßnahmen, die der Sicherheit oder der Stabilität des Dienstes dienen</li>
-      </ul>
-      <p>Ein Anspruch auf Schadensersatz wegen vorübergehender Nichterreichbarkeit besteht nicht, soweit dies gesetzlich zulässig ist.</p>
+      <!-- Section Helper Macro -->
+      {% macro section(id, emoji, number, title) %}
+      <div id="s{{ number }}" class="reveal" style="margin-bottom:2.5rem;">
+        <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1px solid var(--border);">
+          <span style="font-size:1.4rem;">{{ emoji }}</span>
+          <div>
+            <div style="font-family:var(--mono);font-size:.68rem;color:var(--blue-light);letter-spacing:.08em;text-transform:uppercase;margin-bottom:2px;">§ {{ number }}</div>
+            <h2 style="font-size:1.3rem;margin:0;">{{ title }}</h2>
+          </div>
+        </div>
+      {% endmacro %}
 
-      <h3>2.4 Kosten</h3>
-      <p>Der Bot und das Dashboard sind derzeit kostenlos. Der Betreiber behält sich vor, in Zukunft kostenpflichtige Premium‑Funktionen anzubieten. Bestehende kostenlose Funktionen bleiben davon unberührt.</p>
+      <!-- §1 -->
+      {{ section('1','⚖️','1','Allgemeine Bestimmungen') }}
+        <div style="display:flex;flex-direction:column;gap:1.5rem;">
+
+          <div>
+            <h3 style="font-size:.9rem;color:var(--text-2);margin-bottom:.6rem;">1.1 Geltungsbereich</h3>
+            <p style="font-size:.875rem;color:var(--text-2);line-height:1.85;">
+              Diese Nutzungsbedingungen regeln die Nutzung des Discord-Bots <strong>ModForge</strong>
+              sowie des zugehörigen Web-Dashboards, die von BotForge entwickelt und bereitgestellt werden.
+              Mit der Hinzufügung des Bots zu einem Discord-Server oder der Nutzung des Dashboards erklären
+              Sie sich mit diesen Bedingungen einverstanden.
+            </p>
+          </div>
+
+          <div>
+            <h3 style="font-size:.9rem;color:var(--text-2);margin-bottom:.6rem;">1.2 Vertragspartner</h3>
+            <p style="font-size:.875rem;color:var(--text-2);line-height:1.85;">
+              Vertragspartner des Nutzers ist der Betreiber von ModForge, erreichbar über den offiziellen
+              <a href="https://discord.gg/gwryX3dbkt" style="color:var(--blue-light);">ModForge Support-Server</a>.
+              Eine gesonderte Registrierung ist nicht erforderlich.
+            </p>
+          </div>
+
+          <div>
+            <h3 style="font-size:.9rem;color:var(--text-2);margin-bottom:.6rem;">1.3 Änderungen der Bedingungen</h3>
+            <p style="font-size:.875rem;color:var(--text-2);line-height:1.85;">
+              Der Betreiber behält sich vor, diese Bedingungen jederzeit zu ändern.
+              Die geänderten Bedingungen treten mit ihrer Veröffentlichung auf dieser Seite in Kraft.
+              Durch die fortgesetzte Nutzung stimmen Sie den Änderungen zu.
+            </p>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- §2 -->
+      {{ section('2','📋','2','Vertragsgegenstand & Leistungsumfang') }}
+        <div style="display:flex;flex-direction:column;gap:1.5rem;">
+
+          <div>
+            <h3 style="font-size:.9rem;color:var(--text-2);margin-bottom:.75rem;">2.1 Beschreibung des Bots</h3>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:.5rem;">
+              {% for f in [
+                'Anti-Spam-System mit Schwellenwerten',
+                'Anti-Nuke-Erkennung für Massen-Aktionen',
+                'Anti-Raid-Schutz für Join-Muster',
+                'AutoMod-Filter (BadWords, Regex, etc.)',
+                'Verifizierungssystem (One-Click/CAPTCHA)',
+                'Ticket-System für Support-Anfragen',
+                'Logging-System mit 26 Modulen',
+                'Case-System mit Fall-IDs & Archiv',
+              ] %}
+              <div style="display:flex;align-items:center;gap:.5rem;padding:.55rem .75rem;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:var(--r-sm);font-size:.8rem;color:var(--text-2);">
+                <span style="color:var(--blue-light);">→</span> {{ f }}
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div>
+            <h3 style="font-size:.9rem;color:var(--text-2);margin-bottom:.6rem;">2.2 Web-Dashboard</h3>
+            <p style="font-size:.875rem;color:var(--text-2);line-height:1.85;">
+              Das Dashboard ermöglicht registrierten Nutzern die grafische Konfiguration über den Browser.
+              Die Anmeldung erfolgt mittels Discord OAuth2. Die Verfügbarkeit kann vorübergehend eingeschränkt sein.
+            </p>
+          </div>
+
+          <div>
+            <h3 style="font-size:.9rem;color:var(--text-2);margin-bottom:.6rem;">2.3 Kosten</h3>
+            <div style="padding:.85rem 1rem;background:rgba(34,197,94,0.07);border:1px solid rgba(34,197,94,0.2);border-radius:var(--r-md);">
+              <p style="font-size:.875rem;color:var(--text-2);line-height:1.75;margin:0;">
+                🟢 <strong>Der Bot und das Dashboard sind derzeit vollständig kostenlos.</strong>
+                Der Betreiber behält sich vor, in Zukunft Premium-Funktionen anzubieten.
+                Bestehende kostenlose Funktionen bleiben davon unberührt.
+              </p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- §3 -->
+      {{ section('3','🚫','3','Pflichten des Nutzers') }}
+        <div style="display:flex;flex-direction:column;gap:1.5rem;">
+
+          <div>
+            <h3 style="font-size:.9rem;color:var(--text-2);margin-bottom:.75rem;">3.1 Verbotene Handlungen</h3>
+            <div style="display:flex;flex-direction:column;gap:.45rem;">
+              {% for item in [
+                'Nutzung für Spam, Belästigung oder Verbreitung von Schadsoftware',
+                'Automatisierte Massenaktionen, die die Discord-API übermäßig beanspruchen',
+                'Umgehung oder Manipulation der Sicherheitsmechanismen des Bots',
+                'Nutzung zur Verbreitung illegaler oder jugendgefährdender Inhalte',
+                'Reverse Engineering, Dekompilieren oder Modifizieren ohne Zustimmung',
+              ] %}
+              <div style="display:flex;align-items:flex-start;gap:.6rem;padding:.55rem .8rem;background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.15);border-radius:var(--r-sm);font-size:.82rem;color:var(--text-2);">
+                <span style="color:var(--red);flex-shrink:0;">✗</span> {{ item }}
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div>
+            <h3 style="font-size:.9rem;color:var(--text-2);margin-bottom:.6rem;">3.2 Verantwortlichkeit</h3>
+            <p style="font-size:.875rem;color:var(--text-2);line-height:1.85;">
+              Der Server-Administrator trägt die alleinige Verantwortung für alle Aktionen,
+              die durch die Konfiguration des Bots auf seinem Server ausgeführt werden.
+              Er hat sicherzustellen, dass der Bot mit angemessenen Berechtigungen ausgestattet wird.
+            </p>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- §4 -->
+      {{ section('4','⚠️','4','Haftungsbeschränkung') }}
+        <div style="padding:.85rem 1rem;background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.2);border-radius:var(--r-md);margin-bottom:1.2rem;">
+          <p style="font-size:.875rem;color:var(--text-2);line-height:1.8;margin:0;">
+            Der Bot und das Dashboard werden <strong>„wie besehen" (as is)</strong> ohne jegliche
+            ausdrückliche oder stillschweigende Gewährleistung bereitgestellt. Der Betreiber übernimmt
+            keine Gewähr dafür, dass der Bot fehlerfrei, sicher oder ohne Unterbrechungen funktioniert.
+          </p>
+        </div>
+        <p style="font-size:.875rem;color:var(--text-2);line-height:1.85;">
+          Der Betreiber haftet unbeschränkt für Schäden aus der Verletzung des Lebens, des Körpers oder der
+          Gesundheit. Für einfache Fahrlässigkeit haftet der Betreiber nur bei Verletzung wesentlicher
+          Vertragspflichten, begrenzt auf den vertragstypischen, vorhersehbaren Schaden.
+        </p>
+      </div>
+
+      <!-- §5 -->
+      {{ section('5','🔒','5','Datenschutz') }}
+        <p style="font-size:.875rem;color:var(--text-2);line-height:1.85;">
+          Informationen zum Umgang mit personenbezogenen Daten finden Sie in unserer
+          <a href="/privacy" style="color:var(--blue-light);text-decoration:underline;">Privacy Policy</a>,
+          die Bestandteil dieser Bedingungen ist.
+        </p>
+      </div>
+
+      <!-- §6 -->
+      {{ section('6','📌','6','Schlussbestimmungen') }}
+        <div style="display:flex;flex-direction:column;gap:1.2rem;">
+          <div>
+            <h3 style="font-size:.9rem;color:var(--text-2);margin-bottom:.6rem;">6.1 Salvatorische Klausel</h3>
+            <p style="font-size:.875rem;color:var(--text-2);line-height:1.85;">
+              Sollten einzelne Bestimmungen unwirksam sein, bleibt die Wirksamkeit der übrigen Bestimmungen unberührt.
+            </p>
+          </div>
+          <div>
+            <h3 style="font-size:.9rem;color:var(--text-2);margin-bottom:.6rem;">6.2 Gerichtsstand</h3>
+            <p style="font-size:.875rem;color:var(--text-2);line-height:1.85;">
+              Es gilt das Recht der Bundesrepublik Deutschland. Gerichtsstand ist, soweit gesetzlich zulässig,
+              der Sitz des Betreibers.
+            </p>
+          </div>
+          <div>
+            <h3 style="font-size:.9rem;color:var(--text-2);margin-bottom:.6rem;">6.3 Kontakt</h3>
+            <p style="font-size:.875rem;color:var(--text-2);line-height:1.85;">
+              Bei Fragen wenden Sie sich an den
+              <a href="https://discord.gg/gwryX3dbkt" style="color:var(--blue-light);">ModForge Support-Server</a>.
+            </p>
+          </div>
+        </div>
+      </div>
+
     </div>
-  </details>
-
-  <details>
-    <summary>3. Pflichten des Nutzers</summary>
-    <div class="detail-body">
-      <h3>3.1 Rechtskonforme Nutzung</h3>
-      <p>Der Nutzer verpflichtet sich, den Bot ausschließlich im Rahmen der geltenden Gesetze sowie der Discord‑Nutzungsbedingungen und ‑Richtlinien zu verwenden. Insbesondere sind folgende Handlungen untersagt:</p>
-      <ul>
-        <li>Die Nutzung zu Zwecken des Spammings, der Belästigung oder der Verbreitung von Schadsoftware</li>
-        <li>Die Verwendung für automatisierte Massenaktionen, die die Discord‑API übermäßig beanspruchen</li>
-        <li>Die Umgehung oder Manipulation der Sicherheitsmechanismen des Bots</li>
-        <li>Die Nutzung zur Verbreitung illegaler, jugendgefährdender oder extremisierender Inhalte</li>
-        <li>Jegliche Form des Reverse Engineerings, Dekompilierens oder Modifizierens des Bots ohne vorherige schriftliche Zustimmung des Betreibers</li>
-      </ul>
-
-      <h3>3.2 Verantwortlichkeit des Server‑Administrators</h3>
-      <p>Derjenige, der den Bot zu einem Server hinzufügt (in der Regel der Server‑Eigentümer oder ein Administrator), trägt die alleinige Verantwortung für alle Aktionen, die durch die Konfiguration des Bots auf diesem Server ausgeführt werden. Er hat insbesondere sicherzustellen, dass:</p>
-      <ul>
-        <li>Der Bot mit angemessenen Berechtigungen ausgestattet wird</li>
-        <li>Die konfigurierten Strafen (z. B. Banns, Timeouts) im Einklang mit den servereigenen Regeln und den Discord‑Richtlinien stehen</li>
-        <li>Die erfassten Log‑Daten datenschutzkonform behandelt werden</li>
-      </ul>
-
-      <h3>3.3 Zugangsdaten und Sicherheit</h3>
-      <p>Sofern Sie Zugangsdaten für das Dashboard oder das Admin‑Panel verwenden, sind diese vertraulich zu behandeln und vor unbefugtem Zugriff zu schützen. Der Betreiber haftet nicht für Schäden, die durch missbräuchliche Nutzung Ihrer Zugangsdaten entstehen, es sei denn, der Missbrauch ist auf ein Verschulden des Betreibers zurückzuführen.</p>
-
-      <h3>3.4 Meldung von Missbrauch</h3>
-      <p>Sie sind verpflichtet, uns umgehend über den Support‑Server zu informieren, wenn Sie Kenntnis von einer missbräuchlichen Nutzung des Bots oder einer Sicherheitslücke erhalten.</p>
-    </div>
-  </details>
-
-  <details>
-    <summary>4. Haftungsbeschränkung und Gewährleistung</summary>
-    <div class="detail-body">
-      <h3>4.1 Haftungsausschluss</h3>
-      <p>Der Bot und das Dashboard werden „wie besehen“ (as is) ohne jegliche ausdrückliche oder stillschweigende Gewährleistung bereitgestellt. Der Betreiber übernimmt insbesondere keine Gewähr dafür, dass der Bot fehlerfrei, sicher oder ohne Unterbrechungen funktioniert.</p>
-
-      <h3>4.2 Haftungsumfang</h3>
-      <p>Der Betreiber haftet unbeschränkt für Schäden aus der Verletzung des Lebens, des Körpers oder der Gesundheit, die auf einer Pflichtverletzung des Betreibers beruhen, sowie für sonstige Schäden, die auf einer vorsätzlichen oder grob fahrlässigen Pflichtverletzung des Betreibers beruhen. Für einfache Fahrlässigkeit haftet der Betreiber nur, sofern eine wesentliche Vertragspflicht (Kardinalpflicht) verletzt wurde; die Haftung ist in diesen Fällen auf den vertragstypischen, vorhersehbaren Schaden begrenzt.</p>
-
-      <h3>4.3 Haftung für Dienste Dritter</h3>
-      <p>Der Bot interagiert mit Diensten Dritter (insbesondere Discord, MongoDB). Der Betreiber übernimmt keine Haftung für die Verfügbarkeit oder Sicherheit dieser Dienste.</p>
-
-      <h3>4.4 Schadensminderungspflicht</h3>
-      <p>Der Nutzer ist gehalten, zumutbare Maßnahmen zur Abwendung und Minderung von Schäden zu ergreifen.</p>
-    </div>
-  </details>
-
-  <details>
-    <summary>5. Datenschutz</summary>
-    <div class="detail-body">
-      <p>Informationen zum Umgang mit personenbezogenen Daten finden Sie in unserer <a href="/privacy">Privacy Policy</a>, die Bestandteil dieser Bedingungen ist.</p>
-    </div>
-  </details>
-
-  <details>
-    <summary>6. Schlussbestimmungen</summary>
-    <div class="detail-body">
-      <h3>6.1 Salvatorische Klausel</h3>
-      <p>Sollten einzelne Bestimmungen dieser Bedingungen unwirksam sein oder werden, bleibt die Wirksamkeit der übrigen Bestimmungen unberührt. Die unwirksame Bestimmung gilt als durch eine solche ersetzt, die dem wirtschaftlichen Zweck der unwirksamen Bestimmung am nächsten kommt.</p>
-
-      <h3>6.2 Gerichtsstand und anwendbares Recht</h3>
-      <p>Es gilt das Recht der Bundesrepublik Deutschland. Gerichtsstand für alle Streitigkeiten aus oder im Zusammenhang mit diesen Bedingungen ist, soweit gesetzlich zulässig, der Sitz des Betreibers.</p>
-
-      <h3>6.3 Kontakt</h3>
-      <p>Bei Fragen, Beschwerden oder Hinweisen zu diesen Bedingungen wenden Sie sich bitte an den <a href="https://discord.gg/gwryX3dbkt" target="_blank" style="color:var(--p)">ModForge Support‑Server</a>.</p>
-
-      <h3>6.4 Außergerichtliche Streitbeilegung</h3>
-      <p>Die EU‑Kommission stellt eine Plattform zur Online‑Streitbeilegung bereit: <a href="https://ec.europa.eu/consumers/odr" target="_blank" style="color:var(--p)">https://ec.europa.eu/consumers/odr</a>. Wir sind nicht verpflichtet, an einem Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle teilzunehmen.</p>
-    </div>
-  </details>
-</div>
+  </section>
+</main>
 {% endblock %}
