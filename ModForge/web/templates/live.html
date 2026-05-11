@@ -4,660 +4,544 @@
 {% block content %}
 
 <style>
-
-:root{
-  --bg:#0b0c14;
-  --card:#131521;
-  --card2:#171a29;
-  --border:rgba(255,255,255,.08);
-
-  --p:#5b6eff;
-  --p2:#9b59b6;
-
-  --green:#22c55e;
-  --red:#ef4444;
-  --yellow:#f59e0b;
-  --blue:#3b82f6;
-
-  --text:#e2e8f0;
-  --muted:#94a3b8;
-}
-
-/* ===== Background ===== */
-
-.live-page{
-  position:relative;
-  overflow:hidden;
-  min-height:100vh;
-}
-
-.bg-grid{
-  position:fixed;
-  inset:0;
-  background-image:
-    linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px);
-
-  background-size:40px 40px;
-  mask-image:radial-gradient(circle at center, black, transparent 90%);
-  pointer-events:none;
-  z-index:0;
-}
-
-.orb{
-  position:fixed;
-  border-radius:50%;
-  filter:blur(120px);
-  opacity:.18;
-  pointer-events:none;
-  z-index:0;
-}
-
-.orb1{
-  width:420px;
-  height:420px;
-  background:#5b6eff;
-  top:-150px;
-  left:-120px;
-}
-
-.orb2{
-  width:360px;
-  height:360px;
-  background:#9b59b6;
-  right:-100px;
-  bottom:-120px;
-}
-
-/* ===== Particles ===== */
-
-.particles{
-  position:fixed;
-  inset:0;
-  pointer-events:none;
-  z-index:0;
-}
-
-.particle{
-  position:absolute;
-  border-radius:50%;
-  background:rgba(91,110,255,.2);
-  animation:float linear infinite;
-}
-
-@keyframes float{
-  0%{
-    transform:translateY(100vh) rotate(0);
-    opacity:0;
+  :root {
+    --bg: #0b0c14;
+    --card: #131521;
+    --card2: #171a29;
+    --border: rgba(255, 255, 255, .08);
+    --p: #5b6eff;
+    --p2: #9b59b6;
+    --green: #22c55e;
+    --red: #ef4444;
+    --yellow: #f59e0b;
+    --blue: #3b82f6;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
   }
 
-  10%{
-    opacity:1;
+  /* ===== Background ===== */
+  .live-page {
+    position: relative;
+    overflow: hidden;
+    min-height: 100vh;
   }
 
-  90%{
-    opacity:1;
+  .bg-grid {
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255, 255, 255, .03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, .03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    mask-image: radial-gradient(circle at center, black, transparent 90%);
+    pointer-events: none;
+    z-index: 0;
   }
 
-  100%{
-    transform:translateY(-100px) rotate(720deg);
-    opacity:0;
-  }
-}
-
-/* ===== Container ===== */
-
-.live-wrap{
-  position:relative;
-  z-index:5;
-  max-width:1400px;
-  margin:auto;
-  padding:40px 20px 70px;
-}
-
-/* ===== Header ===== */
-
-.live-top{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:20px;
-  flex-wrap:wrap;
-  margin-bottom:28px;
-}
-
-.live-title h1{
-  font-size:2.5rem;
-  margin-bottom:10px;
-  color:#fff;
-}
-
-.live-title p{
-  color:var(--muted);
-  max-width:700px;
-  line-height:1.7;
-}
-
-.live-badges{
-  display:flex;
-  gap:10px;
-  flex-wrap:wrap;
-}
-
-.live-badge{
-  padding:10px 14px;
-  border-radius:999px;
-  background:rgba(255,255,255,.03);
-  border:1px solid rgba(255,255,255,.08);
-  color:#dbe4f0;
-  font-size:.78rem;
-  font-weight:600;
-  backdrop-filter:blur(12px);
-}
-
-.live-dot{
-  width:9px;
-  height:9px;
-  border-radius:50%;
-  background:var(--green);
-  display:inline-block;
-  margin-right:8px;
-  box-shadow:0 0 12px var(--green);
-  animation:pulse 2s infinite;
-}
-
-@keyframes pulse{
-  0%,100%{
-    transform:scale(1);
-    opacity:1;
+  .orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(120px);
+    opacity: .18;
+    pointer-events: none;
+    z-index: 0;
   }
 
-  50%{
-    transform:scale(1.5);
-    opacity:.6;
+  .orb1 {
+    width: 420px;
+    height: 420px;
+    background: #5b6eff;
+    top: -150px;
+    left: -120px;
   }
-}
 
-/* ===== Dashboard Grid ===== */
-
-.live-grid{
-  display:grid;
-  grid-template-columns:340px 1fr;
-  gap:22px;
-}
-
-@media(max-width:1100px){
-  .live-grid{
-    grid-template-columns:1fr;
+  .orb2 {
+    width: 360px;
+    height: 360px;
+    background: #9b59b6;
+    right: -100px;
+    bottom: -120px;
   }
-}
 
-/* ===== Panels ===== */
-
-.panel{
-  background:rgba(19,21,33,.82);
-  backdrop-filter:blur(20px);
-
-  border:1px solid rgba(255,255,255,.08);
-
-  border-radius:26px;
-
-  overflow:hidden;
-
-  box-shadow:
-    0 25px 60px rgba(0,0,0,.4),
-    inset 0 0 0 1px rgba(255,255,255,.03);
-
-  position:relative;
-}
-
-.panel::before{
-  content:"";
-  position:absolute;
-  inset:-1px;
-  border-radius:26px;
-  padding:1px;
-
-  background:linear-gradient(
-    135deg,
-    rgba(91,110,255,.5),
-    rgba(155,89,182,.4),
-    transparent
-  );
-
-  -webkit-mask:
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
-
-  -webkit-mask-composite:xor;
-  mask-composite:exclude;
-
-  pointer-events:none;
-}
-
-/* ===== Side Panel ===== */
-
-.side-panel{
-  padding:24px;
-}
-
-.panel-head{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  margin-bottom:20px;
-}
-
-.panel-head h3{
-  font-size:1rem;
-  color:#fff;
-}
-
-.live-status{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  padding:14px;
-  border-radius:18px;
-
-  background:rgba(255,255,255,.03);
-  border:1px solid rgba(255,255,255,.06);
-
-  margin-bottom:18px;
-}
-
-.status-icon{
-  width:48px;
-  height:48px;
-  border-radius:16px;
-
-  display:flex;
-  align-items:center;
-  justify-content:center;
-
-  font-size:1.4rem;
-
-  background:linear-gradient(
-    135deg,
-    rgba(91,110,255,.2),
-    rgba(155,89,182,.2)
-  );
-}
-
-.status-info strong{
-  display:block;
-  color:#fff;
-  margin-bottom:3px;
-}
-
-.status-info span{
-  color:var(--muted);
-  font-size:.8rem;
-}
-
-/* ===== Threat Bars ===== */
-
-.threat-box{
-  margin-top:22px;
-}
-
-.threat-item{
-  margin-bottom:18px;
-}
-
-.threat-item:last-child{
-  margin-bottom:0;
-}
-
-.threat-head{
-  display:flex;
-  justify-content:space-between;
-  margin-bottom:7px;
-  font-size:.82rem;
-}
-
-.threat-bar{
-  height:9px;
-  border-radius:999px;
-  overflow:hidden;
-  background:rgba(255,255,255,.06);
-}
-
-.threat-fill{
-  height:100%;
-  border-radius:999px;
-  animation:grow 1s ease;
-}
-
-@keyframes grow{
-  from{
-    width:0;
+  /* ===== Particles ===== */
+  .particles {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
   }
-}
 
-.green{
-  background:linear-gradient(90deg,#22c55e,#4ade80);
-}
+  .particle {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(91, 110, 255, .2);
+    animation: float linear infinite;
+  }
 
-.red{
-  background:linear-gradient(90deg,#ef4444,#f87171);
-}
+  @keyframes float {
+    0% {
+      transform: translateY(100vh) rotate(0);
+      opacity: 0;
+    }
+    10% {
+      opacity: 1;
+    }
+    90% {
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(-100px) rotate(720deg);
+      opacity: 0;
+    }
+  }
 
-.yellow{
-  background:linear-gradient(90deg,#f59e0b,#fbbf24);
-}
+  /* ===== Container ===== */
+  .live-wrap {
+    position: relative;
+    z-index: 5;
+    max-width: 1400px;
+    margin: auto;
+    padding: 40px 20px 70px;
+  }
 
-.blue{
-  background:linear-gradient(90deg,#3b82f6,#60a5fa);
-}
+  /* ===== Header ===== */
+  .live-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin-bottom: 28px;
+  }
 
-/* ===== Activity Feed ===== */
+  .live-title h1 {
+    font-size: 2.5rem;
+    margin-bottom: 10px;
+    color: #fff;
+  }
 
-.feed-panel{
-  padding:0;
-}
+  .live-title p {
+    color: var(--muted);
+    max-width: 700px;
+    line-height: 1.7;
+  }
 
-.feed-top{
-  padding:22px 24px;
-  border-bottom:1px solid rgba(255,255,255,.06);
+  .live-badges {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
 
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:12px;
-  flex-wrap:wrap;
-}
+  .live-badge {
+    padding: 10px 14px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .03);
+    border: 1px solid rgba(255, 255, 255, .08);
+    color: #dbe4f0;
+    font-size: .78rem;
+    font-weight: 600;
+    backdrop-filter: blur(12px);
+  }
 
-.feed-top h2{
-  font-size:1.05rem;
-  color:#fff;
-}
+  .live-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--green);
+    display: inline-block;
+    margin-right: 8px;
+    box-shadow: 0 0 12px var(--green);
+    animation: pulse 2s infinite;
+  }
 
-.feed-tags{
-  display:flex;
-  gap:8px;
-  flex-wrap:wrap;
-}
+  @keyframes pulse {
+    0%, 100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+    50% {
+      transform: scale(1.5);
+      opacity: .6;
+    }
+  }
 
-.feed-tag{
-  font-size:.72rem;
-  padding:8px 12px;
-  border-radius:999px;
+  /* ===== Dashboard Grid ===== */
+  .live-grid {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 22px;
+  }
 
-  background:rgba(255,255,255,.03);
-  border:1px solid rgba(255,255,255,.06);
+  @media (max-width: 1100px) {
+    .live-grid {
+      grid-template-columns: 1fr;
+    }
+  }
 
-  color:#cbd5e1;
-}
+  /* ===== Panels ===== */
+  .panel {
+    background: rgba(19, 21, 33, .82);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, .08);
+    border-radius: 26px;
+    overflow: hidden;
+    box-shadow:
+      0 25px 60px rgba(0, 0, 0, .4),
+      inset 0 0 0 1px rgba(255, 255, 255, .03);
+    position: relative;
+  }
 
-/* ===== Hero Event ===== */
+  .panel::before {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border-radius: 26px;
+    padding: 1px;
+    background: linear-gradient(
+      135deg,
+      rgba(91, 110, 255, .5),
+      rgba(155, 89, 182, .4),
+      transparent
+    );
+    -webkit-mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
 
-.hero-event{
-  padding:26px;
-  border-bottom:1px solid rgba(255,255,255,.05);
+  /* ===== Side Panel ===== */
+  .side-panel {
+    padding: 24px;
+  }
 
-  display:flex;
-  align-items:center;
-  gap:18px;
+  .panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
 
-  background:
-    radial-gradient(circle at top right,
-    rgba(91,110,255,.12),
-    transparent 45%);
-}
+  .panel-head h3 {
+    font-size: 1rem;
+    color: #fff;
+  }
 
-.hero-icon{
-  width:76px;
-  height:76px;
-  border-radius:24px;
+  .live-status {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, .03);
+    border: 1px solid rgba(255, 255, 255, .06);
+    margin-bottom: 18px;
+  }
 
-  display:flex;
-  align-items:center;
-  justify-content:center;
+  .status-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    background: linear-gradient(
+      135deg,
+      rgba(91, 110, 255, .2),
+      rgba(155, 89, 182, .2)
+    );
+  }
 
-  font-size:2rem;
+  .status-info strong {
+    display: block;
+    color: #fff;
+    margin-bottom: 3px;
+  }
 
-  background:linear-gradient(
-    135deg,
-    rgba(91,110,255,.22),
-    rgba(155,89,182,.22)
-  );
+  .status-info span {
+    color: var(--muted);
+    font-size: .8rem;
+  }
 
-  box-shadow:0 0 30px rgba(91,110,255,.18);
-}
+  /* ===== Threat Bars ===== */
+  .threat-box {
+    margin-top: 22px;
+  }
 
-.hero-content{
-  flex:1;
-}
+  .threat-item {
+    margin-bottom: 18px;
+  }
 
-.hero-label{
-  color:var(--muted);
-  font-size:.76rem;
-  text-transform:uppercase;
-  letter-spacing:.08em;
-  margin-bottom:8px;
-}
+  .threat-item:last-child {
+    margin-bottom: 0;
+  }
 
-.hero-text{
-  font-size:1.1rem;
-  font-weight:700;
-  color:#fff;
-  margin-bottom:7px;
-}
+  .threat-head {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 7px;
+    font-size: .82rem;
+  }
 
-.hero-time{
-  color:var(--muted);
-  font-size:.78rem;
-}
+  .threat-bar {
+    height: 9px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, .06);
+  }
 
-/* ===== Feed ===== */
+  .threat-fill {
+    height: 100%;
+    border-radius: 999px;
+    animation: grow 1s ease;
+  }
 
-.activity-list{
-  max-height:720px;
-  overflow-y:auto;
-}
+  @keyframes grow {
+    from { width: 0; }
+  }
 
-.activity-item{
-  display:flex;
-  align-items:flex-start;
-  gap:14px;
+  .green { background: linear-gradient(90deg, #22c55e, #4ade80); }
+  .red { background: linear-gradient(90deg, #ef4444, #f87171); }
+  .yellow { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+  .blue { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
 
-  padding:16px 22px;
+  /* ===== Activity Feed ===== */
+  .feed-panel {
+    padding: 0;
+  }
 
-  border-bottom:1px solid rgba(255,255,255,.04);
+  .feed-top {
+    padding: 22px 24px;
+    border-bottom: 1px solid rgba(255, 255, 255, .06);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
 
-  transition:.2s;
-  position:relative;
-}
+  .feed-top h2 {
+    font-size: 1.05rem;
+    color: #fff;
+  }
 
-.activity-item:hover{
-  background:rgba(255,255,255,.025);
-}
+  .feed-tags {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
 
-.activity-item::before{
-  content:"";
-  position:absolute;
-  left:0;
-  top:0;
-  bottom:0;
-  width:3px;
-  background:transparent;
-  transition:.2s;
-}
+  .feed-tag {
+    font-size: .72rem;
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .03);
+    border: 1px solid rgba(255, 255, 255, .06);
+    color: #cbd5e1;
+  }
 
-.activity-item:hover::before{
-  background:var(--p);
-}
+  /* ===== Hero Event ===== */
+  .hero-event {
+    padding: 26px;
+    border-bottom: 1px solid rgba(255, 255, 255, .05);
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    background: radial-gradient(circle at top right, rgba(91, 110, 255, .12), transparent 45%);
+  }
 
-.activity-icon{
-  width:44px;
-  height:44px;
-  border-radius:14px;
+  .hero-icon {
+    width: 76px;
+    height: 76px;
+    border-radius: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    background: linear-gradient(135deg, rgba(91, 110, 255, .22), rgba(155, 89, 182, .22));
+    box-shadow: 0 0 30px rgba(91, 110, 255, .18);
+  }
 
-  display:flex;
-  align-items:center;
-  justify-content:center;
+  .hero-content { flex: 1; }
 
-  flex-shrink:0;
+  .hero-label {
+    color: var(--muted);
+    font-size: .76rem;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    margin-bottom: 8px;
+  }
 
-  font-size:1.2rem;
+  .hero-text {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 7px;
+  }
 
-  background:rgba(255,255,255,.04);
-  border:1px solid rgba(255,255,255,.05);
-}
+  .hero-time {
+    color: var(--muted);
+    font-size: .78rem;
+  }
 
-.activity-main{
-  flex:1;
-  min-width:0;
-}
+  /* ===== Feed ===== */
+  .activity-list {
+    max-height: 720px;
+    overflow-y: auto;
+  }
 
-.activity-text{
-  color:#e5edf7;
-  line-height:1.6;
-  font-size:.9rem;
-  word-break:break-word;
-}
+  .activity-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 16px 22px;
+    border-bottom: 1px solid rgba(255, 255, 255, .04);
+    transition: .2s;
+    position: relative;
+  }
 
-.activity-meta{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  flex-wrap:wrap;
+  .activity-item:hover {
+    background: rgba(255, 255, 255, .025);
+  }
 
-  margin-top:7px;
-}
+  .activity-item::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: transparent;
+    transition: .2s;
+  }
 
-.meta-chip{
-  font-size:.68rem;
-  padding:5px 9px;
-  border-radius:999px;
+  .activity-item:hover::before {
+    background: var(--p);
+  }
 
-  background:rgba(255,255,255,.04);
-  border:1px solid rgba(255,255,255,.05);
+  .activity-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 1.2rem;
+    background: rgba(255, 255, 255, .04);
+    border: 1px solid rgba(255, 255, 255, .05);
+  }
 
-  color:#cbd5e1;
-}
+  .activity-main {
+    flex: 1;
+    min-width: 0;
+  }
 
-.activity-time{
-  color:var(--muted);
-  font-size:.72rem;
-}
+  .activity-text {
+    color: #e5edf7;
+    line-height: 1.6;
+    font-size: .9rem;
+    word-break: break-word;
+  }
 
-/* ===== Scrollbar ===== */
+  .activity-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 7px;
+  }
 
-.activity-list::-webkit-scrollbar{
-  width:8px;
-}
+  .meta-chip {
+    font-size: .68rem;
+    padding: 5px 9px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .04);
+    border: 1px solid rgba(255, 255, 255, .05);
+    color: #cbd5e1;
+  }
 
-.activity-list::-webkit-scrollbar-thumb{
-  background:rgba(255,255,255,.12);
-  border-radius:999px;
-}
+  .activity-time {
+    color: var(--muted);
+    font-size: .72rem;
+  }
 
+  /* ===== Scrollbar ===== */
+  .activity-list::-webkit-scrollbar {
+    width: 8px;
+  }
+  .activity-list::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, .12);
+    border-radius: 999px;
+  }
 </style>
 
 <div class="live-page">
-
   <div class="bg-grid"></div>
-
   <div class="orb orb1"></div>
   <div class="orb orb2"></div>
-
   <div class="particles" id="particles"></div>
 
   <div class="live-wrap">
-
     <!-- Header -->
-
     <div class="live-top">
-
       <div class="live-title">
         <h1>Live Sicherheits-Aktivität</h1>
-
         <p>
-          Verfolge in Echtzeit,
-          wie ModForge Spam erkennt,
-          Scam-Links blockiert,
-          Raids stoppt,
-          Nutzer mutet
+          Verfolge in Echtzeit, wie ModForge Spam erkennt,
+          Scam-Links blockiert, Raids stoppt, Nutzer mutet
           und automatische Schutzsysteme reagiert.
         </p>
       </div>
-
       <div class="live-badges">
-
         <div class="live-badge">
-          <span class="live-dot"></span>
-          LIVE STREAM
+          <span class="live-dot" id="liveDot"></span>
+          <span id="liveLabel">LIVE STREAM</span>
         </div>
-
-        <div class="live-badge">
-          🛡️ Auto Protection
-        </div>
-
-        <div class="live-badge">
-          ⚡ Echtzeit Analyse
-        </div>
-
+        <div class="live-badge">🛡️ Auto Protection</div>
+        <div class="live-badge">⚡ Echtzeit Analyse</div>
       </div>
-
     </div>
 
     <!-- Grid -->
-
     <div class="live-grid">
-
-      <!-- LEFT -->
-
+      <!-- LEFT SIDE – Dynamische Systemdaten -->
       <div class="panel side-panel">
-
         <div class="panel-head">
           <h3>System Status</h3>
         </div>
 
+        <!-- Core -->
         <div class="live-status">
-
-          <div class="status-icon">
-            🤖
-          </div>
-
+          <div class="status-icon">🤖</div>
           <div class="status-info">
-            <strong>ModForge Core</strong>
-            <span>Alle Schutzsysteme aktiv</span>
+            <strong id="coreStatus">ModForge Core</strong>
+            <span id="coreSub">Verbinde...</span>
           </div>
-
         </div>
 
+        <!-- Raid Detection -->
         <div class="live-status">
-
-          <div class="status-icon">
-            🚨
-          </div>
-
+          <div class="status-icon">🚨</div>
           <div class="status-info">
             <strong>Raid Detection</strong>
-            <span>Verdächtige Aktivitäten werden geprüft</span>
+            <span id="raidSub">Warte auf Daten...</span>
           </div>
-
         </div>
 
+        <!-- Invite/Scam Filter -->
         <div class="live-status">
-
-          <div class="status-icon">
-            🔗
-          </div>
-
+          <div class="status-icon">🔗</div>
           <div class="status-info">
             <strong>Invite & Scam Filter</strong>
-            <span>Automatische Link-Erkennung aktiv</span>
+            <span id="inviteSub">Warte auf Daten...</span>
           </div>
-
         </div>
 
-        <!-- Threats -->
-
+        <!-- Threats – echte Prozentwerte -->
         <div class="threat-box">
-
           <div class="panel-head" style="margin-bottom:18px;">
             <h3>Schutzsysteme</h3>
           </div>
@@ -665,59 +549,49 @@
           <div class="threat-item">
             <div class="threat-head">
               <span>Raid-Abwehr</span>
-              <span>Aktiv</span>
+              <span id="raidPercent">--%</span>
             </div>
-
             <div class="threat-bar">
-              <div class="threat-fill red" style="width:92%"></div>
+              <div class="threat-fill red" id="raidBar" style="width:0%"></div>
             </div>
           </div>
 
           <div class="threat-item">
             <div class="threat-head">
               <span>Spam-Filter</span>
-              <span>Aktiv</span>
+              <span id="spamPercent">--%</span>
             </div>
-
             <div class="threat-bar">
-              <div class="threat-fill yellow" style="width:87%"></div>
+              <div class="threat-fill yellow" id="spamBar" style="width:0%"></div>
             </div>
           </div>
 
           <div class="threat-item">
             <div class="threat-head">
               <span>Scam-Schutz</span>
-              <span>Aktiv</span>
+              <span id="scamPercent">--%</span>
             </div>
-
             <div class="threat-bar">
-              <div class="threat-fill green" style="width:96%"></div>
+              <div class="threat-fill green" id="scamBar" style="width:0%"></div>
             </div>
           </div>
 
           <div class="threat-item">
             <div class="threat-head">
               <span>Invite-Filter</span>
-              <span>Aktiv</span>
+              <span id="invFilterPercent">--%</span>
             </div>
-
             <div class="threat-bar">
-              <div class="threat-fill blue" style="width:89%"></div>
+              <div class="threat-fill blue" id="invFilterBar" style="width:0%"></div>
             </div>
           </div>
-
         </div>
-
       </div>
 
-      <!-- RIGHT -->
-
+      <!-- RIGHT SIDE – Live Feed (via WebSocket) -->
       <div class="panel feed-panel">
-
         <div class="feed-top">
-
           <h2>📡 Live Feed</h2>
-
           <div class="feed-tags">
             <div class="feed-tag">Spam</div>
             <div class="feed-tag">Raid</div>
@@ -725,239 +599,163 @@
             <div class="feed-tag">Moderation</div>
             <div class="feed-tag">Voice</div>
           </div>
-
         </div>
 
-        <!-- Hero -->
-
+        <!-- Hero Event (wird live aktualisiert) -->
         <div class="hero-event">
-
-          <div class="hero-icon" id="heroIcon">
-            🛡️
-          </div>
-
+          <div class="hero-icon" id="heroIcon">🛡️</div>
           <div class="hero-content">
-
-            <div class="hero-label">
-              Letzte Sicherheitsaktion
-            </div>
-
-            <div class="hero-text" id="heroText">
-              Warte auf Ereignisse...
-            </div>
-
+            <div class="hero-label">Letzte Sicherheitsaktion</div>
+            <div class="hero-text" id="heroText">Warte auf Ereignisse...</div>
             <div class="hero-time" id="heroTime"></div>
-
           </div>
-
         </div>
 
         <!-- Feed -->
-
         <div class="activity-list" id="activityList">
-
-          <div style="padding:20px;color:var(--muted)">
-            Lade Aktivität...
-          </div>
-
+          <div style="padding:20px;color:var(--muted)">Verbinde mit Live-Feed...</div>
         </div>
-
       </div>
-
     </div>
-
   </div>
-
 </div>
 
+<!-- Socket.IO einbinden -->
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+
 <script>
+  /* ===== Particle System ===== */
+  (() => {
+    const container = document.getElementById('particles');
+    for (let i = 0; i < 80; i++) {
+      const p = document.createElement('div');
+      p.className = 'particle';
+      const size = Math.random() * 4 + 1;
+      p.style.width = size + 'px';
+      p.style.height = size + 'px';
+      p.style.left = Math.random() * 100 + '%';
+      p.style.animationDuration = (Math.random() * 18 + 10) + 's';
+      p.style.animationDelay = (Math.random() * 10) + 's';
+      container.appendChild(p);
+    }
+  })();
 
-/* ===== Particle System ===== */
+  /* ===== Icon-Mapping ===== */
+  const icons = {
+    raid: '🚨',
+    spam: '🧹',
+    mute: '🔇',
+    timeout: '⏳',
+    invite: '🔗',
+    scam: '⚠️',
+    warn: '⚠️',
+    voice: '🎙️',
+    nuke: '☢️',
+    join: '➕',
+    leave: '➖',
+    automod: '🤖',
+    filter: '🛡️',
+    default: '🛡️'
+  };
 
-(() => {
-
-  const container = document.getElementById('particles');
-
-  for(let i = 0; i < 80; i++){
-
-    const p = document.createElement('div');
-
-    p.className = 'particle';
-
-    const size = Math.random() * 4 + 1;
-
-    p.style.width = size + 'px';
-    p.style.height = size + 'px';
-
-    p.style.left = Math.random() * 100 + '%';
-
-    p.style.animationDuration =
-      (Math.random() * 18 + 10) + 's';
-
-    p.style.animationDelay =
-      (Math.random() * 10) + 's';
-
-    container.appendChild(p);
-
+  function formatTime(ts) {
+    if (!ts) return '';
+    return new Date(ts).toLocaleTimeString('de-DE', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
   }
 
-})();
-
-/* ===== Icons ===== */
-
-const icons = {
-
-  raid:'🚨',
-  spam:'🧹',
-  mute:'🔇',
-  timeout:'⏳',
-  invite:'🔗',
-  scam:'⚠️',
-  warn:'⚠️',
-  voice:'🎙️',
-  nuke:'☢️',
-  join:'➕',
-  leave:'➖',
-  automod:'🤖',
-  filter:'🛡️',
-  default:'🛡️'
-};
-
-/* ===== Time ===== */
-
-function formatTime(ts){
-
-  if(!ts) return '';
-
-  const d = new Date(ts);
-
-  return d.toLocaleTimeString('de-DE', {
-    hour:'2-digit',
-    minute:'2-digit',
-    second:'2-digit'
-  });
-}
-
-/* ===== Sanitize ===== */
-
-function sanitize(text){
-
-  if(!text) return 'Keine Informationen';
-
-  return text
-
-    /* IDs */
-    .replace(/\b\d{5,25}\b/g,'[ID]')
-
-    /* Discord invites */
-    .replace(/discord\.gg\/\S+/gi,'[Invite entfernt]')
-    .replace(/discord\.com\/invite\/\S+/gi,'[Invite entfernt]')
-
-    /* URLs */
-    .replace(/https?:\/\/\S+/gi,'[Link entfernt]')
-
-    /* Server names */
-    .replace(/Guild:.*/gi,'Server verborgen')
-
-    /* mentions */
-    .replace(/<@!?(\d+)>/g,'@User')
-
-    .replace(/<@&(\d+)>/g,'@Role');
-}
-
-/* ===== Render ===== */
-
-function renderActivity(data){
-
-  if(!data || !data.length) return;
-
-  const latest = data[0];
-
-  const latestIcon =
-    icons[latest.kind] || icons.default;
-
-  document.getElementById('heroIcon').textContent =
-    latestIcon;
-
-  document.getElementById('heroText').textContent =
-    sanitize(latest.text);
-
-  document.getElementById('heroTime').textContent =
-    formatTime(latest.ts);
-
-  const list =
-    document.getElementById('activityList');
-
-  let html = '';
-
-  data.slice(0,60).forEach(ev => {
-
-    const icon =
-      icons[ev.kind] || icons.default;
-
-    html += `
-
-      <div class="activity-item">
-
-        <div class="activity-icon">
-          ${icon}
-        </div>
-
-        <div class="activity-main">
-
-          <div class="activity-text">
-            ${sanitize(ev.text)}
-          </div>
-
-          <div class="activity-meta">
-
-            <div class="meta-chip">
-              ${ev.kind || 'system'}
-            </div>
-
-            <div class="activity-time">
-              ${ev.ts ? formatTime(ev.ts) : ''}
-            </div>
-
-          </div>
-
-        </div>
-
-      </div>
-
-    `;
-  });
-
-  list.innerHTML = html;
-
-}
-
-/* ===== Fetch ===== */
-
-async function fetchActivity(){
-
-  try{
-
-    const res =
-      await fetch('/live/api/activity');
-
-    const data =
-      await res.json();
-
-    renderActivity(data);
-
-  }catch(ex){
-
-    console.error(ex);
-
+  function sanitize(text) {
+    if (!text) return 'Keine Informationen';
+    return text
+      .replace(/\b\d{5,25}\b/g, '[ID]')
+      .replace(/discord\.gg\/\S+/gi, '[Invite entfernt]')
+      .replace(/discord\.com\/invite\/\S+/gi, '[Invite entfernt]')
+      .replace(/https?:\/\/\S+/gi, '[Link entfernt]')
+      .replace(/Guild:.*/gi, 'Server verborgen')
+      .replace(/<@!?(\d+)>/g, '@User')
+      .replace(/<@&(\d+)>/g, '@Role');
   }
 
-}
+  /* ===== WebSocket Verbindung ===== */
+  const socket = io(); // verbindet sich zum gleichen Host
 
-fetchActivity();
+  socket.on('connect', () => {
+    console.log('✅ Live-WebSocket verbunden');
+    // Live-Dot auf grün setzen
+    const dot = document.getElementById('liveDot');
+    if (dot) dot.style.backgroundColor = '#22c55e';
+  });
 
-setInterval(fetchActivity,2500);
+  socket.on('disconnect', () => {
+    const dot = document.getElementById('liveDot');
+    if (dot) dot.style.backgroundColor = '#ef4444'; // rot bei Verbindungsabbruch
+  });
 
+  socket.on('status_update', (data) => {
+    updateDashboard(data);
+  });
+
+  /* ===== Dashboard-Updater ===== */
+  function updateDashboard(data) {
+    // --- System Status (Core) ---
+    if (data.systems) {
+      document.getElementById('coreStatus').innerText = data.systems.database ? 'ModForge Core ✅' : 'ModForge Core ⚠️';
+      document.getElementById('coreSub').innerText = data.systems.api ? 'Alle Module online' : 'API nicht erreichbar';
+
+      document.getElementById('raidSub').innerText = data.systems.raid ? 'Aktiv' : 'Inaktiv';
+      document.getElementById('inviteSub').innerText = data.systems.automod ? 'Filter aktiv' : 'Filter pausiert';
+    }
+
+    // --- Schutzsystem-Balken (echte Prozent) ---
+    if (data.protection) {
+      animateBar('raidBar', data.protection.raid || 0);
+      animateBar('spamBar', data.protection.spam || 0);
+      animateBar('scamBar', data.protection.scam || 0);
+      animateBar('invFilterBar', data.protection.invite || 0);
+
+      document.getElementById('raidPercent').innerText = (data.protection.raid || 0) + '%';
+      document.getElementById('spamPercent').innerText = (data.protection.spam || 0) + '%';
+      document.getElementById('scamPercent').innerText = (data.protection.scam || 0) + '%';
+      document.getElementById('invFilterPercent').innerText = (data.protection.invite || 0) + '%';
+    }
+
+    // --- Activity Feed ---
+    if (data.activity && data.activity.length > 0) {
+      const latest = data.activity[0];
+      document.getElementById('heroIcon').textContent = icons[latest.kind] || icons.default;
+      document.getElementById('heroText').textContent = sanitize(latest.text);
+      document.getElementById('heroTime').textContent = formatTime(latest.ts);
+
+      const list = document.getElementById('activityList');
+      let html = '';
+      data.activity.slice(0, 60).forEach(ev => {
+        const icon = icons[ev.kind] || icons.default;
+        html += `
+          <div class="activity-item">
+            <div class="activity-icon">${icon}</div>
+            <div class="activity-main">
+              <div class="activity-text">${sanitize(ev.text)}</div>
+              <div class="activity-meta">
+                <div class="meta-chip">${ev.kind || 'system'}</div>
+                <div class="activity-time">${ev.ts ? formatTime(ev.ts) : ''}</div>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+      list.innerHTML = html;
+    }
+  }
+
+  function animateBar(id, percent) {
+    const el = document.getElementById(id);
+    if (el) {
+      el.style.transition = 'width 0.5s ease';
+      el.style.width = percent + '%';
+    }
+  }
 </script>
-
 {% endblock %}
