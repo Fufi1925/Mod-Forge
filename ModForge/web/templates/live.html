@@ -2,101 +2,962 @@
 {% block title %}Live Aktivität – ModForge{% endblock %}
 
 {% block content %}
-<div class="container" style="max-width: 960px; padding-top: 40px; padding-bottom: 60px;">
-  <div class="sec-head reveal" style="margin-bottom: 30px;">
-    <div class="sec-badge" style="margin-bottom: 10px;">⚡ Echtzeit</div>
-    <h1 style="font-size: 2.2rem;">Bot‑Aktivität Live</h1>
-    <p style="color: var(--muted);">Sieh in Echtzeit, was dein Bot gerade tut – Bans, Kicks, Spam‑Erkennung, Voice‑Events und mehr.</p>
+
+<style>
+
+:root{
+  --bg:#0b0c14;
+  --card:#131521;
+  --card2:#171a29;
+  --border:rgba(255,255,255,.08);
+
+  --p:#5b6eff;
+  --p2:#9b59b6;
+
+  --green:#22c55e;
+  --red:#ef4444;
+  --yellow:#f59e0b;
+  --blue:#3b82f6;
+
+  --text:#e2e8f0;
+  --muted:#94a3b8;
+}
+
+/* ===== Background ===== */
+
+.live-page{
+  position:relative;
+  overflow:hidden;
+  min-height:100vh;
+}
+
+.bg-grid{
+  position:fixed;
+  inset:0;
+  background-image:
+    linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px);
+
+  background-size:40px 40px;
+  mask-image:radial-gradient(circle at center, black, transparent 90%);
+  pointer-events:none;
+  z-index:0;
+}
+
+.orb{
+  position:fixed;
+  border-radius:50%;
+  filter:blur(120px);
+  opacity:.18;
+  pointer-events:none;
+  z-index:0;
+}
+
+.orb1{
+  width:420px;
+  height:420px;
+  background:#5b6eff;
+  top:-150px;
+  left:-120px;
+}
+
+.orb2{
+  width:360px;
+  height:360px;
+  background:#9b59b6;
+  right:-100px;
+  bottom:-120px;
+}
+
+/* ===== Particles ===== */
+
+.particles{
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  z-index:0;
+}
+
+.particle{
+  position:absolute;
+  border-radius:50%;
+  background:rgba(91,110,255,.2);
+  animation:float linear infinite;
+}
+
+@keyframes float{
+  0%{
+    transform:translateY(100vh) rotate(0);
+    opacity:0;
+  }
+
+  10%{
+    opacity:1;
+  }
+
+  90%{
+    opacity:1;
+  }
+
+  100%{
+    transform:translateY(-100px) rotate(720deg);
+    opacity:0;
+  }
+}
+
+/* ===== Container ===== */
+
+.live-wrap{
+  position:relative;
+  z-index:5;
+  max-width:1400px;
+  margin:auto;
+  padding:40px 20px 70px;
+}
+
+/* ===== Header ===== */
+
+.live-top{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:20px;
+  flex-wrap:wrap;
+  margin-bottom:28px;
+}
+
+.live-title h1{
+  font-size:2.5rem;
+  margin-bottom:10px;
+  color:#fff;
+}
+
+.live-title p{
+  color:var(--muted);
+  max-width:700px;
+  line-height:1.7;
+}
+
+.live-badges{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+.live-badge{
+  padding:10px 14px;
+  border-radius:999px;
+  background:rgba(255,255,255,.03);
+  border:1px solid rgba(255,255,255,.08);
+  color:#dbe4f0;
+  font-size:.78rem;
+  font-weight:600;
+  backdrop-filter:blur(12px);
+}
+
+.live-dot{
+  width:9px;
+  height:9px;
+  border-radius:50%;
+  background:var(--green);
+  display:inline-block;
+  margin-right:8px;
+  box-shadow:0 0 12px var(--green);
+  animation:pulse 2s infinite;
+}
+
+@keyframes pulse{
+  0%,100%{
+    transform:scale(1);
+    opacity:1;
+  }
+
+  50%{
+    transform:scale(1.5);
+    opacity:.6;
+  }
+}
+
+/* ===== Dashboard Grid ===== */
+
+.live-grid{
+  display:grid;
+  grid-template-columns:340px 1fr;
+  gap:22px;
+}
+
+@media(max-width:1100px){
+  .live-grid{
+    grid-template-columns:1fr;
+  }
+}
+
+/* ===== Panels ===== */
+
+.panel{
+  background:rgba(19,21,33,.82);
+  backdrop-filter:blur(20px);
+
+  border:1px solid rgba(255,255,255,.08);
+
+  border-radius:26px;
+
+  overflow:hidden;
+
+  box-shadow:
+    0 25px 60px rgba(0,0,0,.4),
+    inset 0 0 0 1px rgba(255,255,255,.03);
+
+  position:relative;
+}
+
+.panel::before{
+  content:"";
+  position:absolute;
+  inset:-1px;
+  border-radius:26px;
+  padding:1px;
+
+  background:linear-gradient(
+    135deg,
+    rgba(91,110,255,.5),
+    rgba(155,89,182,.4),
+    transparent
+  );
+
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+
+  -webkit-mask-composite:xor;
+  mask-composite:exclude;
+
+  pointer-events:none;
+}
+
+/* ===== Side Panel ===== */
+
+.side-panel{
+  padding:24px;
+}
+
+.panel-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom:20px;
+}
+
+.panel-head h3{
+  font-size:1rem;
+  color:#fff;
+}
+
+.live-status{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:14px;
+  border-radius:18px;
+
+  background:rgba(255,255,255,.03);
+  border:1px solid rgba(255,255,255,.06);
+
+  margin-bottom:18px;
+}
+
+.status-icon{
+  width:48px;
+  height:48px;
+  border-radius:16px;
+
+  display:flex;
+  align-items:center;
+  justify-content:center;
+
+  font-size:1.4rem;
+
+  background:linear-gradient(
+    135deg,
+    rgba(91,110,255,.2),
+    rgba(155,89,182,.2)
+  );
+}
+
+.status-info strong{
+  display:block;
+  color:#fff;
+  margin-bottom:3px;
+}
+
+.status-info span{
+  color:var(--muted);
+  font-size:.8rem;
+}
+
+/* ===== Threat Bars ===== */
+
+.threat-box{
+  margin-top:22px;
+}
+
+.threat-item{
+  margin-bottom:18px;
+}
+
+.threat-item:last-child{
+  margin-bottom:0;
+}
+
+.threat-head{
+  display:flex;
+  justify-content:space-between;
+  margin-bottom:7px;
+  font-size:.82rem;
+}
+
+.threat-bar{
+  height:9px;
+  border-radius:999px;
+  overflow:hidden;
+  background:rgba(255,255,255,.06);
+}
+
+.threat-fill{
+  height:100%;
+  border-radius:999px;
+  animation:grow 1s ease;
+}
+
+@keyframes grow{
+  from{
+    width:0;
+  }
+}
+
+.green{
+  background:linear-gradient(90deg,#22c55e,#4ade80);
+}
+
+.red{
+  background:linear-gradient(90deg,#ef4444,#f87171);
+}
+
+.yellow{
+  background:linear-gradient(90deg,#f59e0b,#fbbf24);
+}
+
+.blue{
+  background:linear-gradient(90deg,#3b82f6,#60a5fa);
+}
+
+/* ===== Activity Feed ===== */
+
+.feed-panel{
+  padding:0;
+}
+
+.feed-top{
+  padding:22px 24px;
+  border-bottom:1px solid rgba(255,255,255,.06);
+
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+}
+
+.feed-top h2{
+  font-size:1.05rem;
+  color:#fff;
+}
+
+.feed-tags{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
+
+.feed-tag{
+  font-size:.72rem;
+  padding:8px 12px;
+  border-radius:999px;
+
+  background:rgba(255,255,255,.03);
+  border:1px solid rgba(255,255,255,.06);
+
+  color:#cbd5e1;
+}
+
+/* ===== Hero Event ===== */
+
+.hero-event{
+  padding:26px;
+  border-bottom:1px solid rgba(255,255,255,.05);
+
+  display:flex;
+  align-items:center;
+  gap:18px;
+
+  background:
+    radial-gradient(circle at top right,
+    rgba(91,110,255,.12),
+    transparent 45%);
+}
+
+.hero-icon{
+  width:76px;
+  height:76px;
+  border-radius:24px;
+
+  display:flex;
+  align-items:center;
+  justify-content:center;
+
+  font-size:2rem;
+
+  background:linear-gradient(
+    135deg,
+    rgba(91,110,255,.22),
+    rgba(155,89,182,.22)
+  );
+
+  box-shadow:0 0 30px rgba(91,110,255,.18);
+}
+
+.hero-content{
+  flex:1;
+}
+
+.hero-label{
+  color:var(--muted);
+  font-size:.76rem;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  margin-bottom:8px;
+}
+
+.hero-text{
+  font-size:1.1rem;
+  font-weight:700;
+  color:#fff;
+  margin-bottom:7px;
+}
+
+.hero-time{
+  color:var(--muted);
+  font-size:.78rem;
+}
+
+/* ===== Feed ===== */
+
+.activity-list{
+  max-height:720px;
+  overflow-y:auto;
+}
+
+.activity-item{
+  display:flex;
+  align-items:flex-start;
+  gap:14px;
+
+  padding:16px 22px;
+
+  border-bottom:1px solid rgba(255,255,255,.04);
+
+  transition:.2s;
+  position:relative;
+}
+
+.activity-item:hover{
+  background:rgba(255,255,255,.025);
+}
+
+.activity-item::before{
+  content:"";
+  position:absolute;
+  left:0;
+  top:0;
+  bottom:0;
+  width:3px;
+  background:transparent;
+  transition:.2s;
+}
+
+.activity-item:hover::before{
+  background:var(--p);
+}
+
+.activity-icon{
+  width:44px;
+  height:44px;
+  border-radius:14px;
+
+  display:flex;
+  align-items:center;
+  justify-content:center;
+
+  flex-shrink:0;
+
+  font-size:1.2rem;
+
+  background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.05);
+}
+
+.activity-main{
+  flex:1;
+  min-width:0;
+}
+
+.activity-text{
+  color:#e5edf7;
+  line-height:1.6;
+  font-size:.9rem;
+  word-break:break-word;
+}
+
+.activity-meta{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+
+  margin-top:7px;
+}
+
+.meta-chip{
+  font-size:.68rem;
+  padding:5px 9px;
+  border-radius:999px;
+
+  background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.05);
+
+  color:#cbd5e1;
+}
+
+.activity-time{
+  color:var(--muted);
+  font-size:.72rem;
+}
+
+/* ===== Scrollbar ===== */
+
+.activity-list::-webkit-scrollbar{
+  width:8px;
+}
+
+.activity-list::-webkit-scrollbar-thumb{
+  background:rgba(255,255,255,.12);
+  border-radius:999px;
+}
+
+</style>
+
+<div class="live-page">
+
+  <div class="bg-grid"></div>
+
+  <div class="orb orb1"></div>
+  <div class="orb orb2"></div>
+
+  <div class="particles" id="particles"></div>
+
+  <div class="live-wrap">
+
+    <!-- Header -->
+
+    <div class="live-top">
+
+      <div class="live-title">
+        <h1>Live Sicherheits-Aktivität</h1>
+
+        <p>
+          Verfolge in Echtzeit,
+          wie ModForge Spam erkennt,
+          Scam-Links blockiert,
+          Raids stoppt,
+          Nutzer mutet
+          und automatische Schutzsysteme reagiert.
+        </p>
+      </div>
+
+      <div class="live-badges">
+
+        <div class="live-badge">
+          <span class="live-dot"></span>
+          LIVE STREAM
+        </div>
+
+        <div class="live-badge">
+          🛡️ Auto Protection
+        </div>
+
+        <div class="live-badge">
+          ⚡ Echtzeit Analyse
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- Grid -->
+
+    <div class="live-grid">
+
+      <!-- LEFT -->
+
+      <div class="panel side-panel">
+
+        <div class="panel-head">
+          <h3>System Status</h3>
+        </div>
+
+        <div class="live-status">
+
+          <div class="status-icon">
+            🤖
+          </div>
+
+          <div class="status-info">
+            <strong>ModForge Core</strong>
+            <span>Alle Schutzsysteme aktiv</span>
+          </div>
+
+        </div>
+
+        <div class="live-status">
+
+          <div class="status-icon">
+            🚨
+          </div>
+
+          <div class="status-info">
+            <strong>Raid Detection</strong>
+            <span>Verdächtige Aktivitäten werden geprüft</span>
+          </div>
+
+        </div>
+
+        <div class="live-status">
+
+          <div class="status-icon">
+            🔗
+          </div>
+
+          <div class="status-info">
+            <strong>Invite & Scam Filter</strong>
+            <span>Automatische Link-Erkennung aktiv</span>
+          </div>
+
+        </div>
+
+        <!-- Threats -->
+
+        <div class="threat-box">
+
+          <div class="panel-head" style="margin-bottom:18px;">
+            <h3>Schutzsysteme</h3>
+          </div>
+
+          <div class="threat-item">
+            <div class="threat-head">
+              <span>Raid-Abwehr</span>
+              <span>Aktiv</span>
+            </div>
+
+            <div class="threat-bar">
+              <div class="threat-fill red" style="width:92%"></div>
+            </div>
+          </div>
+
+          <div class="threat-item">
+            <div class="threat-head">
+              <span>Spam-Filter</span>
+              <span>Aktiv</span>
+            </div>
+
+            <div class="threat-bar">
+              <div class="threat-fill yellow" style="width:87%"></div>
+            </div>
+          </div>
+
+          <div class="threat-item">
+            <div class="threat-head">
+              <span>Scam-Schutz</span>
+              <span>Aktiv</span>
+            </div>
+
+            <div class="threat-bar">
+              <div class="threat-fill green" style="width:96%"></div>
+            </div>
+          </div>
+
+          <div class="threat-item">
+            <div class="threat-head">
+              <span>Invite-Filter</span>
+              <span>Aktiv</span>
+            </div>
+
+            <div class="threat-bar">
+              <div class="threat-fill blue" style="width:89%"></div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- RIGHT -->
+
+      <div class="panel feed-panel">
+
+        <div class="feed-top">
+
+          <h2>📡 Live Feed</h2>
+
+          <div class="feed-tags">
+            <div class="feed-tag">Spam</div>
+            <div class="feed-tag">Raid</div>
+            <div class="feed-tag">Scam</div>
+            <div class="feed-tag">Moderation</div>
+            <div class="feed-tag">Voice</div>
+          </div>
+
+        </div>
+
+        <!-- Hero -->
+
+        <div class="hero-event">
+
+          <div class="hero-icon" id="heroIcon">
+            🛡️
+          </div>
+
+          <div class="hero-content">
+
+            <div class="hero-label">
+              Letzte Sicherheitsaktion
+            </div>
+
+            <div class="hero-text" id="heroText">
+              Warte auf Ereignisse...
+            </div>
+
+            <div class="hero-time" id="heroTime"></div>
+
+          </div>
+
+        </div>
+
+        <!-- Feed -->
+
+        <div class="activity-list" id="activityList">
+
+          <div style="padding:20px;color:var(--muted)">
+            Lade Aktivität...
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
   </div>
 
-  <!-- LETZTES EVENT (HERO-KARTE) -->
-  <div id="last-event-card" class="live-event-card reveal" style="background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 24px; display: flex; align-items: center; gap: 20px; margin-bottom: 30px; min-height: 100px;">
-    <div style="width: 56px; height: 56px; background: var(--p); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; flex-shrink: 0;" id="event-icon">🛡️</div>
-    <div style="flex: 1;">
-      <div style="font-weight: 300; color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em;">Letzte Aktion</div>
-      <div id="event-text" style="font-weight: 600; font-size: 1.1rem; margin-top: 4px;">Warte auf Ereignisse…</div>
-      <div id="event-time" style="color: var(--muted); font-size: 0.8rem; margin-top: 4px;"></div>
-    </div>
-  </div>
-
-  <!-- AKTIVITÄTS-LISTE -->
-  <div class="live-log" style="background: var(--card); border: 1px solid var(--border); border-radius: 16px; overflow: hidden;">
-    <div style="padding: 16px 20px; border-bottom: 1px solid var(--border); font-weight: 600; font-size: 0.95rem;">📋 Aktivitätsverlauf</div>
-    <div id="activity-list" style="max-height: 500px; overflow-y: auto;">
-      <div style="padding: 14px 20px; color: var(--muted);">Lade…</div>
-    </div>
-  </div>
 </div>
 
 <script>
-  // Icon-Mapping für Event‑Typen
-  const icons = {
-    'ban': '🔨',
-    'kick': '👢',
-    'warn': '⚠️',
-    'timeout': '⏳',
-    'mute': '🔇',
-    'unmute': '🔊',
-    'join': '➕',
-    'leave': '➖',
-    'voice': '🎙️',
-    'spam': '🧹',
-    'nuke': '☢️',
-    'raid': '🚨',
-    'case': '📋',
-    'ready': '✅',
-    'oauth_login': '🔑',
-    'guild_join': '📥',
-    'guild_leave': '📤',
-    'audit': '🔍',
-    'default': '🛡️'
-  };
 
-  function formatTime(ts) {
-    if (!ts) return '';
-    const d = new Date(ts);
-    return d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+/* ===== Particle System ===== */
+
+(() => {
+
+  const container = document.getElementById('particles');
+
+  for(let i = 0; i < 80; i++){
+
+    const p = document.createElement('div');
+
+    p.className = 'particle';
+
+    const size = Math.random() * 4 + 1;
+
+    p.style.width = size + 'px';
+    p.style.height = size + 'px';
+
+    p.style.left = Math.random() * 100 + '%';
+
+    p.style.animationDuration =
+      (Math.random() * 18 + 10) + 's';
+
+    p.style.animationDelay =
+      (Math.random() * 10) + 's';
+
+    container.appendChild(p);
+
   }
 
-  function renderActivity(data) {
-    if (!data || !data.length) return;
+})();
 
-    // Letztes Event (Hero-Karte)
-    const last = data[0];
-    const icon = icons[last.kind] || icons['default'];
-    document.getElementById('event-icon').textContent = icon;
-    document.getElementById('event-text').textContent = last.text || 'Kein Text';
-    document.getElementById('event-time').textContent = last.ts ? formatTime(last.ts) : '';
+/* ===== Icons ===== */
 
-    // Liste der letzten 20
-    const list = document.getElementById('activity-list');
-    let html = '';
-    data.slice(0, 30).forEach(ev => {
-      const evIcon = icons[ev.kind] || icons['default'];
-      html += `
-        <div style="display: flex; align-items: flex-start; gap: 12px; padding: 10px 20px; border-bottom: 1px solid rgba(255,255,255,0.04);">
-          <span style="font-size: 1.2rem; flex-shrink: 0;">${evIcon}</span>
-          <div style="flex: 1; min-width: 0;">
-            <div style="font-size: 0.88rem; word-break: break-word;">${ev.text || ''}</div>
-            <div style="font-size: 0.7rem; color: var(--muted); margin-top: 2px;">${ev.ts ? formatTime(ev.ts) : ''}</div>
+const icons = {
+
+  raid:'🚨',
+  spam:'🧹',
+  mute:'🔇',
+  timeout:'⏳',
+  invite:'🔗',
+  scam:'⚠️',
+  warn:'⚠️',
+  voice:'🎙️',
+  nuke:'☢️',
+  join:'➕',
+  leave:'➖',
+  automod:'🤖',
+  filter:'🛡️',
+  default:'🛡️'
+};
+
+/* ===== Time ===== */
+
+function formatTime(ts){
+
+  if(!ts) return '';
+
+  const d = new Date(ts);
+
+  return d.toLocaleTimeString('de-DE', {
+    hour:'2-digit',
+    minute:'2-digit',
+    second:'2-digit'
+  });
+}
+
+/* ===== Sanitize ===== */
+
+function sanitize(text){
+
+  if(!text) return 'Keine Informationen';
+
+  return text
+
+    /* IDs */
+    .replace(/\b\d{5,25}\b/g,'[ID]')
+
+    /* Discord invites */
+    .replace(/discord\.gg\/\S+/gi,'[Invite entfernt]')
+    .replace(/discord\.com\/invite\/\S+/gi,'[Invite entfernt]')
+
+    /* URLs */
+    .replace(/https?:\/\/\S+/gi,'[Link entfernt]')
+
+    /* Server names */
+    .replace(/Guild:.*/gi,'Server verborgen')
+
+    /* mentions */
+    .replace(/<@!?(\d+)>/g,'@User')
+
+    .replace(/<@&(\d+)>/g,'@Role');
+}
+
+/* ===== Render ===== */
+
+function renderActivity(data){
+
+  if(!data || !data.length) return;
+
+  const latest = data[0];
+
+  const latestIcon =
+    icons[latest.kind] || icons.default;
+
+  document.getElementById('heroIcon').textContent =
+    latestIcon;
+
+  document.getElementById('heroText').textContent =
+    sanitize(latest.text);
+
+  document.getElementById('heroTime').textContent =
+    formatTime(latest.ts);
+
+  const list =
+    document.getElementById('activityList');
+
+  let html = '';
+
+  data.slice(0,60).forEach(ev => {
+
+    const icon =
+      icons[ev.kind] || icons.default;
+
+    html += `
+
+      <div class="activity-item">
+
+        <div class="activity-icon">
+          ${icon}
+        </div>
+
+        <div class="activity-main">
+
+          <div class="activity-text">
+            ${sanitize(ev.text)}
           </div>
-          ${ev.guild_name ? `<span style="font-size: 0.7rem; color: var(--muted); flex-shrink: 0;">${ev.guild_name}</span>` : ''}
-        </div>`;
-    });
-    list.innerHTML = html || '<div style="padding:14px 20px;color:var(--muted)">Keine Einträge</div>';
+
+          <div class="activity-meta">
+
+            <div class="meta-chip">
+              ${ev.kind || 'system'}
+            </div>
+
+            <div class="activity-time">
+              ${ev.ts ? formatTime(ev.ts) : ''}
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    `;
+  });
+
+  list.innerHTML = html;
+
+}
+
+/* ===== Fetch ===== */
+
+async function fetchActivity(){
+
+  try{
+
+    const res =
+      await fetch('/live/api/activity');
+
+    const data =
+      await res.json();
+
+    renderActivity(data);
+
+  }catch(ex){
+
+    console.error(ex);
+
   }
 
-  async function fetchActivity() {
-    try {
-      const res = await fetch('/live/api/activity');
-      const data = await res.json();
-      renderActivity(data);
-    } catch(ex) {
-      console.error(ex);
-    }
-  }
+}
 
-  fetchActivity();
-  setInterval(fetchActivity, 4000); // alle 4 Sekunden aktualisieren
+fetchActivity();
+
+setInterval(fetchActivity,2500);
+
 </script>
+
 {% endblock %}
