@@ -6,6 +6,7 @@ import time
 import threading
 from collections import defaultdict, deque
 from functools import wraps
+from werkzeug.security import check_password_hash, generate_password_hash
 
 from .app import flask_app
 from .auth import get_session, require_auth
@@ -60,6 +61,36 @@ def admin_required(f):
 def home():
     gc, mc, up, lat = _bot_stats()
     cid = str(bot.user.id) if bot.user else str(DISCORD_CLIENT_ID or "")
+
+    # Echte Serverdaten für den Ticker aufbereiten
+    guilds_payload = []
+    if bot.is_ready():
+        for g in bot.guilds:
+            # Online‑Schätzung (approximate presence)
+            online = getattr(g, 'approximate_presence_count', None) or 0
+
+            # Einfacher Security‑Score (Demonstration)
+            security = 85
+            if g.verification_level.value >= 2:   # MEDIUM oder höher
+                security += 8
+            if getattr(g, 'premium_subscription_count', 0) > 0:
+                security += 7
+            security = min(security, 100)
+
+            avatar_url = g.icon.url if g.icon else f"https://cdn.discordapp.com/embed/avatars/{g.id % 5}.png"
+
+            guilds_payload.append({
+                "name": g.name,
+                "members": g.member_count or 0,
+                "online": online,
+                "security": security,
+                "avatar_url": avatar_url,
+                "id": g.id,
+            })
+
+    # Nach Mitgliedern absteigend sortieren
+    guilds_payload.sort(key=lambda x: x["members"], reverse=True)
+
     return render_template(
         "index.html",
         cid=cid,
@@ -72,6 +103,7 @@ def home():
         features=FEATURES,
         log_mods=LOG_MODS,
         cmds_preview=CMDS_PREVIEW,
+        guilds=guilds_payload,
     )
 
 @flask_app.route("/status")
@@ -341,7 +373,6 @@ def admin_api_state():
 @flask_app.route('/admin/accounts', methods=['GET', 'POST'])
 @admin_required
 def admin_accounts():
-    from werkzeug.security import generate_password_hash, check_password_hash
     msg = None
     if request.method == 'POST':
         action = request.form.get('action')
