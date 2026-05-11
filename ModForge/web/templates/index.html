@@ -635,20 +635,18 @@
 <script>
   const BOT_CLIENT_ID = "{{ cid }}";
 
-  // Serverliste (statisch, keine API)
+
+  // Reale Server-Daten vom Bot
   const TRUSTED_SERVERS = [
-    {name:"Elite Gaming Hub", avatar:0, members:1240, online: 311, security: 98},
-    {name:"Dev Community", avatar:1, members:850, online: 221, security: 99},
-    {name:"Support HQ", avatar:2, members:630, online: 178, security: 95},
-    {name:"Global Lounge", avatar:3, members:3200, online: 1024, security: 91},
-    {name:"Nitro Zone", avatar:4, members:520, online: 143, security: 88},
-    {name:"Anime Paradise", avatar:5, members:990, online: 312, security: 97},
-    {name:"Tech Talk", avatar:0, members:410, online: 98, security: 100},
-    {name:"FPS Masters", avatar:1, members:720, online: 201, security: 94},
-    {name:"Chill Vibes", avatar:2, members:1800, online: 612, security: 93},
-    {name:"Code & Coffee", avatar:3, members:310, online: 87, security: 100},
-    {name:"Roblox Central", avatar:4, members:2400, online: 890, security: 96},
-    {name:"Music Lounge", avatar:5, members:560, online: 155, security: 92}
+    {% for s in guilds %}
+    {
+      name: "{{ s.name | replace('"', '\\"') }}",
+      members: {{ s.members }},
+      online: {{ s.online }},
+      security: {{ s.security }},
+      avatar_url: "{{ s.avatar_url }}"
+    }{{ "," if not loop.last }}
+    {% endfor %}
   ];
 
   function buildServerTicker() {
@@ -656,16 +654,15 @@
     let html = '';
     for (let i = 0; i < 2; i++) {
       TRUSTED_SERVERS.forEach(s => {
-        const avatarUrl = `https://cdn.discordapp.com/embed/avatars/${s.avatar}.png`;
         html += `
           <div class="ticker-card">
-            <img src="${avatarUrl}" alt="${s.name}">
+            <img src="${s.avatar_url}" alt="${s.name}">
             <span>${s.name}</span>
             <span style="color:var(--p); font-weight:700;">${s.members}+</span>
             <span class="server-security">🛡️ ${s.security}</span>
             <div class="hover-preview">
               <div class="preview-header">
-                <img src="${avatarUrl}" style="width:24px;height:24px;border-radius:50%;">
+                <img src="${s.avatar_url}" style="width:24px;height:24px;border-radius:50%;">
                 <span>${s.name}</span>
               </div>
               <div class="preview-stat"><span>👥 Mitglieder</span><span>${s.members}</span></div>
@@ -678,6 +675,7 @@
     }
     ticker.innerHTML = html;
   }
+
 
   document.addEventListener('DOMContentLoaded', function() {
     AOS.init({ duration: 800, once: true, offset: 80 });
