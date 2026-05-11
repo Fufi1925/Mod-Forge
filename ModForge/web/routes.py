@@ -66,12 +66,10 @@ def home():
     guilds_payload = []
     if bot.is_ready():
         for g in bot.guilds:
-            # Online‑Schätzung (approximate presence)
             online = getattr(g, 'approximate_presence_count', None) or 0
 
-            # Einfacher Security‑Score (Demonstration)
             security = 85
-            if g.verification_level.value >= 2:   # MEDIUM oder höher
+            if g.verification_level.value >= 2:
                 security += 8
             if getattr(g, 'premium_subscription_count', 0) > 0:
                 security += 7
@@ -88,8 +86,32 @@ def home():
                 "id": g.id,
             })
 
-    # Nach Mitgliedern absteigend sortieren
     guilds_payload.sort(key=lambda x: x["members"], reverse=True)
+
+    # Globale Statistiken aus der DB (echte Werte)
+    cases_total = 0
+    warns_total = 0
+    if bot.is_ready() and bot.db:
+        try:
+            # MongoDB collection names: 'cases' und 'warnings' (wie im Code verwendet)
+            cases_total = safe_async(bot.db.cases.count_documents({})) or 0
+            warns_coll = getattr(bot.db, 'warnings', None) or getattr(bot.db, 'warns', None)
+            if warns_coll:
+                warns_total = safe_async(warns_coll.count_documents({})) or 0
+        except Exception as e:
+            log.error(f"Fehler beim Abrufen globaler Stats: {e}")
+
+    # Zukünftige Zähler (noch nicht implementiert) – ehrliche 0 statt Fake
+    raids_prevented = 0
+    spam_filtered = 0
+    phishing_blocked = 0
+
+    # Formatierung mit Tausenderpunkten
+    raids_fmt = f"{raids_prevented:,}"
+    spam_fmt = f"{spam_filtered:,}"
+    phish_fmt = f"{phishing_blocked:,}"
+    cases_fmt = f"{cases_total:,}"
+    warns_fmt = f"{warns_total:,}"
 
     return render_template(
         "index.html",
@@ -104,8 +126,14 @@ def home():
         log_mods=LOG_MODS,
         cmds_preview=CMDS_PREVIEW,
         guilds=guilds_payload,
+        raids=raids_fmt,
+        spam=spam_fmt,
+        phishing=phish_fmt,
+        cases=cases_fmt,
+        warns=warns_fmt,
     )
 
+# ---------- restliche routes unverändert ----------
 @flask_app.route("/status")
 def status_page():
     gc, mc, up, lat = _bot_stats()
@@ -149,14 +177,11 @@ def metrics():
         mimetype="text/plain",
     )
 
-# ---------- LOGIN PAGE (leitet zu OAuth2) ----------
 @flask_app.route("/login")
 def discord_login_page():
-    """Einfache Login‑Seite, verlinkt auf den Discord‑OAuth2‑Flow."""
     cid = str(bot.user.id) if bot.user else str(DISCORD_CLIENT_ID or "")
     return render_template("login.html", cid=cid)
 
-# ---------- SERVER LOGIN (eigenes System) ----------
 @flask_app.route('/server-login', methods=['GET', 'POST'])
 def server_login():
     error = None
@@ -173,27 +198,22 @@ def server_login():
             error = 'Ungültige Zugangsdaten.'
     return render_template('server_login.html', error=error)
 
-# ---------- LOGOUT ----------
 @flask_app.route("/logout")
 def logout():
     session.clear()
-    # Auch den Auth‑Cookie löschen
     resp = redirect(url_for("home"))
     resp.delete_cookie("modforge_session")
     return resp
 
-# ---------- DASHBOARD (geschützt mit require_auth) ----------
 @flask_app.route("/dashboard")
 @require_auth
 def user_dash_home():
-    """Dashboard‑Startseite – nur für eingeloggte Discord‑Nutzer."""
     user_session = get_session()
     if not user_session:
         return redirect(url_for("discord_login_page"))
     user = user_session["user"]
     raw_guilds = user_session.get("guilds", [])
 
-    # Filtere Server, die der User verwalten kann UND auf denen der Bot ist
     manageable = []
     if bot.is_ready():
         bot_guild_ids = {str(g.id) for g in bot.guilds}
@@ -212,13 +232,10 @@ def user_dash_home():
 
 @flask_app.route("/dashboard/<guild_id>/<section>")
 def user_dash_guild(guild_id, section):
-    """Guild‑Detailseite – Zugriff über Discord‑Login oder Server‑Login."""
     user_session = get_session()
 
-    # Server‑Login hat Vorrang
     if session.get('server_guild_id') and str(session['server_guild_id']) == guild_id:
         user = {"username": f"Server {guild_id}", "id": guild_id, "avatar_url": "https://cdn.discordapp.com/embed/avatars/0.png"}
-    # Discord‑Login
     elif user_session and _user_can_manage_guild_in_session(user_session, guild_id):
         user = user_session["user"]
     else:
@@ -249,7 +266,6 @@ def user_dash_guild(guild_id, section):
     )
 
 def _user_can_manage_guild_in_session(user_session, guild_id):
-    """Prüft, ob der Discord‑Benutzer eine bestimmte Guild verwalten darf."""
     if not user_session or not bot.is_ready():
         return False
     bot_guild_ids = {str(g.id) for g in bot.guilds}
