@@ -1,12 +1,14 @@
+# web/auth.py
 import os
 import time
 import secrets
 from urllib.parse import urlencode
+from functools import wraps
 
-import httpx
-from flask import Blueprint, request, redirect, make_response, current_app
+import requests
+from flask import Blueprint, request, redirect, make_response, session as flask_session
 
-# Umgebungsvariablen – KEIN Secret im Code
+# Umgebungsvariablen
 DISCORD_CLIENT_ID = os.getenv("DISCORD_CLIENT_ID")
 DISCORD_CLIENT_SECRET = os.getenv("DISCORD_CLIENT_SECRET")
 DASHBOARD_BASE_URL = os.getenv("DASHBOARD_BASE_URL", "http://mod-forge.up.railway.app").rstrip("/")
@@ -15,7 +17,7 @@ REDIRECT_URI = f"{DASHBOARD_BASE_URL}/dashboard/auth/callback"
 DISCORD_API = "https://discord.com/api/v10"
 SESSION_COOKIE = "modforge_session"
 
-# Einfacher In‑Memory Session Store (für Produktion ggf. Redis verwenden)
+# Session-Store
 sessions = {}
 
 auth_bp = Blueprint("auth", __name__, template_folder="templates")
@@ -27,12 +29,12 @@ def _make_session_id():
 
 @auth_bp.route("/dashboard/login")
 def login():
-    """Leitet den Benutzer zu Discord OAuth2 weiter."""
+    """Weiterleitung zu Discord OAuth2."""
     if not DISCORD_CLIENT_ID or not DISCORD_CLIENT_SECRET:
-        return "Dashboard auth is not configured. Set DISCORD_CLIENT_ID and DISCORD_CLIENT_SECRET env vars.", 503
+        return "Dashboard auth not configured.", 503
 
     state = secrets.token_urlsafe(16)
-    # Optional: State‑Validierung (kann später ergänzt werden)
+    flask_session["oauth_state"] = state  # optional State-Check
     params = {
         "client_id": DISCORD_CLIENT_ID,
         "redirect_uri": REDIRECT_URI,
@@ -46,47 +48,50 @@ def login():
 
 
 @auth_bp.route("/dashboard/auth/callback")
-async def callback():
-    """Tauscht den Code gegen ein Token, lädt Profil & Guilds und erstellt eine Session."""
+def callback():
+    """Code gegen Token tauschen, Profil & Guilds laden, Session erstellen."""
     code = request.args.get("code")
-    if not code:
-        return redirect("/dashboard?error=missing_code")
+    state = request.args.get("state")
+    session_state = flask_session.pop("oauth_state", None)
 
-    # Token abrufen
-    async with httpx.AsyncClient() as client:
-        resp = await client.post(
-            f"{DISCORD_API}/oauth2/token",
-            data={
-                "client_id": DISCORD_CLIENT_ID,
-                "client_secret": DISCORD_CLIENT_SECRET,
-                "grant_type": "authorization_code",
-                "code": code,
-                "redirect_uri": REDIRECT_URI,
-            },
-            headers={"Content-Type": "application/x-www-form-urlencoded"},
-        )
-        try:
-            resp.raise_for_status()
-        except httpx.HTTPStatusError as e:
-            return redirect(f"/dashboard?error=token_exchange_failed&detail={e.response.status_code}")
+    if not code or state != session_state:
+        return redirect("/dashboard?error=invalid_state_or_missing_code")
 
-        token_data = resp.json()
-        access_token = token_data["access_token"]
+    # Token holen
+    token_resp = requests.post(
+        f"{DISCORD_API}/oauth2/token",
+        data={
+            "client_id": DISCORD_CLIENT_ID,
+            "client_secret": DISCORD_CLIENT_SECRET,
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": REDIRECT_URI,
+        },
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    if token_resp.status_code != 200:
+        return redirect(f"/dashboard?error=token_exchange_failed&detail={token_resp.status_code}")
 
-        # Benutzerprofil laden
-        user_resp = await client.get(
-            f"{DISCORD_API}/users/@me",
-            headers={"Authorization": f"Bearer {access_token}"},
-        )
-        user_resp.raise_for_status()
-        user = user_resp.json()
+    token_data = token_resp.json()
+    access_token = token_data["access_token"]
 
-        # Guilds laden
-        guild_resp = await client.get(
-            f"{DISCORD_API}/users/@me/guilds",
-            headers={"Authorization": f"Bearer {access_token}"},
-        )
-        guild_resp.raise_for_status()
+    # Benutzer laden
+    user_resp = requests.get(
+        f"{DISCORD_API}/users/@me",
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+    if user_resp.status_code != 200:
+        return redirect("/dashboard?error=user_fetch_failed")
+    user = user_resp.json()
+
+    # Guilds laden
+    guild_resp = requests.get(
+        f"{DISCORD_API}/users/@me/guilds",
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+    if guild_resp.status_code != 200:
+        guilds = []
+    else:
         guilds = guild_resp.json()
 
     avatar_hash = user.get("avatar")
@@ -109,51 +114,48 @@ async def callback():
         "guilds": guilds,
     }
 
-    response = make_response(redirect("/dashboard"))
-    response.set_cookie(
+    resp = make_response(redirect("/dashboard"))
+    resp.set_cookie(
         SESSION_COOKIE,
         session_id,
         httponly=True,
         samesite="lax",
-        secure=False,          # in Produktion mit HTTPS auf True setzen
+        secure=False,  # auf True setzen, sobald HTTPS genutzt wird
         max_age=7 * 24 * 3600,
     )
-    return response
+    return resp
 
 
 @auth_bp.route("/dashboard/logout")
 def logout():
-    """Session zerstören und Cookie löschen."""
-    session_id = request.cookies.get(SESSION_COOKIE)
-    if session_id:
-        sessions.pop(session_id, None)
-    response = make_response(redirect("/"))
-    response.delete_cookie(SESSION_COOKIE)
-    return response
+    """Session beenden und Cookie entfernen."""
+    sid = request.cookies.get(SESSION_COOKIE)
+    if sid:
+        sessions.pop(sid, None)
+    resp = make_response(redirect("/"))
+    resp.delete_cookie(SESSION_COOKIE)
+    return resp
 
 
+# ---------- Hilfsfunktionen für andere Routen ----------
 def get_session():
-    """Aktuelle Session aus dem Cookie auslesen."""
+    """Aktuelle Session aus dem Cookie holen."""
     sid = request.cookies.get(SESSION_COOKIE)
     if not sid:
         return None
     session = sessions.get(sid)
-    if session and time.time() - session["created_at"] < 7 * 24 * 3600:
-        return session
-    # Session abgelaufen
-    sessions.pop(sid, None)
-    return None
+    if not session or time.time() - session["created_at"] > 7 * 24 * 3600:
+        if sid in sessions:
+            del sessions[sid]
+        return None
+    return session
 
 
 def require_auth(f):
-    """Dekorator, der unauthentifizierte Benutzer weiterleitet."""
-    from functools import wraps
-
+    """Decorator, der unauthentifizierte Nutzer zum Login schickt."""
     @wraps(f)
     def wrapper(*args, **kwargs):
-        session = get_session()
-        if not session:
+        if not get_session():
             return redirect("/dashboard/login")
         return f(*args, **kwargs)
-
     return wrapper
