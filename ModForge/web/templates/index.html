@@ -457,7 +457,7 @@
   </div>
 </section>
 
-<!-- Global Stats (statische Werte) -->
+<!-- Global Stats (echte DB‑Werte) -->
 <section class="section section-alt">
   <div class="container">
     <div class="sec-head" data-aos="fade-up">
@@ -466,11 +466,11 @@
       <div class="live-pill"><span class="live-dot" style="width:6px;height:6px;"></span> Stand heute</div>
     </div>
     <div class="gstats-grid" data-aos="fade-up">
-      <div class="gstat-card"><div class="gstat-num">12,847</div><div class="gstat-lbl">Raids verhindert (gesamt)</div></div>
-      <div class="gstat-card"><div class="gstat-num">2,340,991</div><div class="gstat-lbl">Spam-Nachrichten gefiltert</div></div>
-      <div class="gstat-card"><div class="gstat-num">89,234</div><div class="gstat-lbl">Phishing-Links blockiert</div></div>
-      <div class="gstat-card"><div class="gstat-num">156,902</div><div class="gstat-lbl">Cases erstellt</div></div>
-      <div class="gstat-card"><div class="gstat-num">342,187</div><div class="gstat-lbl">Warns ausgestellt</div></div>
+      <div class="gstat-card"><div class="gstat-num">{{ raids }}</div><div class="gstat-lbl">Raids verhindert (gesamt)</div></div>
+      <div class="gstat-card"><div class="gstat-num">{{ spam }}</div><div class="gstat-lbl">Spam-Nachrichten gefiltert</div></div>
+      <div class="gstat-card"><div class="gstat-num">{{ phishing }}</div><div class="gstat-lbl">Phishing-Links blockiert</div></div>
+      <div class="gstat-card"><div class="gstat-num">{{ cases }}</div><div class="gstat-lbl">Cases erstellt</div></div>
+      <div class="gstat-card"><div class="gstat-num">{{ warns }}</div><div class="gstat-lbl">Warns ausgestellt</div></div>
     </div>
   </div>
 </section>
