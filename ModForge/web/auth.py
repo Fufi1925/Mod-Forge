@@ -1,64 +1,159 @@
-import urllib.request, urllib.parse, json
-import logging
-from flask import session
-from typing import List, Optional
-from bot.bot import BOT_REF
+import os
+import time
+import secrets
+from urllib.parse import urlencode
 
-log = logging.getLogger("ModForge.Web.Auth")
+import httpx
+from flask import Blueprint, request, redirect, make_response, current_app
+
+# Umgebungsvariablen – KEIN Secret im Code
+DISCORD_CLIENT_ID = os.getenv("DISCORD_CLIENT_ID")
+DISCORD_CLIENT_SECRET = os.getenv("DISCORD_CLIENT_SECRET")
+DASHBOARD_BASE_URL = os.getenv("DASHBOARD_BASE_URL", "http://mod-forge.up.railway.app").rstrip("/")
+
+REDIRECT_URI = f"{DASHBOARD_BASE_URL}/dashboard/auth/callback"
 DISCORD_API = "https://discord.com/api/v10"
+SESSION_COOKIE = "modforge_session"
 
-def _discord_api_call(path: str, token: str = None, method: str = "GET", data: dict = None):
-    url = f"{DISCORD_API}{path}"
-    headers = {"Content-Type": "application/x-www-form-urlencoded", "Accept": "application/json"}
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
-    body = None
-    if data:
-        body = urllib.parse.urlencode(data).encode()
-        headers["Content-Type"] = "application/x-www-form-urlencoded"
-    req = urllib.request.Request(url, data=body, headers=headers, method=method)
-    try:
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            return json.loads(resp.read())
-    except urllib.error.HTTPError as ex:
-        log.error(f"Discord API {path}: {ex.code}")
+# Einfacher In‑Memory Session Store (für Produktion ggf. Redis verwenden)
+sessions = {}
+
+auth_bp = Blueprint("auth", __name__, template_folder="templates")
+
+
+def _make_session_id():
+    return secrets.token_hex(32)
+
+
+@auth_bp.route("/dashboard/login")
+def login():
+    """Leitet den Benutzer zu Discord OAuth2 weiter."""
+    if not DISCORD_CLIENT_ID or not DISCORD_CLIENT_SECRET:
+        return "Dashboard auth is not configured. Set DISCORD_CLIENT_ID and DISCORD_CLIENT_SECRET env vars.", 503
+
+    state = secrets.token_urlsafe(16)
+    # Optional: State‑Validierung (kann später ergänzt werden)
+    params = {
+        "client_id": DISCORD_CLIENT_ID,
+        "redirect_uri": REDIRECT_URI,
+        "response_type": "code",
+        "scope": "identify guilds",
+        "prompt": "consent",
+        "state": state,
+    }
+    auth_url = f"https://discord.com/oauth2/authorize?{urlencode(params)}"
+    return redirect(auth_url, code=302)
+
+
+@auth_bp.route("/dashboard/auth/callback")
+async def callback():
+    """Tauscht den Code gegen ein Token, lädt Profil & Guilds und erstellt eine Session."""
+    code = request.args.get("code")
+    if not code:
+        return redirect("/dashboard?error=missing_code")
+
+    # Token abrufen
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(
+            f"{DISCORD_API}/oauth2/token",
+            data={
+                "client_id": DISCORD_CLIENT_ID,
+                "client_secret": DISCORD_CLIENT_SECRET,
+                "grant_type": "authorization_code",
+                "code": code,
+                "redirect_uri": REDIRECT_URI,
+            },
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
         try:
-            return json.loads(ex.read())
-        except:
-            return None
-    except Exception as ex:
-        log.error(f"Discord API {path}: {ex}")
+            resp.raise_for_status()
+        except httpx.HTTPStatusError as e:
+            return redirect(f"/dashboard?error=token_exchange_failed&detail={e.response.status_code}")
+
+        token_data = resp.json()
+        access_token = token_data["access_token"]
+
+        # Benutzerprofil laden
+        user_resp = await client.get(
+            f"{DISCORD_API}/users/@me",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        user_resp.raise_for_status()
+        user = user_resp.json()
+
+        # Guilds laden
+        guild_resp = await client.get(
+            f"{DISCORD_API}/users/@me/guilds",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        guild_resp.raise_for_status()
+        guilds = guild_resp.json()
+
+    avatar_hash = user.get("avatar")
+    avatar_url = (
+        f"https://cdn.discordapp.com/avatars/{user['id']}/{avatar_hash}.png?size=128"
+        if avatar_hash
+        else "https://cdn.discordapp.com/embed/avatars/0.png"
+    )
+
+    session_id = _make_session_id()
+    sessions[session_id] = {
+        "access_token": access_token,
+        "created_at": time.time(),
+        "user": {
+            "id": user["id"],
+            "username": user.get("username", "Discord User"),
+            "global_name": user.get("global_name"),
+            "avatar_url": avatar_url,
+        },
+        "guilds": guilds,
+    }
+
+    response = make_response(redirect("/dashboard"))
+    response.set_cookie(
+        SESSION_COOKIE,
+        session_id,
+        httponly=True,
+        samesite="lax",
+        secure=False,          # in Produktion mit HTTPS auf True setzen
+        max_age=7 * 24 * 3600,
+    )
+    return response
+
+
+@auth_bp.route("/dashboard/logout")
+def logout():
+    """Session zerstören und Cookie löschen."""
+    session_id = request.cookies.get(SESSION_COOKIE)
+    if session_id:
+        sessions.pop(session_id, None)
+    response = make_response(redirect("/"))
+    response.delete_cookie(SESSION_COOKIE)
+    return response
+
+
+def get_session():
+    """Aktuelle Session aus dem Cookie auslesen."""
+    sid = request.cookies.get(SESSION_COOKIE)
+    if not sid:
         return None
+    session = sessions.get(sid)
+    if session and time.time() - session["created_at"] < 7 * 24 * 3600:
+        return session
+    # Session abgelaufen
+    sessions.pop(sid, None)
+    return None
 
-def _get_user_guilds_with_bot(user_guilds: list) -> list:
-    if not BOT_REF:
-        return []
-    bot_guild_ids = {g.id for g in BOT_REF.guilds}
-    result = []
-    for g in user_guilds:
-        perms = g.get("permissions", 0)
-        try:
-            perms = int(perms)
-        except:
-            perms = 0
-        if (perms & 0x20) and int(g["id"]) in bot_guild_ids:
-            bg = BOT_REF.get_guild(int(g["id"]))
-            result.append({
-                "id": g["id"],
-                "name": g["name"],
-                "icon": g.get("icon", ""),
-                "member_count": bg.member_count if bg else 0,
-                "has_bot": True
-            })
-    return result
 
-def _get_session_user():
-    return session.get("discord_user")
+def require_auth(f):
+    """Dekorator, der unauthentifizierte Benutzer weiterleitet."""
+    from functools import wraps
 
-def _user_can_manage_guild(guild_id: str) -> bool:
-    ug = session.get("user_guilds", [])
-    for g in ug:
-        if g.get("id") == guild_id:
-            perms = int(g.get("permissions", 0))
-            return bool(perms & 0x20)
-    return False
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        session = get_session()
+        if not session:
+            return redirect("/dashboard/login")
+        return f(*args, **kwargs)
+
+    return wrapper
