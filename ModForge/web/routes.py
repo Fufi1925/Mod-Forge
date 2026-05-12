@@ -416,7 +416,41 @@ def admin_accounts():
 # ---------- LIVE ACTIVITY PAGE ----------
 @flask_app.route('/live')
 def live_activity():
-    return render_template('live.html')
+    # Echte Bot-Daten sammeln
+    gc, mc, uptime_seconds, lat = _bot_stats()
+
+    # Uptime-Prozent (Anteil der Bot-Laufzeit am aktuellen Monat)
+    now = time.time()
+    # Monatsbeginn in Sekunden
+    month_start = datetime.datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0).timestamp()
+    total_month_seconds = max(1, now - month_start)
+    uptime_pct = min(100.0, round((uptime_seconds / total_month_seconds) * 100, 3))
+
+    # Cases und Archiv-Nachrichten zählen
+    try:
+        cases_count = safe_async(bot.db.cases.count_documents({})) if bot.is_ready() and bot.db else 0
+        archive_count = safe_async(bot.db.message_archive.count_documents({})) if bot.is_ready() and bot.db else 0
+    except Exception:
+        cases_count = 0
+        archive_count = 0
+
+    # Shard-Anzahl (falls Sharding aktiv)
+    shard_count = getattr(bot, 'shard_count', 1) or 1
+
+    # Aktuelle Aktivitäten (letzte 3)
+    recent_activities = ACTIVITY.snapshot(3)
+
+    return render_template(
+        "live.html",
+        uptime_pct=f"{uptime_pct:.3f}",
+        api_latency=round(lat),
+        guild_count=gc,
+        member_count=mc,
+        shard_count=shard_count,
+        cases_count=cases_count,
+        archive_count=archive_count,
+        recent_activities=recent_activities,
+    )
 
 @flask_app.route('/live/api/activity')
 def live_api_activity():
