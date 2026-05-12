@@ -67,7 +67,6 @@ def home():
     if bot.is_ready():
         for g in bot.guilds:
             online = getattr(g, 'approximate_presence_count', None) or 0
-
             security = 85
             if g.verification_level.value >= 2:
                 security += 8
@@ -93,7 +92,6 @@ def home():
     warns_total = 0
     if bot.is_ready() and bot.db:
         try:
-            # MongoDB collection names: 'cases' und 'warnings' (wie im Code verwendet)
             cases_total = safe_async(bot.db.cases.count_documents({})) or 0
             warns_coll = getattr(bot.db, 'warnings', None) or getattr(bot.db, 'warns', None)
             if warns_coll:
@@ -133,30 +131,33 @@ def home():
         warns=warns_fmt,
     )
 
-# ---------- restliche routes unverändert ----------
 @flask_app.route("/status")
 def status_page():
     gc, mc, uptime_seconds, lat = _bot_stats()
-    # Monatliche Uptime
     now = time.time()
     month_start = datetime.datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0).timestamp()
     total_month_seconds = max(1, now - month_start)
     uptime_pct = min(100.0, round((uptime_seconds / total_month_seconds) * 100, 3))
-    # Cases & Archiv (optional, falls im Template verwendet)
-    try:
-        cases_count = safe_async(bot.db.cases.count_documents({})) if bot.is_ready() and bot.db else 0
-        archive_count = safe_async(bot.db.message_archive.count_documents({})) if bot.is_ready() and bot.db else 0
-    except Exception:
-        cases_count, archive_count = 0, 0
+
+    # Absicherung: Keine None-Werte an das Template
+    cases_count = archive_count = 0
+    if bot.is_ready() and bot.db:
+        try:
+            raw_cases = safe_async(bot.db.cases.count_documents({}))
+            raw_archive = safe_async(bot.db.message_archive.count_documents({}))
+        except Exception:
+            raw_cases = raw_archive = None
+        cases_count = raw_cases if isinstance(raw_cases, int) else 0
+        archive_count = raw_archive if isinstance(raw_archive, int) else 0
 
     return render_template(
         "status.html",
         gc=gc,
         mc=mc,
-        member_count=mc,          # Alias, falls das Template "member_count" erwartet
+        member_count=mc,
         cases_count=cases_count,
         archive_count=archive_count,
-        up_s=uptime_seconds,      # Uptime in Sekunden (falls anders verwendet)
+        up_s=uptime_seconds,
         lat=round(lat),
         uptime_pct=f"{uptime_pct:.3f}",
         api_latency=round(lat),
@@ -410,7 +411,6 @@ def admin_api_state():
     _admin_cache["ts"] = time.time()
     return jsonify(data)
 
-# ---------- ADMIN: Server-Accounts verwalten ----------
 @flask_app.route('/admin/accounts', methods=['GET', 'POST'])
 @admin_required
 def admin_accounts():
@@ -441,28 +441,17 @@ def admin_accounts():
 # ---------- LIVE ACTIVITY PAGE ----------
 @flask_app.route('/live')
 def live_activity():
-    # Echte Bot-Daten sammeln
     gc, mc, uptime_seconds, lat = _bot_stats()
-
-    # Uptime-Prozent (Anteil der Bot-Laufzeit am aktuellen Monat)
     now = time.time()
-    # Monatsbeginn in Sekunden
     month_start = datetime.datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0).timestamp()
     total_month_seconds = max(1, now - month_start)
     uptime_pct = min(100.0, round((uptime_seconds / total_month_seconds) * 100, 3))
-
-    # Cases und Archiv-Nachrichten zählen
     try:
         cases_count = safe_async(bot.db.cases.count_documents({})) if bot.is_ready() and bot.db else 0
         archive_count = safe_async(bot.db.message_archive.count_documents({})) if bot.is_ready() and bot.db else 0
     except Exception:
-        cases_count = 0
-        archive_count = 0
-
-    # Shard-Anzahl (falls Sharding aktiv)
+        cases_count = archive_count = 0
     shard_count = getattr(bot, 'shard_count', 1) or 1
-
-    # Aktuelle Aktivitäten (letzte 3)
     recent_activities = ACTIVITY.snapshot(3)
 
     return render_template(
