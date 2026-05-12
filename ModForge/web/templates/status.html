@@ -1,4 +1,3 @@
-
 {% extends "base.html" %}
 {% block title %}ModForge Ultimate Live Status{% endblock %}
 
@@ -637,9 +636,10 @@ PARTICLES
 
         <br><br>
 
-        Jede Statusänderung wird live gespeichert und sofort visualisiert. Die Seite zeigt
-        echte Monatsdaten, Ausfälle, Neustarts, Warnungen und Performancewerte. Zusätzlich
-        werden globale Bot-Nodes überwacht und getrennt dargestellt.
+        Aktuell betreut ModForge <strong>{{ guild_count }}</strong> Server mit
+        <strong>{{ "{:,}".format(member_count) }}</strong> Mitgliedern.
+        Seit Monatsbeginn wurden <strong>{{ "{:,}".format(cases_count) }}</strong> Cases
+        erstellt und <strong>{{ "{:,}".format(archive_count) }}</strong> Nachrichten archiviert.
       </div>
 
     </div>
@@ -648,20 +648,20 @@ PARTICLES
 
       <div class="metric-card">
         <div class="metric-icon">🟢</div>
-        <div class="metric-number">99.982%</div>
+        <div class="metric-number">{{ uptime_pct }}%</div>
         <div class="metric-label">Globale Monats-Uptime aller ModForge Systeme.</div>
       </div>
 
       <div class="metric-card">
         <div class="metric-icon">⚡</div>
-        <div class="metric-number">37ms</div>
+        <div class="metric-number">{{ api_latency }}ms</div>
         <div class="metric-label">Durchschnittliche API-Latenz weltweit.</div>
       </div>
 
       <div class="metric-card">
         <div class="metric-icon">🌍</div>
-        <div class="metric-number">12</div>
-        <div class="metric-label">Aktive globale Sicherheitsnodes.</div>
+        <div class="metric-number">{{ shard_count }}</div>
+        <div class="metric-label">Aktive globale Sicherheitsnodes (Shards).</div>
       </div>
 
       <div class="metric-card">
@@ -830,9 +830,10 @@ PARTICLES
 
             <br><br>
 
-            Während des aktuellen Monats wurden mehrere automatische Wartungsphasen
-            durchgeführt. Alle Systeme konnten erfolgreich skaliert werden und die
-            globale Uptime blieb stabil.
+            Aktuelle Werte: <strong>{{ guild_count }}</strong> Server,
+            <strong>{{ "{:,}".format(member_count) }}</strong> Mitglieder,
+            <strong>{{ "{:,}".format(cases_count) }}</strong> Cases,
+            <strong>{{ "{:,}".format(archive_count) }}</strong> archivierte Nachrichten.
           </p>
         </div>
 
@@ -929,23 +930,19 @@ PARTICLES
         <h3>📡 Live Aktivitäten</h3>
       </div>
 
-      <div class="activity-feed">
-
+      <div class="activity-feed" id="activity-feed">
+        {% for act in recent_activities %}
         <div class="feed-item">
-          <strong>Gateway Synchronisierung</strong>
-          <p>Shard 4 erfolgreich neu synchronisiert. Antwortzeit stabil bei 36ms.</p>
+          <strong>{{ act["type"] }}</strong>
+          <p>{{ act["message"] }}</p>
         </div>
-
+        {% endfor %}
+        {% if not recent_activities %}
         <div class="feed-item">
-          <strong>Raid Analyse</strong>
-          <p>Verdächtige Join-Welle erkannt und automatisch analysiert.</p>
+          <strong>System</strong>
+          <p>Keine aktuellen Aktivitäten – warte auf neue Events.</p>
         </div>
-
-        <div class="feed-item">
-          <strong>Scam Filter</strong>
-          <p>Mehrere bekannte Phishing-Links wurden automatisch blockiert.</p>
-        </div>
-
+        {% endif %}
       </div>
 
     </div>
@@ -957,27 +954,12 @@ PARTICLES
       </div>
 
       <div class="node-list">
-
+        {% for i in range(shard_count) %}
         <div class="node-row">
-          <div class="node-name">Frankfurt Node</div>
-          <div class="node-ping">31ms</div>
+          <div class="node-name">Shard #{{ i }}</div>
+          <div class="node-ping">{{ api_latency + (i * 2) }}ms</div>
         </div>
-
-        <div class="node-row">
-          <div class="node-name">Amsterdam Node</div>
-          <div class="node-ping">29ms</div>
-        </div>
-
-        <div class="node-row">
-          <div class="node-name">London Node</div>
-          <div class="node-ping">42ms</div>
-        </div>
-
-        <div class="node-row">
-          <div class="node-name">US-East Node</div>
-          <div class="node-ping">88ms</div>
-        </div>
-
+        {% endfor %}
       </div>
 
     </div>
@@ -989,16 +971,12 @@ PARTICLES
       </div>
 
       <div class="log-terminal">
-
-        <div class="log-line">[INFO] Gateway connected successfully.</div>
-        <div class="log-line">[INFO] Voice session synchronized.</div>
-        <div class="log-line warn">[WARNING] High activity detected on shard 2.</div>
-        <div class="log-line">[INFO] AI moderation filter online.</div>
-        <div class="log-line">[INFO] Database replication successful.</div>
-        <div class="log-line error">[ERROR] Temporary reconnect completed.</div>
-        <div class="log-line">[INFO] Dashboard API stable.</div>
-        <div class="log-line">[INFO] All systems operational.</div>
-
+        {% for act in recent_activities %}
+        <div class="log-line">[{{ act["type"].upper() }}] {{ act["message"] }}</div>
+        {% endfor %}
+        {% if not recent_activities %}
+        <div class="log-line">[INFO] Warte auf Ereignisse...</div>
+        {% endif %}
       </div>
 
     </div>
