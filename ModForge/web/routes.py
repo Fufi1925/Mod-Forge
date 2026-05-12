@@ -548,3 +548,105 @@ def user_dash_home():
         servers=manageable,
         cid=get_client_id(),
     )
+
+# =========================================================
+# LIVE PAGE
+# =========================================================
+
+@flask_app.route("/live")
+def live_activity():
+
+    gc, mc, uptime_seconds, lat = _bot_stats()
+
+    now = time.time()
+
+    month_start = datetime.datetime.utcnow().replace(
+        day=1,
+        hour=0,
+        minute=0,
+        second=0,
+        microsecond=0,
+    ).timestamp()
+
+    total_month_seconds = max(
+        1,
+        now - month_start
+    )
+
+    uptime_pct = min(
+        100.0,
+        round(
+            (uptime_seconds / total_month_seconds) * 100,
+            3
+        )
+    )
+
+    db = get_db()
+
+    cases_count = 0
+    archive_count = 0
+
+    if bot_ready() and db:
+
+        try:
+
+            cases_count = safe_collection_count(
+                getattr(db, "cases", None)
+            )
+
+            archive_count = safe_collection_count(
+                getattr(db, "message_archive", None)
+            )
+
+        except Exception as e:
+            log.error(f"[LIVE PAGE ERROR] {e}")
+
+    shard_count = getattr(bot, "shard_count", 1) or 1
+
+    recent_activities = []
+
+    try:
+        recent_activities = ACTIVITY.snapshot(20)
+    except Exception as e:
+        log.error(f"[ACTIVITY SNAPSHOT ERROR] {e}")
+
+    return render_template(
+        "live.html",
+
+        uptime_pct=f"{uptime_pct:.3f}",
+
+        api_latency=round(lat),
+
+        guild_count=gc,
+        member_count=mc,
+
+        shard_count=shard_count,
+
+        cases_count=cases_count,
+        archive_count=archive_count,
+
+        recent_activities=recent_activities,
+    )
+
+
+# =========================================================
+# LIVE API
+# =========================================================
+
+@flask_app.route("/live/api/activity")
+def live_api_activity():
+
+    try:
+
+        data = ACTIVITY.snapshot(50)
+
+        if not isinstance(data, list):
+            data = []
+
+        return jsonify(data)
+
+    except Exception as e:
+
+        log.error(f"[LIVE API ERROR] {e}")
+
+        return jsonify([])
