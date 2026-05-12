@@ -136,8 +136,33 @@ def home():
 # ---------- restliche routes unverändert ----------
 @flask_app.route("/status")
 def status_page():
-    gc, mc, up, lat = _bot_stats()
-    return render_template("status.html", gc=gc, mc=mc, up_s=up, lat=round(lat))
+    gc, mc, uptime_seconds, lat = _bot_stats()
+    # Monatliche Uptime
+    now = time.time()
+    month_start = datetime.datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0).timestamp()
+    total_month_seconds = max(1, now - month_start)
+    uptime_pct = min(100.0, round((uptime_seconds / total_month_seconds) * 100, 3))
+    # Cases & Archiv (optional, falls im Template verwendet)
+    try:
+        cases_count = safe_async(bot.db.cases.count_documents({})) if bot.is_ready() and bot.db else 0
+        archive_count = safe_async(bot.db.message_archive.count_documents({})) if bot.is_ready() and bot.db else 0
+    except Exception:
+        cases_count, archive_count = 0, 0
+
+    return render_template(
+        "status.html",
+        gc=gc,
+        mc=mc,
+        member_count=mc,          # Alias, falls das Template "member_count" erwartet
+        cases_count=cases_count,
+        archive_count=archive_count,
+        up_s=uptime_seconds,      # Uptime in Sekunden (falls anders verwendet)
+        lat=round(lat),
+        uptime_pct=f"{uptime_pct:.3f}",
+        api_latency=round(lat),
+        guild_count=gc,
+        shard_count=getattr(bot, 'shard_count', 1),
+    )
 
 @flask_app.route("/changelog")
 def changelog():
