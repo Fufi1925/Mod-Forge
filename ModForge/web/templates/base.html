@@ -7,765 +7,1113 @@
   <meta name="description" content="Der stärkste Discord‑Sicherheitsbot. Anti‑Nuke, Anti‑Raid, AutoMod, Cases & Web‑Dashboard.">
   <link rel="stylesheet" href="/static/style.css">
   <style>
-    /* ── Glassmorphism ── */
-    .glass-strong {
-      background: rgba(255,255,255,0.04);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 1rem;
+    /* ═══════════════════════════════════════════
+       BASE RESET & TOKENS
+    ═══════════════════════════════════════════ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --violet:    #7c3aed;
+      --violet-l:  #a78bfa;
+      --cyan:      #22d3ee;
+      --cyan-l:    #67e8f9;
+      --amber:     #f59e0b;
+      --amber-l:   #fcd34d;
+      --green:     #4ade80;
+      --red:       #f87171;
+      --bg:        #07070f;
+      --surface:   rgba(255,255,255,0.035);
+      --border:    rgba(255,255,255,0.08);
+      --border-h:  rgba(139,92,246,0.35);
+      --text:      #e2e8f0;
+      --muted:     #94a3b8;
+      --radius-sm: 8px;
+      --radius:    12px;
+      --radius-lg: 18px;
+      --radius-xl: 24px;
+      --trans:     0.2s ease;
     }
 
-    /* ── Gradient Text ── */
-    .text-gradient {
-      background: linear-gradient(135deg, #a78bfa, #22d3ee);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-
-    /* ── Glow breathe ── */
-    @keyframes glowBreathe {
-      0%, 100% { box-shadow: 0 0 10px rgba(139,92,246,0.4); }
-      50%       { box-shadow: 0 0 24px rgba(34,211,238,0.6); }
-    }
-    .glow-breathe { animation: glowBreathe 3s ease-in-out infinite; }
-
-    /* ── Slide down animation ── */
-    @keyframes animDown {
-      from { opacity: 0; transform: translateY(-8px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-    .anim-down { animation: animDown 0.18s ease forwards; }
-
-    /* ── Navbar header ── */
-    #site-header {
+    /* ═══════════════════════════════════════════
+       NOTICE BANNER
+    ═══════════════════════════════════════════ */
+    #global-notice {
+      display: none;
       position: fixed;
       top: 0; left: 0; right: 0;
-      z-index: 9000;
-      transition: padding 0.3s;
-      padding: 12px 0;
+      z-index: 10000;
+      background: linear-gradient(90deg,
+        rgba(124,58,237,0.18) 0%,
+        rgba(15,15,30,0.97) 20%,
+        rgba(15,15,30,0.97) 80%,
+        rgba(34,211,238,0.18) 100%);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border-bottom: 1px solid rgba(139,92,246,0.25);
     }
-    #site-header.scrolled { padding: 6px 0; }
 
-    #nav-inner {
+    .notice-inner {
       max-width: 1280px;
       margin: 0 auto;
-      padding: 0 1.5rem;
+      padding: 0 24px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
     }
 
+    .notice-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .notice-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .notice-pill.warn {
+      background: rgba(245,158,11,0.15);
+      border: 1px solid rgba(245,158,11,0.3);
+      color: #fcd34d;
+    }
+    .notice-pill.live {
+      background: rgba(74,222,128,0.15);
+      border: 1px solid rgba(74,222,128,0.3);
+      color: #4ade80;
+      animation: pillPulse 2s ease-in-out infinite;
+    }
+    @keyframes pillPulse {
+      0%,100% { box-shadow: 0 0 0 0 rgba(74,222,128,0.3); }
+      50%      { box-shadow: 0 0 0 5px rgba(74,222,128,0); }
+    }
+
+    .notice-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+      animation: dotBlink 1.5s ease-in-out infinite;
+    }
+    @keyframes dotBlink {
+      0%,100% { opacity: 1; }
+      50%      { opacity: 0.3; }
+    }
+
+    .notice-text {
+      font-size: 13px;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .notice-text strong { color: var(--text); font-weight: 600; }
+    .notice-text a {
+      color: var(--violet-l);
+      text-decoration: none;
+      font-weight: 600;
+      border-bottom: 1px solid rgba(167,139,250,0.35);
+      transition: color var(--trans), border-color var(--trans);
+    }
+    .notice-text a:hover { color: var(--cyan-l); border-color: var(--cyan-l); }
+
+    .notice-close {
+      width: 28px; height: 28px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.04);
+      color: var(--muted);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      transition: background var(--trans), color var(--trans), border-color var(--trans);
+    }
+    .notice-close:hover {
+      background: rgba(255,255,255,0.09);
+      color: var(--text);
+      border-color: rgba(255,255,255,0.18);
+    }
+    .notice-close svg { width: 14px; height: 14px; }
+
+    /* ═══════════════════════════════════════════
+       NAVBAR HEADER
+    ═══════════════════════════════════════════ */
+    #site-header {
+      position: fixed;
+      left: 0; right: 0;
+      z-index: 9000;
+      transition: top 0.35s cubic-bezier(.4,0,.2,1), padding 0.35s cubic-bezier(.4,0,.2,1);
+      padding: 14px 0;
+    }
+
+    #nav-wrap {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 0 20px;
+    }
+
+    /* ── The actual bar ── */
     #nav-bar {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 10px 20px;
-      transition: box-shadow 0.3s;
+      gap: 8px;
+      padding: 6px 8px 6px 14px;
+      border-radius: var(--radius-xl);
+      background: rgba(7,7,15,0.7);
+      backdrop-filter: blur(28px);
+      -webkit-backdrop-filter: blur(28px);
+      border: 1px solid var(--border);
+      transition: border-color var(--trans), box-shadow var(--trans), padding var(--trans);
     }
-    #site-header.scrolled #nav-bar { box-shadow: 0 8px 40px rgba(0,0,0,0.5); }
+    #site-header.scrolled #nav-bar {
+      border-color: rgba(139,92,246,0.2);
+      box-shadow: 0 8px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(139,92,246,0.08) inset;
+      padding: 4px 8px 4px 14px;
+    }
+    #site-header.scrolled { padding: 8px 0; }
 
     /* ── Brand ── */
-    .nav-brand {
+    .brand-link {
       display: flex;
       align-items: center;
       gap: 10px;
       text-decoration: none;
       flex-shrink: 0;
     }
-    .nav-brand-icon {
+    .brand-orb {
       position: relative;
-      width: 36px; height: 36px;
-      border-radius: 12px;
-      background: linear-gradient(135deg, #7c3aed, #22d3ee);
+      width: 38px; height: 38px;
+      border-radius: 13px;
+      background: linear-gradient(135deg, var(--violet) 0%, #1d4ed8 100%);
       display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      box-shadow: 0 0 0 0 rgba(124,58,237,0.5);
+      animation: orbGlow 3s ease-in-out infinite;
     }
-    .nav-brand-dot {
+    @keyframes orbGlow {
+      0%,100% { box-shadow: 0 0 12px rgba(124,58,237,0.45); }
+      50%      { box-shadow: 0 0 26px rgba(34,211,238,0.55); }
+    }
+    .brand-orb svg { width: 20px; height: 20px; color: #fff; }
+    .brand-status {
       position: absolute;
-      top: -2px; right: -2px;
-      width: 10px; height: 10px;
-      background: #4ade80;
+      bottom: -2px; right: -2px;
+      width: 11px; height: 11px;
       border-radius: 50%;
-      border: 2px solid #0a0a14;
+      background: var(--green);
+      border: 2px solid var(--bg);
+      animation: statusPulse 2s ease-in-out infinite;
     }
-    .nav-brand-text { display: flex; flex-direction: column; line-height: 1.1; }
-    .nav-brand-name { font-size: 1rem; font-weight: 900; }
-    .nav-brand-sub  { font-size: 8px; color: #6b7280; letter-spacing: .15em; text-transform: uppercase; }
+    @keyframes statusPulse {
+      0%,100% { box-shadow: 0 0 0 0 rgba(74,222,128,0.5); }
+      50%      { box-shadow: 0 0 0 5px rgba(74,222,128,0); }
+    }
+    .brand-text { display: flex; flex-direction: column; line-height: 1.15; }
+    .brand-name {
+      font-size: 15px;
+      font-weight: 900;
+      letter-spacing: -.3px;
+      background: linear-gradient(135deg, var(--violet-l), var(--cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .brand-tag {
+      font-size: 9px;
+      color: var(--muted);
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      font-weight: 500;
+    }
 
-    /* ── Desktop nav links ── */
-    #desktop-nav {
+    /* ── Desktop nav center ── */
+    #desk-nav {
       display: flex;
       align-items: center;
-      gap: 2px;
+      gap: 1px;
+      flex: 1;
+      justify-content: center;
     }
-    .nav-link, .nav-mega-btn {
-      display: flex;
+
+    .dnav-link, .dnav-btn {
+      display: inline-flex;
       align-items: center;
-      gap: 6px;
-      padding: 8px 12px;
-      border-radius: 12px;
+      gap: 5px;
+      padding: 7px 11px;
+      border-radius: var(--radius);
       font-size: 13px;
       font-weight: 500;
-      color: #d1d5db;
+      color: var(--muted);
       text-decoration: none;
       border: none;
       background: none;
       cursor: pointer;
-      transition: color 0.2s, background 0.2s;
+      white-space: nowrap;
+      transition: color var(--trans), background var(--trans);
+      position: relative;
     }
-    .nav-link:hover, .nav-mega-btn:hover { color: #fff; background: rgba(255,255,255,0.05); }
-    .nav-link.active  { color: #fff; background: rgba(255,255,255,0.05); border: 1px solid rgba(139,92,246,0.3); }
-    .nav-link.highlight { color: #fcd34d; }
-    .nav-link.highlight:hover { color: #fde68a; background: rgba(245,158,11,0.1); }
-    .nav-mega-btn.open { color: #fff; background: rgba(255,255,255,0.1); }
-    .nav-mega-btn svg.chevron { width: 12px; height: 12px; opacity: 0.5; transition: transform 0.2s; }
-    .nav-mega-btn.open svg.chevron { transform: rotate(180deg); }
+    .dnav-link:hover, .dnav-btn:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+    .dnav-link.active { color: var(--text); background: rgba(255,255,255,0.06); }
+    .dnav-link.active::after {
+      content: '';
+      position: absolute;
+      bottom: 4px; left: 50%; transform: translateX(-50%);
+      width: 16px; height: 2px;
+      border-radius: 2px;
+      background: linear-gradient(90deg, var(--violet-l), var(--cyan));
+    }
+    .dnav-link.hl { color: var(--amber-l); }
+    .dnav-link.hl:hover { color: #fff; background: rgba(245,158,11,0.1); }
+    .dnav-btn.mega-open { color: var(--text); background: rgba(255,255,255,0.07); }
 
-    /* ── Icon helpers ── */
-    .ni { width: 14px; height: 14px; flex-shrink: 0; }
-    .ni-sm { width: 12px; height: 12px; }
+    .dnav-link svg, .dnav-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+    .chevron-icon {
+      width: 11px !important; height: 11px !important;
+      opacity: 0.45;
+      transition: transform var(--trans);
+    }
+    .dnav-btn.mega-open .chevron-icon { transform: rotate(180deg); opacity: 0.8; }
 
-    /* ── CTA button ── */
-    .btn-primary {
+    /* ── Right side ── */
+    #nav-right {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .invite-btn {
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 8px 16px;
-      border-radius: 10px;
-      font-size: 12px;
-      font-weight: 600;
-      background: linear-gradient(135deg, #7c3aed, #2563eb);
+      padding: 8px 18px;
+      border-radius: var(--radius);
+      font-size: 13px;
+      font-weight: 700;
       color: #fff;
       text-decoration: none;
-      transition: opacity 0.2s, transform 0.2s;
+      background: linear-gradient(135deg, var(--violet) 0%, #1d4ed8 100%);
+      border: 1px solid rgba(255,255,255,0.12);
+      transition: opacity var(--trans), transform var(--trans), box-shadow var(--trans);
+      box-shadow: 0 4px 16px rgba(124,58,237,0.35);
       white-space: nowrap;
     }
-    .btn-primary:hover { opacity: 0.85; transform: translateY(-1px); }
+    .invite-btn:hover {
+      opacity: 0.88;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 24px rgba(124,58,237,0.5);
+    }
+    .invite-btn svg { width: 13px; height: 13px; }
 
-    /* ── Mobile toggle ── */
-    #mobile-toggle {
-      width: 36px; height: 36px;
-      border-radius: 12px;
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(255,255,255,0.1);
+    .mob-toggle {
       display: none;
+      width: 36px; height: 36px;
+      border-radius: var(--radius-sm);
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      color: var(--muted);
       align-items: center; justify-content: center;
       cursor: pointer;
-      color: #d1d5db;
+      transition: background var(--trans), color var(--trans);
     }
+    .mob-toggle:hover { background: rgba(255,255,255,0.09); color: var(--text); }
+    .mob-toggle svg { width: 18px; height: 18px; }
 
-    /* ── Mega menu panel ── */
+    /* ═══════════════════════════════════════════
+       MEGA MENU PANEL
+    ═══════════════════════════════════════════ */
     #mega-panel {
-      display: none;
-      margin-top: 8px;
-      padding: 24px;
-      border-radius: 1.25rem;
-      border: 1px solid rgba(255,255,255,0.1);
-      box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+      position: absolute;
+      left: 20px; right: 20px;
+      margin-top: 10px;
+      border-radius: var(--radius-xl);
+      background: rgba(8,8,20,0.96);
+      backdrop-filter: blur(32px);
+      -webkit-backdrop-filter: blur(32px);
+      border: 1px solid var(--border);
+      box-shadow: 0 32px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(139,92,246,0.06) inset;
       overflow: hidden;
+      display: none;
+      z-index: 8999;
     }
-    #mega-panel.visible { display: block; }
+    #mega-panel.open {
+      display: block;
+      animation: panelIn 0.2s cubic-bezier(.4,0,.2,1) forwards;
+    }
+    @keyframes panelIn {
+      from { opacity: 0; transform: translateY(-10px) scale(0.98); }
+      to   { opacity: 1; transform: translateY(0)   scale(1); }
+    }
 
-    .mega-grid {
+    /* Panel inner */
+    .panel-body { display: none; padding: 28px; }
+    .panel-body.visible { display: block; }
+
+    /* Tabs inside panel */
+    .panel-tabs {
+      display: flex;
+      gap: 4px;
+      padding: 6px;
+      border-radius: var(--radius);
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      margin-bottom: 24px;
+    }
+    .ptab {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      border: none;
+      background: none;
+      cursor: pointer;
+      transition: all var(--trans);
+      white-space: nowrap;
+    }
+    .ptab svg { width: 13px; height: 13px; }
+    .ptab:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+    .ptab.active {
+      color: #fff;
+      background: linear-gradient(135deg, rgba(124,58,237,0.35), rgba(29,78,216,0.35));
+      border: 1px solid rgba(139,92,246,0.25);
+      box-shadow: 0 2px 12px rgba(124,58,237,0.2);
+    }
+
+    /* 3-column grid */
+    .mega-cols {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 24px;
+      gap: 20px;
     }
-    .mega-col-title {
-      font-size: 10px;
-      letter-spacing: .15em;
-      text-transform: uppercase;
-      color: #6b7280;
+
+    .mega-group-title {
+      font-size: 9.5px;
       font-weight: 700;
-      margin-bottom: 12px;
-      padding: 0 10px;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: rgba(148,163,184,0.5);
+      margin-bottom: 10px;
+      padding: 0 4px;
     }
-    .mega-link {
+
+    .mega-item {
       display: flex;
       align-items: flex-start;
-      gap: 12px;
-      padding: 10px;
-      border-radius: 12px;
+      gap: 11px;
+      padding: 9px 10px;
+      border-radius: var(--radius);
       text-decoration: none;
-      transition: background 0.2s;
+      transition: background var(--trans);
+      cursor: pointer;
     }
-    .mega-link:hover { background: rgba(255,255,255,0.05); }
-    .mega-link-icon {
-      width: 32px; height: 32px;
-      border-radius: 8px;
-      background: rgba(139,92,246,0.1);
-      border: 1px solid rgba(139,92,246,0.2);
+    .mega-item:hover { background: rgba(255,255,255,0.045); }
+
+    .mega-icon {
+      width: 34px; height: 34px;
+      border-radius: 10px;
+      background: rgba(124,58,237,0.1);
+      border: 1px solid rgba(124,58,237,0.18);
       display: flex; align-items: center; justify-content: center;
       flex-shrink: 0;
-      transition: background 0.2s;
+      transition: background var(--trans), border-color var(--trans);
     }
-    .mega-link:hover .mega-link-icon { background: rgba(139,92,246,0.2); }
-    .mega-link-icon svg { width: 16px; height: 16px; color: #a78bfa; }
-    .mega-link-name {
+    .mega-item:hover .mega-icon {
+      background: rgba(124,58,237,0.22);
+      border-color: rgba(124,58,237,0.35);
+    }
+    .mega-icon svg { width: 15px; height: 15px; color: var(--violet-l); }
+
+    .mega-label {
       font-size: 13px;
       font-weight: 600;
-      color: #fff;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      line-height: 1.3;
     }
-    .mega-link-desc {
-      font-size: 11px;
-      color: #9ca3af;
-      margin-top: 2px;
-    }
-    .mega-badge {
+    .mega-desc { font-size: 11px; color: var(--muted); margin-top: 2px; line-height: 1.4; }
+
+    .mbadge {
       font-size: 8px;
-      font-weight: 700;
+      font-weight: 800;
+      letter-spacing: .06em;
       text-transform: uppercase;
       padding: 2px 6px;
-      border-radius: 4px;
-      margin-left: 4px;
+      border-radius: 5px;
     }
-    .badge-new  { background: rgba(34,211,238,0.2); color: #67e8f9; }
-    .badge-hot  { background: rgba(239,68,68,0.2); color: #fca5a5; }
-    .badge-top  { background: rgba(245,158,11,0.2); color: #fcd34d; }
+    .mbadge-new  { background: rgba(34,211,238,0.15);  color: #67e8f9; border: 1px solid rgba(34,211,238,0.25); }
+    .mbadge-hot  { background: rgba(248,113,113,0.15); color: #fca5a5; border: 1px solid rgba(248,113,113,0.25); }
+    .mbadge-top  { background: rgba(245,158,11,0.15);  color: #fcd34d; border: 1px solid rgba(245,158,11,0.25); }
 
-    .mega-cta {
+    /* CTA strip */
+    .mega-cta-strip {
+      margin-top: 20px;
+      padding-top: 18px;
+      border-top: 1px solid rgba(255,255,255,0.05);
+    }
+    .mega-cta-link {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 16px;
-      border-radius: 12px;
-      background: linear-gradient(135deg, rgba(139,92,246,0.15), rgba(34,211,238,0.15));
-      border: 1px solid rgba(139,92,246,0.2);
+      padding: 14px 18px;
+      border-radius: var(--radius-lg);
       text-decoration: none;
-      margin-top: 16px;
-      transition: border-color 0.2s;
+      background: linear-gradient(135deg,
+        rgba(124,58,237,0.12) 0%,
+        rgba(29,78,216,0.12) 50%,
+        rgba(34,211,238,0.08) 100%);
+      border: 1px solid rgba(124,58,237,0.18);
+      transition: border-color var(--trans), background var(--trans), transform var(--trans);
     }
-    .mega-cta:hover { border-color: rgba(139,92,246,0.4); }
-    .mega-cta-title { font-size: 14px; font-weight: 700; color: #fff; }
-    .mega-cta-desc  { font-size: 12px; color: #9ca3af; margin-top: 2px; }
-    .mega-cta-arrow { color: #a78bfa; transition: transform 0.2s; }
-    .mega-cta:hover .mega-cta-arrow { transform: rotate(12deg); }
+    .mega-cta-link:hover {
+      border-color: rgba(124,58,237,0.4);
+      background: linear-gradient(135deg,
+        rgba(124,58,237,0.2) 0%,
+        rgba(29,78,216,0.2) 50%,
+        rgba(34,211,238,0.12) 100%);
+      transform: translateY(-1px);
+    }
+    .cta-info-title { font-size: 14px; font-weight: 700; color: #fff; }
+    .cta-info-desc  { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .cta-arrow {
+      width: 32px; height: 32px;
+      border-radius: 10px;
+      background: rgba(124,58,237,0.2);
+      border: 1px solid rgba(124,58,237,0.25);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      transition: background var(--trans), transform var(--trans);
+    }
+    .mega-cta-link:hover .cta-arrow {
+      background: rgba(124,58,237,0.4);
+      transform: rotate(12deg);
+    }
+    .cta-arrow svg { width: 14px; height: 14px; color: var(--violet-l); }
 
-    /* ── Mobile menu ── */
-    #mobile-menu {
-      display: none;
-      margin-top: 8px;
-      padding: 12px;
-      border-radius: 1rem;
-      max-height: 80vh;
-      overflow-y: auto;
+    /* Separator between cols */
+    .mega-col-sep {
+      border: none;
+      border-left: 1px solid rgba(255,255,255,0.04);
+      margin: 0 4px;
     }
-    #mobile-menu.visible { display: block; }
-    .mob-link {
+
+    /* ═══════════════════════════════════════════
+       MOBILE MENU
+    ═══════════════════════════════════════════ */
+    #mob-menu {
+      position: absolute;
+      left: 20px; right: 20px;
+      margin-top: 10px;
+      border-radius: var(--radius-xl);
+      background: rgba(8,8,20,0.97);
+      backdrop-filter: blur(32px);
+      -webkit-backdrop-filter: blur(32px);
+      border: 1px solid var(--border);
+      box-shadow: 0 24px 60px rgba(0,0,0,0.7);
+      display: none;
+      max-height: 82vh;
+      overflow-y: auto;
+      z-index: 8999;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(124,58,237,0.3) transparent;
+    }
+    #mob-menu.open {
+      display: block;
+      animation: panelIn 0.2s cubic-bezier(.4,0,.2,1) forwards;
+    }
+    #mob-menu::-webkit-scrollbar { width: 4px; }
+    #mob-menu::-webkit-scrollbar-track { background: transparent; }
+    #mob-menu::-webkit-scrollbar-thumb { background: rgba(124,58,237,0.3); border-radius: 4px; }
+
+    .mob-inner { padding: 12px; }
+
+    /* mob search */
+    .mob-search-wrap {
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 10px 16px;
-      border-radius: 12px;
-      font-size: 14px;
-      color: #d1d5db;
-      text-decoration: none;
-      transition: background 0.2s, color 0.2s;
+      padding: 10px 14px;
+      border-radius: var(--radius);
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      margin-bottom: 12px;
+      transition: border-color var(--trans);
     }
-    .mob-link:hover { background: rgba(255,255,255,0.05); color: #fff; }
-    .mob-link svg { color: #a78bfa; }
-    .mob-details summary {
+    .mob-search-wrap:focus-within { border-color: rgba(124,58,237,0.4); }
+    .mob-search-wrap svg { width: 14px; height: 14px; color: var(--muted); flex-shrink: 0; }
+    .mob-search-wrap input {
+      flex: 1;
+      background: none;
+      border: none;
+      outline: none;
+      font-size: 13px;
+      color: var(--text);
+    }
+    .mob-search-wrap input::placeholder { color: var(--muted); }
+
+    .mob-link {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: var(--radius);
+      font-size: 13.5px;
+      font-weight: 500;
+      color: var(--muted);
+      text-decoration: none;
+      transition: background var(--trans), color var(--trans);
+    }
+    .mob-link:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+    .mob-link.hl { color: var(--amber-l); }
+    .mob-link svg { width: 15px; height: 15px; color: var(--violet-l); flex-shrink: 0; }
+
+    .mob-section-label {
+      font-size: 9.5px;
+      font-weight: 700;
+      letter-spacing: .13em;
+      text-transform: uppercase;
+      color: rgba(148,163,184,0.4);
+      padding: 14px 14px 6px;
+    }
+
+    /* mob accordion */
+    .mob-acc summary {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 10px 16px;
-      border-radius: 12px;
-      font-size: 14px;
-      font-weight: 500;
-      color: #d1d5db;
+      padding: 10px 14px;
+      border-radius: var(--radius);
+      font-size: 13.5px;
+      font-weight: 600;
+      color: var(--muted);
       cursor: pointer;
       list-style: none;
-      transition: background 0.2s;
+      transition: background var(--trans), color var(--trans);
     }
-    .mob-details summary:hover { background: rgba(255,255,255,0.05); }
-    .mob-details summary svg { color: #a78bfa; }
-    .mob-details[open] summary .mob-chevron { transform: rotate(180deg); }
-    .mob-chevron { transition: transform 0.2s; width: 14px; height: 14px; opacity: 0.5; }
-    .mob-sub { margin-left: 24px; margin-top: 4px; margin-bottom: 8px; }
-    .mob-sub a {
-      display: block;
+    .mob-acc summary::-webkit-details-marker { display: none; }
+    .mob-acc summary:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+    .mob-acc[open] summary { color: var(--text); }
+    .mob-acc summary .sacc-left { display: flex; align-items: center; gap: 10px; }
+    .mob-acc summary svg.sacc-icon { width: 15px; height: 15px; color: var(--violet-l); }
+    .mob-acc-chev {
+      width: 14px; height: 14px;
+      opacity: 0.4;
+      transition: transform var(--trans);
+    }
+    .mob-acc[open] .mob-acc-chev { transform: rotate(180deg); opacity: 0.7; }
+
+    .mob-acc-body {
+      padding: 4px 4px 8px 48px;
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+    .mob-sub-link {
+      display: flex;
+      align-items: center;
+      gap: 8px;
       padding: 8px 12px;
-      border-radius: 8px;
+      border-radius: var(--radius-sm);
       font-size: 13px;
-      color: #9ca3af;
+      color: var(--muted);
       text-decoration: none;
-      transition: background 0.2s, color 0.2s;
+      transition: background var(--trans), color var(--trans);
     }
-    .mob-sub a:hover { background: rgba(255,255,255,0.05); color: #fff; }
+    .mob-sub-link:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+    .mob-sub-link svg { width: 13px; height: 13px; color: rgba(167,139,250,0.6); flex-shrink: 0; }
 
-    /* ── Mega separator ── */
-    .mega-sep {
-      grid-column: 1 / -1;
-      border: none;
-      border-top: 1px solid rgba(255,255,255,0.05);
-      margin: 4px 0;
+    .mob-divider {
+      height: 1px;
+      background: rgba(255,255,255,0.05);
+      margin: 8px 0;
     }
 
-    /* ── Responsive ── */
-    @media (max-width: 1279px) {
-      #desktop-nav { display: none; }
-      #mobile-toggle { display: flex; }
-      .btn-invite-desk { display: none !important; }
+    .mob-cta {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px;
+      border-radius: var(--radius);
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+      text-decoration: none;
+      background: linear-gradient(135deg, var(--violet), #1d4ed8);
+      margin: 8px 2px 4px;
+      transition: opacity var(--trans), transform var(--trans);
+    }
+    .mob-cta:hover { opacity: 0.85; transform: translateY(-1px); }
+    .mob-cta svg { width: 15px; height: 15px; }
+
+    /* ═══════════════════════════════════════════
+       RESPONSIVE
+    ═══════════════════════════════════════════ */
+    @media (max-width: 1199px) {
+      #desk-nav { display: none; }
+      .mob-toggle { display: flex; }
     }
     @media (max-width: 639px) {
-      .nav-brand-sub { display: none; }
+      .brand-tag { display: none; }
+      .invite-btn { display: none; }
+    }
+    @media (max-width: 480px) {
+      #nav-wrap { padding: 0 12px; }
+      #mega-panel, #mob-menu { left: 12px; right: 12px; }
     }
   </style>
 </head>
 <body class="page-bg">
-  <!-- 3D-Canvas wird automatisch von script.js erstellt -->
   <div class="page-wrapper">
 
-    <!-- ⚠️ HINWEIS-BANNER -->
-    <div id="global-notice" class="global-notice" style="display:none;">
-      <div class="container" style="display:flex;align-items:center;justify-content:space-between;">
-        <span>
-          ⚠️ <strong>Admin‑Dashboard vorübergehend ausgefallen</strong> –
-          <span style="color:var(--ok);">🟢 NEU:</span>
-          <a href="/live" style="color:var(--p);font-weight:600;text-decoration:underline;">/live – Echtzeit‑Bot‑Aktivität jetzt verfolgen</a>
-        </span>
-        <button id="close-notice" style="background:none;border:none;color:var(--fg);font-size:1.3rem;cursor:pointer;line-height:1;">&times;</button>
+    <!-- ═══════════════════════════════════════
+         NOTICE BANNER
+    ═══════════════════════════════════════ -->
+    <div id="global-notice">
+      <div class="notice-inner">
+        <div class="notice-left">
+          <span class="notice-pill warn">
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            Wartung
+          </span>
+          <span class="notice-pill live">
+            <span class="notice-dot"></span>
+            Live
+          </span>
+          <span class="notice-text">
+            <strong>Admin‑Dashboard vorübergehend ausgefallen</strong> –
+            <a href="/live">⚡ /live – Echtzeit‑Bot‑Aktivität verfolgen</a>
+          </span>
+        </div>
+        <button class="notice-close" id="notice-close-btn" aria-label="Schließen">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
       </div>
     </div>
 
-    <!-- ════════════════════════════════════════
+    <!-- ═══════════════════════════════════════
          NAVBAR
-    ════════════════════════════════════════ -->
+    ═══════════════════════════════════════ -->
     <header id="site-header">
-      <div id="nav-inner">
+      <div id="nav-wrap">
 
-        <!-- Bar -->
-        <div id="nav-bar" class="glass-strong">
+        <!-- ── BAR ── -->
+        <div id="nav-bar">
 
           <!-- Logo -->
-          <a href="/" class="nav-brand">
-            <div class="nav-brand-icon glow-breathe">
-              <!-- Bot icon -->
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                   stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <a href="/" class="brand-link">
+            <div class="brand-orb">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="3" y="11" width="18" height="10" rx="2"/>
                 <circle cx="12" cy="5" r="2"/>
                 <path d="M12 7v4"/>
                 <line x1="8" y1="16" x2="8" y2="16"/>
                 <line x1="16" y1="16" x2="16" y2="16"/>
               </svg>
-              <span class="nav-brand-dot"></span>
+              <span class="brand-status"></span>
             </div>
-            <div class="nav-brand-text">
-              <span class="nav-brand-name text-gradient">ModForge</span>
-              <span class="nav-brand-sub">v3.0 · Live</span>
+            <div class="brand-text">
+              <span class="brand-name">ModForge</span>
+              <span class="brand-tag">v3.0 · Online</span>
             </div>
           </a>
 
-          <!-- Desktop Nav -->
-          <nav id="desktop-nav">
-
-            <!-- Home -->
-            <a href="/" class="nav-link" id="nav-home">
-              <!-- Home icon -->
-              <svg class="ni" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
-              </svg>
+          <!-- ── Desktop Nav ── -->
+          <nav id="desk-nav">
+            <a href="/" class="dnav-link" id="dn-home">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
               Home
             </a>
 
-            <!-- Mega: Produkt -->
-            <button class="nav-mega-btn" data-mega="produkt">
-              <svg class="ni" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-              </svg>
+            <button class="dnav-btn" data-mega="produkt">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
               Produkt
-              <svg class="chevron" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="6 9 12 15 18 9"/>
-              </svg>
+              <svg class="chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
             </button>
 
-            <!-- Mega: Ressourcen -->
-            <button class="nav-mega-btn" data-mega="ressourcen">
-              <svg class="ni" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
-              </svg>
+            <button class="dnav-btn" data-mega="ressourcen">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
               Ressourcen
-              <svg class="chevron" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="6 9 12 15 18 9"/>
-              </svg>
+              <svg class="chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
             </button>
 
-            <!-- Mega: Community -->
-            <button class="nav-mega-btn" data-mega="community">
-              <svg class="ni" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-              </svg>
+            <button class="dnav-btn" data-mega="community">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
               Community
-              <svg class="chevron" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="6 9 12 15 18 9"/>
-              </svg>
+              <svg class="chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
             </button>
 
-            <!-- Mega: Support -->
-            <button class="nav-mega-btn" data-mega="support">
-              <svg class="ni" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/>
-              </svg>
+            <button class="dnav-btn" data-mega="support">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>
               Support
-              <svg class="chevron" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="6 9 12 15 18 9"/>
-              </svg>
+              <svg class="chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
             </button>
 
-            <!-- Direct: Pricing -->
-            <a href="/pricing" class="nav-link highlight">
-              <svg class="ni" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                   stroke="#fbbf24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-              </svg>
+            <a href="/pricing" class="dnav-link hl">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
               Pricing
             </a>
 
-            <!-- Direct: Status -->
-            <a href="/status" class="nav-link">
-              <svg class="ni" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-              </svg>
+            <a href="/status" class="dnav-link">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
               Status
-            </a>
-
-            <!-- Direct: Dashboard -->
-            <a href="/login" class="nav-link">
-              <svg class="ni" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
-              </svg>
-              Dashboard
             </a>
           </nav>
 
-          <!-- Right: CTA + Mobile toggle -->
-          <div style="display:flex;align-items:center;gap:8px;">
+          <!-- ── Right ── -->
+          <div id="nav-right">
             <a href="https://discord.com/api/oauth2/authorize?client_id=YOUR_CLIENT_ID&permissions=8&scope=bot%20applications.commands"
-               target="_blank" rel="noopener noreferrer"
-               class="btn-primary btn-invite-desk">
-              <!-- Zap icon -->
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-              </svg>
-              Einladen
+               target="_blank" rel="noopener noreferrer" class="invite-btn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              Bot einladen
             </a>
-            <button id="mobile-toggle" aria-label="Menü">
-              <svg id="mob-icon-open" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>
+            <a href="/login" class="dnav-link" style="display:none" id="dn-dash">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+              Dashboard
+            </a>
+            <button class="mob-toggle" id="mob-toggle-btn" aria-label="Menü">
+              <svg id="icon-menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/>
               </svg>
-              <svg id="mob-icon-close" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
+              <svg id="icon-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none">
                 <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
               </svg>
             </button>
           </div>
         </div>
 
-        <!-- ══ MEGA MENU PANEL ══ -->
-        <div id="mega-panel" class="glass-strong anim-down">
+        <!-- ══════════════════════════════════
+             MEGA PANEL
+        ══════════════════════════════════ -->
+        <div id="mega-panel">
 
           <!-- PRODUKT -->
-          <div data-panel="produkt" style="display:none;">
-            <div class="mega-grid">
-              <!-- Col: Module -->
+          <div class="panel-body" data-panel="produkt">
+            <div class="panel-tabs" id="tabs-produkt">
+              <button class="ptab active" data-tab="produkt-module">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="9" height="9" rx="1"/><rect x="13" y="2" width="9" height="9" rx="1"/><rect x="2" y="13" width="9" height="9" rx="1"/><rect x="13" y="13" width="9" height="9" rx="1"/></svg>
+                Module
+              </button>
+              <button class="ptab" data-tab="produkt-tools">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                Tools
+              </button>
+              <button class="ptab" data-tab="produkt-details">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                Module Details
+              </button>
+            </div>
+
+            <!-- Tab: Module -->
+            <div id="produkt-module" class="mega-cols ptab-content">
               <div>
-                <div class="mega-col-title">Module</div>
-                <a href="/features" class="mega-link">
-                  <div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="9" height="9" rx="1"/><rect x="13" y="2" width="9" height="9" rx="1"/><rect x="2" y="13" width="9" height="9" rx="1"/><rect x="13" y="13" width="9" height="9" rx="1"/></svg></div>
-                  <div><div class="mega-link-name">Alle Features</div><div class="mega-link-desc">Komplette Übersicht</div></div>
-                </a>
-                <a href="/commands" class="mega-link">
-                  <div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></div>
-                  <div><div class="mega-link-name">100+ Commands</div><div class="mega-link-desc">Slash + Prefix Commands</div></div>
-                </a>
-                <a href="/economy" class="mega-link">
-                  <div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div>
-                  <div><div class="mega-link-name">Economy System</div><div class="mega-link-desc">Coins, Shop &amp; Gambling</div></div>
-                </a>
-                <a href="/ai" class="mega-link">
-                  <div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg></div>
-                  <div><div class="mega-link-name">AI Features <span class="mega-badge badge-new">Neu</span></div><div class="mega-link-desc">GPT-4 Integration</div></div>
-                </a>
+                <div class="mega-group-title">Übersicht</div>
+                <a href="/features" class="mega-item"><div class="mega-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="9" height="9" rx="1"/><rect x="13" y="2" width="9" height="9" rx="1"/><rect x="2" y="13" width="9" height="9" rx="1"/><rect x="13" y="13" width="9" height="9" rx="1"/></svg></div><div><div class="mega-label">Alle Features</div><div class="mega-desc">Komplette Übersicht aller Module</div></div></a>
+                <a href="/commands" class="mega-item"><div class="mega-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></div><div><div class="mega-label">100+ Commands</div><div class="mega-desc">Slash & Prefix Commands</div></div></a>
+                <a href="/ai" class="mega-item"><div class="mega-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="1" y1="9" x2="4" y2="9"/></svg></div><div><div class="mega-label">AI Features <span class="mbadge mbadge-new">Neu</span></div><div class="mega-desc">GPT-4 Integration</div></div></a>
               </div>
-              <!-- Col: Tools -->
               <div>
-                <div class="mega-col-title">Tools</div>
-                <a href="/templates" class="mega-link">
-                  <div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg></div>
-                  <div><div class="mega-link-name">Server Templates</div><div class="mega-link-desc">Vorgefertigte Setups</div></div>
-                </a>
-                <a href="/integrations" class="mega-link">
-                  <div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><line x1="12" y1="8" x2="12" y2="21"/><line x1="5" y1="21" x2="19" y2="21"/></svg></div>
-                  <div><div class="mega-link-name">Integrationen</div><div class="mega-link-desc">Twitch, YouTube, GitHub</div></div>
-                </a>
-                <a href="/widgets" class="mega-link">
-                  <div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div>
-                  <div><div class="mega-link-name">Embed Widgets</div><div class="mega-link-desc">Stats für deine Website</div></div>
-                </a>
-                <a href="/emojis" class="mega-link">
-                  <div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></div>
-                  <div><div class="mega-link-name">Emoji Pack</div><div class="mega-link-desc">Custom Emojis Download</div></div>
-                </a>
+                <div class="mega-group-title">Economy</div>
+                <a href="/economy" class="mega-item"><div class="mega-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div><div><div class="mega-label">Economy System</div><div class="mega-desc">Coins, Shop & Gambling</div></div></a>
+                <a href="/badges" class="mega-item"><div class="mega-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg></div><div><div class="mega-label">Badges</div><div class="mega-desc">Achievement-System</div></div></a>
+                <a href="/premium" class="mega-item"><div class="mega-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div><div><div class="mega-label">Premium <span class="mbadge mbadge-top">Pro</span></div><div class="mega-desc">24/7 Music & Custom Branding</div></div></a>
               </div>
-              <!-- Col: Module Details -->
               <div>
-                <div class="mega-col-title">Module Details</div>
-                <a href="/docs/automod" class="mega-link">
-                  <div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
-                  <div><div class="mega-link-name">AutoMod 2.0</div><div class="mega-link-desc">KI-Schutz</div></div>
-                </a>
-                <a href="/docs/tickets" class="mega-link">
-                  <div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 0 0-2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3a2 2 0 0 0 0-4V7a2 2 0 0 0-2-2H5z"/></svg></div>
-                  <div><div class="mega-link-name">Tickets</div><div class="mega-link-desc">Dropdown Panel</div></div>
-                </a>
-                <a href="/docs/music" class="mega-link">
-                  <div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div>
-                  <div><div class="mega-link-name">Music Player</div><div class="mega-link-desc">Lavalink Audio</div></div>
-                </a>
-                <a href="/badges" class="mega-link">
-                  <div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg></div>
-                  <div><div class="mega-link-name">Badges</div><div class="mega-link-desc">Achievement-System</div></div>
-                </a>
+                <div class="mega-group-title">Schutz</div>
+                <a href="/docs/automod" class="mega-item"><div class="mega-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div><div><div class="mega-label">AutoMod 2.0</div><div class="mega-desc">KI-gestützter Schutz</div></div></a>
+                <a href="/docs/tickets" class="mega-item"><div class="mega-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 0 0-2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3a2 2 0 0 0 0-4V7a2 2 0 0 0-2-2H5z"/></svg></div><div><div class="mega-label">Ticket System</div><div class="mega-desc">Dropdown Panel</div></div></a>
+                <a href="/docs/music" class="mega-item"><div class="mega-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div><div><div class="mega-label">Music Player</div><div class="mega-desc">Lavalink Audio</div></div></a>
               </div>
             </div>
-            <a href="/premium" class="mega-cta">
-              <div><div class="mega-cta-title">Premium freischalten</div><div class="mega-cta-desc">24/7 Music &amp; Custom Branding</div></div>
-              <svg class="mega-cta-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>
-            </a>
+
+            <!-- Tab: Tools (hidden by default) -->
+            <div id="produkt-tools" class="mega-cols ptab-content" style="display:none">
+              <div>
+                <div class="mega-group-title">Server</div>
+                <a href="/templates" class="mega-item"><div class="mega-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg></div><div><div class="mega-label">Server Templates</div><div class="mega-desc">Vorgefertigte Setups</div></div></a>
+                <a href="/integrations" class="mega-item"><div class="mega-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div><div><div class="mega-label">Integrationen</div><div class="mega-desc">Twitch, YouTube, GitHub</div></div></a>
+              </div>
+              <div>
+                <div class="mega-group-title">Web</div>
+                <a href="/widgets" class="mega-item"><div class="mega-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div><div><div class="mega-label">Embed Widgets</div><div class="mega-desc">Stats für deine Website</div></div></a>
+                <a href="/emojis" class="mega-item"><div class="mega-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></div><div><div class="mega-label">Emoji Pack</div><div class="mega-desc">Custom Emojis Download</div></div></a>
+              </div>
+              <div>
+                <div class="mega-group-title">Migration</div>
+                <a href="/migrate" class="mega-item"><div class="mega-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.41"/></svg></div><div><div class="mega-label">Migration Tool <span class="mbadge mbadge-hot">Hot</span></div><div class="mega-desc">Von MEE6, Dyno & Co.</div></div></a>
+              </div>
+            </div>
+
+            <!-- Tab: Module Details (hidden) -->
+            <div id="produkt-details" class="mega-cols ptab-content" style="display:none">
+              <div>
+                <a href="/docs/automod" class="mega-item"><div class="mega-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div><div><div class="mega-label">AutoMod 2.0</div><div class="mega-desc">KI-Schutz in Echtzeit</div></div></a>
+                <a href="/docs/tickets" class="mega-item"><div class="mega-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 0 0-2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3a2 2 0 0 0 0-4V7a2 2 0 0 0-2-2H5z"/></svg></div><div><div class="mega-label">Tickets</div><div class="mega-desc">Dropdown-Panels</div></div></a>
+              </div>
+              <div>
+                <a href="/docs/music" class="mega-item"><div class="mega-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div><div><div class="mega-label">Music Player</div><div class="mega-desc">Lavalink Audio</div></div></a>
+                <a href="/badges" class="mega-item"><div class="mega-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg></div><div><div class="mega-label">Badges & XP</div><div class="mega-desc">Achievements & Leveling</div></div></a>
+              </div>
+              <div>
+                <a href="/economy" class="mega-item"><div class="mega-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div><div><div class="mega-label">Economy System</div><div class="mega-desc">Vollständiges Währungssystem</div></div></a>
+                <a href="/commands" class="mega-item"><div class="mega-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></div><div><div class="mega-label">Command Liste</div><div class="mega-desc">Alle 100+ Commands</div></div></a>
+              </div>
+            </div>
+
+            <div class="mega-cta-strip">
+              <a href="/premium" class="mega-cta-link">
+                <div><div class="cta-info-title">Premium freischalten</div><div class="cta-info-desc">24/7 Music, Custom Branding & Priority Support</div></div>
+                <div class="cta-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg></div>
+              </a>
+            </div>
           </div>
 
           <!-- RESSOURCEN -->
-          <div data-panel="ressourcen" style="display:none;">
-            <div class="mega-grid">
+          <div class="panel-body" data-panel="ressourcen">
+            <div class="mega-cols">
               <div>
-                <div class="mega-col-title">Lernen</div>
-                <a href="/docs" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></div><div><div class="mega-link-name">Dokumentation</div><div class="mega-link-desc">Vollständiger Guide</div></div></a>
-                <a href="/tutorials" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg></div><div><div class="mega-link-name">Video Tutorials</div><div class="mega-link-desc">8+ Anleitungen</div></div></a>
-                <a href="/faq" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div><div><div class="mega-link-name">FAQ</div><div class="mega-link-desc">Häufige Fragen</div></div></a>
-                <a href="/docs/setup" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div><div><div class="mega-link-name">Setup Guide</div><div class="mega-link-desc">In 2 Minuten startklar</div></div></a>
+                <div class="mega-group-title">Lernen</div>
+                <a href="/docs" class="mega-item"><div class="mega-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></div><div><div class="mega-label">Dokumentation</div><div class="mega-desc">Vollständiger Guide</div></div></a>
+                <a href="/tutorials" class="mega-item"><div class="mega-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></div><div><div class="mega-label">Video Tutorials</div><div class="mega-desc">8+ Anleitungen</div></div></a>
+                <a href="/faq" class="mega-item"><div class="mega-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div><div><div class="mega-label">FAQ</div><div class="mega-desc">Häufige Fragen</div></div></a>
+                <a href="/docs/setup" class="mega-item"><div class="mega-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div><div><div class="mega-label">Setup Guide</div><div class="mega-desc">In 2 Minuten startklar</div></div></a>
               </div>
               <div>
-                <div class="mega-col-title">Entwickler</div>
-                <a href="/api-docs" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div><div><div class="mega-link-name">API Docs</div><div class="mega-link-desc">REST API Referenz</div></div></a>
-                <a href="/branding" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div><div><div class="mega-link-name">Brand Kit</div><div class="mega-link-desc">Logos &amp; Farben</div></div></a>
-                <a href="/changelog" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><div><div class="mega-link-name">Changelog</div><div class="mega-link-desc">Alle Updates</div></div></a>
-                <a href="/roadmap" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div><div><div class="mega-link-name">Roadmap</div><div class="mega-link-desc">Was kommt als nächstes</div></div></a>
+                <div class="mega-group-title">Entwickler</div>
+                <a href="/api-docs" class="mega-item"><div class="mega-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div><div><div class="mega-label">API Docs</div><div class="mega-desc">REST API Referenz</div></div></a>
+                <a href="/changelog" class="mega-item"><div class="mega-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><div><div class="mega-label">Changelog</div><div class="mega-desc">Alle Updates</div></div></a>
+                <a href="/roadmap" class="mega-item"><div class="mega-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div><div><div class="mega-label">Roadmap</div><div class="mega-desc">Was kommt als nächstes</div></div></a>
+                <a href="/branding" class="mega-item"><div class="mega-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div><div><div class="mega-label">Brand Kit</div><div class="mega-desc">Logos & Farben</div></div></a>
               </div>
               <div>
-                <div class="mega-col-title">Migration</div>
-                <a href="/migrate" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.41"/></svg></div><div><div class="mega-link-name">Migration Tool <span class="mega-badge badge-hot">Hot</span></div><div class="mega-link-desc">Von MEE6, Dyno &amp; Co.</div></div></a>
-                <a href="/blog" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><div><div class="mega-link-name">Blog &amp; News</div><div class="mega-link-desc">Updates und Guides</div></div></a>
-                <a href="/downloads" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"/></svg></div><div><div class="mega-link-name">Downloads</div><div class="mega-link-desc">Apps &amp; Assets</div></div></a>
-                <a href="/docs/moderation" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div><div><div class="mega-link-name">Mod-Anleitung</div><div class="mega-link-desc">Mod-Befehle erklärt</div></div></a>
+                <div class="mega-group-title">Mehr</div>
+                <a href="/migrate" class="mega-item"><div class="mega-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.41"/></svg></div><div><div class="mega-label">Migration Tool <span class="mbadge mbadge-hot">Hot</span></div><div class="mega-desc">Von MEE6, Dyno & Co.</div></div></a>
+                <a href="/blog" class="mega-item"><div class="mega-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><div><div class="mega-label">Blog & News</div><div class="mega-desc">Updates und Guides</div></div></a>
+                <a href="/downloads" class="mega-item"><div class="mega-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"/></svg></div><div><div class="mega-label">Downloads</div><div class="mega-desc">Apps & Assets</div></div></a>
               </div>
             </div>
-            <a href="/migrate" class="mega-cta">
-              <div><div class="mega-cta-title">Migration kostenlos</div><div class="mega-cta-desc">Wir helfen beim Wechsel</div></div>
-              <svg class="mega-cta-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>
-            </a>
+            <div class="mega-cta-strip">
+              <a href="/migrate" class="mega-cta-link">
+                <div><div class="cta-info-title">Kostenlos migrieren</div><div class="cta-info-desc">Wir helfen dir beim Wechsel von MEE6 & Co.</div></div>
+                <div class="cta-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg></div>
+              </a>
+            </div>
           </div>
 
           <!-- COMMUNITY -->
-          <div data-panel="community" style="display:none;">
-            <div class="mega-grid">
+          <div class="panel-body" data-panel="community">
+            <div class="mega-cols">
               <div>
-                <div class="mega-col-title">Mitmachen</div>
-                <a href="/partners" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div><div><div class="mega-link-name">Partner werden <span class="mega-badge badge-top">Top</span></div><div class="mega-link-desc">Werbung + Premium gratis</div></div></a>
-                <a href="/affiliate" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div><div><div class="mega-link-name">Affiliate</div><div class="mega-link-desc">20% Lifetime-Provision</div></div></a>
-                <a href="/suggest" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg></div><div><div class="mega-link-name">Vorschläge</div><div class="mega-link-desc">Stimm für Features ab</div></div></a>
-                <a href="/contact" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div><div><div class="mega-link-name">Kontakt</div><div class="mega-link-desc">Nimm Verbindung auf</div></div></a>
+                <div class="mega-group-title">Mitmachen</div>
+                <a href="/partners" class="mega-item"><div class="mega-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div><div><div class="mega-label">Partner werden <span class="mbadge mbadge-top">Top</span></div><div class="mega-desc">Werbung + Premium gratis</div></div></a>
+                <a href="/affiliate" class="mega-item"><div class="mega-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div><div><div class="mega-label">Affiliate</div><div class="mega-desc">20% Lifetime-Provision</div></div></a>
+                <a href="/suggest" class="mega-item"><div class="mega-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg></div><div><div class="mega-label">Vorschläge</div><div class="mega-desc">Stimm für Features ab</div></div></a>
+                <a href="/contact" class="mega-item"><div class="mega-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div><div><div class="mega-label">Kontakt</div><div class="mega-desc">Nimm Verbindung auf</div></div></a>
               </div>
               <div>
-                <div class="mega-col-title">Showcase</div>
-                <a href="/showcase" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg></div><div><div class="mega-link-name">Server Showcase</div><div class="mega-link-desc">Top Communities</div></div></a>
-                <a href="/testimonials" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div><div><div class="mega-link-name">Bewertungen</div><div class="mega-link-desc">Was User sagen</div></div></a>
-                <a href="/leaderboard" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div><div><div class="mega-link-name">XP Leaderboard</div><div class="mega-link-desc">Globale Bestenliste</div></div></a>
-                <a href="/guilds" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div><div><div class="mega-link-name">eSports Gilden</div><div class="mega-link-desc">Verifizierte Clans</div></div></a>
+                <div class="mega-group-title">Showcase</div>
+                <a href="/showcase" class="mega-item"><div class="mega-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg></div><div><div class="mega-label">Server Showcase</div><div class="mega-desc">Top Communities</div></div></a>
+                <a href="/testimonials" class="mega-item"><div class="mega-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div><div><div class="mega-label">Bewertungen</div><div class="mega-desc">Was User sagen</div></div></a>
+                <a href="/leaderboard" class="mega-item"><div class="mega-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div><div><div class="mega-label">XP Leaderboard</div><div class="mega-desc">Globale Bestenliste</div></div></a>
               </div>
               <div>
-                <div class="mega-col-title">Über uns</div>
-                <a href="/team" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div><div><div class="mega-link-name">Team</div><div class="mega-link-desc">Lerne uns kennen</div></div></a>
-                <a href="/jobs" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></div><div><div class="mega-link-name">Karriere</div><div class="mega-link-desc">Wir suchen Talente</div></div></a>
-                <a href="/events" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div><div><div class="mega-link-name">Events</div><div class="mega-link-desc">Live-Streams &amp; Drops</div></div></a>
-                <a href="/community" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div><div><div class="mega-link-name">Community Hub</div><div class="mega-link-desc">Alles auf einen Blick</div></div></a>
+                <div class="mega-group-title">Über uns</div>
+                <a href="/team" class="mega-item"><div class="mega-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div><div><div class="mega-label">Team</div><div class="mega-desc">Lerne uns kennen</div></div></a>
+                <a href="/jobs" class="mega-item"><div class="mega-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></div><div><div class="mega-label">Karriere</div><div class="mega-desc">Wir suchen Talente</div></div></a>
+                <a href="/events" class="mega-item"><div class="mega-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div><div><div class="mega-label">Events</div><div class="mega-desc">Live-Streams & Drops</div></div></a>
               </div>
             </div>
-            <a href="https://discord.gg/gwryX3dbkt" target="_blank" class="mega-cta">
-              <div><div class="mega-cta-title">Discord beitreten</div><div class="mega-cta-desc">850+ aktive Member</div></div>
-              <svg class="mega-cta-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>
-            </a>
+            <div class="mega-cta-strip">
+              <a href="https://discord.gg/gwryX3dbkt" target="_blank" class="mega-cta-link">
+                <div><div class="cta-info-title">Discord beitreten</div><div class="cta-info-desc">850+ aktive Member – werde Teil der Community</div></div>
+                <div class="cta-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg></div>
+              </a>
+            </div>
           </div>
 
           <!-- SUPPORT -->
-          <div data-panel="support" style="display:none;">
-            <div class="mega-grid">
+          <div class="panel-body" data-panel="support">
+            <div class="mega-cols">
               <div>
-                <div class="mega-col-title">Hilfe</div>
-                <a href="/support" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg></div><div><div class="mega-link-name">Support-Center</div><div class="mega-link-desc">Hilfe-Übersicht</div></div></a>
-                <a href="/faq" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div><div><div class="mega-link-name">FAQ</div><div class="mega-link-desc">Häufige Fragen</div></div></a>
-                <a href="/contact" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div><div><div class="mega-link-name">Kontakt</div><div class="mega-link-desc">Wir antworten schnell</div></div></a>
-                <a href="/docs" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></div><div><div class="mega-link-name">Dokumentation</div><div class="mega-link-desc">Anleitungen</div></div></a>
+                <div class="mega-group-title">Hilfe</div>
+                <a href="/support" class="mega-item"><div class="mega-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg></div><div><div class="mega-label">Support-Center</div><div class="mega-desc">Hilfe-Übersicht</div></div></a>
+                <a href="/faq" class="mega-item"><div class="mega-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div><div><div class="mega-label">FAQ</div><div class="mega-desc">Häufige Fragen</div></div></a>
+                <a href="/contact" class="mega-item"><div class="mega-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div><div><div class="mega-label">Kontakt</div><div class="mega-desc">Wir antworten schnell</div></div></a>
+                <a href="/docs" class="mega-item"><div class="mega-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></div><div><div class="mega-label">Dokumentation</div><div class="mega-desc">Anleitungen</div></div></a>
               </div>
               <div>
-                <div class="mega-col-title">Status</div>
-                <a href="/status" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div><div><div class="mega-link-name">Live Status</div><div class="mega-link-desc">99.9% Uptime</div></div></a>
-                <a href="/uptime" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div><div><div class="mega-link-name">Uptime Monitor</div><div class="mega-link-desc">Live-Counter</div></div></a>
-                <a href="/status/incidents" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div><div><div class="mega-link-name">Vorfälle</div><div class="mega-link-desc">Historie &amp; Updates</div></div></a>
-                <a href="/status/maintenance" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div><div><div class="mega-link-name">Wartung</div><div class="mega-link-desc">Geplante Updates</div></div></a>
+                <div class="mega-group-title">Status & Uptime</div>
+                <a href="/status" class="mega-item"><div class="mega-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div><div><div class="mega-label">Live Status</div><div class="mega-desc">99.9% Uptime</div></div></a>
+                <a href="/uptime" class="mega-item"><div class="mega-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div><div><div class="mega-label">Uptime Monitor</div><div class="mega-desc">Live-Counter</div></div></a>
+                <a href="/status/incidents" class="mega-item"><div class="mega-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div><div><div class="mega-label">Vorfälle</div><div class="mega-desc">Historie & Updates</div></div></a>
               </div>
               <div>
-                <div class="mega-col-title">Sicherheit</div>
-                <a href="/security" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div><div><div class="mega-link-name">Sicherheit</div><div class="mega-link-desc">DSGVO &amp; TLS 1.3</div></div></a>
-                <a href="/privacy" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div><div><div class="mega-link-name">Datenschutz</div><div class="mega-link-desc">Privacy Policy</div></div></a>
-                <a href="/terms" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></div><div><div class="mega-link-name">Nutzungsbedingungen</div><div class="mega-link-desc">Terms of Service</div></div></a>
-                <a href="/legal" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><div><div class="mega-link-name">Rechtliches</div><div class="mega-link-desc">Impressum &amp; Co.</div></div></a>
+                <div class="mega-group-title">Rechtliches</div>
+                <a href="/security" class="mega-item"><div class="mega-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div><div><div class="mega-label">Sicherheit</div><div class="mega-desc">DSGVO & TLS 1.3</div></div></a>
+                <a href="/privacy" class="mega-item"><div class="mega-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div><div><div class="mega-label">Datenschutz</div><div class="mega-desc">Privacy Policy</div></div></a>
+                <a href="/terms" class="mega-item"><div class="mega-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><div><div class="mega-label">Nutzungsbedingungen</div><div class="mega-desc">Terms of Service</div></div></a>
               </div>
             </div>
-            <a href="/premium" class="mega-cta">
-              <div><div class="mega-cta-title">Premium Support</div><div class="mega-cta-desc">Direkt zum Dev-Team</div></div>
-              <svg class="mega-cta-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>
-            </a>
+            <div class="mega-cta-strip">
+              <a href="/premium" class="mega-cta-link">
+                <div><div class="cta-info-title">Premium Support</div><div class="cta-info-desc">Direkter Zugang zum Dev-Team</div></div>
+                <div class="cta-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg></div>
+              </a>
+            </div>
           </div>
-        </div>
 
-        <!-- Mobile Menu -->
-        <div id="mobile-menu" class="glass-strong anim-down">
-          <a href="/" class="mob-link">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-            Home
-          </a>
+        </div><!-- /#mega-panel -->
 
-          <!-- Produkt -->
-          <details class="mob-details">
-            <summary>
-              <span style="display:flex;align-items:center;gap:8px;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                Produkt
-              </span>
-              <svg class="mob-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-            </summary>
-            <div class="mob-sub">
-              <a href="/features">Alle Features</a>
-              <a href="/commands">100+ Commands</a>
-              <a href="/economy">Economy System</a>
-              <a href="/ai">AI Features</a>
-              <a href="/templates">Server Templates</a>
-              <a href="/integrations">Integrationen</a>
-              <a href="/widgets">Embed Widgets</a>
-              <a href="/emojis">Emoji Pack</a>
-              <a href="/docs/automod">AutoMod 2.0</a>
-              <a href="/docs/tickets">Tickets</a>
-              <a href="/docs/music">Music Player</a>
-              <a href="/badges">Badges</a>
+        <!-- ══════════════════════════════════
+             MOBILE MENU
+        ══════════════════════════════════ -->
+        <div id="mob-menu">
+          <div class="mob-inner">
+
+            <!-- Search -->
+            <div class="mob-search-wrap">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input type="text" placeholder="Suchen..." id="mob-search-input">
             </div>
-          </details>
 
-          <!-- Ressourcen -->
-          <details class="mob-details">
-            <summary>
-              <span style="display:flex;align-items:center;gap:8px;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-                Ressourcen
-              </span>
-              <svg class="mob-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-            </summary>
-            <div class="mob-sub">
-              <a href="/docs">Dokumentation</a>
-              <a href="/tutorials">Video Tutorials</a>
-              <a href="/faq">FAQ</a>
-              <a href="/docs/setup">Setup Guide</a>
-              <a href="/api-docs">API Docs</a>
-              <a href="/branding">Brand Kit</a>
-              <a href="/changelog">Changelog</a>
-              <a href="/roadmap">Roadmap</a>
-              <a href="/migrate">Migration Tool</a>
-              <a href="/blog">Blog &amp; News</a>
-              <a href="/downloads">Downloads</a>
-            </div>
-          </details>
+            <!-- Direct top -->
+            <a href="/" class="mob-link">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+              Home
+            </a>
+            <a href="/pricing" class="mob-link hl">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              Pricing
+            </a>
+            <a href="/status" class="mob-link">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+              Status
+            </a>
 
-          <!-- Community -->
-          <details class="mob-details">
-            <summary>
-              <span style="display:flex;align-items:center;gap:8px;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-                Community
-              </span>
-              <svg class="mob-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-            </summary>
-            <div class="mob-sub">
-              <a href="/partners">Partner werden</a>
-              <a href="/affiliate">Affiliate</a>
-              <a href="/suggest">Vorschläge</a>
-              <a href="/contact">Kontakt</a>
-              <a href="/showcase">Server Showcase</a>
-              <a href="/testimonials">Bewertungen</a>
-              <a href="/leaderboard">XP Leaderboard</a>
-              <a href="/team">Team</a>
-              <a href="/jobs">Karriere</a>
-              <a href="/events">Events</a>
-            </div>
-          </details>
+            <div class="mob-divider"></div>
 
-          <!-- Support -->
-          <details class="mob-details">
-            <summary>
-              <span style="display:flex;align-items:center;gap:8px;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>
-                Support
-              </span>
-              <svg class="mob-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-            </summary>
-            <div class="mob-sub">
-              <a href="/support">Support-Center</a>
-              <a href="/faq">FAQ</a>
-              <a href="/contact">Kontakt</a>
-              <a href="/status">Live Status</a>
-              <a href="/privacy">Datenschutz</a>
-              <a href="/terms">Nutzungsbedingungen</a>
-              <a href="/legal">Rechtliches</a>
-            </div>
-          </details>
+            <!-- Produkt -->
+            <details class="mob-acc">
+              <summary>
+                <span class="sacc-left">
+                  <svg class="sacc-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                  Produkt
+                </span>
+                <svg class="mob-acc-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+              </summary>
+              <div class="mob-acc-body">
+                <a href="/features" class="mob-sub-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="9" height="9" rx="1"/><rect x="13" y="2" width="9" height="9" rx="1"/><rect x="2" y="13" width="9" height="9" rx="1"/><rect x="13" y="13" width="9" height="9" rx="1"/></svg>Alle Features</a>
+                <a href="/commands" class="mob-sub-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>100+ Commands</a>
+                <a href="/economy" class="mob-sub-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></svg>Economy System</a>
+                <a href="/ai" class="mob-sub-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/></svg>AI Features</a>
+                <a href="/docs/automod" class="mob-sub-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>AutoMod 2.0</a>
+                <a href="/docs/tickets" class="mob-sub-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 0 0-2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3a2 2 0 0 0 0-4V7a2 2 0 0 0-2-2H5z"/></svg>Ticket System</a>
+                <a href="/docs/music" class="mob-sub-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/></svg>Music Player</a>
+                <a href="/migrate" class="mob-sub-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.41"/></svg>Migration Tool</a>
+              </div>
+            </details>
 
-          <a href="/pricing" class="mob-link" style="color:#fcd34d;">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-            Pricing
-          </a>
-          <a href="/status" class="mob-link">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-            Status
-          </a>
-          <a href="/login" class="mob-link">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-            Dashboard
-          </a>
+            <!-- Ressourcen -->
+            <details class="mob-acc">
+              <summary>
+                <span class="sacc-left">
+                  <svg class="sacc-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                  Ressourcen
+                </span>
+                <svg class="mob-acc-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+              </summary>
+              <div class="mob-acc-body">
+                <a href="/docs" class="mob-sub-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>Dokumentation</a>
+                <a href="/tutorials" class="mob-sub-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>Video Tutorials</a>
+                <a href="/faq" class="mob-sub-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></svg>FAQ</a>
+                <a href="/changelog" class="mob-sub-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Changelog</a>
+                <a href="/roadmap" class="mob-sub-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/></svg>Roadmap</a>
+                <a href="/api-docs" class="mob-sub-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>API Docs</a>
+              </div>
+            </details>
 
-          <a href="https://discord.com/api/oauth2/authorize?client_id=YOUR_CLIENT_ID&permissions=8&scope=bot%20applications.commands"
-             target="_blank" rel="noopener noreferrer"
-             class="btn-primary" style="margin-top:8px;justify-content:center;">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-            Bot einladen
-          </a>
-        </div>
+            <!-- Community -->
+            <details class="mob-acc">
+              <summary>
+                <span class="sacc-left">
+                  <svg class="sacc-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                  Community
+                </span>
+                <svg class="mob-acc-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+              </summary>
+              <div class="mob-acc-body">
+                <a href="/partners" class="mob-sub-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>Partner werden</a>
+                <a href="/affiliate" class="mob-sub-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/></svg>Affiliate</a>
+                <a href="/showcase" class="mob-sub-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/></svg>Server Showcase</a>
+                <a href="/team" class="mob-sub-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>Team</a>
+                <a href="/events" class="mob-sub-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Events</a>
+              </div>
+            </details>
 
-      </div>
+            <!-- Support -->
+            <details class="mob-acc">
+              <summary>
+                <span class="sacc-left">
+                  <svg class="sacc-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>
+                  Support
+                </span>
+                <svg class="mob-acc-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+              </summary>
+              <div class="mob-acc-body">
+                <a href="/support" class="mob-sub-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/></svg>Support-Center</a>
+                <a href="/faq" class="mob-sub-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></svg>FAQ</a>
+                <a href="/contact" class="mob-sub-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/></svg>Kontakt</a>
+                <a href="/privacy" class="mob-sub-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Datenschutz</a>
+                <a href="/terms" class="mob-sub-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Nutzungsbedingungen</a>
+              </div>
+            </details>
+
+            <div class="mob-divider"></div>
+
+            <a href="/login" class="mob-link">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+              Dashboard
+            </a>
+
+            <a href="https://discord.com/api/oauth2/authorize?client_id=YOUR_CLIENT_ID&permissions=8&scope=bot%20applications.commands"
+               target="_blank" rel="noopener noreferrer" class="mob-cta">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              Bot einladen
+            </a>
+
+          </div>
+        </div><!-- /#mob-menu -->
+
+      </div><!-- /#nav-wrap -->
     </header>
-    <!-- ════════════════════════════════════════ -->
 
+    <!-- ═══════════════════════════════════════
+         PAGE CONTENT
+    ═══════════════════════════════════════ -->
     {% block content %}{% endblock %}
 
+    <!-- ═══════════════════════════════════════
+         FOOTER
+    ═══════════════════════════════════════ -->
     <footer class="footer page-bg">
       <div class="footer-inner container">
         <div>
@@ -797,101 +1145,150 @@
       <div class="footer-bottom">&copy; 2026 ModForge · Powered by BotForge · v3.0.0</div>
     </footer>
 
-  </div>
+  </div><!-- /.page-wrapper -->
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="/static/script.js"></script>
 
-  <!-- Banner-Logik -->
   <script>
-    (function() {
-      var notice = document.getElementById('global-notice');
-      var closeBtn = document.getElementById('close-notice');
-      if (!localStorage.getItem('global-notice-closed')) {
+  (function () {
+    'use strict';
+
+    /* ── Notice banner ── */
+    var notice    = document.getElementById('global-notice');
+    var closeBtn  = document.getElementById('notice-close-btn');
+    var header    = document.getElementById('site-header');
+    var NOTICE_H  = 44;
+
+    function applyNoticeOffset() {
+      var vis = notice && notice.style.display !== 'none';
+      if (header) header.style.top = vis ? NOTICE_H + 'px' : '0';
+    }
+
+    if (notice && closeBtn) {
+      if (!localStorage.getItem('mf-notice-closed-v2')) {
         notice.style.display = 'block';
       }
-      closeBtn.addEventListener('click', function() {
+      applyNoticeOffset();
+
+      closeBtn.addEventListener('click', function () {
         notice.style.display = 'none';
-        localStorage.setItem('global-notice-closed', 'true');
+        localStorage.setItem('mf-notice-closed-v2', '1');
+        applyNoticeOffset();
       });
-    })();
-  </script>
+    }
 
-  <!-- Navbar-Logik -->
-  <script>
-    (function () {
-      var header      = document.getElementById('site-header');
-      var megaPanel   = document.getElementById('mega-panel');
-      var megaBtns    = document.querySelectorAll('.nav-mega-btn');
-      var mobileToggle = document.getElementById('mobile-toggle');
-      var mobileMenu  = document.getElementById('mobile-menu');
-      var iconOpen    = document.getElementById('mob-icon-open');
-      var iconClose   = document.getElementById('mob-icon-close');
-      var currentOpen = null;
+    /* ── Scroll shrink ── */
+    window.addEventListener('scroll', function () {
+      header.classList.toggle('scrolled', window.scrollY > 30);
+    }, { passive: true });
 
-      /* Scroll → shrink header */
-      window.addEventListener('scroll', function () {
-        header.classList.toggle('scrolled', window.scrollY > 20);
+    /* ── Active link ── */
+    var path = window.location.pathname;
+    document.querySelectorAll('.dnav-link, .mob-link, .mob-sub-link').forEach(function (a) {
+      if (a.getAttribute('href') === path) a.classList.add('active');
+    });
+
+    /* ── Mega menu ── */
+    var megaPanel   = document.getElementById('mega-panel');
+    var navWrap     = document.getElementById('nav-wrap');
+    var megaBtns    = document.querySelectorAll('.dnav-btn[data-mega]');
+    var currentMega = null;
+
+    function openMega(key, btn) {
+      /* hide all panels */
+      document.querySelectorAll('.panel-body').forEach(function (p) { p.classList.remove('visible'); });
+      var target = megaPanel.querySelector('[data-panel="' + key + '"]');
+      if (!target) return;
+      target.classList.add('visible');
+
+      /* buttons */
+      megaBtns.forEach(function (b) { b.classList.remove('mega-open'); });
+      btn.classList.add('mega-open');
+
+      megaPanel.classList.add('open');
+      currentMega = key;
+
+      /* reset tabs if any */
+      var tabs = target.querySelectorAll('.ptab');
+      if (tabs.length) {
+        tabs.forEach(function (t) { t.classList.remove('active'); });
+        tabs[0].classList.add('active');
+        var tabContents = target.querySelectorAll('.ptab-content');
+        tabContents.forEach(function (tc, i) { tc.style.display = i === 0 ? 'grid' : 'none'; });
+      }
+    }
+
+    function closeMega() {
+      megaPanel.classList.remove('open');
+      megaBtns.forEach(function (b) { b.classList.remove('mega-open'); });
+      currentMega = null;
+    }
+
+    megaBtns.forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var key = btn.dataset.mega;
+        if (currentMega === key) { closeMega(); } else { openMega(key, btn); }
       });
+    });
 
-      /* Mega menu toggle */
-      megaBtns.forEach(function (btn) {
-        btn.addEventListener('click', function (e) {
-          e.stopPropagation();
-          var key = btn.dataset.mega;
-          if (currentOpen === key) {
-            closeMega();
-          } else {
-            openMega(key, btn);
-          }
+    /* Tab switching inside panels */
+    document.querySelectorAll('.ptab').forEach(function (tab) {
+      tab.addEventListener('click', function () {
+        var targetId = tab.dataset.tab;
+        var panel    = tab.closest('.panel-body');
+        panel.querySelectorAll('.ptab').forEach(function (t) { t.classList.remove('active'); });
+        tab.classList.add('active');
+        panel.querySelectorAll('.ptab-content').forEach(function (c) { c.style.display = 'none'; });
+        var tc = document.getElementById(targetId);
+        if (tc) tc.style.display = 'grid';
+      });
+    });
+
+    /* Close on outside click */
+    document.addEventListener('click', function (e) {
+      if (navWrap && !navWrap.contains(e.target)) closeMega();
+    });
+
+    /* ── Mobile menu ── */
+    var mobMenu   = document.getElementById('mob-menu');
+    var mobBtn    = document.getElementById('mob-toggle-btn');
+    var iconMenu  = document.getElementById('icon-menu');
+    var iconClose = document.getElementById('icon-close');
+    var mobOpen   = false;
+
+    function toggleMob() {
+      mobOpen = !mobOpen;
+      mobMenu.classList.toggle('open', mobOpen);
+      iconMenu.style.display  = mobOpen ? 'none'  : 'block';
+      iconClose.style.display = mobOpen ? 'block' : 'none';
+      if (mobOpen) closeMega();
+    }
+
+    mobBtn.addEventListener('click', function (e) { e.stopPropagation(); toggleMob(); });
+    document.addEventListener('click', function (e) {
+      if (mobOpen && navWrap && !navWrap.contains(e.target)) {
+        mobOpen = false;
+        mobMenu.classList.remove('open');
+        iconMenu.style.display  = 'block';
+        iconClose.style.display = 'none';
+      }
+    });
+
+    /* Mobile search filter */
+    var searchInput = document.getElementById('mob-search-input');
+    if (searchInput) {
+      searchInput.addEventListener('input', function () {
+        var q = this.value.toLowerCase().trim();
+        document.querySelectorAll('.mob-sub-link, .mob-link').forEach(function (a) {
+          var match = a.textContent.toLowerCase().includes(q);
+          a.style.display = match ? '' : 'none';
         });
       });
+    }
 
-      function openMega(key, btn) {
-        /* hide all panels */
-        document.querySelectorAll('#mega-panel [data-panel]').forEach(function (p) {
-          p.style.display = 'none';
-        });
-        /* show target panel */
-        var panel = document.querySelector('#mega-panel [data-panel="' + key + '"]');
-        if (panel) panel.style.display = 'block';
-
-        /* button states */
-        megaBtns.forEach(function (b) { b.classList.remove('open'); });
-        btn.classList.add('open');
-
-        megaPanel.classList.add('visible');
-        currentOpen = key;
-      }
-
-      function closeMega() {
-        megaPanel.classList.remove('visible');
-        megaBtns.forEach(function (b) { b.classList.remove('open'); });
-        currentOpen = null;
-      }
-
-      /* Close on outside click */
-      document.addEventListener('click', function (e) {
-        var navInner = document.getElementById('nav-inner');
-        if (!navInner.contains(e.target)) {
-          closeMega();
-        }
-      });
-
-      /* Mobile toggle */
-      mobileToggle.addEventListener('click', function () {
-        var open = mobileMenu.classList.toggle('visible');
-        iconOpen.style.display  = open ? 'none'  : 'block';
-        iconClose.style.display = open ? 'block' : 'none';
-        if (open) closeMega();
-      });
-
-      /* Active link highlight */
-      var path = window.location.pathname;
-      document.querySelectorAll('.nav-link').forEach(function (a) {
-        if (a.getAttribute('href') === path) a.classList.add('active');
-      });
-    })();
+  })();
   </script>
 
 </body>
