@@ -7,58 +7,78 @@
   <meta name="description" content="Der stärkste Discord‑Sicherheitsbot. Anti‑Nuke, Anti‑Raid, AutoMod, Cases & Web‑Dashboard.">
   <link rel="stylesheet" href="/static/style.css">
   <style>
-    /* ── NAVBAR ── */
-    .topnav {
-      position: fixed;
-      top: 0; left: 0; right: 0;
-      z-index: 100;
-      padding: 0.75rem 1rem;
-      transition: padding 0.3s;
-    }
-    .topnav-inner {
-      max-width: 1280px;
-      margin: 0 auto;
-      background: rgba(15,15,30,0.75);
+    /* ── Glassmorphism ── */
+    .glass-strong {
+      background: rgba(255,255,255,0.04);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
       border: 1px solid rgba(255,255,255,0.08);
       border-radius: 1rem;
-      padding: 0.6rem 1.25rem;
+    }
+
+    /* ── Gradient Text ── */
+    .text-gradient {
+      background: linear-gradient(135deg, #a78bfa, #22d3ee);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* ── Glow breathe ── */
+    @keyframes glowBreathe {
+      0%, 100% { box-shadow: 0 0 10px rgba(139,92,246,0.4); }
+      50%       { box-shadow: 0 0 24px rgba(34,211,238,0.6); }
+    }
+    .glow-breathe { animation: glowBreathe 3s ease-in-out infinite; }
+
+    /* ── Slide down animation ── */
+    @keyframes animDown {
+      from { opacity: 0; transform: translateY(-8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .anim-down { animation: animDown 0.18s ease forwards; }
+
+    /* ── Navbar header ── */
+    #site-header {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 9000;
+      transition: padding 0.3s;
+      padding: 12px 0;
+    }
+    #site-header.scrolled { padding: 6px 0; }
+
+    #nav-inner {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 0 1.5rem;
+    }
+
+    #nav-bar {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 1rem;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      padding: 10px 20px;
       transition: box-shadow 0.3s;
     }
-    .topnav.scrolled .topnav-inner {
-      padding-top: 0.4rem;
-      padding-bottom: 0.4rem;
-      box-shadow: 0 8px 48px rgba(0,0,0,0.7);
-    }
+    #site-header.scrolled #nav-bar { box-shadow: 0 8px 40px rgba(0,0,0,0.5); }
 
-    /* Logo */
+    /* ── Brand ── */
     .nav-brand {
       display: flex;
       align-items: center;
-      gap: 0.6rem;
+      gap: 10px;
       text-decoration: none;
       flex-shrink: 0;
     }
     .nav-brand-icon {
-      width: 2.25rem;
-      height: 2.25rem;
-      border-radius: 0.75rem;
-      background: linear-gradient(135deg, #7c3aed, #06b6d4);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.1rem;
       position: relative;
-      animation: breathe 3s ease-in-out infinite;
+      width: 36px; height: 36px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #7c3aed, #22d3ee);
+      display: flex; align-items: center; justify-content: center;
     }
-    .nav-brand-icon::after {
-      content: '';
+    .nav-brand-dot {
       position: absolute;
       top: -2px; right: -2px;
       width: 10px; height: 10px;
@@ -66,322 +86,232 @@
       border-radius: 50%;
       border: 2px solid #0a0a14;
     }
-    .nav-brand-text {
-      display: flex;
-      flex-direction: column;
-      line-height: 1.1;
-    }
-    .nav-brand-name {
-      font-size: 1rem;
-      font-weight: 900;
-      background: linear-gradient(90deg, #a78bfa, #67e8f9);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-    .nav-brand-sub {
-      font-size: 0.5rem;
-      color: #6b7280;
-      letter-spacing: 0.15em;
-      text-transform: uppercase;
-    }
+    .nav-brand-text { display: flex; flex-direction: column; line-height: 1.1; }
+    .nav-brand-name { font-size: 1rem; font-weight: 900; }
+    .nav-brand-sub  { font-size: 8px; color: #6b7280; letter-spacing: .15em; text-transform: uppercase; }
 
-    /* Desktop Links */
-    .nav-desktop {
+    /* ── Desktop nav links ── */
+    #desktop-nav {
       display: flex;
       align-items: center;
-      gap: 0.125rem;
+      gap: 2px;
     }
-    .nav-link {
+    .nav-link, .nav-mega-btn {
       display: flex;
       align-items: center;
-      gap: 0.375rem;
-      padding: 0.5rem 0.75rem;
-      border-radius: 0.75rem;
-      font-size: 0.8125rem;
+      gap: 6px;
+      padding: 8px 12px;
+      border-radius: 12px;
+      font-size: 13px;
       font-weight: 500;
       color: #d1d5db;
       text-decoration: none;
-      transition: all 0.2s;
-      white-space: nowrap;
-    }
-    .nav-link:hover,
-    .nav-link.active {
-      color: #fff;
-      background: rgba(255,255,255,0.05);
-    }
-    .nav-link.active {
-      border: 1px solid rgba(124,58,237,0.3);
-    }
-    .nav-link.highlight {
-      color: #fcd34d;
-    }
-    .nav-link.highlight:hover {
-      color: #fde68a;
-      background: rgba(245,158,11,0.1);
-    }
-
-    /* Dropdown Trigger */
-    .nav-dropdown {
-      position: relative;
-    }
-    .nav-dropdown-btn {
-      display: flex;
-      align-items: center;
-      gap: 0.375rem;
-      padding: 0.5rem 0.75rem;
-      border-radius: 0.75rem;
-      font-size: 0.8125rem;
-      font-weight: 500;
-      color: #d1d5db;
-      background: none;
       border: none;
+      background: none;
       cursor: pointer;
-      transition: all 0.2s;
-      white-space: nowrap;
+      transition: color 0.2s, background 0.2s;
     }
-    .nav-dropdown-btn:hover,
-    .nav-dropdown.open .nav-dropdown-btn {
-      color: #fff;
-      background: rgba(255,255,255,0.07);
-    }
-    .nav-dropdown-btn .chevron {
-      width: 0.75rem;
-      height: 0.75rem;
-      opacity: 0.5;
-      transition: transform 0.2s;
-    }
-    .nav-dropdown.open .nav-dropdown-btn .chevron {
-      transform: rotate(180deg);
-    }
+    .nav-link:hover, .nav-mega-btn:hover { color: #fff; background: rgba(255,255,255,0.05); }
+    .nav-link.active  { color: #fff; background: rgba(255,255,255,0.05); border: 1px solid rgba(139,92,246,0.3); }
+    .nav-link.highlight { color: #fcd34d; }
+    .nav-link.highlight:hover { color: #fde68a; background: rgba(245,158,11,0.1); }
+    .nav-mega-btn.open { color: #fff; background: rgba(255,255,255,0.1); }
+    .nav-mega-btn svg.chevron { width: 12px; height: 12px; opacity: 0.5; transition: transform 0.2s; }
+    .nav-mega-btn.open svg.chevron { transform: rotate(180deg); }
 
-    /* Mega Menu Panel */
-    .mega-panel {
-      display: none;
-      position: absolute;
-      top: calc(100% + 0.75rem);
-      left: 50%;
-      transform: translateX(-50%);
-      width: 800px;
-      max-width: 95vw;
-      background: rgba(15,15,30,0.95);
-      backdrop-filter: blur(24px);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 1.25rem;
-      padding: 1.5rem;
-      box-shadow: 0 24px 64px rgba(0,0,0,0.6);
-      animation: anim-down 0.2s ease;
-      z-index: 200;
-    }
-    .nav-dropdown.open .mega-panel {
-      display: block;
-    }
-    @keyframes anim-down {
-      from { opacity: 0; transform: translateX(-50%) translateY(-8px); }
-      to   { opacity: 1; transform: translateX(-50%) translateY(0); }
-    }
-    .mega-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 1.5rem;
-    }
-    .mega-col h4 {
-      font-size: 0.625rem;
-      text-transform: uppercase;
-      letter-spacing: 0.15em;
-      color: #6b7280;
-      font-weight: 700;
-      margin-bottom: 0.75rem;
-      padding: 0 0.5rem;
-    }
-    .mega-link {
-      display: flex;
-      align-items: flex-start;
-      gap: 0.75rem;
-      padding: 0.625rem;
-      border-radius: 0.75rem;
-      text-decoration: none;
-      transition: background 0.15s;
-    }
-    .mega-link:hover {
-      background: rgba(255,255,255,0.05);
-    }
-    .mega-link-icon {
-      width: 2rem;
-      height: 2rem;
-      border-radius: 0.5rem;
-      background: rgba(124,58,237,0.1);
-      border: 1px solid rgba(124,58,237,0.2);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 0.875rem;
-      flex-shrink: 0;
-      transition: background 0.15s;
-    }
-    .mega-link:hover .mega-link-icon {
-      background: rgba(124,58,237,0.2);
-    }
-    .mega-link-label {
-      font-size: 0.875rem;
-      font-weight: 600;
-      color: #fff;
-      display: flex;
-      align-items: center;
-      gap: 0.375rem;
-    }
-    .mega-link-desc {
-      font-size: 0.6875rem;
-      color: #9ca3af;
-      margin-top: 0.125rem;
-    }
-    .badge {
-      font-size: 0.5rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      padding: 0.125rem 0.375rem;
-      border-radius: 0.25rem;
-    }
-    .badge-new  { background: rgba(6,182,212,0.2);  color: #67e8f9; }
-    .badge-hot  { background: rgba(239,68,68,0.2);  color: #fca5a5; }
-    .badge-top  { background: rgba(245,158,11,0.2); color: #fcd34d; }
+    /* ── Icon helpers ── */
+    .ni { width: 14px; height: 14px; flex-shrink: 0; }
+    .ni-sm { width: 12px; height: 12px; }
 
-    /* Mega CTA */
-    .mega-cta {
-      grid-column: 1 / -1;
-      margin-top: 0.5rem;
-      padding-top: 1rem;
-      border-top: 1px solid rgba(255,255,255,0.05);
-    }
-    .mega-cta a {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 1rem;
-      border-radius: 0.75rem;
-      background: linear-gradient(90deg, rgba(124,58,237,0.15), rgba(6,182,212,0.15));
-      border: 1px solid rgba(124,58,237,0.2);
-      text-decoration: none;
-      transition: border-color 0.2s;
-    }
-    .mega-cta a:hover { border-color: rgba(124,58,237,0.5); }
-    .mega-cta-title { font-weight: 700; color: #fff; font-size: 0.875rem; }
-    .mega-cta-desc  { font-size: 0.75rem; color: #9ca3af; margin-top: 0.125rem; }
-    .mega-cta-arrow { font-size: 1.25rem; color: #a78bfa; transition: transform 0.2s; }
-    .mega-cta a:hover .mega-cta-arrow { transform: rotate(12deg); }
-
-    /* CTA Button */
-    .btn-invite {
+    /* ── CTA button ── */
+    .btn-primary {
       display: inline-flex;
       align-items: center;
-      gap: 0.375rem;
-      padding: 0.5rem 1rem;
-      border-radius: 0.75rem;
-      background: linear-gradient(135deg, #7c3aed, #06b6d4);
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 600;
+      background: linear-gradient(135deg, #7c3aed, #2563eb);
       color: #fff;
-      font-size: 0.75rem;
-      font-weight: 700;
       text-decoration: none;
       transition: opacity 0.2s, transform 0.2s;
       white-space: nowrap;
     }
-    .btn-invite:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn-primary:hover { opacity: 0.85; transform: translateY(-1px); }
 
-    /* Mobile Toggle */
-    .nav-mobile-btn {
-      width: 2.25rem;
-      height: 2.25rem;
-      border-radius: 0.75rem;
+    /* ── Mobile toggle ── */
+    #mobile-toggle {
+      width: 36px; height: 36px;
+      border-radius: 12px;
       background: rgba(255,255,255,0.05);
       border: 1px solid rgba(255,255,255,0.1);
       display: none;
-      align-items: center;
-      justify-content: center;
+      align-items: center; justify-content: center;
       cursor: pointer;
-      font-size: 1rem;
+      color: #d1d5db;
+    }
+
+    /* ── Mega menu panel ── */
+    #mega-panel {
+      display: none;
+      margin-top: 8px;
+      padding: 24px;
+      border-radius: 1.25rem;
+      border: 1px solid rgba(255,255,255,0.1);
+      box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+      overflow: hidden;
+    }
+    #mega-panel.visible { display: block; }
+
+    .mega-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+    .mega-col-title {
+      font-size: 10px;
+      letter-spacing: .15em;
+      text-transform: uppercase;
+      color: #6b7280;
+      font-weight: 700;
+      margin-bottom: 12px;
+      padding: 0 10px;
+    }
+    .mega-link {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 10px;
+      border-radius: 12px;
+      text-decoration: none;
+      transition: background 0.2s;
+    }
+    .mega-link:hover { background: rgba(255,255,255,0.05); }
+    .mega-link-icon {
+      width: 32px; height: 32px;
+      border-radius: 8px;
+      background: rgba(139,92,246,0.1);
+      border: 1px solid rgba(139,92,246,0.2);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      transition: background 0.2s;
+    }
+    .mega-link:hover .mega-link-icon { background: rgba(139,92,246,0.2); }
+    .mega-link-icon svg { width: 16px; height: 16px; color: #a78bfa; }
+    .mega-link-name {
+      font-size: 13px;
+      font-weight: 600;
       color: #fff;
     }
-
-    /* Mobile Menu */
-    .nav-mobile-menu {
-      display: none;
-      margin-top: 0.5rem;
-      background: rgba(15,15,30,0.95);
-      backdrop-filter: blur(20px);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 1rem;
-      padding: 0.75rem;
-      max-height: 80vh;
-      overflow-y: auto;
-      animation: anim-down 0.2s ease;
+    .mega-link-desc {
+      font-size: 11px;
+      color: #9ca3af;
+      margin-top: 2px;
     }
-    .nav-mobile-menu.open { display: block; }
-
-    .mobile-link {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.625rem 1rem;
-      border-radius: 0.75rem;
-      font-size: 0.875rem;
-      color: #d1d5db;
-      text-decoration: none;
-      transition: all 0.15s;
+    .mega-badge {
+      font-size: 8px;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-left: 4px;
     }
-    .mobile-link:hover { background: rgba(255,255,255,0.05); color: #fff; }
-    .mobile-link-icon { font-size: 0.875rem; color: #a78bfa; }
+    .badge-new  { background: rgba(34,211,238,0.2); color: #67e8f9; }
+    .badge-hot  { background: rgba(239,68,68,0.2); color: #fca5a5; }
+    .badge-top  { background: rgba(245,158,11,0.2); color: #fcd34d; }
 
-    details.mobile-group summary {
+    .mega-cta {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0.625rem 1rem;
-      border-radius: 0.75rem;
-      font-size: 0.875rem;
+      padding: 16px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, rgba(139,92,246,0.15), rgba(34,211,238,0.15));
+      border: 1px solid rgba(139,92,246,0.2);
+      text-decoration: none;
+      margin-top: 16px;
+      transition: border-color 0.2s;
+    }
+    .mega-cta:hover { border-color: rgba(139,92,246,0.4); }
+    .mega-cta-title { font-size: 14px; font-weight: 700; color: #fff; }
+    .mega-cta-desc  { font-size: 12px; color: #9ca3af; margin-top: 2px; }
+    .mega-cta-arrow { color: #a78bfa; transition: transform 0.2s; }
+    .mega-cta:hover .mega-cta-arrow { transform: rotate(12deg); }
+
+    /* ── Mobile menu ── */
+    #mobile-menu {
+      display: none;
+      margin-top: 8px;
+      padding: 12px;
+      border-radius: 1rem;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    #mobile-menu.visible { display: block; }
+    .mob-link {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      border-radius: 12px;
+      font-size: 14px;
+      color: #d1d5db;
+      text-decoration: none;
+      transition: background 0.2s, color 0.2s;
+    }
+    .mob-link:hover { background: rgba(255,255,255,0.05); color: #fff; }
+    .mob-link svg { color: #a78bfa; }
+    .mob-details summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      border-radius: 12px;
+      font-size: 14px;
       font-weight: 500;
       color: #d1d5db;
       cursor: pointer;
       list-style: none;
-      transition: all 0.15s;
+      transition: background 0.2s;
     }
-    details.mobile-group summary:hover { background: rgba(255,255,255,0.05); color: #fff; }
-    details.mobile-group summary::-webkit-details-marker { display: none; }
-    .mobile-group-inner {
-      margin-left: 1.5rem;
-      margin-top: 0.25rem;
-      margin-bottom: 0.5rem;
-    }
-    .mobile-sub-link {
+    .mob-details summary:hover { background: rgba(255,255,255,0.05); }
+    .mob-details summary svg { color: #a78bfa; }
+    .mob-details[open] summary .mob-chevron { transform: rotate(180deg); }
+    .mob-chevron { transition: transform 0.2s; width: 14px; height: 14px; opacity: 0.5; }
+    .mob-sub { margin-left: 24px; margin-top: 4px; margin-bottom: 8px; }
+    .mob-sub a {
       display: block;
-      padding: 0.5rem 0.75rem;
-      border-radius: 0.5rem;
-      font-size: 0.8125rem;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 13px;
       color: #9ca3af;
       text-decoration: none;
-      transition: all 0.15s;
+      transition: background 0.2s, color 0.2s;
     }
-    .mobile-sub-link:hover { background: rgba(255,255,255,0.05); color: #fff; }
+    .mob-sub a:hover { background: rgba(255,255,255,0.05); color: #fff; }
 
-    /* Responsive */
+    /* ── Mega separator ── */
+    .mega-sep {
+      grid-column: 1 / -1;
+      border: none;
+      border-top: 1px solid rgba(255,255,255,0.05);
+      margin: 4px 0;
+    }
+
+    /* ── Responsive ── */
     @media (max-width: 1279px) {
-      .nav-desktop { display: none; }
-      .nav-mobile-btn { display: flex; }
+      #desktop-nav { display: none; }
+      #mobile-toggle { display: flex; }
+      .btn-invite-desk { display: none !important; }
     }
-    @media (max-width: 640px) {
-      .btn-invite { display: none; }
+    @media (max-width: 639px) {
       .nav-brand-sub { display: none; }
-    }
-
-    /* Push content below fixed nav */
-    .page-wrapper { padding-top: 5rem; }
-
-    @keyframes breathe {
-      0%, 100% { box-shadow: 0 0 12px rgba(124,58,237,0.5); }
-      50%       { box-shadow: 0 0 24px rgba(6,182,212,0.6); }
     }
   </style>
 </head>
 <body class="page-bg">
+  <!-- 3D-Canvas wird automatisch von script.js erstellt -->
   <div class="page-wrapper">
 
     <!-- ⚠️ HINWEIS-BANNER -->
@@ -396,614 +326,443 @@
       </div>
     </div>
 
-    <!-- ── NAVBAR ── -->
-    <nav class="topnav" id="topnav">
-      <div class="topnav-inner">
+    <!-- ════════════════════════════════════════
+         NAVBAR
+    ════════════════════════════════════════ -->
+    <header id="site-header">
+      <div id="nav-inner">
 
-        <!-- Logo -->
-        <a href="/" class="nav-brand">
-          <div class="nav-brand-icon">🛡️</div>
-          <div class="nav-brand-text">
-            <span class="nav-brand-name">ModForge</span>
-            <span class="nav-brand-sub">v3.0 · Live</span>
-          </div>
-        </a>
+        <!-- Bar -->
+        <div id="nav-bar" class="glass-strong">
 
-        <!-- Desktop Navigation -->
-        <div class="nav-desktop">
-
-          <!-- Home -->
-          <a href="/" class="nav-link">🏠 Home</a>
-
-          <!-- Produkt Mega Menu -->
-          <div class="nav-dropdown" id="dd-produkt">
-            <button class="nav-dropdown-btn" onclick="toggleDropdown('dd-produkt')">
-              ✨ Produkt
-              <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <polyline points="6 9 12 15 18 9"/>
+          <!-- Logo -->
+          <a href="/" class="nav-brand">
+            <div class="nav-brand-icon glow-breathe">
+              <!-- Bot icon -->
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                   stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="10" rx="2"/>
+                <circle cx="12" cy="5" r="2"/>
+                <path d="M12 7v4"/>
+                <line x1="8" y1="16" x2="8" y2="16"/>
+                <line x1="16" y1="16" x2="16" y2="16"/>
               </svg>
-            </button>
-            <div class="mega-panel">
-              <div class="mega-grid">
-                <!-- Col 1 -->
-                <div class="mega-col">
-                  <h4>Module</h4>
-                  <a href="/features" class="mega-link">
-                    <div class="mega-link-icon">🧩</div>
-                    <div>
-                      <div class="mega-link-label">Alle Features</div>
-                      <div class="mega-link-desc">Komplette Übersicht</div>
-                    </div>
-                  </a>
-                  <a href="/commands" class="mega-link">
-                    <div class="mega-link-icon">⌨️</div>
-                    <div>
-                      <div class="mega-link-label">100+ Commands</div>
-                      <div class="mega-link-desc">Slash + Prefix Commands</div>
-                    </div>
-                  </a>
-                  <a href="/economy" class="mega-link">
-                    <div class="mega-link-icon">🪙</div>
-                    <div>
-                      <div class="mega-link-label">Economy System</div>
-                      <div class="mega-link-desc">Coins, Shop & Gambling</div>
-                    </div>
-                  </a>
-                  <a href="/ai" class="mega-link">
-                    <div class="mega-link-icon">🤖</div>
-                    <div>
-                      <div class="mega-link-label">
-                        AI Features
-                        <span class="badge badge-new">Neu</span>
-                      </div>
-                      <div class="mega-link-desc">GPT-4 Integration</div>
-                    </div>
-                  </a>
-                </div>
-                <!-- Col 2 -->
-                <div class="mega-col">
-                  <h4>Tools</h4>
-                  <a href="/templates" class="mega-link">
-                    <div class="mega-link-icon">📐</div>
-                    <div>
-                      <div class="mega-link-label">Server Templates</div>
-                      <div class="mega-link-desc">Vorgefertigte Setups</div>
-                    </div>
-                  </a>
-                  <a href="/integrations" class="mega-link">
-                    <div class="mega-link-icon">🔌</div>
-                    <div>
-                      <div class="mega-link-label">Integrationen</div>
-                      <div class="mega-link-desc">Twitch, YouTube, GitHub</div>
-                    </div>
-                  </a>
-                  <a href="/widgets" class="mega-link">
-                    <div class="mega-link-icon">📊</div>
-                    <div>
-                      <div class="mega-link-label">Embed Widgets</div>
-                      <div class="mega-link-desc">Stats für deine Website</div>
-                    </div>
-                  </a>
-                  <a href="/emojis" class="mega-link">
-                    <div class="mega-link-icon">😄</div>
-                    <div>
-                      <div class="mega-link-label">Emoji Pack</div>
-                      <div class="mega-link-desc">Custom Emojis Download</div>
-                    </div>
-                  </a>
-                </div>
-                <!-- Col 3 -->
-                <div class="mega-col">
-                  <h4>Module Details</h4>
-                  <a href="/docs/automod" class="mega-link">
-                    <div class="mega-link-icon">🛡️</div>
-                    <div>
-                      <div class="mega-link-label">AutoMod 2.0</div>
-                      <div class="mega-link-desc">KI-Schutz</div>
-                    </div>
-                  </a>
-                  <a href="/docs/tickets" class="mega-link">
-                    <div class="mega-link-icon">🎫</div>
-                    <div>
-                      <div class="mega-link-label">Tickets</div>
-                      <div class="mega-link-desc">Dropdown Panel</div>
-                    </div>
-                  </a>
-                  <a href="/docs/music" class="mega-link">
-                    <div class="mega-link-icon">🎵</div>
-                    <div>
-                      <div class="mega-link-label">Music Player</div>
-                      <div class="mega-link-desc">Lavalink Audio</div>
-                    </div>
-                  </a>
-                  <a href="/badges" class="mega-link">
-                    <div class="mega-link-icon">🏅</div>
-                    <div>
-                      <div class="mega-link-label">Badges</div>
-                      <div class="mega-link-desc">Achievement-System</div>
-                    </div>
-                  </a>
-                </div>
-                <!-- CTA -->
-                <div class="mega-cta">
-                  <a href="/premium">
-                    <div>
-                      <div class="mega-cta-title">Premium freischalten</div>
-                      <div class="mega-cta-desc">24/7 Music & Custom Branding</div>
-                    </div>
-                    <span class="mega-cta-arrow">↗</span>
-                  </a>
-                </div>
-              </div>
+              <span class="nav-brand-dot"></span>
             </div>
-          </div>
-
-          <!-- Ressourcen Mega Menu -->
-          <div class="nav-dropdown" id="dd-ressourcen">
-            <button class="nav-dropdown-btn" onclick="toggleDropdown('dd-ressourcen')">
-              📚 Ressourcen
-              <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <polyline points="6 9 12 15 18 9"/>
-              </svg>
-            </button>
-            <div class="mega-panel">
-              <div class="mega-grid">
-                <div class="mega-col">
-                  <h4>Lernen</h4>
-                  <a href="/docs" class="mega-link">
-                    <div class="mega-link-icon">📖</div>
-                    <div>
-                      <div class="mega-link-label">Dokumentation</div>
-                      <div class="mega-link-desc">Vollständiger Guide</div>
-                    </div>
-                  </a>
-                  <a href="/tutorials" class="mega-link">
-                    <div class="mega-link-icon">🎬</div>
-                    <div>
-                      <div class="mega-link-label">Video Tutorials</div>
-                      <div class="mega-link-desc">8+ Anleitungen</div>
-                    </div>
-                  </a>
-                  <a href="/faq" class="mega-link">
-                    <div class="mega-link-icon">❓</div>
-                    <div>
-                      <div class="mega-link-label">FAQ</div>
-                      <div class="mega-link-desc">Häufige Fragen</div>
-                    </div>
-                  </a>
-                  <a href="/docs/setup" class="mega-link">
-                    <div class="mega-link-icon">🔧</div>
-                    <div>
-                      <div class="mega-link-label">Setup Guide</div>
-                      <div class="mega-link-desc">In 2 Minuten startklar</div>
-                    </div>
-                  </a>
-                </div>
-                <div class="mega-col">
-                  <h4>Entwickler</h4>
-                  <a href="/api-docs" class="mega-link">
-                    <div class="mega-link-icon">💻</div>
-                    <div>
-                      <div class="mega-link-label">API Docs</div>
-                      <div class="mega-link-desc">REST API Referenz</div>
-                    </div>
-                  </a>
-                  <a href="/branding" class="mega-link">
-                    <div class="mega-link-icon">✨</div>
-                    <div>
-                      <div class="mega-link-label">Brand Kit</div>
-                      <div class="mega-link-desc">Logos & Farben</div>
-                    </div>
-                  </a>
-                  <a href="/changelog" class="mega-link">
-                    <div class="mega-link-icon">📝</div>
-                    <div>
-                      <div class="mega-link-label">Changelog</div>
-                      <div class="mega-link-desc">Alle Updates</div>
-                    </div>
-                  </a>
-                  <a href="/roadmap" class="mega-link">
-                    <div class="mega-link-icon">📈</div>
-                    <div>
-                      <div class="mega-link-label">Roadmap</div>
-                      <div class="mega-link-desc">Was kommt als nächstes</div>
-                    </div>
-                  </a>
-                </div>
-                <div class="mega-col">
-                  <h4>Migration</h4>
-                  <a href="/migrate" class="mega-link">
-                    <div class="mega-link-icon">🔄</div>
-                    <div>
-                      <div class="mega-link-label">
-                        Migration Tool
-                        <span class="badge badge-hot">Hot</span>
-                      </div>
-                      <div class="mega-link-desc">Von MEE6, Dyno & Co.</div>
-                    </div>
-                  </a>
-                  <a href="/blog" class="mega-link">
-                    <div class="mega-link-icon">📰</div>
-                    <div>
-                      <div class="mega-link-label">Blog & News</div>
-                      <div class="mega-link-desc">Updates und Guides</div>
-                    </div>
-                  </a>
-                  <a href="/downloads" class="mega-link">
-                    <div class="mega-link-icon">☁️</div>
-                    <div>
-                      <div class="mega-link-label">Downloads</div>
-                      <div class="mega-link-desc">Apps & Assets</div>
-                    </div>
-                  </a>
-                  <a href="/docs/moderation" class="mega-link">
-                    <div class="mega-link-icon">🛡️</div>
-                    <div>
-                      <div class="mega-link-label">Mod-Anleitung</div>
-                      <div class="mega-link-desc">Mod-Befehle erklärt</div>
-                    </div>
-                  </a>
-                </div>
-                <div class="mega-cta">
-                  <a href="/migrate">
-                    <div>
-                      <div class="mega-cta-title">Migration kostenlos</div>
-                      <div class="mega-cta-desc">Wir helfen beim Wechsel</div>
-                    </div>
-                    <span class="mega-cta-arrow">↗</span>
-                  </a>
-                </div>
-              </div>
+            <div class="nav-brand-text">
+              <span class="nav-brand-name text-gradient">ModForge</span>
+              <span class="nav-brand-sub">v3.0 · Live</span>
             </div>
-          </div>
-
-          <!-- Community Mega Menu -->
-          <div class="nav-dropdown" id="dd-community">
-            <button class="nav-dropdown-btn" onclick="toggleDropdown('dd-community')">
-              ❤️ Community
-              <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <polyline points="6 9 12 15 18 9"/>
-              </svg>
-            </button>
-            <div class="mega-panel">
-              <div class="mega-grid">
-                <div class="mega-col">
-                  <h4>Mitmachen</h4>
-                  <a href="/partners" class="mega-link">
-                    <div class="mega-link-icon">❤️</div>
-                    <div>
-                      <div class="mega-link-label">
-                        Partner werden
-                        <span class="badge badge-top">Top</span>
-                      </div>
-                      <div class="mega-link-desc">Werbung + Premium gratis</div>
-                    </div>
-                  </a>
-                  <a href="/affiliate" class="mega-link">
-                    <div class="mega-link-icon">📈</div>
-                    <div>
-                      <div class="mega-link-label">Affiliate</div>
-                      <div class="mega-link-desc">20% Lifetime-Provision</div>
-                    </div>
-                  </a>
-                  <a href="/suggest" class="mega-link">
-                    <div class="mega-link-icon">💡</div>
-                    <div>
-                      <div class="mega-link-label">Vorschläge</div>
-                      <div class="mega-link-desc">Stimm für Features ab</div>
-                    </div>
-                  </a>
-                  <a href="/contact" class="mega-link">
-                    <div class="mega-link-icon">✉️</div>
-                    <div>
-                      <div class="mega-link-label">Kontakt</div>
-                      <div class="mega-link-desc">Nimm Verbindung auf</div>
-                    </div>
-                  </a>
-                </div>
-                <div class="mega-col">
-                  <h4>Showcase</h4>
-                  <a href="/showcase" class="mega-link">
-                    <div class="mega-link-icon">🖥️</div>
-                    <div>
-                      <div class="mega-link-label">Server Showcase</div>
-                      <div class="mega-link-desc">Top Communities</div>
-                    </div>
-                  </a>
-                  <a href="/testimonials" class="mega-link">
-                    <div class="mega-link-icon">💬</div>
-                    <div>
-                      <div class="mega-link-label">Bewertungen</div>
-                      <div class="mega-link-desc">Was User sagen</div>
-                    </div>
-                  </a>
-                  <a href="/leaderboard" class="mega-link">
-                    <div class="mega-link-icon">📊</div>
-                    <div>
-                      <div class="mega-link-label">XP Leaderboard</div>
-                      <div class="mega-link-desc">Globale Bestenliste</div>
-                    </div>
-                  </a>
-                  <a href="/guilds" class="mega-link">
-                    <div class="mega-link-icon">👑</div>
-                    <div>
-                      <div class="mega-link-label">eSports Gilden</div>
-                      <div class="mega-link-desc">Verifizierte Clans</div>
-                    </div>
-                  </a>
-                </div>
-                <div class="mega-col">
-                  <h4>Über uns</h4>
-                  <a href="/team" class="mega-link">
-                    <div class="mega-link-icon">👥</div>
-                    <div>
-                      <div class="mega-link-label">Team</div>
-                      <div class="mega-link-desc">Lerne uns kennen</div>
-                    </div>
-                  </a>
-                  <a href="/jobs" class="mega-link">
-                    <div class="mega-link-icon">💼</div>
-                    <div>
-                      <div class="mega-link-label">Karriere</div>
-                      <div class="mega-link-desc">Wir suchen Talente</div>
-                    </div>
-                  </a>
-                  <a href="/events" class="mega-link">
-                    <div class="mega-link-icon">📅</div>
-                    <div>
-                      <div class="mega-link-label">Events</div>
-                      <div class="mega-link-desc">Live-Streams & Drops</div>
-                    </div>
-                  </a>
-                  <a href="/community" class="mega-link">
-                    <div class="mega-link-icon">🌐</div>
-                    <div>
-                      <div class="mega-link-label">Community Hub</div>
-                      <div class="mega-link-desc">Alles auf einen Blick</div>
-                    </div>
-                  </a>
-                </div>
-                <div class="mega-cta">
-                  <a href="/support">
-                    <div>
-                      <div class="mega-cta-title">Discord beitreten</div>
-                      <div class="mega-cta-desc">850+ aktive Member</div>
-                    </div>
-                    <span class="mega-cta-arrow">↗</span>
-                  </a>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Support Mega Menu -->
-          <div class="nav-dropdown" id="dd-support">
-            <button class="nav-dropdown-btn" onclick="toggleDropdown('dd-support')">
-              🎧 Support
-              <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <polyline points="6 9 12 15 18 9"/>
-              </svg>
-            </button>
-            <div class="mega-panel">
-              <div class="mega-grid">
-                <div class="mega-col">
-                  <h4>Hilfe</h4>
-                  <a href="/support" class="mega-link">
-                    <div class="mega-link-icon">🎧</div>
-                    <div>
-                      <div class="mega-link-label">Support-Center</div>
-                      <div class="mega-link-desc">Hilfe-Übersicht</div>
-                    </div>
-                  </a>
-                  <a href="/faq" class="mega-link">
-                    <div class="mega-link-icon">❓</div>
-                    <div>
-                      <div class="mega-link-label">FAQ</div>
-                      <div class="mega-link-desc">Häufige Fragen</div>
-                    </div>
-                  </a>
-                  <a href="/contact" class="mega-link">
-                    <div class="mega-link-icon">✉️</div>
-                    <div>
-                      <div class="mega-link-label">Kontakt</div>
-                      <div class="mega-link-desc">Wir antworten schnell</div>
-                    </div>
-                  </a>
-                  <a href="/docs" class="mega-link">
-                    <div class="mega-link-icon">📖</div>
-                    <div>
-                      <div class="mega-link-label">Dokumentation</div>
-                      <div class="mega-link-desc">Anleitungen</div>
-                    </div>
-                  </a>
-                </div>
-                <div class="mega-col">
-                  <h4>Status</h4>
-                  <a href="/status" class="mega-link">
-                    <div class="mega-link-icon">⚡</div>
-                    <div>
-                      <div class="mega-link-label">Live Status</div>
-                      <div class="mega-link-desc">99.9% Uptime</div>
-                    </div>
-                  </a>
-                  <a href="/uptime" class="mega-link">
-                    <div class="mega-link-icon">🟢</div>
-                    <div>
-                      <div class="mega-link-label">Uptime Monitor</div>
-                      <div class="mega-link-desc">Live-Counter</div>
-                    </div>
-                  </a>
-                  <a href="/status/incidents" class="mega-link">
-                    <div class="mega-link-icon">🔔</div>
-                    <div>
-                      <div class="mega-link-label">Vorfälle</div>
-                      <div class="mega-link-desc">Historie & Updates</div>
-                    </div>
-                  </a>
-                  <a href="/status/maintenance" class="mega-link">
-                    <div class="mega-link-icon">🔧</div>
-                    <div>
-                      <div class="mega-link-label">Wartung</div>
-                      <div class="mega-link-desc">Geplante Updates</div>
-                    </div>
-                  </a>
-                </div>
-                <div class="mega-col">
-                  <h4>Sicherheit</h4>
-                  <a href="/security" class="mega-link">
-                    <div class="mega-link-icon">🔒</div>
-                    <div>
-                      <div class="mega-link-label">Sicherheit</div>
-                      <div class="mega-link-desc">DSGVO & TLS 1.3</div>
-                    </div>
-                  </a>
-                  <a href="/privacy" class="mega-link">
-                    <div class="mega-link-icon">🛡️</div>
-                    <div>
-                      <div class="mega-link-label">Datenschutz</div>
-                      <div class="mega-link-desc">Privacy Policy</div>
-                    </div>
-                  </a>
-                  <a href="/terms" class="mega-link">
-                    <div class="mega-link-icon">📄</div>
-                    <div>
-                      <div class="mega-link-label">Nutzungsbedingungen</div>
-                      <div class="mega-link-desc">Terms of Service</div>
-                    </div>
-                  </a>
-                  <a href="/legal" class="mega-link">
-                    <div class="mega-link-icon">📋</div>
-                    <div>
-                      <div class="mega-link-label">Rechtliches</div>
-                      <div class="mega-link-desc">Impressum & Co.</div>
-                    </div>
-                  </a>
-                </div>
-                <div class="mega-cta">
-                  <a href="/premium">
-                    <div>
-                      <div class="mega-cta-title">Premium Support</div>
-                      <div class="mega-cta-desc">Direkt zum Dev-Team</div>
-                    </div>
-                    <span class="mega-cta-arrow">↗</span>
-                  </a>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Direct Links -->
-          <a href="/pricing" class="nav-link highlight">👑 Pricing</a>
-          <a href="/status" class="nav-link">⚡ Status</a>
-          <a href="/dashboard" class="nav-link">📊 Dashboard</a>
-        </div>
-
-        <!-- Right: CTA + Mobile Toggle -->
-        <div style="display:flex;align-items:center;gap:0.5rem;flex-shrink:0;">
-          <a href="https://discord.com/api/oauth2/authorize?client_id=YOUR_CLIENT_ID&permissions=8&scope=bot%20applications.commands"
-             target="_blank" rel="noopener noreferrer" class="btn-invite">
-            ⚡ Einladen
           </a>
-          <button class="nav-mobile-btn" id="mobile-toggle" onclick="toggleMobile()" aria-label="Menü">
-            <span id="mobile-icon">☰</span>
-          </button>
+
+          <!-- Desktop Nav -->
+          <nav id="desktop-nav">
+
+            <!-- Home -->
+            <a href="/" class="nav-link" id="nav-home">
+              <!-- Home icon -->
+              <svg class="ni" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+              </svg>
+              Home
+            </a>
+
+            <!-- Mega: Produkt -->
+            <button class="nav-mega-btn" data-mega="produkt">
+              <svg class="ni" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+              </svg>
+              Produkt
+              <svg class="chevron" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </button>
+
+            <!-- Mega: Ressourcen -->
+            <button class="nav-mega-btn" data-mega="ressourcen">
+              <svg class="ni" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+              </svg>
+              Ressourcen
+              <svg class="chevron" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </button>
+
+            <!-- Mega: Community -->
+            <button class="nav-mega-btn" data-mega="community">
+              <svg class="ni" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+              </svg>
+              Community
+              <svg class="chevron" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </button>
+
+            <!-- Mega: Support -->
+            <button class="nav-mega-btn" data-mega="support">
+              <svg class="ni" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/>
+              </svg>
+              Support
+              <svg class="chevron" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </button>
+
+            <!-- Direct: Pricing -->
+            <a href="/pricing" class="nav-link highlight">
+              <svg class="ni" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                   stroke="#fbbf24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+              </svg>
+              Pricing
+            </a>
+
+            <!-- Direct: Status -->
+            <a href="/status" class="nav-link">
+              <svg class="ni" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+              </svg>
+              Status
+            </a>
+
+            <!-- Direct: Dashboard -->
+            <a href="/login" class="nav-link">
+              <svg class="ni" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+              </svg>
+              Dashboard
+            </a>
+          </nav>
+
+          <!-- Right: CTA + Mobile toggle -->
+          <div style="display:flex;align-items:center;gap:8px;">
+            <a href="https://discord.com/api/oauth2/authorize?client_id=YOUR_CLIENT_ID&permissions=8&scope=bot%20applications.commands"
+               target="_blank" rel="noopener noreferrer"
+               class="btn-primary btn-invite-desk">
+              <!-- Zap icon -->
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+              </svg>
+              Einladen
+            </a>
+            <button id="mobile-toggle" aria-label="Menü">
+              <svg id="mob-icon-open" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>
+              </svg>
+              <svg id="mob-icon-close" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
         </div>
+
+        <!-- ══ MEGA MENU PANEL ══ -->
+        <div id="mega-panel" class="glass-strong anim-down">
+
+          <!-- PRODUKT -->
+          <div data-panel="produkt" style="display:none;">
+            <div class="mega-grid">
+              <!-- Col: Module -->
+              <div>
+                <div class="mega-col-title">Module</div>
+                <a href="/features" class="mega-link">
+                  <div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="9" height="9" rx="1"/><rect x="13" y="2" width="9" height="9" rx="1"/><rect x="2" y="13" width="9" height="9" rx="1"/><rect x="13" y="13" width="9" height="9" rx="1"/></svg></div>
+                  <div><div class="mega-link-name">Alle Features</div><div class="mega-link-desc">Komplette Übersicht</div></div>
+                </a>
+                <a href="/commands" class="mega-link">
+                  <div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></div>
+                  <div><div class="mega-link-name">100+ Commands</div><div class="mega-link-desc">Slash + Prefix Commands</div></div>
+                </a>
+                <a href="/economy" class="mega-link">
+                  <div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div>
+                  <div><div class="mega-link-name">Economy System</div><div class="mega-link-desc">Coins, Shop &amp; Gambling</div></div>
+                </a>
+                <a href="/ai" class="mega-link">
+                  <div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg></div>
+                  <div><div class="mega-link-name">AI Features <span class="mega-badge badge-new">Neu</span></div><div class="mega-link-desc">GPT-4 Integration</div></div>
+                </a>
+              </div>
+              <!-- Col: Tools -->
+              <div>
+                <div class="mega-col-title">Tools</div>
+                <a href="/templates" class="mega-link">
+                  <div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg></div>
+                  <div><div class="mega-link-name">Server Templates</div><div class="mega-link-desc">Vorgefertigte Setups</div></div>
+                </a>
+                <a href="/integrations" class="mega-link">
+                  <div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"/><line x1="12" y1="8" x2="12" y2="21"/><line x1="5" y1="21" x2="19" y2="21"/></svg></div>
+                  <div><div class="mega-link-name">Integrationen</div><div class="mega-link-desc">Twitch, YouTube, GitHub</div></div>
+                </a>
+                <a href="/widgets" class="mega-link">
+                  <div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div>
+                  <div><div class="mega-link-name">Embed Widgets</div><div class="mega-link-desc">Stats für deine Website</div></div>
+                </a>
+                <a href="/emojis" class="mega-link">
+                  <div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></div>
+                  <div><div class="mega-link-name">Emoji Pack</div><div class="mega-link-desc">Custom Emojis Download</div></div>
+                </a>
+              </div>
+              <!-- Col: Module Details -->
+              <div>
+                <div class="mega-col-title">Module Details</div>
+                <a href="/docs/automod" class="mega-link">
+                  <div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+                  <div><div class="mega-link-name">AutoMod 2.0</div><div class="mega-link-desc">KI-Schutz</div></div>
+                </a>
+                <a href="/docs/tickets" class="mega-link">
+                  <div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 0 0-2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3a2 2 0 0 0 0-4V7a2 2 0 0 0-2-2H5z"/></svg></div>
+                  <div><div class="mega-link-name">Tickets</div><div class="mega-link-desc">Dropdown Panel</div></div>
+                </a>
+                <a href="/docs/music" class="mega-link">
+                  <div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div>
+                  <div><div class="mega-link-name">Music Player</div><div class="mega-link-desc">Lavalink Audio</div></div>
+                </a>
+                <a href="/badges" class="mega-link">
+                  <div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg></div>
+                  <div><div class="mega-link-name">Badges</div><div class="mega-link-desc">Achievement-System</div></div>
+                </a>
+              </div>
+            </div>
+            <a href="/premium" class="mega-cta">
+              <div><div class="mega-cta-title">Premium freischalten</div><div class="mega-cta-desc">24/7 Music &amp; Custom Branding</div></div>
+              <svg class="mega-cta-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>
+            </a>
+          </div>
+
+          <!-- RESSOURCEN -->
+          <div data-panel="ressourcen" style="display:none;">
+            <div class="mega-grid">
+              <div>
+                <div class="mega-col-title">Lernen</div>
+                <a href="/docs" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></div><div><div class="mega-link-name">Dokumentation</div><div class="mega-link-desc">Vollständiger Guide</div></div></a>
+                <a href="/tutorials" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg></div><div><div class="mega-link-name">Video Tutorials</div><div class="mega-link-desc">8+ Anleitungen</div></div></a>
+                <a href="/faq" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div><div><div class="mega-link-name">FAQ</div><div class="mega-link-desc">Häufige Fragen</div></div></a>
+                <a href="/docs/setup" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div><div><div class="mega-link-name">Setup Guide</div><div class="mega-link-desc">In 2 Minuten startklar</div></div></a>
+              </div>
+              <div>
+                <div class="mega-col-title">Entwickler</div>
+                <a href="/api-docs" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div><div><div class="mega-link-name">API Docs</div><div class="mega-link-desc">REST API Referenz</div></div></a>
+                <a href="/branding" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div><div><div class="mega-link-name">Brand Kit</div><div class="mega-link-desc">Logos &amp; Farben</div></div></a>
+                <a href="/changelog" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><div><div class="mega-link-name">Changelog</div><div class="mega-link-desc">Alle Updates</div></div></a>
+                <a href="/roadmap" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div><div><div class="mega-link-name">Roadmap</div><div class="mega-link-desc">Was kommt als nächstes</div></div></a>
+              </div>
+              <div>
+                <div class="mega-col-title">Migration</div>
+                <a href="/migrate" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.41"/></svg></div><div><div class="mega-link-name">Migration Tool <span class="mega-badge badge-hot">Hot</span></div><div class="mega-link-desc">Von MEE6, Dyno &amp; Co.</div></div></a>
+                <a href="/blog" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><div><div class="mega-link-name">Blog &amp; News</div><div class="mega-link-desc">Updates und Guides</div></div></a>
+                <a href="/downloads" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"/></svg></div><div><div class="mega-link-name">Downloads</div><div class="mega-link-desc">Apps &amp; Assets</div></div></a>
+                <a href="/docs/moderation" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div><div><div class="mega-link-name">Mod-Anleitung</div><div class="mega-link-desc">Mod-Befehle erklärt</div></div></a>
+              </div>
+            </div>
+            <a href="/migrate" class="mega-cta">
+              <div><div class="mega-cta-title">Migration kostenlos</div><div class="mega-cta-desc">Wir helfen beim Wechsel</div></div>
+              <svg class="mega-cta-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>
+            </a>
+          </div>
+
+          <!-- COMMUNITY -->
+          <div data-panel="community" style="display:none;">
+            <div class="mega-grid">
+              <div>
+                <div class="mega-col-title">Mitmachen</div>
+                <a href="/partners" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div><div><div class="mega-link-name">Partner werden <span class="mega-badge badge-top">Top</span></div><div class="mega-link-desc">Werbung + Premium gratis</div></div></a>
+                <a href="/affiliate" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div><div><div class="mega-link-name">Affiliate</div><div class="mega-link-desc">20% Lifetime-Provision</div></div></a>
+                <a href="/suggest" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg></div><div><div class="mega-link-name">Vorschläge</div><div class="mega-link-desc">Stimm für Features ab</div></div></a>
+                <a href="/contact" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div><div><div class="mega-link-name">Kontakt</div><div class="mega-link-desc">Nimm Verbindung auf</div></div></a>
+              </div>
+              <div>
+                <div class="mega-col-title">Showcase</div>
+                <a href="/showcase" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg></div><div><div class="mega-link-name">Server Showcase</div><div class="mega-link-desc">Top Communities</div></div></a>
+                <a href="/testimonials" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div><div><div class="mega-link-name">Bewertungen</div><div class="mega-link-desc">Was User sagen</div></div></a>
+                <a href="/leaderboard" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div><div><div class="mega-link-name">XP Leaderboard</div><div class="mega-link-desc">Globale Bestenliste</div></div></a>
+                <a href="/guilds" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div><div><div class="mega-link-name">eSports Gilden</div><div class="mega-link-desc">Verifizierte Clans</div></div></a>
+              </div>
+              <div>
+                <div class="mega-col-title">Über uns</div>
+                <a href="/team" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div><div><div class="mega-link-name">Team</div><div class="mega-link-desc">Lerne uns kennen</div></div></a>
+                <a href="/jobs" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></div><div><div class="mega-link-name">Karriere</div><div class="mega-link-desc">Wir suchen Talente</div></div></a>
+                <a href="/events" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div><div><div class="mega-link-name">Events</div><div class="mega-link-desc">Live-Streams &amp; Drops</div></div></a>
+                <a href="/community" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div><div><div class="mega-link-name">Community Hub</div><div class="mega-link-desc">Alles auf einen Blick</div></div></a>
+              </div>
+            </div>
+            <a href="https://discord.gg/gwryX3dbkt" target="_blank" class="mega-cta">
+              <div><div class="mega-cta-title">Discord beitreten</div><div class="mega-cta-desc">850+ aktive Member</div></div>
+              <svg class="mega-cta-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>
+            </a>
+          </div>
+
+          <!-- SUPPORT -->
+          <div data-panel="support" style="display:none;">
+            <div class="mega-grid">
+              <div>
+                <div class="mega-col-title">Hilfe</div>
+                <a href="/support" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg></div><div><div class="mega-link-name">Support-Center</div><div class="mega-link-desc">Hilfe-Übersicht</div></div></a>
+                <a href="/faq" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div><div><div class="mega-link-name">FAQ</div><div class="mega-link-desc">Häufige Fragen</div></div></a>
+                <a href="/contact" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div><div><div class="mega-link-name">Kontakt</div><div class="mega-link-desc">Wir antworten schnell</div></div></a>
+                <a href="/docs" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></div><div><div class="mega-link-name">Dokumentation</div><div class="mega-link-desc">Anleitungen</div></div></a>
+              </div>
+              <div>
+                <div class="mega-col-title">Status</div>
+                <a href="/status" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div><div><div class="mega-link-name">Live Status</div><div class="mega-link-desc">99.9% Uptime</div></div></a>
+                <a href="/uptime" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div><div><div class="mega-link-name">Uptime Monitor</div><div class="mega-link-desc">Live-Counter</div></div></a>
+                <a href="/status/incidents" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div><div><div class="mega-link-name">Vorfälle</div><div class="mega-link-desc">Historie &amp; Updates</div></div></a>
+                <a href="/status/maintenance" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div><div><div class="mega-link-name">Wartung</div><div class="mega-link-desc">Geplante Updates</div></div></a>
+              </div>
+              <div>
+                <div class="mega-col-title">Sicherheit</div>
+                <a href="/security" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div><div><div class="mega-link-name">Sicherheit</div><div class="mega-link-desc">DSGVO &amp; TLS 1.3</div></div></a>
+                <a href="/privacy" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div><div><div class="mega-link-name">Datenschutz</div><div class="mega-link-desc">Privacy Policy</div></div></a>
+                <a href="/terms" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></div><div><div class="mega-link-name">Nutzungsbedingungen</div><div class="mega-link-desc">Terms of Service</div></div></a>
+                <a href="/legal" class="mega-link"><div class="mega-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><div><div class="mega-link-name">Rechtliches</div><div class="mega-link-desc">Impressum &amp; Co.</div></div></a>
+              </div>
+            </div>
+            <a href="/premium" class="mega-cta">
+              <div><div class="mega-cta-title">Premium Support</div><div class="mega-cta-desc">Direkt zum Dev-Team</div></div>
+              <svg class="mega-cta-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>
+            </a>
+          </div>
+        </div>
+
+        <!-- Mobile Menu -->
+        <div id="mobile-menu" class="glass-strong anim-down">
+          <a href="/" class="mob-link">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            Home
+          </a>
+
+          <!-- Produkt -->
+          <details class="mob-details">
+            <summary>
+              <span style="display:flex;align-items:center;gap:8px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                Produkt
+              </span>
+              <svg class="mob-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </summary>
+            <div class="mob-sub">
+              <a href="/features">Alle Features</a>
+              <a href="/commands">100+ Commands</a>
+              <a href="/economy">Economy System</a>
+              <a href="/ai">AI Features</a>
+              <a href="/templates">Server Templates</a>
+              <a href="/integrations">Integrationen</a>
+              <a href="/widgets">Embed Widgets</a>
+              <a href="/emojis">Emoji Pack</a>
+              <a href="/docs/automod">AutoMod 2.0</a>
+              <a href="/docs/tickets">Tickets</a>
+              <a href="/docs/music">Music Player</a>
+              <a href="/badges">Badges</a>
+            </div>
+          </details>
+
+          <!-- Ressourcen -->
+          <details class="mob-details">
+            <summary>
+              <span style="display:flex;align-items:center;gap:8px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                Ressourcen
+              </span>
+              <svg class="mob-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </summary>
+            <div class="mob-sub">
+              <a href="/docs">Dokumentation</a>
+              <a href="/tutorials">Video Tutorials</a>
+              <a href="/faq">FAQ</a>
+              <a href="/docs/setup">Setup Guide</a>
+              <a href="/api-docs">API Docs</a>
+              <a href="/branding">Brand Kit</a>
+              <a href="/changelog">Changelog</a>
+              <a href="/roadmap">Roadmap</a>
+              <a href="/migrate">Migration Tool</a>
+              <a href="/blog">Blog &amp; News</a>
+              <a href="/downloads">Downloads</a>
+            </div>
+          </details>
+
+          <!-- Community -->
+          <details class="mob-details">
+            <summary>
+              <span style="display:flex;align-items:center;gap:8px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                Community
+              </span>
+              <svg class="mob-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </summary>
+            <div class="mob-sub">
+              <a href="/partners">Partner werden</a>
+              <a href="/affiliate">Affiliate</a>
+              <a href="/suggest">Vorschläge</a>
+              <a href="/contact">Kontakt</a>
+              <a href="/showcase">Server Showcase</a>
+              <a href="/testimonials">Bewertungen</a>
+              <a href="/leaderboard">XP Leaderboard</a>
+              <a href="/team">Team</a>
+              <a href="/jobs">Karriere</a>
+              <a href="/events">Events</a>
+            </div>
+          </details>
+
+          <!-- Support -->
+          <details class="mob-details">
+            <summary>
+              <span style="display:flex;align-items:center;gap:8px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>
+                Support
+              </span>
+              <svg class="mob-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </summary>
+            <div class="mob-sub">
+              <a href="/support">Support-Center</a>
+              <a href="/faq">FAQ</a>
+              <a href="/contact">Kontakt</a>
+              <a href="/status">Live Status</a>
+              <a href="/privacy">Datenschutz</a>
+              <a href="/terms">Nutzungsbedingungen</a>
+              <a href="/legal">Rechtliches</a>
+            </div>
+          </details>
+
+          <a href="/pricing" class="mob-link" style="color:#fcd34d;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            Pricing
+          </a>
+          <a href="/status" class="mob-link">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            Status
+          </a>
+          <a href="/login" class="mob-link">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            Dashboard
+          </a>
+
+          <a href="https://discord.com/api/oauth2/authorize?client_id=YOUR_CLIENT_ID&permissions=8&scope=bot%20applications.commands"
+             target="_blank" rel="noopener noreferrer"
+             class="btn-primary" style="margin-top:8px;justify-content:center;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            Bot einladen
+          </a>
+        </div>
+
       </div>
-
-      <!-- Mobile Menu -->
-      <div class="nav-mobile-menu" id="mobile-menu">
-        <a href="/" class="mobile-link"><span class="mobile-link-icon">🏠</span> Home</a>
-
-        <!-- Produkt -->
-        <details class="mobile-group">
-          <summary>
-            <span><span class="mobile-link-icon">✨</span> Produkt</span>
-            <span style="font-size:0.75rem;opacity:0.5;">▼</span>
-          </summary>
-          <div class="mobile-group-inner">
-            <a href="/features"    class="mobile-sub-link">Alle Features</a>
-            <a href="/commands"    class="mobile-sub-link">100+ Commands</a>
-            <a href="/economy"     class="mobile-sub-link">Economy System</a>
-            <a href="/ai"          class="mobile-sub-link">AI Features</a>
-            <a href="/templates"   class="mobile-sub-link">Server Templates</a>
-            <a href="/integrations" class="mobile-sub-link">Integrationen</a>
-            <a href="/widgets"     class="mobile-sub-link">Embed Widgets</a>
-            <a href="/emojis"      class="mobile-sub-link">Emoji Pack</a>
-            <a href="/docs/automod" class="mobile-sub-link">AutoMod 2.0</a>
-            <a href="/docs/tickets" class="mobile-sub-link">Tickets</a>
-            <a href="/docs/music"  class="mobile-sub-link">Music Player</a>
-            <a href="/badges"      class="mobile-sub-link">Badges</a>
-          </div>
-        </details>
-
-        <!-- Ressourcen -->
-        <details class="mobile-group">
-          <summary>
-            <span><span class="mobile-link-icon">📚</span> Ressourcen</span>
-            <span style="font-size:0.75rem;opacity:0.5;">▼</span>
-          </summary>
-          <div class="mobile-group-inner">
-            <a href="/docs"          class="mobile-sub-link">Dokumentation</a>
-            <a href="/tutorials"     class="mobile-sub-link">Video Tutorials</a>
-            <a href="/faq"           class="mobile-sub-link">FAQ</a>
-            <a href="/docs/setup"    class="mobile-sub-link">Setup Guide</a>
-            <a href="/api-docs"      class="mobile-sub-link">API Docs</a>
-            <a href="/changelog"     class="mobile-sub-link">Changelog</a>
-            <a href="/roadmap"       class="mobile-sub-link">Roadmap</a>
-            <a href="/migrate"       class="mobile-sub-link">Migration Tool</a>
-            <a href="/blog"          class="mobile-sub-link">Blog & News</a>
-          </div>
-        </details>
-
-        <!-- Community -->
-        <details class="mobile-group">
-          <summary>
-            <span><span class="mobile-link-icon">❤️</span> Community</span>
-            <span style="font-size:0.75rem;opacity:0.5;">▼</span>
-          </summary>
-          <div class="mobile-group-inner">
-            <a href="/partners"     class="mobile-sub-link">Partner werden</a>
-            <a href="/affiliate"    class="mobile-sub-link">Affiliate</a>
-            <a href="/suggest"      class="mobile-sub-link">Vorschläge</a>
-            <a href="/contact"      class="mobile-sub-link">Kontakt</a>
-            <a href="/showcase"     class="mobile-sub-link">Server Showcase</a>
-            <a href="/testimonials" class="mobile-sub-link">Bewertungen</a>
-            <a href="/leaderboard"  class="mobile-sub-link">XP Leaderboard</a>
-            <a href="/team"         class="mobile-sub-link">Team</a>
-            <a href="/jobs"         class="mobile-sub-link">Karriere</a>
-            <a href="/events"       class="mobile-sub-link">Events</a>
-          </div>
-        </details>
-
-        <!-- Support -->
-        <details class="mobile-group">
-          <summary>
-            <span><span class="mobile-link-icon">🎧</span> Support</span>
-            <span style="font-size:0.75rem;opacity:0.5;">▼</span>
-          </summary>
-          <div class="mobile-group-inner">
-            <a href="/support"           class="mobile-sub-link">Support-Center</a>
-            <a href="/faq"               class="mobile-sub-link">FAQ</a>
-            <a href="/contact"           class="mobile-sub-link">Kontakt</a>
-            <a href="/status"            class="mobile-sub-link">Live Status</a>
-            <a href="/status/incidents"  class="mobile-sub-link">Vorfälle</a>
-            <a href="/privacy"           class="mobile-sub-link">Datenschutz</a>
-            <a href="/terms"             class="mobile-sub-link">Nutzungsbedingungen</a>
-            <a href="/legal"             class="mobile-sub-link">Rechtliches</a>
-          </div>
-        </details>
-
-        <a href="/pricing"   class="mobile-link" style="color:#fcd34d;">👑 Pricing</a>
-        <a href="/status"    class="mobile-link">⚡ Status</a>
-        <a href="/dashboard" class="mobile-link">📊 Dashboard</a>
-
-        <a href="https://discord.com/api/oauth2/authorize?client_id=YOUR_CLIENT_ID&permissions=8&scope=bot%20applications.commands"
-           target="_blank" rel="noopener noreferrer"
-           class="btn-invite" style="display:flex;justify-content:center;margin-top:0.5rem;">
-          ⚡ Bot einladen
-        </a>
-      </div>
-    </nav>
+    </header>
+    <!-- ════════════════════════════════════════ -->
 
     {% block content %}{% endblock %}
 
@@ -1043,42 +802,8 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="/static/script.js"></script>
 
+  <!-- Banner-Logik -->
   <script>
-    /* ── Dropdown Logic ── */
-    function toggleDropdown(id) {
-      const all = document.querySelectorAll('.nav-dropdown');
-      all.forEach(el => {
-        if (el.id !== id) el.classList.remove('open');
-      });
-      document.getElementById(id).classList.toggle('open');
-    }
-
-    /* Close on outside click */
-    document.addEventListener('click', function(e) {
-      if (!e.target.closest('.nav-dropdown')) {
-        document.querySelectorAll('.nav-dropdown').forEach(el => el.classList.remove('open'));
-      }
-    });
-
-    /* ── Mobile Menu ── */
-    function toggleMobile() {
-      const menu = document.getElementById('mobile-menu');
-      const icon = document.getElementById('mobile-icon');
-      const isOpen = menu.classList.toggle('open');
-      icon.textContent = isOpen ? '✕' : '☰';
-    }
-
-    /* ── Scroll: shrink navbar ── */
-    window.addEventListener('scroll', function() {
-      const nav = document.getElementById('topnav');
-      if (window.scrollY > 40) {
-        nav.classList.add('scrolled');
-      } else {
-        nav.classList.remove('scrolled');
-      }
-    });
-
-    /* ── Notice Banner ── */
     (function() {
       var notice = document.getElementById('global-notice');
       var closeBtn = document.getElementById('close-notice');
@@ -1091,5 +816,83 @@
       });
     })();
   </script>
+
+  <!-- Navbar-Logik -->
+  <script>
+    (function () {
+      var header      = document.getElementById('site-header');
+      var megaPanel   = document.getElementById('mega-panel');
+      var megaBtns    = document.querySelectorAll('.nav-mega-btn');
+      var mobileToggle = document.getElementById('mobile-toggle');
+      var mobileMenu  = document.getElementById('mobile-menu');
+      var iconOpen    = document.getElementById('mob-icon-open');
+      var iconClose   = document.getElementById('mob-icon-close');
+      var currentOpen = null;
+
+      /* Scroll → shrink header */
+      window.addEventListener('scroll', function () {
+        header.classList.toggle('scrolled', window.scrollY > 20);
+      });
+
+      /* Mega menu toggle */
+      megaBtns.forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+          e.stopPropagation();
+          var key = btn.dataset.mega;
+          if (currentOpen === key) {
+            closeMega();
+          } else {
+            openMega(key, btn);
+          }
+        });
+      });
+
+      function openMega(key, btn) {
+        /* hide all panels */
+        document.querySelectorAll('#mega-panel [data-panel]').forEach(function (p) {
+          p.style.display = 'none';
+        });
+        /* show target panel */
+        var panel = document.querySelector('#mega-panel [data-panel="' + key + '"]');
+        if (panel) panel.style.display = 'block';
+
+        /* button states */
+        megaBtns.forEach(function (b) { b.classList.remove('open'); });
+        btn.classList.add('open');
+
+        megaPanel.classList.add('visible');
+        currentOpen = key;
+      }
+
+      function closeMega() {
+        megaPanel.classList.remove('visible');
+        megaBtns.forEach(function (b) { b.classList.remove('open'); });
+        currentOpen = null;
+      }
+
+      /* Close on outside click */
+      document.addEventListener('click', function (e) {
+        var navInner = document.getElementById('nav-inner');
+        if (!navInner.contains(e.target)) {
+          closeMega();
+        }
+      });
+
+      /* Mobile toggle */
+      mobileToggle.addEventListener('click', function () {
+        var open = mobileMenu.classList.toggle('visible');
+        iconOpen.style.display  = open ? 'none'  : 'block';
+        iconClose.style.display = open ? 'block' : 'none';
+        if (open) closeMega();
+      });
+
+      /* Active link highlight */
+      var path = window.location.pathname;
+      document.querySelectorAll('.nav-link').forEach(function (a) {
+        if (a.getAttribute('href') === path) a.classList.add('active');
+      });
+    })();
+  </script>
+
 </body>
 </html>
