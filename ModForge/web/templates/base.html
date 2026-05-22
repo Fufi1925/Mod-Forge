@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}ModForge – Discord Security &amp; AutoMod Bot{% endblock %}</title>
+  <meta name="description" content="Der stärkste Discord‑Sicherheitsbot. Anti‑Nuke, Anti‑Raid, AutoMod, Cases &amp; Web‑Dashboard.">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="page-bg">
+
+  <!-- 3D-Canvas wird automatisch von script.js erstellt -->
+
+  <!-- Seite über den Canvas heben -->
+  <div class="page-wrapper">
+
+    <!-- ⚠️ HINWEIS-BANNER -->
+    <div id="global-notice" class="global-notice" style="display: none;">
+      <div class="container" style="display: flex; align-items: center; justify-content: space-between;">
+        <span>
+          ⚠️ <strong>Admin‑Dashboard vorübergehend ausgefallen</strong> –
+          <span style="color: var(--ok);">🟢 NEU:</span>
+          <a href="/live" style="color: var(--p); font-weight: 600; text-decoration: underline;">/live – Echtzeit‑Bot‑Aktivität jetzt verfolgen</a>
+        </span>
+        <button id="close-notice" style="background: none; border: none; color: var(--fg); font-size: 1.3rem; cursor: pointer; line-height: 1;">&times;</button>
+      </div>
+    </div>
+
+    <nav class="topnav">
+      <a class="brand" href="/">
+        <div class="brand-icon">🛡️</div>
+        <span class="grad">ModForge</span>
+      </a>
+      <div class="nav-links">
+        <a href="/">Home</a>
+        <a href="/status">Status</a>
+        <a href="/changelog">Changelog</a>
+        <a href="/live" style="color: var(--ok);">⚡ Live</a>
+        <a href="/terms">Terms</a>
+        <a href="/privacy">Privacy</a>
+        <a href="/login" class="nav-cta">Dashboard ↗</a>
+      </div>
+    </nav>
+
+    {% block content %}{% endblock %}
+
+    <footer class="footer page-bg">
+      <div class="footer-inner container">
+        <div>
+          <div class="brand" style="margin-bottom:10px">
+            <div class="brand-icon">🛡️</div>
+            <span class="grad" style="font-size:1rem">ModForge</span>
+          </div>
+          <p style="font-size:.75rem;color:var(--muted)">Security &amp; AutoMod Bot für Discord.</p>
+        </div>
+        <div>
+          <h4>Links</h4>
+          <a href="/status">Status</a>
+          <a href="/changelog">Changelog</a>
+          <a href="/live">Live Aktivität</a>
+          <a href="/login">Dashboard</a>
+        </div>
+        <div>
+          <h4>Rechtliches</h4>
+          <a href="/terms">Terms of Service</a>
+          <a href="/privacy">Privacy Policy</a>
+          <a href="/imprint">Impressum</a>
+        </div>
+        <div>
+          <h4>Community</h4>
+          <a href="https://discord.gg/gwryX3dbkt" target="_blank">Support Server</a>
+          <a href="/admin/login">Admin Panel</a>
+        </div>
+      </div>
+      <div class="footer-bottom">&copy; 2026 ModForge · Powered by BotForge · v3.0.0</div>
+    </footer>
+
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="/static/script.js"></script>
+
+  <!-- Banner-Logik -->
+  <script>
+    (function() {
+      var notice = document.getElementById('global-notice');
+      var closeBtn = document.getElementById('close-notice');
+      if (!localStorage.getItem('global-notice-closed')) {
+        notice.style.display = 'block';
+      }
+      closeBtn.addEventListener('click', function() {
+        notice.style.display = 'none';
+        localStorage.setItem('global-notice-closed', 'true');
+      });
+    })();
+  </script>
+</body>
+</html>
