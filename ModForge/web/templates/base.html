@@ -3,81 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
   <title>{% block title %}ModForge – Discord Security &amp; AutoMod Bot{% endblock %}</title>
 
   <meta name="description" content="Der stärkste Discord-Sicherheitsbot. Anti-Nuke, Anti-Raid, AutoMod, Cases &amp; Web-Dashboard.">
 
+  <link rel="stylesheet" href="/static/style.css">
+
   <style>
-
-    :root{
-      --bg:#060816;
-      --card:#0d111f;
-      --fg:#ffffff;
-      --muted:#7c7c90;
-      --p:#8b5cf6;
-      --cyan:#06b6d4;
-      --ok:#4ade80;
-      --border:rgba(255,255,255,.08);
-    }
-
-    *{
-      margin:0;
-      padding:0;
-      box-sizing:border-box;
-    }
-
-    body{
-      background:var(--bg);
-      color:var(--fg);
-      font-family:
-        Inter,
-        Arial,
-        sans-serif;
-
-      overflow-x:hidden;
-    }
-
-    a{
-      text-decoration:none;
-      color:inherit;
-    }
-
-    .page-wrapper{
-      position:relative;
-      z-index:2;
-    }
-
-    .container{
-      width:100%;
-      max-width:1400px;
-      margin:auto;
-      padding:0 20px;
-    }
-
-    /* =========================
-       NOTICE
-    ========================= */
-
-    .global-notice{
-      width:100%;
-
-      padding:14px 20px;
-
-      background:
-        rgba(255,0,0,.08);
-
-      border-bottom:
-        1px solid rgba(255,0,0,.15);
-
-      font-size:.95rem;
-    }
-
-    .global-notice a{
-      color:#67e8f9;
-      font-weight:700;
-      text-decoration:underline;
-    }
 
     /* =========================
        MODERN NAVBAR
@@ -99,10 +31,9 @@
       align-items:center;
       justify-content:space-between;
 
-      border:1px solid var(--border);
+      border:1px solid rgba(255,255,255,.08);
 
-      background:
-        rgba(10,10,20,.75);
+      background:rgba(10,10,20,.75);
 
       backdrop-filter:blur(18px);
 
@@ -118,6 +49,8 @@
       display:flex;
       align-items:center;
       gap:14px;
+
+      text-decoration:none;
     }
 
     .modern-brand-icon{
@@ -130,12 +63,11 @@
 
       border-radius:16px;
 
-      background:
-        linear-gradient(
-          135deg,
-          #7c3aed,
-          #06b6d4
-        );
+      background:linear-gradient(
+        135deg,
+        #7c3aed,
+        #06b6d4
+      );
 
       font-size:1.3rem;
 
@@ -153,12 +85,11 @@
       font-size:1.1rem;
       font-weight:900;
 
-      background:
-        linear-gradient(
-          90deg,
-          #a78bfa,
-          #67e8f9
-        );
+      background:linear-gradient(
+        90deg,
+        #a78bfa,
+        #67e8f9
+      );
 
       -webkit-background-clip:text;
       -webkit-text-fill-color:transparent;
@@ -187,6 +118,8 @@
       border-radius:14px;
 
       color:#d1d5db;
+
+      text-decoration:none;
 
       border:none;
       background:none;
@@ -274,6 +207,8 @@
 
       border-radius:14px;
 
+      text-decoration:none;
+
       margin-bottom:8px;
 
       transition:.25s;
@@ -307,14 +242,15 @@
 
       border-radius:14px;
 
-      background:
-        linear-gradient(
-          135deg,
-          #7c3aed,
-          #06b6d4
-        );
+      background:linear-gradient(
+        135deg,
+        #7c3aed,
+        #06b6d4
+      );
 
       color:#fff;
+
+      text-decoration:none;
 
       font-weight:700;
 
@@ -323,6 +259,7 @@
 
     .modern-dashboard-btn:hover{
       transform:translateY(-2px);
+
       box-shadow:
         0 10px 30px rgba(124,58,237,.35);
     }
@@ -342,51 +279,6 @@
       color:#fff;
 
       cursor:pointer;
-    }
-
-    /* FOOTER */
-
-    .footer{
-      margin-top:80px;
-
-      border-top:
-        1px solid rgba(255,255,255,.08);
-    }
-
-    .footer-inner{
-      display:grid;
-      grid-template-columns:
-        repeat(auto-fit,minmax(220px,1fr));
-
-      gap:40px;
-
-      padding:60px 20px;
-    }
-
-    .footer h4{
-      margin-bottom:14px;
-      font-size:1rem;
-    }
-
-    .footer a{
-      display:block;
-      margin-bottom:10px;
-      color:#9ca3af;
-      transition:.2s;
-    }
-
-    .footer a:hover{
-      color:#fff;
-    }
-
-    .footer-bottom{
-      padding:20px;
-      text-align:center;
-      border-top:
-        1px solid rgba(255,255,255,.05);
-
-      color:#6b7280;
-      font-size:.85rem;
     }
 
     /* MOBILE */
@@ -419,62 +311,40 @@
 
 <body class="page-bg">
 
+  <!-- 3D-Canvas wird automatisch von script.js erstellt -->
+
+  <!-- Seite über den Canvas heben -->
   <div class="page-wrapper">
 
-    <!-- NOTICE -->
-    <div id="global-notice" class="global-notice" style="display:none;">
-      <div class="container" style="display:flex;align-items:center;justify-content:space-between;gap:20px;">
-
+    <!-- ⚠️ HINWEIS-BANNER -->
+    <div id="global-notice" class="global-notice" style="display: none;">
+      <div class="container" style="display: flex; align-items: center; justify-content: space-between;">
         <span>
-          ⚠️
-          <strong>Admin-Dashboard vorübergehend ausgefallen</strong>
-          —
-          <span style="color:var(--ok);">🟢 NEU:</span>
-
-          <a href="/live">
-            /live – Echtzeit-Bot-Aktivität jetzt verfolgen
-          </a>
+          ⚠️ <strong>Admin-Dashboard vorübergehend ausgefallen</strong> –
+          <span style="color: var(--ok);">🟢 NEU:</span>
+          <a href="/live" style="color: var(--p); font-weight: 600; text-decoration: underline;">/live – Echtzeit-Bot-Aktivität jetzt verfolgen</a>
         </span>
 
-        <button
-          id="close-notice"
-          style="
-            background:none;
-            border:none;
-            color:white;
-            font-size:1.3rem;
-            cursor:pointer;
-          "
-        >
-          ×
+        <button id="close-notice" style="background: none; border: none; color: var(--fg); font-size: 1.3rem; cursor: pointer; line-height: 1;">
+          &times;
         </button>
-
       </div>
     </div>
 
-    <!-- NAVBAR -->
+    <!-- MODERN NAVBAR -->
     <nav class="modern-navbar">
 
       <!-- LOGO -->
       <a class="modern-brand" href="/">
-
-        <div class="modern-brand-icon">
-          🛡️
-        </div>
+        <div class="modern-brand-icon">🛡️</div>
 
         <div class="modern-brand-text">
-          <span class="modern-logo">
-            ModForge
-          </span>
-
-          <span class="modern-version">
-            v3.0 · Live
-          </span>
+          <span class="modern-logo">ModForge</span>
+          <span class="modern-version">v3.0 · Live</span>
         </div>
-
       </a>
 
-      <!-- NAV -->
+      <!-- DESKTOP NAV -->
       <div class="modern-nav-links">
 
         <a href="/" class="modern-link active">
@@ -574,71 +444,38 @@
 
     </nav>
 
-    <!-- CONTENT -->
     {% block content %}{% endblock %}
 
-    <!-- FOOTER -->
-    <footer class="footer">
-
+    <!-- DEIN ALTER FOOTER BLEIBT -->
+    <footer class="footer page-bg">
       <div class="footer-inner container">
-
         <div>
-
-          <div class="modern-brand" style="margin-bottom:14px;">
-
-            <div class="modern-brand-icon">
-              🛡️
-            </div>
-
-            <div class="modern-brand-text">
-
-              <span class="modern-logo">
-                ModForge
-              </span>
-
-            </div>
-
+          <div class="brand" style="margin-bottom:10px">
+            <div class="brand-icon">🛡️</div>
+            <span class="grad" style="font-size:1rem">ModForge</span>
           </div>
-
-          <p style="font-size:.9rem;color:var(--muted);">
-            Security &amp; AutoMod Bot für Discord.
-          </p>
-
+          <p style="font-size:.75rem;color:var(--muted)">Security &amp; AutoMod Bot für Discord.</p>
         </div>
 
         <div>
-
           <h4>Links</h4>
-
           <a href="/status">Status</a>
           <a href="/changelog">Changelog</a>
           <a href="/live">Live Aktivität</a>
           <a href="/login">Dashboard</a>
-
         </div>
 
         <div>
-
           <h4>Rechtliches</h4>
-
           <a href="/terms">Terms of Service</a>
           <a href="/privacy">Privacy Policy</a>
           <a href="/imprint">Impressum</a>
-
         </div>
 
         <div>
-
           <h4>Community</h4>
-
-          <a href="https://discord.gg/gwryX3dbkt" target="_blank">
-            Support Server
-          </a>
-
-          <a href="/admin/login">
-            Admin Panel
-          </a>
-
+          <a href="https://discord.gg/gwryX3dbkt" target="_blank">Support Server</a>
+          <a href="/admin/login">Admin Panel</a>
         </div>
 
       </div>
@@ -646,32 +483,25 @@
       <div class="footer-bottom">
         &copy; 2026 ModForge · Powered by BotForge · v3.0.0
       </div>
-
     </footer>
 
   </div>
 
-  <!-- SCRIPTS -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-
   <script src="/static/script.js"></script>
 
-  <!-- NOTICE -->
+  <!-- Banner-Logik -->
   <script>
+    (function() {
 
-    (function(){
+      var notice = document.getElementById('global-notice');
+      var closeBtn = document.getElementById('close-notice');
 
-      var notice =
-        document.getElementById('global-notice');
-
-      var closeBtn =
-        document.getElementById('close-notice');
-
-      if(!localStorage.getItem('global-notice-closed')){
+      if (!localStorage.getItem('global-notice-closed')) {
         notice.style.display = 'block';
       }
 
-      closeBtn.addEventListener('click', function(){
+      closeBtn.addEventListener('click', function() {
 
         notice.style.display = 'none';
 
@@ -683,7 +513,6 @@
       });
 
     })();
-
   </script>
 
 </body>
