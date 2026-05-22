@@ -704,13 +704,63 @@
 
 
 
+/* ═══════════════════════════
+   FOOTER
+═══════════════════════════ */
+
+.footer{
+    position:relative;
+    margin-top:80px;
+    padding-top:60px;
+    border-top:1px solid rgba(255,255,255,0.06);
+    background:
+        radial-gradient(circle at top left,
+        rgba(124,58,237,0.08),
+        transparent 35%),
+        radial-gradient(circle at top right,
+        rgba(34,211,238,0.06),
+        transparent 35%);
+}
+
+.footer-inner{
+    max-width:1280px;
+    margin:0 auto;
+    padding:0 24px 40px;
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+    gap:40px;
+}
+
+.footer h4{
+    color:var(--t);
+    font-size:0.9rem;
+    margin-bottom:14px;
+    font-weight:700;
+}
+
+.footer a{
+    display:block;
+    color:var(--m);
+    text-decoration:none;
+    font-size:0.82rem;
+    margin-bottom:10px;
+    transition:0.2s;
+}
+
+.footer a:hover{
+    color:var(--vl);
+    transform:translateX(3px);
+}
+
 .footer-bottom{
     border-top:1px solid rgba(255,255,255,0.08);
-    margin-top:40px;
+    background:rgba(255,255,255,0.015);
     padding:22px;
     text-align:center;
     font-size:0.75rem;
-    color:var(--muted);
+    color:var(--m);
+    backdrop-filter:blur(12px);
+    -webkit-backdrop-filter:blur(12px);
 }
 
 .footer-bottom .made{
@@ -719,6 +769,7 @@
     justify-content:center;
     gap:5px;
     flex-wrap:wrap;
+    color:var(--t);
 }
 
 .footer-bottom .heart{
@@ -731,6 +782,8 @@
     font-weight:700;
     text-decoration:none;
     transition:0.2s;
+    display:inline;
+    margin:0;
 }
 
 .footer-bottom a:hover{
@@ -738,8 +791,9 @@
 }
 
 .footer-copy{
-    margin-top:6px;
+    margin-top:7px;
     opacity:0.8;
+    color:var(--m);
 }
 
 @keyframes pulse{
@@ -754,8 +808,30 @@
     }
 }
 
+/* MOBILE */
+@media (max-width:700px){
 
+    .footer-inner{
+        grid-template-columns:1fr 1fr;
+        gap:28px;
+    }
 
+    .footer-bottom .made{
+        flex-direction:column;
+        gap:2px;
+    }
+}
+
+@media (max-width:480px){
+
+    .footer-inner{
+        grid-template-columns:1fr;
+    }
+
+    .footer{
+        padding-top:40px;
+    }
+}
     
     /* ══════════════════════════
        RESPONSIVE
