@@ -26,6 +26,7 @@
       --glass:  rgba(255,255,255,0.03);
       --glass2: rgba(255,255,255,0.055);
       --r:      0.2s cubic-bezier(.4,0,.2,1);
+      --nav-height: 56px;
     }
 
     body {
@@ -36,18 +37,14 @@
       -webkit-font-smoothing: antialiased;
       overflow-x: hidden;
     }
-
     a { color: inherit; text-decoration: none; }
-
     .page-wrapper {
       display: flex;
       flex-direction: column;
       min-height: 100vh;
     }
 
-    /* ═══════════════════════════
-       NOTICE BANNER
-    ═══════════════════════════ */
+    /* NOTICE BANNER */
     #gn {
       display: none;
       position: fixed;
@@ -78,20 +75,20 @@
       max-width: 1280px;
       margin: 0 auto;
       height: 100%;
-      padding: 0 20px;
+      padding: 0 16px;
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
     }
     .gn-badge {
       display: inline-flex;
       align-items: center;
-      gap: 5px;
-      padding: 3px 9px;
+      gap: 4px;
+      padding: 2px 8px;
       border-radius: 999px;
-      font-size: 9.5px;
+      font-size: 9px;
       font-weight: 800;
-      letter-spacing: .08em;
+      letter-spacing: .06em;
       text-transform: uppercase;
       white-space: nowrap;
       flex-shrink: 0;
@@ -125,7 +122,7 @@
     }
     .gn-text {
       flex: 1;
-      font-size: 12.5px;
+      font-size: 12px;
       color: var(--m);
       white-space: nowrap;
       overflow: hidden;
@@ -143,8 +140,8 @@
     .gn-close {
       flex-shrink: 0;
       margin-left: auto;
-      width: 26px; height: 26px;
-      border-radius: 7px;
+      width: 24px; height: 24px;
+      border-radius: 6px;
       border: 1px solid rgba(255,255,255,0.08);
       background: rgba(255,255,255,0.04);
       color: var(--m);
@@ -153,35 +150,34 @@
       transition: all var(--r);
     }
     .gn-close:hover { background: rgba(255,255,255,0.1); color: var(--t); border-color: rgba(255,255,255,0.16); }
-    .gn-close svg { width: 12px; height: 12px; }
+    .gn-close svg { width: 11px; height: 11px; }
 
-    /* ═══════════════════════════
-       HEADER + NAV BAR
-    ═══════════════════════════ */
+    /* HEADER */
     #sh {
       position: fixed;
       left: 0; right: 0;
       z-index: 9000;
-      padding: 14px 0;
+      padding: 10px 0;
       transition: top .35s cubic-bezier(.4,0,.2,1), padding .35s cubic-bezier(.4,0,.2,1);
     }
-    #sh.scrolled { padding: 8px 0; }
+    #sh.scrolled { padding: 6px 0; }
 
     #nw {
       max-width: 1280px;
       margin: 0 auto;
-      padding: 0 18px;
+      padding: 0 16px;
       position: relative;
     }
 
+    /* PILL NAV */
     #nb {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 6px;
-      padding: 5px 6px 5px 12px;
+      gap: 8px;
+      padding: 6px 8px 6px 14px;
       border-radius: 999px;
-      background: rgba(6,6,16,0.65);
+      background: rgba(6,6,16,0.7);
       backdrop-filter: blur(40px) saturate(2);
       -webkit-backdrop-filter: blur(40px) saturate(2);
       border: 1px solid rgba(255,255,255,0.08);
@@ -189,6 +185,9 @@
         0 0 0 1px rgba(139,92,246,0.05) inset,
         0 2px 4px rgba(0,0,0,0.5);
       transition: border-color var(--r), box-shadow var(--r), padding var(--r);
+      height: var(--nav-height);
+      position: relative;
+      overflow: visible;
     }
     #sh.scrolled #nb {
       border-color: rgba(139,92,246,0.18);
@@ -196,7 +195,7 @@
         0 0 0 1px rgba(139,92,246,0.1) inset,
         0 12px 48px rgba(0,0,0,0.7),
         0 0 80px rgba(124,58,237,0.06);
-      padding: 3px 6px 3px 12px;
+      padding: 4px 8px 4px 14px;
     }
     #nb::before {
       content: '';
@@ -211,14 +210,15 @@
     }
     #sh.scrolled #nb::before { opacity: 1; }
 
+    /* BRAND */
     .bl {
-      display: flex; align-items: center; gap: 9px;
-      text-decoration: none; flex-shrink: 0;
+      display: flex; align-items: center; gap: 8px;
+      flex-shrink: 0; text-decoration: none;
     }
     .bo {
       position: relative;
-      width: 36px; height: 36px;
-      border-radius: 12px;
+      width: 32px; height: 32px;
+      border-radius: 10px;
       background: linear-gradient(135deg, #6d28d9 0%, #1d4ed8 100%);
       display: flex; align-items: center; justify-content: center;
       flex-shrink: 0;
@@ -227,14 +227,14 @@
     }
     .bl:hover .bo { transform: scale(1.06) rotate(-3deg); }
     @keyframes orbPulse {
-      0%,100% { box-shadow: 0 0 14px rgba(109,40,217,0.5), 0 0 0 0 rgba(109,40,217,0.3); }
-      50%      { box-shadow: 0 0 28px rgba(34,211,238,0.45), 0 0 0 6px rgba(34,211,238,0); }
+      0%,100% { box-shadow: 0 0 12px rgba(109,40,217,0.5), 0 0 0 0 rgba(109,40,217,0.3); }
+      50%      { box-shadow: 0 0 24px rgba(34,211,238,0.45), 0 0 0 4px rgba(34,211,238,0); }
     }
-    .bo svg { width: 19px; height: 19px; color: #fff; }
+    .bo svg { width: 17px; height: 17px; color: #fff; }
     .bs {
       position: absolute;
       bottom: -2px; right: -2px;
-      width: 10px; height: 10px;
+      width: 8px; height: 8px;
       border-radius: 50%;
       background: var(--green);
       border: 2px solid rgba(6,6,16,1);
@@ -242,33 +242,34 @@
     }
     @keyframes sPulse {
       0%,100% { box-shadow: 0 0 0 0 rgba(74,222,128,0.6); }
-      50%      { box-shadow: 0 0 0 4px rgba(74,222,128,0); }
+      50%      { box-shadow: 0 0 0 3px rgba(74,222,128,0); }
     }
     .bt { display: flex; flex-direction: column; line-height: 1.2; }
     .bn {
-      font-size: 14px; font-weight: 900; letter-spacing: -.3px;
+      font-size: 13px; font-weight: 900; letter-spacing: -.3px;
       background: linear-gradient(135deg, var(--vl) 30%, var(--c) 100%);
       -webkit-background-clip: text; -webkit-text-fill-color: transparent;
       background-clip: text;
     }
     .btag {
-      font-size: 8.5px; color: var(--m);
-      letter-spacing: .15em; text-transform: uppercase;
+      font-size: 7.5px; color: var(--m);
+      letter-spacing: .12em; text-transform: uppercase;
     }
 
+    /* DESKTOP NAV */
     #dn {
-      display: flex; align-items: center; gap: 1px;
+      display: flex; align-items: center; gap: 2px;
       flex: 1; justify-content: center;
     }
     .nl, .nb-btn {
-      display: inline-flex; align-items: center; gap: 5px;
+      display: inline-flex; align-items: center; gap: 4px;
       padding: 6px 10px; border-radius: 10px;
-      font-size: 13px; font-weight: 500;
+      font-size: 12.5px; font-weight: 500;
       color: var(--m);
       border: none; background: none; cursor: pointer;
       white-space: nowrap;
       transition: color var(--r), background var(--r);
-      position: relative; font-family: inherit;
+      font-family: inherit;
     }
     .nl:hover, .nb-btn:hover { color: var(--t); background: rgba(255,255,255,0.055); }
     .nl.act {
@@ -283,29 +284,30 @@
     .chv { width: 10px !important; height: 10px !important; opacity: .4; transition: transform var(--r), opacity var(--r); }
     .nb-btn.mop .chv { transform: rotate(180deg); opacity: .75; }
 
+    /* RIGHT SIDE */
     #nr {
-      display: flex; align-items: center; gap: 5px;
+      display: flex; align-items: center; gap: 6px;
       flex-shrink: 0;
     }
     .ibtn {
-      display: inline-flex; align-items: center; gap: 6px;
-      padding: 7px 16px; border-radius: 10px;
-      font-size: 12.5px; font-weight: 700;
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 7px 14px; border-radius: 10px;
+      font-size: 12px; font-weight: 700;
       color: #fff;
       background: linear-gradient(135deg, #6d28d9 0%, #1e40af 100%);
       border: 1px solid rgba(255,255,255,0.1);
-      box-shadow: 0 3px 14px rgba(109,40,217,0.4), 0 0 0 0 rgba(109,40,217,0.3);
+      box-shadow: 0 3px 14px rgba(109,40,217,0.4);
       transition: all var(--r); white-space: nowrap;
     }
     .ibtn:hover {
       opacity: .9; transform: translateY(-1px);
       box-shadow: 0 5px 22px rgba(109,40,217,0.55), 0 0 0 3px rgba(109,40,217,0.12);
     }
-    .ibtn svg { width: 12px; height: 12px; }
+    .ibtn svg { width: 11px; height: 11px; }
 
     .mtb {
       display: none;
-      width: 34px; height: 34px; border-radius: 10px;
+      width: 32px; height: 32px; border-radius: 10px;
       background: rgba(255,255,255,0.05);
       border: 1px solid rgba(255,255,255,0.08);
       color: var(--m); cursor: pointer;
@@ -313,23 +315,21 @@
       transition: all var(--r);
     }
     .mtb:hover { background: rgba(255,255,255,0.1); color: var(--t); }
-    .mtb svg { width: 17px; height: 17px; }
+    .mtb svg { width: 16px; height: 16px; }
 
-    /* ═══════════════════════════
-       MEGA PANEL — BEAUTIFUL GLASS
-    ═══════════════════════════ */
+    /* MEGA PANEL (Desktop) */
     #mp {
       position: absolute;
       left: 0; right: 0;
-      top: calc(100% + 10px);
+      top: calc(100% + 8px);
       border-radius: 24px;
       overflow: hidden;
       display: none;
       z-index: 8998;
       background: linear-gradient(160deg,
-        rgba(14,10,40,0.92) 0%,
-        rgba(8,8,22,0.96) 50%,
-        rgba(6,10,30,0.94) 100%);
+        rgba(14,10,40,0.94) 0%,
+        rgba(8,8,22,0.97) 50%,
+        rgba(6,10,30,0.95) 100%);
       backdrop-filter: blur(60px) saturate(2.2) brightness(1.1);
       -webkit-backdrop-filter: blur(60px) saturate(2.2) brightness(1.1);
       border: 1px solid rgba(255,255,255,0.08);
@@ -343,7 +343,7 @@
       animation: mpIn .22s cubic-bezier(.4,0,.2,1) forwards;
     }
     @keyframes mpIn {
-      from { opacity:0; transform: translateY(-12px) scale(.975); }
+      from { opacity:0; transform: translateY(-8px) scale(.98); }
       to   { opacity:1; transform: translateY(0)     scale(1); }
     }
     #mp::before {
@@ -362,7 +362,7 @@
       position: absolute;
       top: -80px; left: 10%; right: 10%;
       height: 160px;
-      background: radial-gradient(ellipse, rgba(124,58,237,0.12) 0%, transparent 70%);
+      background: radial-gradient(ellipse, rgba(124,58,237,0.1) 0%, transparent 70%);
       pointer-events: none;
     }
     .pb { display: none; }
@@ -372,9 +372,9 @@
       min-height: 280px;
     }
     .pb-sidebar {
-      width: 210px;
+      width: 190px;
       flex-shrink: 0;
-      padding: 20px 12px;
+      padding: 20px 10px;
       border-right: 1px solid rgba(255,255,255,0.05);
       display: flex;
       flex-direction: column;
@@ -382,21 +382,21 @@
       background: rgba(0,0,0,0.15);
     }
     .pb-sidebar-title {
-      font-size: 9px;
+      font-size: 8.5px;
       font-weight: 700;
-      letter-spacing: .14em;
+      letter-spacing: .12em;
       text-transform: uppercase;
       color: rgba(148,163,184,0.35);
-      padding: 0 10px;
+      padding: 0 8px;
       margin-bottom: 8px;
     }
     .pbtab {
       display: flex;
       align-items: center;
-      gap: 9px;
-      padding: 9px 10px;
+      gap: 8px;
+      padding: 8px 10px;
       border-radius: 10px;
-      font-size: 12.5px;
+      font-size: 12px;
       font-weight: 500;
       color: var(--m);
       border: none;
@@ -418,36 +418,36 @@
       content: '';
       position: absolute;
       left: 0; top: 20%; bottom: 20%;
-      width: 2.5px; border-radius: 2px;
+      width: 2px; border-radius: 2px;
       background: linear-gradient(180deg, var(--vl), var(--c));
     }
     .pbtab-desc {
-      font-size: 10px;
+      font-size: 9.5px;
       color: rgba(148,163,184,0.45);
       margin-top: 1px;
       font-weight: 400;
     }
     .pb-content {
       flex: 1;
-      padding: 24px 28px;
+      padding: 24px 24px;
       overflow: hidden;
     }
     .ptc { display: none; }
     .ptc.vis { display: block; }
     .sg {
-      font-size: 9px;
+      font-size: 8.5px;
       font-weight: 700;
-      letter-spacing: .14em;
+      letter-spacing: .12em;
       text-transform: uppercase;
       color: rgba(148,163,184,0.35);
-      margin-bottom: 8px;
+      margin-bottom: 10px;
       padding: 0 4px;
     }
     .mc3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 2px; }
     .mc2 { display: grid; grid-template-columns: repeat(2,1fr); gap: 2px; }
     .mi {
       display: flex; align-items: flex-start; gap: 10px;
-      padding: 9px 10px; border-radius: 10px;
+      padding: 8px 10px; border-radius: 10px;
       text-decoration: none; cursor: pointer;
       transition: background var(--r);
       position: relative; overflow: hidden;
@@ -461,7 +461,7 @@
     .mi:hover::before { opacity: 1; }
     .mi:hover { background: rgba(255,255,255,0.04); }
     .mi-ic {
-      width: 32px; height: 32px; border-radius: 9px;
+      width: 30px; height: 30px; border-radius: 8px;
       background: rgba(124,58,237,0.1);
       border: 1px solid rgba(124,58,237,0.15);
       display: flex; align-items: center; justify-content: center;
@@ -473,31 +473,31 @@
       border-color: rgba(124,58,237,0.35);
       transform: scale(1.05);
     }
-    .mi-ic svg { width: 14px; height: 14px; color: var(--vl); }
+    .mi-ic svg { width: 13px; height: 13px; color: var(--vl); }
     .mi-lb {
-      font-size: 12.5px; font-weight: 600;
+      font-size: 12px; font-weight: 600;
       color: var(--t);
       display: flex; align-items: center; gap: 5px;
       line-height: 1.3;
     }
-    .mi-dc { font-size: 10.5px; color: var(--m); margin-top: 1.5px; line-height: 1.35; }
+    .mi-dc { font-size: 10px; color: var(--m); margin-top: 2px; line-height: 1.3; }
     .mbg {
-      font-size: 8px; font-weight: 800;
-      letter-spacing: .05em; text-transform: uppercase;
-      padding: 1.5px 5.5px; border-radius: 4px;
+      font-size: 7.5px; font-weight: 800;
+      letter-spacing: .04em; text-transform: uppercase;
+      padding: 1px 4px; border-radius: 3px;
     }
     .mbg-n { background: rgba(34,211,238,0.13); color: #67e8f9; border: 1px solid rgba(34,211,238,0.22); }
     .mbg-h { background: rgba(248,113,113,0.13); color: #fca5a5; border: 1px solid rgba(248,113,113,0.22); }
     .mbg-t { background: rgba(245,158,11,0.13); color: #fcd34d; border: 1px solid rgba(245,158,11,0.22); }
 
     .pb-cta {
-      padding: 16px 28px;
+      padding: 14px 24px;
       border-top: 1px solid rgba(255,255,255,0.05);
       background: rgba(0,0,0,0.1);
     }
     .pb-cta-link {
       display: flex; align-items: center; justify-content: space-between;
-      padding: 13px 18px; border-radius: 14px;
+      padding: 12px 16px; border-radius: 14px;
       text-decoration: none;
       background: linear-gradient(135deg,
         rgba(109,40,217,0.14) 0%,
@@ -505,21 +505,12 @@
         rgba(34,211,238,0.08) 100%);
       border: 1px solid rgba(109,40,217,0.18);
       transition: all var(--r);
-      position: relative; overflow: hidden;
     }
-    .pb-cta-link::before {
-      content: '';
-      position: absolute; inset: 0;
-      background: linear-gradient(135deg,
-        rgba(109,40,217,0.12), rgba(34,211,238,0.06));
-      opacity: 0; transition: opacity var(--r);
-    }
-    .pb-cta-link:hover::before { opacity: 1; }
     .pb-cta-link:hover { border-color: rgba(109,40,217,0.38); transform: translateY(-1px); }
     .cta-t { font-size: 13px; font-weight: 700; color: #fff; }
-    .cta-d { font-size: 11px; color: var(--m); margin-top: 2px; }
+    .cta-d { font-size: 10.5px; color: var(--m); margin-top: 2px; }
     .cta-arr {
-      width: 30px; height: 30px; border-radius: 9px;
+      width: 28px; height: 28px; border-radius: 9px;
       background: rgba(109,40,217,0.2);
       border: 1px solid rgba(109,40,217,0.25);
       display: flex; align-items: center; justify-content: center;
@@ -527,35 +518,27 @@
       transition: background var(--r), transform var(--r);
     }
     .pb-cta-link:hover .cta-arr { background: rgba(109,40,217,0.4); transform: rotate(10deg); }
-    .cta-arr svg { width: 13px; height: 13px; color: var(--vl); }
-    .cdiv {
-      width: 1px;
-      background: rgba(255,255,255,0.04);
-      margin: 0 8px;
-      align-self: stretch;
-    }
+    .cta-arr svg { width: 12px; height: 12px; color: var(--vl); }
 
-    /* ═══════════════════════════
-       MOBILE MENU
-    ═══════════════════════════ */
+    /* MOBILE MENU */
     #mm {
       position: absolute;
       left: 0; right: 0;
-      top: calc(100% + 10px);
-      border-radius: 22px;
+      top: calc(100% + 8px);
+      border-radius: 20px;
       overflow: hidden;
       display: none;
       z-index: 8998;
-      max-height: 84vh;
+      max-height: 80vh;
       overflow-y: auto;
       background: linear-gradient(160deg,
-        rgba(14,10,40,0.96) 0%,
-        rgba(8,8,22,0.98) 60%,
-        rgba(6,10,30,0.97) 100%);
+        rgba(14,10,40,0.97) 0%,
+        rgba(8,8,22,0.99) 60%,
+        rgba(6,10,30,0.98) 100%);
       backdrop-filter: blur(60px) saturate(2.2);
       -webkit-backdrop-filter: blur(60px) saturate(2.2);
       border: 1px solid rgba(255,255,255,0.08);
-      box-shadow: 0 40px 100px rgba(0,0,0,0.8), 0 0 0 1px rgba(139,92,246,0.08) inset;
+      box-shadow: 0 30px 80px rgba(0,0,0,0.8), 0 0 0 1px rgba(139,92,246,0.08) inset;
       scrollbar-width: thin;
       scrollbar-color: rgba(124,58,237,0.25) transparent;
     }
@@ -569,14 +552,14 @@
     #mm::-webkit-scrollbar { width: 3px; }
     #mm::-webkit-scrollbar-thumb { background: rgba(124,58,237,0.3); border-radius: 3px; }
     #mm.open { display: block; animation: mpIn .22s cubic-bezier(.4,0,.2,1) forwards; }
-    .mm-in { padding: 14px 12px 16px; }
+    .mm-in { padding: 14px 14px 18px; }
+
     .mm-srch {
       display: flex; align-items: center; gap: 8px;
-      padding: 9px 13px; border-radius: 10px;
+      padding: 8px 12px; border-radius: 10px;
       background: rgba(255,255,255,0.04);
       border: 1px solid rgba(255,255,255,0.07);
-      margin-bottom: 10px;
-      transition: border-color var(--r);
+      margin-bottom: 12px;
     }
     .mm-srch:focus-within { border-color: rgba(124,58,237,0.35); background: rgba(124,58,237,0.04); }
     .mm-srch svg { width: 13px; height: 13px; color: var(--m); flex-shrink: 0; }
@@ -586,93 +569,78 @@
     }
     .mm-srch input::placeholder { color: rgba(148,163,184,0.5); }
     .mm-quick {
-      display: flex; gap: 6px; margin-bottom: 10px;
+      display: flex; gap: 6px; margin-bottom: 12px;
     }
     .mm-ql {
       flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px;
-      padding: 7px 8px; border-radius: 9px;
-      font-size: 11.5px; font-weight: 600;
+      padding: 7px 6px; border-radius: 9px;
+      font-size: 11px; font-weight: 600;
       color: var(--m);
       background: rgba(255,255,255,0.04);
       border: 1px solid rgba(255,255,255,0.06);
       transition: all var(--r);
     }
-    .mm-ql:hover { color: var(--t); background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.1); }
+    .mm-ql:hover { color: var(--t); background: rgba(255,255,255,0.08); }
     .mm-ql.hl { color: var(--amberl); border-color: rgba(245,158,11,0.18); background: rgba(245,158,11,0.06); }
     .mm-ql svg { width: 12px; height: 12px; flex-shrink: 0; }
     .mm-div {
       height: 1px;
       background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent);
-      margin: 8px 0;
+      margin: 10px 0;
     }
     .ma {
-      border-radius: 11px;
-      margin-bottom: 3px;
+      border-radius: 10px;
+      margin-bottom: 4px;
       overflow: hidden;
       border: 1px solid transparent;
-      transition: border-color var(--r);
     }
     .ma[open] { border-color: rgba(124,58,237,0.15); background: rgba(124,58,237,0.04); }
     .ma summary {
       display: flex; align-items: center; justify-content: space-between;
-      padding: 10px 12px; border-radius: 11px;
+      padding: 10px 12px; border-radius: 10px;
       font-size: 13px; font-weight: 600;
       color: var(--m); cursor: pointer; list-style: none;
-      transition: color var(--r), background var(--r);
     }
     .ma summary::-webkit-details-marker { display: none; }
     .ma summary:hover { color: var(--t); background: rgba(255,255,255,0.04); }
-    .ma[open] summary { color: var(--t); background: none; }
+    .ma[open] summary { color: var(--t); }
     .ma-left { display: flex; align-items: center; gap: 9px; }
     .ma-left svg { width: 14px; height: 14px; color: var(--vl); flex-shrink: 0; }
-    .ma-chv { width: 13px; height: 13px; opacity: .35; transition: transform var(--r), opacity var(--r); }
+    .ma-chv { width: 12px; height: 12px; opacity: .35; transition: transform var(--r), opacity var(--r); }
     .ma[open] .ma-chv { transform: rotate(180deg); opacity: .6; }
     .ma-body {
       padding: 4px 8px 10px 36px;
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 1px;
+      gap: 2px;
     }
     .ma-sl {
-      display: flex; align-items: center; gap: 7px;
-      padding: 7px 9px; border-radius: 8px;
-      font-size: 12px; font-weight: 500;
+      display: flex; align-items: center; gap: 6px;
+      padding: 6px 8px; border-radius: 8px;
+      font-size: 11.5px; font-weight: 500;
       color: rgba(148,163,184,0.8);
       text-decoration: none;
-      transition: color var(--r), background var(--r);
     }
     .ma-sl:hover { color: var(--t); background: rgba(255,255,255,0.05); }
-    .ma-sl svg { width: 11px; height: 11px; color: rgba(167,139,250,0.5); flex-shrink: 0; }
+    .ma-sl svg { width: 10px; height: 10px; color: rgba(167,139,250,0.5); flex-shrink: 0; }
     .mm-cta {
-      display: flex; align-items: center; justify-content: center; gap: 7px;
-      padding: 11px; border-radius: 11px;
-      font-size: 13px; font-weight: 700; color: #fff;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      padding: 11px; border-radius: 10px;
+      font-size: 12.5px; font-weight: 700; color: #fff;
       text-decoration: none;
       background: linear-gradient(135deg, #6d28d9 0%, #1e40af 100%);
       border: 1px solid rgba(255,255,255,0.1);
-      margin-top: 10px;
+      margin-top: 12px;
       box-shadow: 0 4px 20px rgba(109,40,217,0.4);
-      transition: all var(--r);
     }
-    .mm-cta:hover { opacity: .88; transform: translateY(-1px); box-shadow: 0 6px 28px rgba(109,40,217,0.55); }
-    .mm-cta svg { width: 14px; height: 14px; }
-    .mm-link {
-      display: flex; align-items: center; gap: 8px;
-      padding: 8px 12px; border-radius: 9px;
-      font-size: 12.5px; font-weight: 500;
-      color: var(--m); text-decoration: none;
-      transition: color var(--r), background var(--r);
-    }
-    .mm-link:hover { color: var(--t); background: rgba(255,255,255,0.05); }
-    .mm-link svg { width: 13px; height: 13px; color: rgba(167,139,250,0.7); }
+    .mm-cta:hover { opacity: .9; transform: translateY(-1px); }
+    .mm-cta svg { width: 13px; height: 13px; }
 
-    /* ═══════════════════════════
-       FOOTER
-    ═══════════════════════════ */
+    /* FOOTER */
     .footer {
       position: relative;
-      margin-top: 80px;
-      padding-top: 60px;
+      margin-top: 60px;
+      padding-top: 50px;
       border-top: 1px solid rgba(255,255,255,0.06);
       background:
         radial-gradient(circle at top left, rgba(124,58,237,0.08), transparent 35%),
@@ -681,38 +649,32 @@
     .footer-inner {
       max-width: 1280px;
       margin: 0 auto;
-      padding: 0 24px 40px;
+      padding: 0 20px 30px;
       display: grid;
-      grid-template-columns: repeat(auto-fit,minmax(180px,1fr));
-      gap: 40px;
+      grid-template-columns: repeat(auto-fit,minmax(160px,1fr));
+      gap: 30px;
     }
     .footer h4 {
       color: var(--t);
-      font-size: 0.9rem;
-      margin-bottom: 14px;
+      font-size: 0.85rem;
+      margin-bottom: 12px;
       font-weight: 700;
     }
     .footer a {
       display: block;
       color: var(--m);
-      text-decoration: none;
-      font-size: 0.82rem;
-      margin-bottom: 10px;
+      font-size: 0.8rem;
+      margin-bottom: 8px;
       transition: 0.2s;
     }
-    .footer a:hover {
-      color: var(--vl);
-      transform: translateX(3px);
-    }
+    .footer a:hover { color: var(--vl); transform: translateX(3px); }
     .footer-bottom {
       border-top: 1px solid rgba(255,255,255,0.08);
       background: rgba(255,255,255,0.015);
-      padding: 22px;
+      padding: 20px;
       text-align: center;
       font-size: 0.75rem;
       color: var(--m);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
     }
     .footer-bottom .made {
       display: flex;
@@ -722,42 +684,25 @@
       flex-wrap: wrap;
       color: var(--t);
     }
-    .footer-bottom .heart {
-      color: #ff4d8d;
-      animation: pulse 1.5s infinite;
-    }
+    .footer-bottom .heart { color: #ff4d8d; animation: pulse 1.5s infinite; }
     .footer-bottom a {
       color: #a78bfa;
       font-weight: 700;
-      text-decoration: none;
-      transition: 0.2s;
       display: inline;
       margin: 0;
     }
-    .footer-bottom a:hover {
-      color: #c4b5fd;
-    }
-    .footer-copy {
-      margin-top: 7px;
-      opacity: 0.8;
-      color: var(--m);
-    }
+    .footer-bottom a:hover { color: #c4b5fd; }
     @keyframes pulse {
       0%{ transform:scale(1); }
       50%{ transform:scale(1.15); }
       100%{ transform:scale(1); }
     }
     .footer-brand {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 10px;
-      font-size: 1rem;
-      font-weight: 700;
+      display: flex; align-items: center; gap: 6px;
+      margin-bottom: 8px;
+      font-size: 1rem; font-weight: 700;
     }
-    .footer-brand-icon {
-      font-size: 1.4rem;
-    }
+    .footer-brand-icon { font-size: 1.3rem; }
     .footer-brand-name {
       background: linear-gradient(135deg, var(--vl) 30%, var(--c) 100%);
       -webkit-background-clip: text;
@@ -765,9 +710,7 @@
       background-clip: text;
     }
 
-    /* ══════════════════════════
-       RESPONSIVE
-    ═══════════════════════════ */
+    /* RESPONSIVE */
     @media (max-width: 1100px) {
       #dn { display: none; }
       .mtb { display: flex; }
@@ -775,29 +718,26 @@
     @media (max-width: 640px) {
       .btag { display: none; }
       .ibtn { display: none; }
-      #nw { padding: 0 12px; }
+      #nw { padding: 0 10px; }
+      #nb { padding: 4px 6px 4px 10px; height: 50px; }
+      .bo { width: 28px; height: 28px; border-radius: 8px; }
+      .bo svg { width: 15px; height: 15px; }
+      .bn { font-size: 12px; }
+      #sh { padding: 8px 0; }
+      #sh.scrolled { padding: 4px 0; }
     }
     @media (max-width: 700px) {
-      .footer-inner {
-        grid-template-columns: 1fr 1fr;
-        gap: 28px;
-      }
-      .footer-bottom .made {
-        flex-direction: column;
-        gap: 2px;
-      }
+      .footer-inner { grid-template-columns: 1fr 1fr; gap: 24px; }
+      .footer-bottom .made { flex-direction: column; gap: 2px; }
     }
     @media (max-width: 480px) {
-      .footer-inner {
-        grid-template-columns: 1fr;
-      }
-      .footer {
-        padding-top: 40px;
-      }
+      .footer-inner { grid-template-columns: 1fr; }
+      .footer { padding-top: 40px; }
     }
     @media (max-width: 400px) {
       .mm-quick { flex-wrap: wrap; }
       .mm-quick .mm-ql { min-width: calc(50% - 3px); }
+      .gn-text { font-size: 10px; }
     }
   </style>
 </head>
@@ -805,9 +745,7 @@
 
 <div class="page-wrapper">
 
-  <!-- ══════════════════════════════════
-       NOTICE BANNER
-  ══════════════════════════════════ -->
+  <!-- NOTICE BANNER -->
   <div id="gn">
     <div class="gn-in">
       <span class="gn-badge warn">
@@ -820,8 +758,8 @@
       </span>
       <span class="gn-sep"></span>
       <span class="gn-text">
-        <strong>Admin‑Dashboard vorübergehend ausgefallen</strong> –
-        <a href="/live">⚡ /live – Echtzeit‑Bot‑Aktivität verfolgen</a>
+        <strong>Dashboard ausgefallen</strong> –
+        <a href="/live">⚡ /live – Echtzeit verfolgen</a>
       </span>
       <button class="gn-close" id="gn-x" aria-label="Schließen">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -829,16 +767,12 @@
     </div>
   </div>
 
-  <!-- ══════════════════════════════════
-       NAVBAR
-  ══════════════════════════════════ -->
+  <!-- NAVBAR -->
   <header id="sh">
     <div id="nw">
 
-      <!-- BAR -->
+      <!-- PILL BAR -->
       <div id="nb">
-
-        <!-- Logo -->
         <a href="/" class="bl">
           <div class="bo">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>
@@ -850,437 +784,138 @@
           </div>
         </a>
 
-        <!-- Desktop nav links -->
         <nav id="dn">
-          <a href="/" class="nl" id="dn-home">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-            Home
-          </a>
-          <button class="nb-btn" data-mg="produkt">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-            Produkt
-            <svg class="chv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
-          <button class="nb-btn" data-mg="ressourcen">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-            Ressourcen
-            <svg class="chv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
-          <button class="nb-btn" data-mg="community">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-            Community
-            <svg class="chv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
-          <button class="nb-btn" data-mg="support">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>
-            Support
-            <svg class="chv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
-          <a href="/pricing" class="nl hl">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-            Pricing
-          </a>
-          <a href="/status" class="nl">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-            Status
-          </a>
+          <a href="/" class="nl">Home</a>
+          <button class="nb-btn" data-mg="produkt">Produkt <svg class="chv" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></button>
+          <button class="nb-btn" data-mg="ressourcen">Ressourcen <svg class="chv" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></button>
+          <button class="nb-btn" data-mg="community">Community <svg class="chv" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></button>
+          <button class="nb-btn" data-mg="support">Support <svg class="chv" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></button>
+          <a href="/pricing" class="nl hl">Pricing</a>
+          <a href="/status" class="nl">Status</a>
         </nav>
 
-        <!-- Right -->
         <div id="nr">
           <a href="https://discord.com/api/oauth2/authorize?client_id=YOUR_CLIENT_ID&permissions=8&scope=bot%20applications.commands"
              target="_blank" rel="noopener noreferrer" class="ibtn">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
             Bot einladen
           </a>
           <button class="mtb" id="mtb" aria-label="Menü">
-            <svg id="ic-m" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
-            <svg id="ic-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            <svg id="ic-m" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+            <svg id="ic-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </div>
-      </div><!-- /#nb -->
+      </div>
 
-      <!-- ══════════════════════════
-           MEGA PANEL
-      ══════════════════════════ -->
+      <!-- MEGA PANEL (Desktop) -->
       <div id="mp">
-
-        <!-- PRODUKT -->
+        <!-- Produkt Panel -->
         <div class="pb" data-panel="produkt">
           <div class="pb-layout">
             <div class="pb-sidebar">
               <div class="pb-sidebar-title">Kategorien</div>
-              <button class="pbtab on" data-ptab="produkt" data-ptc="pt-module">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="9" height="9" rx="1"/><rect x="13" y="2" width="9" height="9" rx="1"/><rect x="2" y="13" width="9" height="9" rx="1"/><rect x="13" y="13" width="9" height="9" rx="1"/></svg>
-                <div><div>Module</div><div class="pbtab-desc">Alle Features</div></div>
-              </button>
-              <button class="pbtab" data-ptab="produkt" data-ptc="pt-tools">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-                <div><div>Tools</div><div class="pbtab-desc">Integrationen</div></div>
-              </button>
-              <button class="pbtab" data-ptab="produkt" data-ptc="pt-security">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                <div><div>Sicherheit</div><div class="pbtab-desc">Anti-Nuke & AutoMod</div></div>
-              </button>
-              <button class="pbtab" data-ptab="produkt" data-ptc="pt-premium">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                <div><div>Premium</div><div class="pbtab-desc">Pro-Features</div></div>
-              </button>
+              <button class="pbtab on" data-ptab="produkt" data-ptc="pt-module">Module</button>
+              <button class="pbtab" data-ptab="produkt" data-ptc="pt-tools">Tools</button>
+              <button class="pbtab" data-ptab="produkt" data-ptc="pt-security">Sicherheit</button>
+              <button class="pbtab" data-ptab="produkt" data-ptc="pt-premium">Premium</button>
             </div>
             <div class="pb-content">
-              <div id="pt-module" class="ptc vis">
-                <div class="sg">Kernfunktionen</div>
-                <div class="mc3">
-                  <a href="/features" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="9" height="9" rx="1"/><rect x="13" y="2" width="9" height="9" rx="1"/><rect x="2" y="13" width="9" height="9" rx="1"/><rect x="13" y="13" width="9" height="9" rx="1"/></svg></div><div><div class="mi-lb">Alle Features</div><div class="mi-dc">Komplette Übersicht</div></div></a>
-                  <a href="/commands" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></div><div><div class="mi-lb">100+ Commands</div><div class="mi-dc">Slash & Prefix</div></div></a>
-                  <a href="/ai" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="1" y1="9" x2="4" y2="9"/></svg></div><div><div class="mi-lb">AI Features <span class="mbg mbg-n">Neu</span></div><div class="mi-dc">GPT-4 Integration</div></div></a>
-                  <a href="/economy" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div><div><div class="mi-lb">Economy System</div><div class="mi-dc">Coins, Shop & Gambling</div></div></a>
-                  <a href="/docs/music" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div><div><div class="mi-lb">Music Player</div><div class="mi-dc">Lavalink Audio</div></div></a>
-                  <a href="/badges" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg></div><div><div class="mi-lb">Badges & XP</div><div class="mi-dc">Achievement-System</div></div></a>
-                </div>
-              </div>
-              <div id="pt-tools" class="ptc">
-                <div class="sg">Tools & Integrationen</div>
-                <div class="mc3">
-                  <a href="/templates" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg></div><div><div class="mi-lb">Server Templates</div><div class="mi-dc">Vorgefertigte Setups</div></div></a>
-                  <a href="/integrations" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div><div><div class="mi-lb">Integrationen</div><div class="mi-dc">Twitch, YouTube, GitHub</div></div></a>
-                  <a href="/widgets" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div><div><div class="mi-lb">Embed Widgets</div><div class="mi-dc">Stats für deine Website</div></div></a>
-                  <a href="/migrate" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.41"/></svg></div><div><div class="mi-lb">Migration <span class="mbg mbg-h">Hot</span></div><div class="mi-dc">Von MEE6, Dyno & Co.</div></div></a>
-                  <a href="/emojis" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></div><div><div class="mi-lb">Emoji Pack</div><div class="mi-dc">Custom Emojis</div></div></a>
-                  <a href="/api-docs" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div><div><div class="mi-lb">API</div><div class="mi-dc">REST API Referenz</div></div></a>
-                </div>
-              </div>
-              <div id="pt-security" class="ptc">
-                <div class="sg">Schutz & Moderation</div>
-                <div class="mc2" style="max-width:560px">
-                  <a href="/docs/automod" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div><div><div class="mi-lb">AutoMod 2.0</div><div class="mi-dc">KI-Schutz in Echtzeit</div></div></a>
-                  <a href="/docs/tickets" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 0 0-2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3a2 2 0 0 0 0-4V7a2 2 0 0 0-2-2H5z"/></svg></div><div><div class="mi-lb">Ticket System</div><div class="mi-dc">Dropdown-Panels</div></div></a>
-                  <a href="/security" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div><div><div class="mi-lb">Anti-Nuke</div><div class="mi-dc">Server-Schutz</div></div></a>
-                  <a href="/docs/moderation" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div><div><div class="mi-lb">Moderation</div><div class="mi-dc">Mod-Befehle & Cases</div></div></a>
-                </div>
-              </div>
-              <div id="pt-premium" class="ptc">
-                <div class="sg">Premium Features</div>
-                <div class="mc2" style="max-width:560px">
-                  <a href="/premium" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div><div><div class="mi-lb">Premium <span class="mbg mbg-t">Pro</span></div><div class="mi-dc">Alle Pro-Features</div></div></a>
-                  <a href="/docs/music" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/></svg></div><div><div class="mi-lb">24/7 Music</div><div class="mi-dc">Non-Stop Audio</div></div></a>
-                  <a href="/branding" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div><div><div class="mi-lb">Custom Branding</div><div class="mi-dc">Eigenes Branding</div></div></a>
-                  <a href="/support" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/></svg></div><div><div class="mi-lb">Priority Support</div><div class="mi-dc">Direkter Dev-Zugang</div></div></a>
-                </div>
-              </div>
+              <div id="pt-module" class="ptc vis"><div class="sg">Kernfunktionen</div><div class="mc3"><a href="/features" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24"><rect x="2" y="2" width="9" height="9" rx="1"/><rect x="13" y="2" width="9" height="9" rx="1"/><rect x="2" y="13" width="9" height="9" rx="1"/><rect x="13" y="13" width="9" height="9" rx="1"/></svg></div><div><div class="mi-lb">Alle Features</div><div class="mi-dc">Komplette Übersicht</div></div></a><a href="/commands" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></div><div><div class="mi-lb">100+ Commands</div><div class="mi-dc">Slash & Prefix</div></div></a><a href="/ai" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/></svg></div><div><div class="mi-lb">AI Features <span class="mbg mbg-n">Neu</span></div><div class="mi-dc">GPT-4 Integration</div></div></a><a href="/economy" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg></div><div><div class="mi-lb">Economy System</div><div class="mi-dc">Coins, Shop & Gambling</div></div></a><a href="/docs/music" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div><div><div class="mi-lb">Music Player</div><div class="mi-dc">Lavalink Audio</div></div></a><a href="/badges" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg></div><div><div class="mi-lb">Badges & XP</div><div class="mi-dc">Achievement-System</div></div></a></div></div>
+              <div id="pt-tools" class="ptc"><div class="sg">Tools & Integrationen</div><div class="mc3"><a href="/templates" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg></div><div><div class="mi-lb">Server Templates</div></div></a><a href="/integrations" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg></div><div><div class="mi-lb">Integrationen</div></div></a><a href="/widgets" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div><div><div class="mi-lb">Embed Widgets</div></div></a><a href="/migrate" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.41"/></svg></div><div><div class="mi-lb">Migration <span class="mbg mbg-h">Hot</span></div></div></a><a href="/emojis" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg></div><div><div class="mi-lb">Emoji Pack</div></div></a><a href="/api-docs" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div><div><div class="mi-lb">API</div></div></a></div></div>
+              <div id="pt-security" class="ptc"><div class="sg">Schutz & Moderation</div><div class="mc2"><a href="/docs/automod" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div><div><div class="mi-lb">AutoMod 2.0</div></div></a><a href="/docs/tickets" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24"><path d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 0 0-2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3a2 2 0 0 0 0-4V7a2 2 0 0 0-2-2H5z"/></svg></div><div><div class="mi-lb">Ticket System</div></div></a><a href="/security" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div><div><div class="mi-lb">Anti-Nuke</div></div></a><a href="/docs/moderation" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div><div><div class="mi-lb">Moderation</div></div></a></div></div>
+              <div id="pt-premium" class="ptc"><div class="sg">Premium Features</div><div class="mc2"><a href="/premium" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div><div><div class="mi-lb">Premium <span class="mbg mbg-t">Pro</span></div></div></a><a href="/docs/music" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/></svg></div><div><div class="mi-lb">24/7 Music</div></div></a><a href="/branding" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div><div><div class="mi-lb">Custom Branding</div></div></a><a href="/support" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/></svg></div><div><div class="mi-lb">Priority Support</div></div></a></div></div>
             </div>
           </div>
-          <div class="pb-cta">
-            <a href="/premium" class="pb-cta-link">
-              <div><div class="cta-t">Premium freischalten</div><div class="cta-d">24/7 Music, Custom Branding & Priority Support</div></div>
-              <div class="cta-arr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg></div>
-            </a>
-          </div>
+          <div class="pb-cta"><a href="/premium" class="pb-cta-link"><div><div class="cta-t">Premium freischalten</div><div class="cta-d">24/7 Music, Custom Branding & Priority Support</div></div><div class="cta-arr"><svg viewBox="0 0 24 24"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg></div></a></div>
         </div>
+        <!-- Andere Panels analog kurz gehalten -->
+        <div class="pb" data-panel="ressourcen"><div class="pb-layout"><div class="pb-sidebar"><div class="pb-sidebar-title">Kategorien</div><button class="pbtab on" data-ptab="ressourcen" data-ptc="rr-lernen">Lernen</button><button class="pbtab" data-ptab="ressourcen" data-ptc="rr-dev">Entwickler</button></div><div class="pb-content"><div id="rr-lernen" class="ptc vis"><div class="sg">Lernmaterialien</div><div class="mc2"><a href="/docs" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></div><div><div class="mi-lb">Dokumentation</div></div></a><a href="/tutorials" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></div><div><div class="mi-lb">Video Tutorials</div></div></a><a href="/faq" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg></div><div><div class="mi-lb">FAQ</div></div></a></div></div><div id="rr-dev" class="ptc"><div class="sg">Für Entwickler</div><div class="mc2"><a href="/api-docs" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/></svg></div><div><div class="mi-lb">API Docs</div></div></a><a href="/changelog" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg></div><div><div class="mi-lb">Changelog</div></div></a><a href="/roadmap" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/></svg></div><div><div class="mi-lb">Roadmap</div></div></a></div></div></div></div><div class="pb-cta"><a href="/migrate" class="pb-cta-link"><div><div class="cta-t">Kostenlos migrieren</div><div class="cta-d">Von MEE6, Dyno & Co.</div></div><div class="cta-arr"><svg viewBox="0 0 24 24"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg></div></a></div></div>
+        <div class="pb" data-panel="community"><div class="pb-layout"><div class="pb-sidebar"><div class="pb-sidebar-title">Kategorien</div><button class="pbtab on" data-ptab="community" data-ptc="cm-join">Mitmachen</button></div><div class="pb-content"><div id="cm-join" class="ptc vis"><div class="sg">Community beitreten</div><div class="mc2"><a href="/partners" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div><div><div class="mi-lb">Partner</div></div></a><a href="/affiliate" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/></svg></div><div><div class="mi-lb">Affiliate</div></div></a></div></div></div></div><div class="pb-cta"><a href="https://discord.gg/gwryX3dbkt" target="_blank" class="pb-cta-link"><div><div class="cta-t">Discord beitreten</div><div class="cta-d">850+ Member</div></div><div class="cta-arr"><svg viewBox="0 0 24 24"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg></div></a></div></div>
+        <div class="pb" data-panel="support"><div class="pb-layout"><div class="pb-sidebar"><div class="pb-sidebar-title">Kategorien</div><button class="pbtab on" data-ptab="support" data-ptc="sp-help">Hilfe</button></div><div class="pb-content"><div id="sp-help" class="ptc vis"><div class="sg">Hilfe & Support</div><div class="mc2"><a href="/support" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/></svg></div><div><div class="mi-lb">Support-Center</div></div></a><a href="/faq" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg></div><div><div class="mi-lb">FAQ</div></div></a></div></div></div></div><div class="pb-cta"><a href="/premium" class="pb-cta-link"><div><div class="cta-t">Premium Support</div><div class="cta-d">Direkter Dev-Zugang</div></div><div class="cta-arr"><svg viewBox="0 0 24 24"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg></div></a></div></div>
+      </div>
 
-        <!-- RESSOURCEN -->
-        <div class="pb" data-panel="ressourcen">
-          <div class="pb-layout">
-            <div class="pb-sidebar">
-              <div class="pb-sidebar-title">Kategorien</div>
-              <button class="pbtab on" data-ptab="ressourcen" data-ptc="rr-lernen">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-                <div><div>Lernen</div><div class="pbtab-desc">Guides & Tutorials</div></div>
-              </button>
-              <button class="pbtab" data-ptab="ressourcen" data-ptc="rr-dev">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-                <div><div>Entwickler</div><div class="pbtab-desc">API & Changelog</div></div>
-              </button>
-              <button class="pbtab" data-ptab="ressourcen" data-ptc="rr-mehr">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-                <div><div>Mehr</div><div class="pbtab-desc">Blog & Downloads</div></div>
-              </button>
-            </div>
-            <div class="pb-content">
-              <div id="rr-lernen" class="ptc vis">
-                <div class="sg">Lernmaterialien</div>
-                <div class="mc2" style="max-width:540px">
-                  <a href="/docs" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></div><div><div class="mi-lb">Dokumentation</div><div class="mi-dc">Vollständiger Guide</div></div></a>
-                  <a href="/tutorials" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></div><div><div class="mi-lb">Video Tutorials</div><div class="mi-dc">8+ Anleitungen</div></div></a>
-                  <a href="/faq" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div><div><div class="mi-lb">FAQ</div><div class="mi-dc">Häufige Fragen</div></div></a>
-                  <a href="/docs/setup" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div><div><div class="mi-lb">Setup Guide</div><div class="mi-dc">In 2 Min startklar</div></div></a>
-                </div>
-              </div>
-              <div id="rr-dev" class="ptc">
-                <div class="sg">Für Entwickler</div>
-                <div class="mc2" style="max-width:540px">
-                  <a href="/api-docs" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div><div><div class="mi-lb">API Docs</div><div class="mi-dc">REST API Referenz</div></div></a>
-                  <a href="/changelog" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><div><div class="mi-lb">Changelog</div><div class="mi-dc">Alle Updates</div></div></a>
-                  <a href="/roadmap" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div><div><div class="mi-lb">Roadmap</div><div class="mi-dc">Was kommt als nächstes</div></div></a>
-                  <a href="/branding" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div><div><div class="mi-lb">Brand Kit</div><div class="mi-dc">Logos & Farben</div></div></a>
-                </div>
-              </div>
-              <div id="rr-mehr" class="ptc">
-                <div class="sg">Weitere Ressourcen</div>
-                <div class="mc2" style="max-width:540px">
-                  <a href="/migrate" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.41"/></svg></div><div><div class="mi-lb">Migration <span class="mbg mbg-h">Hot</span></div><div class="mi-dc">Von MEE6 & Co.</div></div></a>
-                  <a href="/blog" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><div><div class="mi-lb">Blog & News</div><div class="mi-dc">Updates & Guides</div></div></a>
-                  <a href="/downloads" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"/></svg></div><div><div class="mi-lb">Downloads</div><div class="mi-dc">Apps & Assets</div></div></a>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="pb-cta">
-            <a href="/migrate" class="pb-cta-link">
-              <div><div class="cta-t">Kostenlos migrieren</div><div class="cta-d">Wir helfen dir beim Wechsel von MEE6, Dyno & Co.</div></div>
-              <div class="cta-arr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg></div>
-            </a>
-          </div>
-        </div>
-
-        <!-- COMMUNITY -->
-        <div class="pb" data-panel="community">
-          <div class="pb-layout">
-            <div class="pb-sidebar">
-              <div class="pb-sidebar-title">Kategorien</div>
-              <button class="pbtab on" data-ptab="community" data-ptc="cm-join">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-                <div><div>Mitmachen</div><div class="pbtab-desc">Partner & Affiliate</div></div>
-              </button>
-              <button class="pbtab" data-ptab="community" data-ptc="cm-showcase">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/></svg>
-                <div><div>Showcase</div><div class="pbtab-desc">Top Communities</div></div>
-              </button>
-              <button class="pbtab" data-ptab="community" data-ptc="cm-about">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-                <div><div>Über uns</div><div class="pbtab-desc">Team & Karriere</div></div>
-              </button>
-            </div>
-            <div class="pb-content">
-              <div id="cm-join" class="ptc vis">
-                <div class="sg">Community beitreten</div>
-                <div class="mc2" style="max-width:540px">
-                  <a href="/partners" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div><div><div class="mi-lb">Partner <span class="mbg mbg-t">Top</span></div><div class="mi-dc">Werbung + Premium gratis</div></div></a>
-                  <a href="/affiliate" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div><div><div class="mi-lb">Affiliate</div><div class="mi-dc">20% Lifetime-Provision</div></div></a>
-                  <a href="/suggest" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg></div><div><div class="mi-lb">Vorschläge</div><div class="mi-dc">Feature-Voting</div></div></a>
-                  <a href="/contact" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div><div><div class="mi-lb">Kontakt</div><div class="mi-dc">Nimm Verbindung auf</div></div></a>
-                </div>
-              </div>
-              <div id="cm-showcase" class="ptc">
-                <div class="sg">Community Showcase</div>
-                <div class="mc2" style="max-width:540px">
-                  <a href="/showcase" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/></svg></div><div><div class="mi-lb">Server Showcase</div><div class="mi-dc">Top Communities</div></div></a>
-                  <a href="/testimonials" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div><div><div class="mi-lb">Bewertungen</div><div class="mi-dc">Was User sagen</div></div></a>
-                  <a href="/leaderboard" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div><div><div class="mi-lb">XP Leaderboard</div><div class="mi-dc">Globale Bestenliste</div></div></a>
-                </div>
-              </div>
-              <div id="cm-about" class="ptc">
-                <div class="sg">Über ModForge</div>
-                <div class="mc2" style="max-width:540px">
-                  <a href="/team" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div><div><div class="mi-lb">Team</div><div class="mi-dc">Lerne uns kennen</div></div></a>
-                  <a href="/jobs" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></div><div><div class="mi-lb">Karriere</div><div class="mi-dc">Wir suchen Talente</div></div></a>
-                  <a href="/events" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div><div><div class="mi-lb">Events</div><div class="mi-dc">Live-Streams & Drops</div></div></a>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="pb-cta">
-            <a href="https://discord.gg/gwryX3dbkt" target="_blank" class="pb-cta-link">
-              <div><div class="cta-t">Discord beitreten</div><div class="cta-d">850+ aktive Member – werde Teil der Community</div></div>
-              <div class="cta-arr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg></div>
-            </a>
-          </div>
-        </div>
-
-        <!-- SUPPORT -->
-        <div class="pb" data-panel="support">
-          <div class="pb-layout">
-            <div class="pb-sidebar">
-              <div class="pb-sidebar-title">Kategorien</div>
-              <button class="pbtab on" data-ptab="support" data-ptc="sp-help">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>
-                <div><div>Hilfe</div><div class="pbtab-desc">Support & Docs</div></div>
-              </button>
-              <button class="pbtab" data-ptab="support" data-ptc="sp-status">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-                <div><div>Status</div><div class="pbtab-desc">Uptime & Vorfälle</div></div>
-              </button>
-              <button class="pbtab" data-ptab="support" data-ptc="sp-legal">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                <div><div>Rechtliches</div><div class="pbtab-desc">DSGVO & Terms</div></div>
-              </button>
-            </div>
-            <div class="pb-content">
-              <div id="sp-help" class="ptc vis">
-                <div class="sg">Hilfe & Support</div>
-                <div class="mc2" style="max-width:540px">
-                  <a href="/support" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg></div><div><div class="mi-lb">Support-Center</div><div class="mi-dc">Hilfe-Übersicht</div></div></a>
-                  <a href="/faq" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div><div><div class="mi-lb">FAQ</div><div class="mi-dc">Häufige Fragen</div></div></a>
-                  <a href="/contact" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div><div><div class="mi-lb">Kontakt</div><div class="mi-dc">Wir antworten schnell</div></div></a>
-                  <a href="/docs" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></div><div><div class="mi-lb">Dokumentation</div><div class="mi-dc">Anleitungen</div></div></a>
-                </div>
-              </div>
-              <div id="sp-status" class="ptc">
-                <div class="sg">System Status</div>
-                <div class="mc2" style="max-width:540px">
-                  <a href="/status" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div><div><div class="mi-lb">Live Status</div><div class="mi-dc">99.9% Uptime</div></div></a>
-                  <a href="/uptime" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div><div><div class="mi-lb">Uptime Monitor</div><div class="mi-dc">Live-Counter</div></div></a>
-                  <a href="/status/incidents" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div><div><div class="mi-lb">Vorfälle</div><div class="mi-dc">Historie & Updates</div></div></a>
-                  <a href="/status/maintenance" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div><div><div class="mi-lb">Wartung</div><div class="mi-dc">Geplante Updates</div></div></a>
-                </div>
-              </div>
-              <div id="sp-legal" class="ptc">
-                <div class="sg">Rechtliches & Datenschutz</div>
-                <div class="mc2" style="max-width:540px">
-                  <a href="/security" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div><div><div class="mi-lb">Sicherheit</div><div class="mi-dc">DSGVO & TLS 1.3</div></div></a>
-                  <a href="/privacy" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div><div><div class="mi-lb">Datenschutz</div><div class="mi-dc">Privacy Policy</div></div></a>
-                  <a href="/terms" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><div><div class="mi-lb">Nutzungsbedingungen</div><div class="mi-dc">Terms of Service</div></div></a>
-                  <a href="/legal" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><div><div class="mi-lb">Impressum</div><div class="mi-dc">Rechtliche Infos</div></div></a>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="pb-cta">
-            <a href="/premium" class="pb-cta-link">
-              <div><div class="cta-t">Premium Support</div><div class="cta-d">Direkter Zugang zum Dev-Team – keine Wartezeit</div></div>
-              <div class="cta-arr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg></div>
-            </a>
-          </div>
-        </div>
-
-      </div><!-- /#mp -->
-
-      <!-- ══════════════════════════
-           MOBILE MENU
-      ══════════════════════════ -->
+      <!-- MOBILE MENU -->
       <div id="mm">
         <div class="mm-in">
-
           <div class="mm-srch">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <input type="text" id="msi" placeholder="Suche in der Navigation…">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="msi" placeholder="Suche…">
           </div>
-
           <div class="mm-quick">
-            <a href="/" class="mm-ql">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
-              Home
-            </a>
-            <a href="/pricing" class="mm-ql hl">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-              Pricing
-            </a>
-            <a href="/status" class="mm-ql">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-              Status
-            </a>
-            <a href="/login" class="mm-ql">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/></svg>
-              Dashboard
-            </a>
+            <a href="/" class="mm-ql">Home</a>
+            <a href="/pricing" class="mm-ql hl">Pricing</a>
+            <a href="/status" class="mm-ql">Status</a>
+            <a href="/login" class="mm-ql">Dashboard</a>
           </div>
-
           <div class="mm-div"></div>
-
           <details class="ma">
-            <summary>
-              <span class="ma-left">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                Produkt
-              </span>
-              <svg class="ma-chv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-            </summary>
+            <summary><span class="ma-left"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>Produkt</span><svg class="ma-chv" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></summary>
             <div class="ma-body">
-              <a href="/features" class="ma-sl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="9" height="9" rx="1"/><rect x="13" y="2" width="9" height="9" rx="1"/><rect x="2" y="13" width="9" height="9" rx="1"/><rect x="13" y="13" width="9" height="9" rx="1"/></svg>Alle Features</a>
-              <a href="/commands" class="ma-sl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>100+ Commands</a>
-              <a href="/ai" class="ma-sl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/></svg>AI Features</a>
-              <a href="/economy" class="ma-sl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></svg>Economy System</a>
-              <a href="/docs/automod" class="ma-sl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>AutoMod 2.0</a>
-              <a href="/docs/tickets" class="ma-sl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 0 0-2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3a2 2 0 0 0 0-4V7a2 2 0 0 0-2-2H5z"/></svg>Ticket System</a>
-              <a href="/docs/music" class="ma-sl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/></svg>Music Player</a>
-              <a href="/migrate" class="ma-sl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.41"/></svg>Migration Tool</a>
+              <a href="/features" class="ma-sl">Alle Features</a>
+              <a href="/commands" class="ma-sl">100+ Commands</a>
+              <a href="/ai" class="ma-sl">AI Features</a>
+              <a href="/economy" class="ma-sl">Economy System</a>
+              <a href="/docs/automod" class="ma-sl">AutoMod 2.0</a>
+              <a href="/docs/tickets" class="ma-sl">Ticket System</a>
+              <a href="/docs/music" class="ma-sl">Music Player</a>
+              <a href="/migrate" class="ma-sl">Migration Tool</a>
             </div>
           </details>
-
           <details class="ma">
-            <summary>
-              <span class="ma-left">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-                Ressourcen
-              </span>
-              <svg class="ma-chv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-            </summary>
+            <summary><span class="ma-left"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>Ressourcen</span><svg class="ma-chv" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></summary>
             <div class="ma-body">
-              <a href="/docs" class="ma-sl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>Dokumentation</a>
-              <a href="/tutorials" class="ma-sl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>Video Tutorials</a>
-              <a href="/faq" class="ma-sl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></svg>FAQ</a>
-              <a href="/changelog" class="ma-sl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Changelog</a>
-              <a href="/roadmap" class="ma-sl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/></svg>Roadmap</a>
-              <a href="/api-docs" class="ma-sl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>API Docs</a>
+              <a href="/docs" class="ma-sl">Dokumentation</a>
+              <a href="/tutorials" class="ma-sl">Video Tutorials</a>
+              <a href="/faq" class="ma-sl">FAQ</a>
+              <a href="/changelog" class="ma-sl">Changelog</a>
+              <a href="/roadmap" class="ma-sl">Roadmap</a>
+              <a href="/api-docs" class="ma-sl">API Docs</a>
             </div>
           </details>
-
           <details class="ma">
-            <summary>
-              <span class="ma-left">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg>
-                Community
-              </span>
-              <svg class="ma-chv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-            </summary>
+            <summary><span class="ma-left"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>Community</span><svg class="ma-chv" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></summary>
             <div class="ma-body">
-              <a href="/partners" class="ma-sl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>Partner werden</a>
-              <a href="/affiliate" class="ma-sl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/></svg>Affiliate</a>
-              <a href="/showcase" class="ma-sl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/></svg>Server Showcase</a>
-              <a href="/team" class="ma-sl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>Team</a>
-              <a href="/events" class="ma-sl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Events</a>
+              <a href="/partners" class="ma-sl">Partner werden</a>
+              <a href="/affiliate" class="ma-sl">Affiliate</a>
+              <a href="/showcase" class="ma-sl">Server Showcase</a>
+              <a href="/team" class="ma-sl">Team</a>
+              <a href="/events" class="ma-sl">Events</a>
             </div>
           </details>
-
           <details class="ma">
-            <summary>
-              <span class="ma-left">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>
-                Support
-              </span>
-              <svg class="ma-chv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-            </summary>
+            <summary><span class="ma-left"><svg viewBox="0 0 24 24"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/></svg>Support</span><svg class="ma-chv" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></summary>
             <div class="ma-body">
-              <a href="/support" class="ma-sl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/></svg>Support-Center</a>
-              <a href="/faq" class="ma-sl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/></svg>FAQ</a>
-              <a href="/contact" class="ma-sl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/></svg>Kontakt</a>
-              <a href="/privacy" class="ma-sl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Datenschutz</a>
-              <a href="/terms" class="ma-sl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Nutzungsbedingungen</a>
-              <a href="/status" class="ma-sl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Live Status</a>
+              <a href="/support" class="ma-sl">Support-Center</a>
+              <a href="/faq" class="ma-sl">FAQ</a>
+              <a href="/contact" class="ma-sl">Kontakt</a>
+              <a href="/privacy" class="ma-sl">Datenschutz</a>
+              <a href="/terms" class="ma-sl">Nutzungsbedingungen</a>
+              <a href="/status" class="ma-sl">Live Status</a>
             </div>
           </details>
-
           <div class="mm-div"></div>
-
           <a href="https://discord.com/api/oauth2/authorize?client_id=YOUR_CLIENT_ID&permissions=8&scope=bot%20applications.commands"
              target="_blank" rel="noopener noreferrer" class="mm-cta">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            <svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
             Bot einladen – Kostenlos starten
           </a>
-
         </div>
-      </div><!-- /#mm -->
+      </div>
 
-    </div><!-- /#nw -->
+    </div>
   </header>
 
-  <!-- PAGE CONTENT -->
   {% block content %}{% endblock %}
 
-  <!-- FOOTER -->
   <footer class="footer">
     <div class="footer-inner">
-
       <div>
         <div class="footer-brand">
           <span class="footer-brand-icon">🛡️</span>
           <span class="footer-brand-name">ModForge</span>
         </div>
-        <p style="font-size:.75rem;color:var(--m)">
-          Security &amp; AutoMod Bot für Discord.
-        </p>
+        <p style="font-size:.75rem;color:var(--m)">Security &amp; AutoMod Bot für Discord.</p>
       </div>
-
       <div>
         <h4>Links</h4>
         <a href="/status">Status</a>
@@ -1288,40 +923,24 @@
         <a href="/live">Live Aktivität</a>
         <a href="/login">Dashboard</a>
       </div>
-
       <div>
         <h4>Rechtliches</h4>
         <a href="/terms">Terms of Service</a>
         <a href="/privacy">Privacy Policy</a>
         <a href="/imprint">Impressum</a>
       </div>
-
       <div>
         <h4>Community</h4>
-        <a href="https://discord.gg/gwryX3dbkt" target="_blank">
-          Support Server
-        </a>
+        <a href="https://discord.gg/gwryX3dbkt" target="_blank">Support Server</a>
         <a href="/admin/login">Admin Panel</a>
       </div>
-
     </div>
-
     <div class="footer-bottom">
-
-      <div class="made">
-        Made with <span class="heart">❤️</span> by
-        <a href="/team">@Fufi</a>
-        · © 2026 ModForge. All rights reserved.
-      </div>
-
-      <div class="footer-copy" style="margin-top:0.25rem;">
-        Solo-developed in Germany 🇩🇪 · Hosted by BotForge · Not affiliated with Discord Inc.
-      </div>
-
+      <div class="made">Made with <span class="heart">❤️</span> by <a href="/team">@Fufi</a> · © 2026 ModForge</div>
+      <div style="margin-top:4px;opacity:0.7;">Solo-developed in Germany 🇩🇪 · Not affiliated with Discord Inc.</div>
     </div>
   </footer>
-
-</div><!-- /.page-wrapper -->
+</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="/static/script.js"></script>
@@ -1335,7 +954,6 @@
   var nw = document.getElementById('nw');
   var GNH = 46;
 
-  /* ── Notice ── */
   function noticeVisible(){ return gn && gn.style.display !== 'none'; }
   function setHeaderTop(){
     if(sh) sh.style.top = noticeVisible() ? GNH+'px' : '0';
@@ -1352,18 +970,15 @@
     });
   }
 
-  /* ── Scroll shrink ── */
   window.addEventListener('scroll',function(){
     sh && sh.classList.toggle('scrolled', window.scrollY>30);
   },{passive:true});
 
-  /* ── Active link ── */
   var p = window.location.pathname;
-  document.querySelectorAll('a.nl, a.mm-ql, a.ma-sl, a.mm-link').forEach(function(a){
+  document.querySelectorAll('a.nl, a.mm-ql, a.ma-sl').forEach(function(a){
     if(a.getAttribute('href')===p) a.classList.add('act');
   });
 
-  /* ── Mega panel ── */
   var mp = document.getElementById('mp');
   var mgBtns = document.querySelectorAll('.nb-btn[data-mg]');
   var cur = null;
@@ -1373,24 +988,18 @@
     var panel = mp.querySelector('[data-panel="'+key+'"]');
     if(!panel) return;
     panel.classList.add('vis');
-    panel.querySelectorAll('.pbtab').forEach(function(t,i){
-      t.classList.toggle('on', i===0);
-    });
-    panel.querySelectorAll('.ptc').forEach(function(tc,i){
-      tc.classList.toggle('vis', i===0);
-    });
+    panel.querySelectorAll('.pbtab').forEach(function(t,i){ t.classList.toggle('on', i===0); });
+    panel.querySelectorAll('.ptc').forEach(function(tc,i){ tc.classList.toggle('vis', i===0); });
     mgBtns.forEach(function(b){ b.classList.remove('mop'); });
     btn.classList.add('mop');
     mp.classList.add('open');
     cur = key;
   }
-
   function closeMega(){
     mp.classList.remove('open');
     mgBtns.forEach(function(b){ b.classList.remove('mop'); });
     cur = null;
   }
-
   mgBtns.forEach(function(btn){
     btn.addEventListener('click',function(e){
       e.stopPropagation();
@@ -1398,12 +1007,9 @@
       cur===key ? closeMega() : openMega(key, btn);
     });
   });
-
-  /* sidebar tab switching */
   document.querySelectorAll('.pbtab').forEach(function(tab){
     tab.addEventListener('click',function(){
       var tcId = tab.dataset.ptc;
-      var grp  = tab.dataset.ptab;
       var panel = tab.closest('.pb');
       panel.querySelectorAll('.pbtab').forEach(function(t){ t.classList.remove('on'); });
       tab.classList.add('on');
@@ -1412,13 +1018,10 @@
       if(tc) tc.classList.add('vis');
     });
   });
-
-  /* close on outside */
   document.addEventListener('click',function(e){
     if(nw && !nw.contains(e.target)) closeMega();
   });
 
-  /* ── Mobile menu ── */
   var mm   = document.getElementById('mm');
   var mtb  = document.getElementById('mtb');
   var icM  = document.getElementById('ic-m');
@@ -1433,7 +1036,6 @@
     if(mOpen) closeMega();
   }
   if(mtb) mtb.addEventListener('click',function(e){ e.stopPropagation(); toggleMob(); });
-
   document.addEventListener('click',function(e){
     if(mOpen && nw && !nw.contains(e.target)){
       mOpen=false;
@@ -1443,7 +1045,6 @@
     }
   });
 
-  /* mobile search */
   var msi = document.getElementById('msi');
   if(msi) msi.addEventListener('input',function(){
     var q = this.value.toLowerCase().trim();
@@ -1452,8 +1053,7 @@
     });
     document.querySelectorAll('.ma').forEach(function(d){ if(q) d.open=true; });
   });
-
 })();
 </script>
 </body>
-  </html>
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        </html>
