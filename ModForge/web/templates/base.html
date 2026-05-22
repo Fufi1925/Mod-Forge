@@ -3,557 +3,1010 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}ModForge – Discord Security &amp; AutoMod Bot{% endblock %}</title>
-  <meta name="description" content="Der stärkste Discord‑Sicherheitsbot. Anti‑Nuke, Anti‑Raid, AutoMod, Cases &amp; Web‑Dashboard.">
+  <title>{% block title %}ModForge – Discord Security & AutoMod Bot{% endblock %}</title>
+  <meta name="description" content="Der stärkste Discord‑Sicherheitsbot. Anti‑Nuke, Anti‑Raid, AutoMod, Cases & Web‑Dashboard.">
   <link rel="stylesheet" href="/static/style.css">
-  <!-- Lucide Icons CDN -->
-  <script src="https://unpkg.com/lucide@latest"></script>
   <style>
-    /* Navbar Utilities */
-    .w-3_5 { width: 0.875rem; height: 0.875rem; }
-    .w-4 { width: 1rem; height: 1rem; }
-    .w-5 { width: 1.25rem; height: 1.25rem; }
-    .glass-strong {
-      background: rgba(10, 10, 20, 0.85);
+    /* ── NAVBAR ── */
+    .topnav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      padding: 0.75rem 1rem;
+      transition: padding 0.3s;
+    }
+    .topnav-inner {
+      max-width: 1280px;
+      margin: 0 auto;
+      background: rgba(15,15,30,0.75);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 1.5rem;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 1rem;
+      padding: 0.6rem 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      transition: box-shadow 0.3s;
     }
-    .glow-breathe {
-      box-shadow: 0 0 25px rgba(139, 92, 246, 0.15);
+    .topnav.scrolled .topnav-inner {
+      padding-top: 0.4rem;
+      padding-bottom: 0.4rem;
+      box-shadow: 0 8px 48px rgba(0,0,0,0.7);
     }
-    .text-gradient {
-      background: linear-gradient(to right, #a78bfa, #22d3ee);
+
+    /* Logo */
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      text-decoration: none;
+      flex-shrink: 0;
+    }
+    .nav-brand-icon {
+      width: 2.25rem;
+      height: 2.25rem;
+      border-radius: 0.75rem;
+      background: linear-gradient(135deg, #7c3aed, #06b6d4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      position: relative;
+      animation: breathe 3s ease-in-out infinite;
+    }
+    .nav-brand-icon::after {
+      content: '';
+      position: absolute;
+      top: -2px; right: -2px;
+      width: 10px; height: 10px;
+      background: #4ade80;
+      border-radius: 50%;
+      border: 2px solid #0a0a14;
+    }
+    .nav-brand-text {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.1;
+    }
+    .nav-brand-name {
+      font-size: 1rem;
+      font-weight: 900;
+      background: linear-gradient(90deg, #a78bfa, #67e8f9);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
     }
-    .btn-primary {
-      background: linear-gradient(135deg, #8b5cf6, #06b6d4);
-      color: white;
-      font-weight: 600;
-      border-radius: 0.75rem;
-      padding: 0.5rem 1rem;
-      display: inline-flex;
+    .nav-brand-sub {
+      font-size: 0.5rem;
+      color: #6b7280;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+
+    /* Desktop Links */
+    .nav-desktop {
+      display: flex;
       align-items: center;
-      gap: 0.5rem;
+      gap: 0.125rem;
+    }
+    .nav-link {
+      display: flex;
+      align-items: center;
+      gap: 0.375rem;
+      padding: 0.5rem 0.75rem;
+      border-radius: 0.75rem;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      color: #d1d5db;
       text-decoration: none;
       transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .nav-link:hover,
+    .nav-link.active {
+      color: #fff;
+      background: rgba(255,255,255,0.05);
+    }
+    .nav-link.active {
+      border: 1px solid rgba(124,58,237,0.3);
+    }
+    .nav-link.highlight {
+      color: #fcd34d;
+    }
+    .nav-link.highlight:hover {
+      color: #fde68a;
+      background: rgba(245,158,11,0.1);
+    }
+
+    /* Dropdown Trigger */
+    .nav-dropdown {
+      position: relative;
+    }
+    .nav-dropdown-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.375rem;
+      padding: 0.5rem 0.75rem;
+      border-radius: 0.75rem;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      color: #d1d5db;
+      background: none;
       border: none;
       cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
     }
-    .btn-primary:hover {
-      filter: brightness(1.15);
-      transform: translateY(-1px);
+    .nav-dropdown-btn:hover,
+    .nav-dropdown.open .nav-dropdown-btn {
+      color: #fff;
+      background: rgba(255,255,255,0.07);
     }
-    .anim-down {
-      animation: fadeDown 0.2s ease-out;
+    .nav-dropdown-btn .chevron {
+      width: 0.75rem;
+      height: 0.75rem;
+      opacity: 0.5;
+      transition: transform 0.2s;
     }
-    @keyframes fadeDown {
-      from { opacity: 0; transform: translateY(-10px); }
-      to { opacity: 1; transform: translateY(0); }
+    .nav-dropdown.open .nav-dropdown-btn .chevron {
+      transform: rotate(180deg);
     }
+
+    /* Mega Menu Panel */
     .mega-panel {
-      position: absolute;
-      left: 0;
-      right: 0;
-      top: 100%;
-      margin-top: 0.5rem;
       display: none;
+      position: absolute;
+      top: calc(100% + 0.75rem);
+      left: 50%;
+      transform: translateX(-50%);
+      width: 800px;
+      max-width: 95vw;
+      background: rgba(15,15,30,0.95);
+      backdrop-filter: blur(24px);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 1.25rem;
+      padding: 1.5rem;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+      animation: anim-down 0.2s ease;
+      z-index: 200;
     }
-    .mega-panel.active {
+    .nav-dropdown.open .mega-panel {
       display: block;
     }
-    header.navbar-scrolled {
-      padding-top: 0.25rem !important;
-      padding-bottom: 0.25rem !important;
+    @keyframes anim-down {
+      from { opacity: 0; transform: translateX(-50%) translateY(-8px); }
+      to   { opacity: 1; transform: translateX(-50%) translateY(0); }
     }
-    header.navbar-scrolled .glass-strong {
-      box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+    .mega-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.5rem;
     }
-    /* Mobile details summary reset */
-    details summary {
-      list-style: none;
+    .mega-col h4 {
+      font-size: 0.625rem;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: #6b7280;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+      padding: 0 0.5rem;
     }
-    details summary::-webkit-details-marker {
+    .mega-link {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      padding: 0.625rem;
+      border-radius: 0.75rem;
+      text-decoration: none;
+      transition: background 0.15s;
+    }
+    .mega-link:hover {
+      background: rgba(255,255,255,0.05);
+    }
+    .mega-link-icon {
+      width: 2rem;
+      height: 2rem;
+      border-radius: 0.5rem;
+      background: rgba(124,58,237,0.1);
+      border: 1px solid rgba(124,58,237,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.875rem;
+      flex-shrink: 0;
+      transition: background 0.15s;
+    }
+    .mega-link:hover .mega-link-icon {
+      background: rgba(124,58,237,0.2);
+    }
+    .mega-link-label {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 0.375rem;
+    }
+    .mega-link-desc {
+      font-size: 0.6875rem;
+      color: #9ca3af;
+      margin-top: 0.125rem;
+    }
+    .badge {
+      font-size: 0.5rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 0.125rem 0.375rem;
+      border-radius: 0.25rem;
+    }
+    .badge-new  { background: rgba(6,182,212,0.2);  color: #67e8f9; }
+    .badge-hot  { background: rgba(239,68,68,0.2);  color: #fca5a5; }
+    .badge-top  { background: rgba(245,158,11,0.2); color: #fcd34d; }
+
+    /* Mega CTA */
+    .mega-cta {
+      grid-column: 1 / -1;
+      margin-top: 0.5rem;
+      padding-top: 1rem;
+      border-top: 1px solid rgba(255,255,255,0.05);
+    }
+    .mega-cta a {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem;
+      border-radius: 0.75rem;
+      background: linear-gradient(90deg, rgba(124,58,237,0.15), rgba(6,182,212,0.15));
+      border: 1px solid rgba(124,58,237,0.2);
+      text-decoration: none;
+      transition: border-color 0.2s;
+    }
+    .mega-cta a:hover { border-color: rgba(124,58,237,0.5); }
+    .mega-cta-title { font-weight: 700; color: #fff; font-size: 0.875rem; }
+    .mega-cta-desc  { font-size: 0.75rem; color: #9ca3af; margin-top: 0.125rem; }
+    .mega-cta-arrow { font-size: 1.25rem; color: #a78bfa; transition: transform 0.2s; }
+    .mega-cta a:hover .mega-cta-arrow { transform: rotate(12deg); }
+
+    /* CTA Button */
+    .btn-invite {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.375rem;
+      padding: 0.5rem 1rem;
+      border-radius: 0.75rem;
+      background: linear-gradient(135deg, #7c3aed, #06b6d4);
+      color: #fff;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-decoration: none;
+      transition: opacity 0.2s, transform 0.2s;
+      white-space: nowrap;
+    }
+    .btn-invite:hover { opacity: 0.9; transform: translateY(-1px); }
+
+    /* Mobile Toggle */
+    .nav-mobile-btn {
+      width: 2.25rem;
+      height: 2.25rem;
+      border-radius: 0.75rem;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
       display: none;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 1rem;
+      color: #fff;
     }
-    /* Hilfsklasse für kleine Texte */
-    .text-xxs { font-size: 0.65rem; line-height: 1; }
+
+    /* Mobile Menu */
+    .nav-mobile-menu {
+      display: none;
+      margin-top: 0.5rem;
+      background: rgba(15,15,30,0.95);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 1rem;
+      padding: 0.75rem;
+      max-height: 80vh;
+      overflow-y: auto;
+      animation: anim-down 0.2s ease;
+    }
+    .nav-mobile-menu.open { display: block; }
+
+    .mobile-link {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.625rem 1rem;
+      border-radius: 0.75rem;
+      font-size: 0.875rem;
+      color: #d1d5db;
+      text-decoration: none;
+      transition: all 0.15s;
+    }
+    .mobile-link:hover { background: rgba(255,255,255,0.05); color: #fff; }
+    .mobile-link-icon { font-size: 0.875rem; color: #a78bfa; }
+
+    details.mobile-group summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.625rem 1rem;
+      border-radius: 0.75rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: #d1d5db;
+      cursor: pointer;
+      list-style: none;
+      transition: all 0.15s;
+    }
+    details.mobile-group summary:hover { background: rgba(255,255,255,0.05); color: #fff; }
+    details.mobile-group summary::-webkit-details-marker { display: none; }
+    .mobile-group-inner {
+      margin-left: 1.5rem;
+      margin-top: 0.25rem;
+      margin-bottom: 0.5rem;
+    }
+    .mobile-sub-link {
+      display: block;
+      padding: 0.5rem 0.75rem;
+      border-radius: 0.5rem;
+      font-size: 0.8125rem;
+      color: #9ca3af;
+      text-decoration: none;
+      transition: all 0.15s;
+    }
+    .mobile-sub-link:hover { background: rgba(255,255,255,0.05); color: #fff; }
+
+    /* Responsive */
+    @media (max-width: 1279px) {
+      .nav-desktop { display: none; }
+      .nav-mobile-btn { display: flex; }
+    }
+    @media (max-width: 640px) {
+      .btn-invite { display: none; }
+      .nav-brand-sub { display: none; }
+    }
+
+    /* Push content below fixed nav */
+    .page-wrapper { padding-top: 5rem; }
+
+    @keyframes breathe {
+      0%, 100% { box-shadow: 0 0 12px rgba(124,58,237,0.5); }
+      50%       { box-shadow: 0 0 24px rgba(6,182,212,0.6); }
+    }
   </style>
 </head>
 <body class="page-bg">
-  <!-- 3D-Canvas wird automatisch von script.js erstellt -->
   <div class="page-wrapper">
+
     <!-- ⚠️ HINWEIS-BANNER -->
-    <div id="global-notice" class="global-notice" style="display: none;">
-      <div class="container" style="display: flex; align-items: center; justify-content: space-between;">
+    <div id="global-notice" class="global-notice" style="display:none;">
+      <div class="container" style="display:flex;align-items:center;justify-content:space-between;">
         <span>
           ⚠️ <strong>Admin‑Dashboard vorübergehend ausgefallen</strong> –
-          <span style="color: var(--ok);">🟢 NEU:</span>
-          <a href="/live" style="color: var(--p); font-weight: 600; text-decoration: underline;">/live – Echtzeit‑Bot‑Aktivität jetzt verfolgen</a>
+          <span style="color:var(--ok);">🟢 NEU:</span>
+          <a href="/live" style="color:var(--p);font-weight:600;text-decoration:underline;">/live – Echtzeit‑Bot‑Aktivität jetzt verfolgen</a>
         </span>
-        <button id="close-notice" style="background: none; border: none; color: var(--fg); font-size: 1.3rem; cursor: pointer; line-height: 1;">&times;</button>
+        <button id="close-notice" style="background:none;border:none;color:var(--fg);font-size:1.3rem;cursor:pointer;line-height:1;">&times;</button>
       </div>
     </div>
 
-    <!-- NEUE MEGA‑NAVBAR -->
-    <header id="mainNavbar" class="fixed top-0 left-0 right-0 z-50 transition-all duration-300 py-3">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 relative" id="navContainer">
-        <div class="glass-strong flex items-center justify-between px-4 sm:px-5 py-2.5 transition-all">
-          <!-- Logo -->
-          <a href="/" class="flex items-center gap-2.5 group shrink-0" style="text-decoration: none;">
-            <div class="relative">
-              <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-cyan-400 flex items-center justify-center glow-breathe">
-                <i data-lucide="bot" class="w-5 text-white"></i>
-              </div>
-              <div class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-green-400 rounded-full border-2" style="border-color: #0a0a14;"></div>
-            </div>
-            <div class="flex flex-col leading-tight">
-              <span class="text-base font-black text-gradient">ModForge</span>
-              <span class="text-xxs text-gray-500 tracking-widest uppercase -mt-0.5 hidden sm:block">v3.0 · Live</span>
-            </div>
-          </a>
+    <!-- ── NAVBAR ── -->
+    <nav class="topnav" id="topnav">
+      <div class="topnav-inner">
 
-          <!-- Desktop Navigation -->
-          <nav class="hidden xl:flex items-center gap-0.5">
-            <!-- Home -->
-            <a href="/" class="px-3 py-2 rounded-xl text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all flex items-center gap-1.5" style="text-decoration: none;">
-              <i data-lucide="home" class="w-3_5"></i> Home
-            </a>
+        <!-- Logo -->
+        <a href="/" class="nav-brand">
+          <div class="nav-brand-icon">🛡️</div>
+          <div class="nav-brand-text">
+            <span class="nav-brand-name">ModForge</span>
+            <span class="nav-brand-sub">v3.0 · Live</span>
+          </div>
+        </a>
 
-            <!-- Mega Menu: Produkt -->
-            <div class="relative">
-              <button class="mega-trigger px-3 py-2 rounded-xl text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all flex items-center gap-1.5 bg-transparent border-0 cursor-pointer" data-menu="produkt">
-                <i data-lucide="sparkles" class="w-3_5"></i> Produkt <i data-lucide="chevron-down" class="w-3_5 opacity-50 chevron"></i>
-              </button>
-            </div>
-            <!-- Mega Menu: Ressourcen -->
-            <div class="relative">
-              <button class="mega-trigger px-3 py-2 rounded-xl text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all flex items-center gap-1.5 bg-transparent border-0 cursor-pointer" data-menu="ressourcen">
-                <i data-lucide="book-open" class="w-3_5"></i> Ressourcen <i data-lucide="chevron-down" class="w-3_5 opacity-50 chevron"></i>
-              </button>
-            </div>
-            <!-- Mega Menu: Community -->
-            <div class="relative">
-              <button class="mega-trigger px-3 py-2 rounded-xl text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all flex items-center gap-1.5 bg-transparent border-0 cursor-pointer" data-menu="community">
-                <i data-lucide="heart" class="w-3_5"></i> Community <i data-lucide="chevron-down" class="w-3_5 opacity-50 chevron"></i>
-              </button>
-            </div>
-            <!-- Mega Menu: Support -->
-            <div class="relative">
-              <button class="mega-trigger px-3 py-2 rounded-xl text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all flex items-center gap-1.5 bg-transparent border-0 cursor-pointer" data-menu="support">
-                <i data-lucide="headphones" class="w-3_5"></i> Support <i data-lucide="chevron-down" class="w-3_5 opacity-50 chevron"></i>
-              </button>
-            </div>
+        <!-- Desktop Navigation -->
+        <div class="nav-desktop">
 
-            <!-- Direct Links -->
-            <a href="/pricing" class="px-3 py-2 rounded-xl text-sm font-medium text-amber-300 hover:text-amber-200 hover:bg-amber-500/10 transition-all flex items-center gap-1.5" style="text-decoration: none;">
-              <i data-lucide="crown" class="w-3_5 text-amber-400"></i> Pricing
-            </a>
-            <a href="/status" class="px-3 py-2 rounded-xl text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all flex items-center gap-1.5" style="text-decoration: none;">
-              <i data-lucide="activity" class="w-3_5"></i> Status
-            </a>
-            <a href="/dashboard" class="px-3 py-2 rounded-xl text-sm font-medium text-gray-300 hover:text-white hover:bg-white/5 transition-all flex items-center gap-1.5" style="text-decoration: none;">
-              <i data-lucide="gauge" class="w-3_5"></i> Dashboard
-            </a>
-          </nav>
+          <!-- Home -->
+          <a href="/" class="nav-link">🏠 Home</a>
 
-          <!-- CTA & Mobile Toggle -->
-          <div class="flex items-center gap-2">
-            <a href="https://discord.com/api/oauth2/authorize?client_id=YOUR_CLIENT_ID&permissions=8&scope=bot%20applications.commands" target="_blank" rel="noopener noreferrer" class="btn-primary text-xs py-2 px-4 hidden sm:inline-flex items-center gap-1.5">
-              <i data-lucide="zap" class="w-3_5"></i> Einladen
-            </a>
-            <button id="mobileMenuBtn" class="xl:hidden w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
-              <i data-lucide="menu" class="w-4"></i>
+          <!-- Produkt Mega Menu -->
+          <div class="nav-dropdown" id="dd-produkt">
+            <button class="nav-dropdown-btn" onclick="toggleDropdown('dd-produkt')">
+              ✨ Produkt
+              <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
             </button>
-          </div>
-        </div>
-
-        <!-- ========= MEGA PANELS ========= -->
-        <!-- Produkt -->
-        <div id="mega-produkt" class="mega-panel glass-strong p-6 anim-down border border-white/10 shadow-2xl glow-breathe">
-          <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            <div>
-              <h4 class="text-xxs uppercase tracking-widest text-gray-500 font-bold mb-3 px-2">Module</h4>
-              <div class="space-y-1">
-                <a href="/features" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-white/5 transition" style="text-decoration: none;">
-                  <div class="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0"><i data-lucide="layers" class="w-4 text-violet-300"></i></div>
-                  <div><span class="text-sm font-semibold text-white">Alle Features</span><p class="text-xxs text-gray-400 mt-0.5">Komplette Übersicht</p></div>
-                </a>
-                <a href="/commands" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-white/5 transition" style="text-decoration: none;">
-                  <div class="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0"><i data-lucide="command" class="w-4 text-violet-300"></i></div>
-                  <div><span class="text-sm font-semibold text-white">100+ Commands</span><p class="text-xxs text-gray-400 mt-0.5">Slash + Prefix Commands</p></div>
-                </a>
-                <a href="/economy" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-white/5 transition" style="text-decoration: none;">
-                  <div class="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0"><i data-lucide="coins" class="w-4 text-violet-300"></i></div>
-                  <div><span class="text-sm font-semibold text-white">Economy System</span><p class="text-xxs text-gray-400 mt-0.5">Coins, Shop & Gambling</p></div>
-                </a>
-                <a href="/ai" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-white/5 transition" style="text-decoration: none;">
-                  <div class="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0"><i data-lucide="cpu" class="w-4 text-violet-300"></i></div>
-                  <div><span class="text-sm font-semibold text-white">AI Features</span> <span class="badge bg-cyan-500/20 text-cyan-300 text-xxs font-bold uppercase px-1.5 py-0.5 rounded">Neu</span><p class="text-xxs text-gray-400 mt-0.5">GPT-4 Integration</p></div>
-                </a>
-              </div>
-            </div>
-            <div>
-              <h4 class="text-xxs uppercase tracking-widest text-gray-500 font-bold mb-3 px-2">Tools</h4>
-              <div class="space-y-1">
-                <a href="/templates" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-white/5 transition" style="text-decoration: none;">
-                  <div class="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0"><i data-lucide="layout" class="w-4 text-violet-300"></i></div>
-                  <div><span class="text-sm font-semibold text-white">Server Templates</span><p class="text-xxs text-gray-400 mt-0.5">Vorgefertigte Setups</p></div>
-                </a>
-                <a href="/integrations" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-white/5 transition" style="text-decoration: none;">
-                  <div class="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0"><i data-lucide="plug" class="w-4 text-violet-300"></i></div>
-                  <div><span class="text-sm font-semibold text-white">Integrationen</span><p class="text-xxs text-gray-400 mt-0.5">Twitch, YouTube, GitHub</p></div>
-                </a>
-                <a href="/widgets" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-white/5 transition" style="text-decoration: none;">
-                  <div class="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0"><i data-lucide="code2" class="w-4 text-violet-300"></i></div>
-                  <div><span class="text-sm font-semibold text-white">Embed Widgets</span><p class="text-xxs text-gray-400 mt-0.5">Stats für deine Website</p></div>
-                </a>
-                <a href="/emojis" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-white/5 transition" style="text-decoration: none;">
-                  <div class="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0"><i data-lucide="smile" class="w-4 text-violet-300"></i></div>
-                  <div><span class="text-sm font-semibold text-white">Emoji Pack</span><p class="text-xxs text-gray-400 mt-0.5">Custom Emojis Download</p></div>
-                </a>
-              </div>
-            </div>
-            <div>
-              <h4 class="text-xxs uppercase tracking-widest text-gray-500 font-bold mb-3 px-2">Module Details</h4>
-              <div class="space-y-1">
-                <a href="/docs/automod" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-white/5 transition" style="text-decoration: none;">
-                  <div class="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0"><i data-lucide="shield" class="w-4 text-violet-300"></i></div>
-                  <div><span class="text-sm font-semibold text-white">AutoMod 2.0</span><p class="text-xxs text-gray-400 mt-0.5">KI-Schutz</p></div>
-                </a>
-                <a href="/docs/tickets" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-white/5 transition" style="text-decoration: none;">
-                  <div class="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0"><i data-lucide="ticket" class="w-4 text-violet-300"></i></div>
-                  <div><span class="text-sm font-semibold text-white">Tickets</span><p class="text-xxs text-gray-400 mt-0.5">Dropdown Panel</p></div>
-                </a>
-                <a href="/docs/music" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-white/5 transition" style="text-decoration: none;">
-                  <div class="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0"><i data-lucide="music" class="w-4 text-violet-300"></i></div>
-                  <div><span class="text-sm font-semibold text-white">Music Player</span><p class="text-xxs text-gray-400 mt-0.5">Lavalink Audio</p></div>
-                </a>
-                <a href="/badges" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-white/5 transition" style="text-decoration: none;">
-                  <div class="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0"><i data-lucide="award" class="w-4 text-violet-300"></i></div>
-                  <div><span class="text-sm font-semibold text-white">Badges</span><p class="text-xxs text-gray-400 mt-0.5">Achievement-System</p></div>
-                </a>
-              </div>
-            </div>
-            <div class="lg:col-span-4 mt-2 pt-4 border-t border-white/5">
-              <a href="/premium" class="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-violet-500/15 to-cyan-500/15 border border-violet-500/20 hover:border-violet-500/40 transition" style="text-decoration: none;">
-                <div>
-                  <div class="font-bold text-white text-sm">Premium freischalten</div>
-                  <div class="text-xs text-gray-400 mt-0.5">24/7 Music & Custom Branding</div>
+            <div class="mega-panel">
+              <div class="mega-grid">
+                <!-- Col 1 -->
+                <div class="mega-col">
+                  <h4>Module</h4>
+                  <a href="/features" class="mega-link">
+                    <div class="mega-link-icon">🧩</div>
+                    <div>
+                      <div class="mega-link-label">Alle Features</div>
+                      <div class="mega-link-desc">Komplette Übersicht</div>
+                    </div>
+                  </a>
+                  <a href="/commands" class="mega-link">
+                    <div class="mega-link-icon">⌨️</div>
+                    <div>
+                      <div class="mega-link-label">100+ Commands</div>
+                      <div class="mega-link-desc">Slash + Prefix Commands</div>
+                    </div>
+                  </a>
+                  <a href="/economy" class="mega-link">
+                    <div class="mega-link-icon">🪙</div>
+                    <div>
+                      <div class="mega-link-label">Economy System</div>
+                      <div class="mega-link-desc">Coins, Shop & Gambling</div>
+                    </div>
+                  </a>
+                  <a href="/ai" class="mega-link">
+                    <div class="mega-link-icon">🤖</div>
+                    <div>
+                      <div class="mega-link-label">
+                        AI Features
+                        <span class="badge badge-new">Neu</span>
+                      </div>
+                      <div class="mega-link-desc">GPT-4 Integration</div>
+                    </div>
+                  </a>
                 </div>
-                <i data-lucide="arrow-up-right" class="w-5 text-violet-300"></i>
-              </a>
-            </div>
-          </div>
-        </div>
-
-        <!-- Ressourcen -->
-        <div id="mega-ressourcen" class="mega-panel glass-strong p-6 anim-down border border-white/10 shadow-2xl glow-breathe">
-          <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            <div>
-              <h4 class="text-xxs uppercase tracking-widest text-gray-500 font-bold mb-3 px-2">Lernen</h4>
-              <div class="space-y-1">
-                <a href="/docs" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-white/5 transition" style="text-decoration: none;">
-                  <div class="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0"><i data-lucide="book-open" class="w-4 text-violet-300"></i></div>
-                  <div><span class="text-sm font-semibold text-white">Dokumentation</span><p class="text-xxs text-gray-400 mt-0.5">Vollständiger Guide</p></div>
-                </a>
-                <a href="/tutorials" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-white/5 transition" style="text-decoration: none;">
-                  <div class="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0"><i data-lucide="video" class="w-4 text-violet-300"></i></div>
-                  <div><span class="text-sm font-semibold text-white">Video Tutorials</span><p class="text-xxs text-gray-400 mt-0.5">8+ Anleitungen</p></div>
-                </a>
-                <a href="/faq" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-white/5 transition" style="text-decoration: none;">
-                  <div class="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0"><i data-lucide="help-circle" class="w-4 text-violet-300"></i></div>
-                  <div><span class="text-sm font-semibold text-white">FAQ</span><p class="text-xxs text-gray-400 mt-0.5">Häufige Fragen</p></div>
-                </a>
-                <a href="/docs/setup" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-white/5 transition" style="text-decoration: none;">
-                  <div class="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0"><i data-lucide="wrench" class="w-4 text-violet-300"></i></div>
-                  <div><span class="text-sm font-semibold text-white">Setup Guide</span><p class="text-xxs text-gray-400 mt-0.5">In 2 Minuten startklar</p></div>
-                </a>
-              </div>
-            </div>
-            <div>
-              <h4 class="text-xxs uppercase tracking-widest text-gray-500 font-bold mb-3 px-2">Entwickler</h4>
-              <div class="space-y-1">
-                <a href="/api-docs" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-white/5 transition" style="text-decoration: none;">
-                  <div class="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0"><i data-lucide="code2" class="w-4 text-violet-300"></i></div>
-                  <div><span class="text-sm font-semibold text-white">API Docs</span><p class="text-xxs text-gray-400 mt-0.5">REST API Referenz</p></div>
-                </a>
-                <a href="/branding" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-white/5 transition" style="text-decoration: none;">
-                  <div class="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0"><i data-lucide="sparkles" class="w-4 text-violet-300"></i></div>
-                  <div><span class="text-sm font-semibold text-white">Brand Kit</span><p class="text-xxs text-gray-400 mt-0.5">Logos & Farben</p></div>
-                </a>
-                <a href="/changelog" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-white/5 transition" style="text-decoration: none;">
-                  <div class="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0"><i data-lucide="file-text" class="w-4 text-violet-300"></i></div>
-                  <div><span class="text-sm font-semibold text-white">Changelog</span><p class="text-xxs text-gray-400 mt-0.5">Alle Updates</p></div>
-                </a>
-                <a href="/roadmap" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-white/5 transition" style="text-decoration: none;">
-                  <div class="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0"><i data-lucide="trending-up" class="w-4 text-violet-300"></i></div>
-                  <div><span class="text-sm font-semibold text-white">Roadmap</span><p class="text-xxs text-gray-400 mt-0.5">Was kommt als nächstes</p></div>
-                </a>
-              </div>
-            </div>
-            <div>
-              <h4 class="text-xxs uppercase tracking-widest text-gray-500 font-bold mb-3 px-2">Migration</h4>
-              <div class="space-y-1">
-                <a href="/migrate" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-white/5 transition" style="text-decoration: none;">
-                  <div class="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0"><i data-lucide="refresh-cw" class="w-4 text-violet-300"></i></div>
-                  <div><span class="text-sm font-semibold text-white">Migration Tool</span> <span class="badge bg-red-500/20 text-red-300 text-xxs font-bold uppercase px-1.5 py-0.5 rounded">Hot</span><p class="text-xxs text-gray-400 mt-0.5">Von MEE6, Dyno & Co.</p></div>
-                </a>
-                <a href="/blog" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-white/5 transition" style="text-decoration: none;">
-                  <div class="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0"><i data-lucide="file-text" class="w-4 text-violet-300"></i></div>
-                  <div><span class="text-sm font-semibold text-white">Blog & News</span><p class="text-xxs text-gray-400 mt-0.5">Updates und Guides</p></div>
-                </a>
-                <a href="/downloads" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-white/5 transition" style="text-decoration: none;">
-                  <div class="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0"><i data-lucide="cloud" class="w-4 text-violet-300"></i></div>
-                  <div><span class="text-sm font-semibold text-white">Downloads</span><p class="text-xxs text-gray-400 mt-0.5">Apps & Assets</p></div>
-                </a>
-                <a href="/docs/moderation" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-white/5 transition" style="text-decoration: none;">
-                  <div class="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0"><i data-lucide="shield" class="w-4 text-violet-300"></i></div>
-                  <div><span class="text-sm font-semibold text-white">Mod-Anleitung</span><p class="text-xxs text-gray-400 mt-0.5">Mod-Befehle erklärt</p></div>
-                </a>
-              </div>
-            </div>
-            <div class="lg:col-span-4 mt-2 pt-4 border-t border-white/5">
-              <a href="/migrate" class="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-violet-500/15 to-cyan-500/15 border border-violet-500/20 hover:border-violet-500/40 transition" style="text-decoration: none;">
-                <div>
-                  <div class="font-bold text-white text-sm">Migration kostenlos</div>
-                  <div class="text-xs text-gray-400 mt-0.5">Wir helfen beim Wechsel</div>
+                <!-- Col 2 -->
+                <div class="mega-col">
+                  <h4>Tools</h4>
+                  <a href="/templates" class="mega-link">
+                    <div class="mega-link-icon">📐</div>
+                    <div>
+                      <div class="mega-link-label">Server Templates</div>
+                      <div class="mega-link-desc">Vorgefertigte Setups</div>
+                    </div>
+                  </a>
+                  <a href="/integrations" class="mega-link">
+                    <div class="mega-link-icon">🔌</div>
+                    <div>
+                      <div class="mega-link-label">Integrationen</div>
+                      <div class="mega-link-desc">Twitch, YouTube, GitHub</div>
+                    </div>
+                  </a>
+                  <a href="/widgets" class="mega-link">
+                    <div class="mega-link-icon">📊</div>
+                    <div>
+                      <div class="mega-link-label">Embed Widgets</div>
+                      <div class="mega-link-desc">Stats für deine Website</div>
+                    </div>
+                  </a>
+                  <a href="/emojis" class="mega-link">
+                    <div class="mega-link-icon">😄</div>
+                    <div>
+                      <div class="mega-link-label">Emoji Pack</div>
+                      <div class="mega-link-desc">Custom Emojis Download</div>
+                    </div>
+                  </a>
                 </div>
-                <i data-lucide="arrow-up-right" class="w-5 text-violet-300"></i>
-              </a>
-            </div>
-          </div>
-        </div>
-
-        <!-- Community -->
-        <div id="mega-community" class="mega-panel glass-strong p-6 anim-down border border-white/10 shadow-2xl glow-breathe">
-          <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            <div>
-              <h4 class="text-xxs uppercase tracking-widest text-gray-500 font-bold mb-3 px-2">Mitmachen</h4>
-              <div class="space-y-1">
-                <a href="/partners" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-white/5 transition" style="text-decoration: none;">
-                  <div class="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0"><i data-lucide="heart" class="w-4 text-violet-300"></i></div>
-                  <div><span class="text-sm font-semibold text-white">Partner werden</span> <span class="badge bg-amber-500/20 text-amber-300 text-xxs font-bold uppercase px-1.5 py-0.5 rounded">Top</span><p class="text-xxs text-gray-400 mt-0.5">Werbung + Premium gratis</p></div>
-                </a>
-                <a href="/affiliate" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-white/5 transition" style="text-decoration: none;">
-                  <div class="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0"><i data-lucide="trending-up" class="w-4 text-violet-300"></i></div>
-                  <div><span class="text-sm font-semibold text-white">Affiliate</span><p class="text-xxs text-gray-400 mt-0.5">20% Lifetime-Provision</p></div>
-                </a>
-                <a href="/suggest" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-white/5 transition" style="text-decoration: none;">
-                  <div class="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0"><i data-lucide="lightbulb" class="w-4 text-violet-300"></i></div>
-                  <div><span class="text-sm font-semibold text-white">Vorschläge</span><p class="text-xxs text-gray-400 mt-0.5">Stimm für Features ab</p></div>
-                </a>
-                <a href="/contact" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-white/5 transition" style="text-decoration: none;">
-                  <div class="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0"><i data-lucide="mail" class="w-4 text-violet-300"></i></div>
-                  <div><span class="text-sm font-semibold text-white">Kontakt</span><p class="text-xxs text-gray-400 mt-0.5">Nimm Verbindung auf</p></div>
-                </a>
-              </div>
-            </div>
-            <div>
-              <h4 class="text-xxs uppercase tracking-widest text-gray-500 font-bold mb-3 px-2">Showcase</h4>
-              <div class="space-y-1">
-                <a href="/showcase" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-white/5 transition" style="text-decoration: none;">
-                  <div class="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0"><i data-lucide="server" class="w-4 text-violet-300"></i></div>
-                  <div><span class="text-sm font-semibold text-white">Server Showcase</span><p class="text-xxs text-gray-400 mt-0.5">Top Communities</p></div>
-                </a>
-                <a href="/testimonials" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-white/5 transition" style="text-decoration: none;">
-                  <div class="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0"><i data-lucide="message-square" class="w-4 text-violet-300"></i></div>
-                  <div><span class="text-sm font-semibold text-white">Bewertungen</span><p class="text-xxs text-gray-400 mt-0.5">Was User sagen</p></div>
-                </a>
-                <a href="/leaderboard" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-white/5 transition" style="text-decoration: none;">
-                  <div class="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0"><i data-lucide="bar-chart-3" class="w-4 text-violet-300"></i></div>
-                  <div><span class="text-sm font-semibold text-white">XP Leaderboard</span><p class="text-xxs text-gray-400 mt-0.5">Globale Bestenliste</p></div>
-                </a>
-                <a href="/guilds" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-white/5 transition" style="text-decoration: none;">
-                  <div class="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0"><i data-lucide="crown" class="w-4 text-violet-300"></i></div>
-                  <div><span class="text-sm font-semibold text-white">eSports Gilden</span><p class="text-xxs text-gray-400 mt-0.5">Verifizierte Clans</p></div>
-                </a>
-              </div>
-            </div>
-            <div>
-              <h4 class="text-xxs uppercase tracking-widest text-gray-500 font-bold mb-3 px-2">Über uns</h4>
-              <div class="space-y-1">
-                <a href="/team" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-white/5 transition" style="text-decoration: none;">
-                  <div class="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0"><i data-lucide="users" class="w-4 text-violet-300"></i></div>
-                  <div><span class="text-sm font-semibold text-white">Team</span><p class="text-xxs text-gray-400 mt-0.5">Lerne uns kennen</p></div>
-                </a>
-                <a href="/jobs" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-white/5 transition" style="text-decoration: none;">
-                  <div class="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0"><i data-lucide="briefcase" class="w-4 text-violet-300"></i></div>
-                  <div><span class="text-sm font-semibold text-white">Karriere</span><p class="text-xxs text-gray-400 mt-0.5">Wir suchen Talente</p></div>
-                </a>
-                <a href="/events" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-white/5 transition" style="text-decoration: none;">
-                  <div class="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0"><i data-lucide="calendar" class="w-4 text-violet-300"></i></div>
-                  <div><span class="text-sm font-semibold text-white">Events</span><p class="text-xxs text-gray-400 mt-0.5">Live-Streams & Drops</p></div>
-                </a>
-                <a href="/community" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-white/5 transition" style="text-decoration: none;">
-                  <div class="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0"><i data-lucide="globe" class="w-4 text-violet-300"></i></div>
-                  <div><span class="text-sm font-semibold text-white">Community Hub</span><p class="text-xxs text-gray-400 mt-0.5">Alles auf einen Blick</p></div>
-                </a>
-              </div>
-            </div>
-            <div class="lg:col-span-4 mt-2 pt-4 border-t border-white/5">
-              <a href="/support" class="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-violet-500/15 to-cyan-500/15 border border-violet-500/20 hover:border-violet-500/40 transition" style="text-decoration: none;">
-                <div>
-                  <div class="font-bold text-white text-sm">Discord beitreten</div>
-                  <div class="text-xs text-gray-400 mt-0.5">850+ aktive Member</div>
+                <!-- Col 3 -->
+                <div class="mega-col">
+                  <h4>Module Details</h4>
+                  <a href="/docs/automod" class="mega-link">
+                    <div class="mega-link-icon">🛡️</div>
+                    <div>
+                      <div class="mega-link-label">AutoMod 2.0</div>
+                      <div class="mega-link-desc">KI-Schutz</div>
+                    </div>
+                  </a>
+                  <a href="/docs/tickets" class="mega-link">
+                    <div class="mega-link-icon">🎫</div>
+                    <div>
+                      <div class="mega-link-label">Tickets</div>
+                      <div class="mega-link-desc">Dropdown Panel</div>
+                    </div>
+                  </a>
+                  <a href="/docs/music" class="mega-link">
+                    <div class="mega-link-icon">🎵</div>
+                    <div>
+                      <div class="mega-link-label">Music Player</div>
+                      <div class="mega-link-desc">Lavalink Audio</div>
+                    </div>
+                  </a>
+                  <a href="/badges" class="mega-link">
+                    <div class="mega-link-icon">🏅</div>
+                    <div>
+                      <div class="mega-link-label">Badges</div>
+                      <div class="mega-link-desc">Achievement-System</div>
+                    </div>
+                  </a>
                 </div>
-                <i data-lucide="arrow-up-right" class="w-5 text-violet-300"></i>
-              </a>
-            </div>
-          </div>
-        </div>
-
-        <!-- Support -->
-        <div id="mega-support" class="mega-panel glass-strong p-6 anim-down border border-white/10 shadow-2xl glow-breathe">
-          <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            <div>
-              <h4 class="text-xxs uppercase tracking-widest text-gray-500 font-bold mb-3 px-2">Hilfe</h4>
-              <div class="space-y-1">
-                <a href="/support" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-white/5 transition" style="text-decoration: none;">
-                  <div class="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0"><i data-lucide="headphones" class="w-4 text-violet-300"></i></div>
-                  <div><span class="text-sm font-semibold text-white">Support-Center</span><p class="text-xxs text-gray-400 mt-0.5">Hilfe-Übersicht</p></div>
-                </a>
-                <a href="/faq" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-white/5 transition" style="text-decoration: none;">
-                  <div class="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0"><i data-lucide="help-circle" class="w-4 text-violet-300"></i></div>
-                  <div><span class="text-sm font-semibold text-white">FAQ</span><p class="text-xxs text-gray-400 mt-0.5">Häufige Fragen</p></div>
-                </a>
-                <a href="/contact" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-white/5 transition" style="text-decoration: none;">
-                  <div class="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0"><i data-lucide="mail" class="w-4 text-violet-300"></i></div>
-                  <div><span class="text-sm font-semibold text-white">Kontakt</span><p class="text-xxs text-gray-400 mt-0.5">Wir antworten schnell</p></div>
-                </a>
-                <a href="/docs" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-white/5 transition" style="text-decoration: none;">
-                  <div class="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0"><i data-lucide="book-open" class="w-4 text-violet-300"></i></div>
-                  <div><span class="text-sm font-semibold text-white">Dokumentation</span><p class="text-xxs text-gray-400 mt-0.5">Anleitungen</p></div>
-                </a>
-              </div>
-            </div>
-            <div>
-              <h4 class="text-xxs uppercase tracking-widest text-gray-500 font-bold mb-3 px-2">Status</h4>
-              <div class="space-y-1">
-                <a href="/status" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-white/5 transition" style="text-decoration: none;">
-                  <div class="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0"><i data-lucide="activity" class="w-4 text-violet-300"></i></div>
-                  <div><span class="text-sm font-semibold text-white">Live Status</span><p class="text-xxs text-gray-400 mt-0.5">99.9% Uptime</p></div>
-                </a>
-                <a href="/uptime" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-white/5 transition" style="text-decoration: none;">
-                  <div class="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0"><i data-lucide="zap" class="w-4 text-violet-300"></i></div>
-                  <div><span class="text-sm font-semibold text-white">Uptime Monitor</span><p class="text-xxs text-gray-400 mt-0.5">Live-Counter</p></div>
-                </a>
-                <a href="/status/incidents" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-white/5 transition" style="text-decoration: none;">
-                  <div class="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0"><i data-lucide="bell" class="w-4 text-violet-300"></i></div>
-                  <div><span class="text-sm font-semibold text-white">Vorfälle</span><p class="text-xxs text-gray-400 mt-0.5">Historie & Updates</p></div>
-                </a>
-                <a href="/status/maintenance" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-white/5 transition" style="text-decoration: none;">
-                  <div class="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0"><i data-lucide="wrench" class="w-4 text-violet-300"></i></div>
-                  <div><span class="text-sm font-semibold text-white">Wartung</span><p class="text-xxs text-gray-400 mt-0.5">Geplante Updates</p></div>
-                </a>
-              </div>
-            </div>
-            <div>
-              <h4 class="text-xxs uppercase tracking-widest text-gray-500 font-bold mb-3 px-2">Sicherheit</h4>
-              <div class="space-y-1">
-                <a href="/security" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-white/5 transition" style="text-decoration: none;">
-                  <div class="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0"><i data-lucide="lock" class="w-4 text-violet-300"></i></div>
-                  <div><span class="text-sm font-semibold text-white">Sicherheit</span><p class="text-xxs text-gray-400 mt-0.5">DSGVO & TLS 1.3</p></div>
-                </a>
-                <a href="/privacy" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-white/5 transition" style="text-decoration: none;">
-                  <div class="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0"><i data-lucide="shield" class="w-4 text-violet-300"></i></div>
-                  <div><span class="text-sm font-semibold text-white">Datenschutz</span><p class="text-xxs text-gray-400 mt-0.5">Privacy Policy</p></div>
-                </a>
-                <a href="/terms" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-white/5 transition" style="text-decoration: none;">
-                  <div class="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0"><i data-lucide="file-text" class="w-4 text-violet-300"></i></div>
-                  <div><span class="text-sm font-semibold text-white">Nutzungsbedingungen</span><p class="text-xxs text-gray-400 mt-0.5">Terms of Service</p></div>
-                </a>
-                <a href="/legal" class="flex items-start gap-3 p-2.5 rounded-xl hover:bg-white/5 transition" style="text-decoration: none;">
-                  <div class="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0"><i data-lucide="file-text" class="w-4 text-violet-300"></i></div>
-                  <div><span class="text-sm font-semibold text-white">Rechtliches</span><p class="text-xxs text-gray-400 mt-0.5">Impressum & Co.</p></div>
-                </a>
-              </div>
-            </div>
-            <div class="lg:col-span-4 mt-2 pt-4 border-t border-white/5">
-              <a href="/premium" class="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-violet-500/15 to-cyan-500/15 border border-violet-500/20 hover:border-violet-500/40 transition" style="text-decoration: none;">
-                <div>
-                  <div class="font-bold text-white text-sm">Premium Support</div>
-                  <div class="text-xs text-gray-400 mt-0.5">Direkt zum Dev-Team</div>
+                <!-- CTA -->
+                <div class="mega-cta">
+                  <a href="/premium">
+                    <div>
+                      <div class="mega-cta-title">Premium freischalten</div>
+                      <div class="mega-cta-desc">24/7 Music & Custom Branding</div>
+                    </div>
+                    <span class="mega-cta-arrow">↗</span>
+                  </a>
                 </div>
-                <i data-lucide="arrow-up-right" class="w-5 text-violet-300"></i>
-              </a>
+              </div>
             </div>
           </div>
+
+          <!-- Ressourcen Mega Menu -->
+          <div class="nav-dropdown" id="dd-ressourcen">
+            <button class="nav-dropdown-btn" onclick="toggleDropdown('dd-ressourcen')">
+              📚 Ressourcen
+              <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </button>
+            <div class="mega-panel">
+              <div class="mega-grid">
+                <div class="mega-col">
+                  <h4>Lernen</h4>
+                  <a href="/docs" class="mega-link">
+                    <div class="mega-link-icon">📖</div>
+                    <div>
+                      <div class="mega-link-label">Dokumentation</div>
+                      <div class="mega-link-desc">Vollständiger Guide</div>
+                    </div>
+                  </a>
+                  <a href="/tutorials" class="mega-link">
+                    <div class="mega-link-icon">🎬</div>
+                    <div>
+                      <div class="mega-link-label">Video Tutorials</div>
+                      <div class="mega-link-desc">8+ Anleitungen</div>
+                    </div>
+                  </a>
+                  <a href="/faq" class="mega-link">
+                    <div class="mega-link-icon">❓</div>
+                    <div>
+                      <div class="mega-link-label">FAQ</div>
+                      <div class="mega-link-desc">Häufige Fragen</div>
+                    </div>
+                  </a>
+                  <a href="/docs/setup" class="mega-link">
+                    <div class="mega-link-icon">🔧</div>
+                    <div>
+                      <div class="mega-link-label">Setup Guide</div>
+                      <div class="mega-link-desc">In 2 Minuten startklar</div>
+                    </div>
+                  </a>
+                </div>
+                <div class="mega-col">
+                  <h4>Entwickler</h4>
+                  <a href="/api-docs" class="mega-link">
+                    <div class="mega-link-icon">💻</div>
+                    <div>
+                      <div class="mega-link-label">API Docs</div>
+                      <div class="mega-link-desc">REST API Referenz</div>
+                    </div>
+                  </a>
+                  <a href="/branding" class="mega-link">
+                    <div class="mega-link-icon">✨</div>
+                    <div>
+                      <div class="mega-link-label">Brand Kit</div>
+                      <div class="mega-link-desc">Logos & Farben</div>
+                    </div>
+                  </a>
+                  <a href="/changelog" class="mega-link">
+                    <div class="mega-link-icon">📝</div>
+                    <div>
+                      <div class="mega-link-label">Changelog</div>
+                      <div class="mega-link-desc">Alle Updates</div>
+                    </div>
+                  </a>
+                  <a href="/roadmap" class="mega-link">
+                    <div class="mega-link-icon">📈</div>
+                    <div>
+                      <div class="mega-link-label">Roadmap</div>
+                      <div class="mega-link-desc">Was kommt als nächstes</div>
+                    </div>
+                  </a>
+                </div>
+                <div class="mega-col">
+                  <h4>Migration</h4>
+                  <a href="/migrate" class="mega-link">
+                    <div class="mega-link-icon">🔄</div>
+                    <div>
+                      <div class="mega-link-label">
+                        Migration Tool
+                        <span class="badge badge-hot">Hot</span>
+                      </div>
+                      <div class="mega-link-desc">Von MEE6, Dyno & Co.</div>
+                    </div>
+                  </a>
+                  <a href="/blog" class="mega-link">
+                    <div class="mega-link-icon">📰</div>
+                    <div>
+                      <div class="mega-link-label">Blog & News</div>
+                      <div class="mega-link-desc">Updates und Guides</div>
+                    </div>
+                  </a>
+                  <a href="/downloads" class="mega-link">
+                    <div class="mega-link-icon">☁️</div>
+                    <div>
+                      <div class="mega-link-label">Downloads</div>
+                      <div class="mega-link-desc">Apps & Assets</div>
+                    </div>
+                  </a>
+                  <a href="/docs/moderation" class="mega-link">
+                    <div class="mega-link-icon">🛡️</div>
+                    <div>
+                      <div class="mega-link-label">Mod-Anleitung</div>
+                      <div class="mega-link-desc">Mod-Befehle erklärt</div>
+                    </div>
+                  </a>
+                </div>
+                <div class="mega-cta">
+                  <a href="/migrate">
+                    <div>
+                      <div class="mega-cta-title">Migration kostenlos</div>
+                      <div class="mega-cta-desc">Wir helfen beim Wechsel</div>
+                    </div>
+                    <span class="mega-cta-arrow">↗</span>
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Community Mega Menu -->
+          <div class="nav-dropdown" id="dd-community">
+            <button class="nav-dropdown-btn" onclick="toggleDropdown('dd-community')">
+              ❤️ Community
+              <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </button>
+            <div class="mega-panel">
+              <div class="mega-grid">
+                <div class="mega-col">
+                  <h4>Mitmachen</h4>
+                  <a href="/partners" class="mega-link">
+                    <div class="mega-link-icon">❤️</div>
+                    <div>
+                      <div class="mega-link-label">
+                        Partner werden
+                        <span class="badge badge-top">Top</span>
+                      </div>
+                      <div class="mega-link-desc">Werbung + Premium gratis</div>
+                    </div>
+                  </a>
+                  <a href="/affiliate" class="mega-link">
+                    <div class="mega-link-icon">📈</div>
+                    <div>
+                      <div class="mega-link-label">Affiliate</div>
+                      <div class="mega-link-desc">20% Lifetime-Provision</div>
+                    </div>
+                  </a>
+                  <a href="/suggest" class="mega-link">
+                    <div class="mega-link-icon">💡</div>
+                    <div>
+                      <div class="mega-link-label">Vorschläge</div>
+                      <div class="mega-link-desc">Stimm für Features ab</div>
+                    </div>
+                  </a>
+                  <a href="/contact" class="mega-link">
+                    <div class="mega-link-icon">✉️</div>
+                    <div>
+                      <div class="mega-link-label">Kontakt</div>
+                      <div class="mega-link-desc">Nimm Verbindung auf</div>
+                    </div>
+                  </a>
+                </div>
+                <div class="mega-col">
+                  <h4>Showcase</h4>
+                  <a href="/showcase" class="mega-link">
+                    <div class="mega-link-icon">🖥️</div>
+                    <div>
+                      <div class="mega-link-label">Server Showcase</div>
+                      <div class="mega-link-desc">Top Communities</div>
+                    </div>
+                  </a>
+                  <a href="/testimonials" class="mega-link">
+                    <div class="mega-link-icon">💬</div>
+                    <div>
+                      <div class="mega-link-label">Bewertungen</div>
+                      <div class="mega-link-desc">Was User sagen</div>
+                    </div>
+                  </a>
+                  <a href="/leaderboard" class="mega-link">
+                    <div class="mega-link-icon">📊</div>
+                    <div>
+                      <div class="mega-link-label">XP Leaderboard</div>
+                      <div class="mega-link-desc">Globale Bestenliste</div>
+                    </div>
+                  </a>
+                  <a href="/guilds" class="mega-link">
+                    <div class="mega-link-icon">👑</div>
+                    <div>
+                      <div class="mega-link-label">eSports Gilden</div>
+                      <div class="mega-link-desc">Verifizierte Clans</div>
+                    </div>
+                  </a>
+                </div>
+                <div class="mega-col">
+                  <h4>Über uns</h4>
+                  <a href="/team" class="mega-link">
+                    <div class="mega-link-icon">👥</div>
+                    <div>
+                      <div class="mega-link-label">Team</div>
+                      <div class="mega-link-desc">Lerne uns kennen</div>
+                    </div>
+                  </a>
+                  <a href="/jobs" class="mega-link">
+                    <div class="mega-link-icon">💼</div>
+                    <div>
+                      <div class="mega-link-label">Karriere</div>
+                      <div class="mega-link-desc">Wir suchen Talente</div>
+                    </div>
+                  </a>
+                  <a href="/events" class="mega-link">
+                    <div class="mega-link-icon">📅</div>
+                    <div>
+                      <div class="mega-link-label">Events</div>
+                      <div class="mega-link-desc">Live-Streams & Drops</div>
+                    </div>
+                  </a>
+                  <a href="/community" class="mega-link">
+                    <div class="mega-link-icon">🌐</div>
+                    <div>
+                      <div class="mega-link-label">Community Hub</div>
+                      <div class="mega-link-desc">Alles auf einen Blick</div>
+                    </div>
+                  </a>
+                </div>
+                <div class="mega-cta">
+                  <a href="/support">
+                    <div>
+                      <div class="mega-cta-title">Discord beitreten</div>
+                      <div class="mega-cta-desc">850+ aktive Member</div>
+                    </div>
+                    <span class="mega-cta-arrow">↗</span>
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Support Mega Menu -->
+          <div class="nav-dropdown" id="dd-support">
+            <button class="nav-dropdown-btn" onclick="toggleDropdown('dd-support')">
+              🎧 Support
+              <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </button>
+            <div class="mega-panel">
+              <div class="mega-grid">
+                <div class="mega-col">
+                  <h4>Hilfe</h4>
+                  <a href="/support" class="mega-link">
+                    <div class="mega-link-icon">🎧</div>
+                    <div>
+                      <div class="mega-link-label">Support-Center</div>
+                      <div class="mega-link-desc">Hilfe-Übersicht</div>
+                    </div>
+                  </a>
+                  <a href="/faq" class="mega-link">
+                    <div class="mega-link-icon">❓</div>
+                    <div>
+                      <div class="mega-link-label">FAQ</div>
+                      <div class="mega-link-desc">Häufige Fragen</div>
+                    </div>
+                  </a>
+                  <a href="/contact" class="mega-link">
+                    <div class="mega-link-icon">✉️</div>
+                    <div>
+                      <div class="mega-link-label">Kontakt</div>
+                      <div class="mega-link-desc">Wir antworten schnell</div>
+                    </div>
+                  </a>
+                  <a href="/docs" class="mega-link">
+                    <div class="mega-link-icon">📖</div>
+                    <div>
+                      <div class="mega-link-label">Dokumentation</div>
+                      <div class="mega-link-desc">Anleitungen</div>
+                    </div>
+                  </a>
+                </div>
+                <div class="mega-col">
+                  <h4>Status</h4>
+                  <a href="/status" class="mega-link">
+                    <div class="mega-link-icon">⚡</div>
+                    <div>
+                      <div class="mega-link-label">Live Status</div>
+                      <div class="mega-link-desc">99.9% Uptime</div>
+                    </div>
+                  </a>
+                  <a href="/uptime" class="mega-link">
+                    <div class="mega-link-icon">🟢</div>
+                    <div>
+                      <div class="mega-link-label">Uptime Monitor</div>
+                      <div class="mega-link-desc">Live-Counter</div>
+                    </div>
+                  </a>
+                  <a href="/status/incidents" class="mega-link">
+                    <div class="mega-link-icon">🔔</div>
+                    <div>
+                      <div class="mega-link-label">Vorfälle</div>
+                      <div class="mega-link-desc">Historie & Updates</div>
+                    </div>
+                  </a>
+                  <a href="/status/maintenance" class="mega-link">
+                    <div class="mega-link-icon">🔧</div>
+                    <div>
+                      <div class="mega-link-label">Wartung</div>
+                      <div class="mega-link-desc">Geplante Updates</div>
+                    </div>
+                  </a>
+                </div>
+                <div class="mega-col">
+                  <h4>Sicherheit</h4>
+                  <a href="/security" class="mega-link">
+                    <div class="mega-link-icon">🔒</div>
+                    <div>
+                      <div class="mega-link-label">Sicherheit</div>
+                      <div class="mega-link-desc">DSGVO & TLS 1.3</div>
+                    </div>
+                  </a>
+                  <a href="/privacy" class="mega-link">
+                    <div class="mega-link-icon">🛡️</div>
+                    <div>
+                      <div class="mega-link-label">Datenschutz</div>
+                      <div class="mega-link-desc">Privacy Policy</div>
+                    </div>
+                  </a>
+                  <a href="/terms" class="mega-link">
+                    <div class="mega-link-icon">📄</div>
+                    <div>
+                      <div class="mega-link-label">Nutzungsbedingungen</div>
+                      <div class="mega-link-desc">Terms of Service</div>
+                    </div>
+                  </a>
+                  <a href="/legal" class="mega-link">
+                    <div class="mega-link-icon">📋</div>
+                    <div>
+                      <div class="mega-link-label">Rechtliches</div>
+                      <div class="mega-link-desc">Impressum & Co.</div>
+                    </div>
+                  </a>
+                </div>
+                <div class="mega-cta">
+                  <a href="/premium">
+                    <div>
+                      <div class="mega-cta-title">Premium Support</div>
+                      <div class="mega-cta-desc">Direkt zum Dev-Team</div>
+                    </div>
+                    <span class="mega-cta-arrow">↗</span>
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Direct Links -->
+          <a href="/pricing" class="nav-link highlight">👑 Pricing</a>
+          <a href="/status" class="nav-link">⚡ Status</a>
+          <a href="/dashboard" class="nav-link">📊 Dashboard</a>
         </div>
 
-        <!-- Mobile Menu -->
-        <div id="mobileMenu" class="xl:hidden mt-2 glass-strong p-3 anim-down max-h-80vh overflow-y-auto rounded-2xl" style="display: none;">
-          <a href="/" class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm text-gray-300 hover:bg-white/5 hover:text-white" style="text-decoration: none;">
-            <i data-lucide="home" class="w-4 text-violet-400"></i> Home
+        <!-- Right: CTA + Mobile Toggle -->
+        <div style="display:flex;align-items:center;gap:0.5rem;flex-shrink:0;">
+          <a href="https://discord.com/api/oauth2/authorize?client_id=YOUR_CLIENT_ID&permissions=8&scope=bot%20applications.commands"
+             target="_blank" rel="noopener noreferrer" class="btn-invite">
+            ⚡ Einladen
           </a>
-          <details>
-            <summary class="flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium text-gray-300 hover:bg-white/5 cursor-pointer">
-              <span class="flex items-center gap-2"><i data-lucide="sparkles" class="w-4 text-violet-400"></i>Produkt</span>
-              <i data-lucide="chevron-down" class="w-3_5 chevron"></i>
-            </summary>
-            <div class="ml-6 mt-1 mb-2 space-y-0.5">
-              <a href="/features" class="block px-3 py-2 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-white/5">Alle Features</a>
-              <a href="/commands" class="block px-3 py-2 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-white/5">100+ Commands</a>
-              <a href="/economy" class="block px-3 py-2 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-white/5">Economy System</a>
-              <a href="/ai" class="block px-3 py-2 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-white/5">AI Features</a>
-            </div>
-          </details>
-          <details>
-            <summary class="flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium text-gray-300 hover:bg-white/5 cursor-pointer">
-              <span class="flex items-center gap-2"><i data-lucide="book-open" class="w-4 text-violet-400"></i>Ressourcen</span>
-              <i data-lucide="chevron-down" class="w-3_5 chevron"></i>
-            </summary>
-            <div class="ml-6 mt-1 mb-2 space-y-0.5">
-              <a href="/docs" class="block px-3 py-2 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-white/5">Dokumentation</a>
-              <a href="/tutorials" class="block px-3 py-2 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-white/5">Video Tutorials</a>
-              <a href="/faq" class="block px-3 py-2 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-white/5">FAQ</a>
-            </div>
-          </details>
-          <details>
-            <summary class="flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium text-gray-300 hover:bg-white/5 cursor-pointer">
-              <span class="flex items-center gap-2"><i data-lucide="heart" class="w-4 text-violet-400"></i>Community</span>
-              <i data-lucide="chevron-down" class="w-3_5 chevron"></i>
-            </summary>
-            <div class="ml-6 mt-1 mb-2 space-y-0.5">
-              <a href="/partners" class="block px-3 py-2 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-white/5">Partner werden</a>
-              <a href="/affiliate" class="block px-3 py-2 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-white/5">Affiliate</a>
-              <a href="/suggest" class="block px-3 py-2 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-white/5">Vorschläge</a>
-              <a href="/contact" class="block px-3 py-2 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-white/5">Kontakt</a>
-            </div>
-          </details>
-          <details>
-            <summary class="flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium text-gray-300 hover:bg-white/5 cursor-pointer">
-              <span class="flex items-center gap-2"><i data-lucide="headphones" class="w-4 text-violet-400"></i>Support</span>
-              <i data-lucide="chevron-down" class="w-3_5 chevron"></i>
-            </summary>
-            <div class="ml-6 mt-1 mb-2 space-y-0.5">
-              <a href="/support" class="block px-3 py-2 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-white/5">Support-Center</a>
-              <a href="/status" class="block px-3 py-2 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-white/5">Status</a>
-              <a href="/security" class="block px-3 py-2 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-white/5">Sicherheit</a>
-            </div>
-          </details>
-          <a href="/pricing" class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm text-gray-300 hover:bg-white/5 hover:text-white" style="text-decoration: none;">
-            <i data-lucide="crown" class="w-4 text-violet-400"></i> Pricing
-          </a>
-          <a href="/status" class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm text-gray-300 hover:bg-white/5 hover:text-white" style="text-decoration: none;">
-            <i data-lucide="activity" class="w-4 text-violet-400"></i> Status
-          </a>
-          <a href="/dashboard" class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm text-gray-300 hover:bg-white/5 hover:text-white" style="text-decoration: none;">
-            <i data-lucide="gauge" class="w-4 text-violet-400"></i> Dashboard
-          </a>
-          <a href="https://discord.com/api/oauth2/authorize?client_id=YOUR_CLIENT_ID&permissions=8&scope=bot%20applications.commands" target="_blank" rel="noopener noreferrer" class="btn-primary text-sm text-center mt-2 block">
-            <i data-lucide="zap" class="w-4 inline mr-1"></i> Bot einladen
-          </a>
+          <button class="nav-mobile-btn" id="mobile-toggle" onclick="toggleMobile()" aria-label="Menü">
+            <span id="mobile-icon">☰</span>
+          </button>
         </div>
       </div>
-    </header>
+
+      <!-- Mobile Menu -->
+      <div class="nav-mobile-menu" id="mobile-menu">
+        <a href="/" class="mobile-link"><span class="mobile-link-icon">🏠</span> Home</a>
+
+        <!-- Produkt -->
+        <details class="mobile-group">
+          <summary>
+            <span><span class="mobile-link-icon">✨</span> Produkt</span>
+            <span style="font-size:0.75rem;opacity:0.5;">▼</span>
+          </summary>
+          <div class="mobile-group-inner">
+            <a href="/features"    class="mobile-sub-link">Alle Features</a>
+            <a href="/commands"    class="mobile-sub-link">100+ Commands</a>
+            <a href="/economy"     class="mobile-sub-link">Economy System</a>
+            <a href="/ai"          class="mobile-sub-link">AI Features</a>
+            <a href="/templates"   class="mobile-sub-link">Server Templates</a>
+            <a href="/integrations" class="mobile-sub-link">Integrationen</a>
+            <a href="/widgets"     class="mobile-sub-link">Embed Widgets</a>
+            <a href="/emojis"      class="mobile-sub-link">Emoji Pack</a>
+            <a href="/docs/automod" class="mobile-sub-link">AutoMod 2.0</a>
+            <a href="/docs/tickets" class="mobile-sub-link">Tickets</a>
+            <a href="/docs/music"  class="mobile-sub-link">Music Player</a>
+            <a href="/badges"      class="mobile-sub-link">Badges</a>
+          </div>
+        </details>
+
+        <!-- Ressourcen -->
+        <details class="mobile-group">
+          <summary>
+            <span><span class="mobile-link-icon">📚</span> Ressourcen</span>
+            <span style="font-size:0.75rem;opacity:0.5;">▼</span>
+          </summary>
+          <div class="mobile-group-inner">
+            <a href="/docs"          class="mobile-sub-link">Dokumentation</a>
+            <a href="/tutorials"     class="mobile-sub-link">Video Tutorials</a>
+            <a href="/faq"           class="mobile-sub-link">FAQ</a>
+            <a href="/docs/setup"    class="mobile-sub-link">Setup Guide</a>
+            <a href="/api-docs"      class="mobile-sub-link">API Docs</a>
+            <a href="/changelog"     class="mobile-sub-link">Changelog</a>
+            <a href="/roadmap"       class="mobile-sub-link">Roadmap</a>
+            <a href="/migrate"       class="mobile-sub-link">Migration Tool</a>
+            <a href="/blog"          class="mobile-sub-link">Blog & News</a>
+          </div>
+        </details>
+
+        <!-- Community -->
+        <details class="mobile-group">
+          <summary>
+            <span><span class="mobile-link-icon">❤️</span> Community</span>
+            <span style="font-size:0.75rem;opacity:0.5;">▼</span>
+          </summary>
+          <div class="mobile-group-inner">
+            <a href="/partners"     class="mobile-sub-link">Partner werden</a>
+            <a href="/affiliate"    class="mobile-sub-link">Affiliate</a>
+            <a href="/suggest"      class="mobile-sub-link">Vorschläge</a>
+            <a href="/contact"      class="mobile-sub-link">Kontakt</a>
+            <a href="/showcase"     class="mobile-sub-link">Server Showcase</a>
+            <a href="/testimonials" class="mobile-sub-link">Bewertungen</a>
+            <a href="/leaderboard"  class="mobile-sub-link">XP Leaderboard</a>
+            <a href="/team"         class="mobile-sub-link">Team</a>
+            <a href="/jobs"         class="mobile-sub-link">Karriere</a>
+            <a href="/events"       class="mobile-sub-link">Events</a>
+          </div>
+        </details>
+
+        <!-- Support -->
+        <details class="mobile-group">
+          <summary>
+            <span><span class="mobile-link-icon">🎧</span> Support</span>
+            <span style="font-size:0.75rem;opacity:0.5;">▼</span>
+          </summary>
+          <div class="mobile-group-inner">
+            <a href="/support"           class="mobile-sub-link">Support-Center</a>
+            <a href="/faq"               class="mobile-sub-link">FAQ</a>
+            <a href="/contact"           class="mobile-sub-link">Kontakt</a>
+            <a href="/status"            class="mobile-sub-link">Live Status</a>
+            <a href="/status/incidents"  class="mobile-sub-link">Vorfälle</a>
+            <a href="/privacy"           class="mobile-sub-link">Datenschutz</a>
+            <a href="/terms"             class="mobile-sub-link">Nutzungsbedingungen</a>
+            <a href="/legal"             class="mobile-sub-link">Rechtliches</a>
+          </div>
+        </details>
+
+        <a href="/pricing"   class="mobile-link" style="color:#fcd34d;">👑 Pricing</a>
+        <a href="/status"    class="mobile-link">⚡ Status</a>
+        <a href="/dashboard" class="mobile-link">📊 Dashboard</a>
+
+        <a href="https://discord.com/api/oauth2/authorize?client_id=YOUR_CLIENT_ID&permissions=8&scope=bot%20applications.commands"
+           target="_blank" rel="noopener noreferrer"
+           class="btn-invite" style="display:flex;justify-content:center;margin-top:0.5rem;">
+          ⚡ Bot einladen
+        </a>
+      </div>
+    </nav>
 
     {% block content %}{% endblock %}
 
-    <!-- FOOTER UNVERÄNDERT -->
     <footer class="footer page-bg">
       <div class="footer-inner container">
         <div>
@@ -584,12 +1037,48 @@
       </div>
       <div class="footer-bottom">&copy; 2026 ModForge · Powered by BotForge · v3.0.0</div>
     </footer>
+
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="/static/script.js"></script>
-  <!-- Banner-Logik -->
+
   <script>
+    /* ── Dropdown Logic ── */
+    function toggleDropdown(id) {
+      const all = document.querySelectorAll('.nav-dropdown');
+      all.forEach(el => {
+        if (el.id !== id) el.classList.remove('open');
+      });
+      document.getElementById(id).classList.toggle('open');
+    }
+
+    /* Close on outside click */
+    document.addEventListener('click', function(e) {
+      if (!e.target.closest('.nav-dropdown')) {
+        document.querySelectorAll('.nav-dropdown').forEach(el => el.classList.remove('open'));
+      }
+    });
+
+    /* ── Mobile Menu ── */
+    function toggleMobile() {
+      const menu = document.getElementById('mobile-menu');
+      const icon = document.getElementById('mobile-icon');
+      const isOpen = menu.classList.toggle('open');
+      icon.textContent = isOpen ? '✕' : '☰';
+    }
+
+    /* ── Scroll: shrink navbar ── */
+    window.addEventListener('scroll', function() {
+      const nav = document.getElementById('topnav');
+      if (window.scrollY > 40) {
+        nav.classList.add('scrolled');
+      } else {
+        nav.classList.remove('scrolled');
+      }
+    });
+
+    /* ── Notice Banner ── */
     (function() {
       var notice = document.getElementById('global-notice');
       var closeBtn = document.getElementById('close-notice');
@@ -602,87 +1091,5 @@
       });
     })();
   </script>
-  <!-- Navbar Logik -->
-  <script>
-    (function() {
-      // Lucide Icons initialisieren
-      lucide.createIcons();
-
-      const header = document.getElementById('mainNavbar');
-      const triggers = document.querySelectorAll('.mega-trigger');
-      const panels = {
-        produkt: document.getElementById('mega-produkt'),
-        ressourcen: document.getElementById('mega-ressourcen'),
-        community: document.getElementById('mega-community'),
-        support: document.getElementById('mega-support')
-      };
-      const mobileMenu = document.getElementById('mobileMenu');
-      const mobileBtn = document.getElementById('mobileMenuBtn');
-      let currentPanel = null;
-
-      function closeAllPanels() {
-        Object.values(panels).forEach(p => p && p.classList.remove('active'));
-        triggers.forEach(t => {
-          t.classList.remove('text-white', 'bg-white/10');
-        });
-        currentPanel = null;
-      }
-
-      triggers.forEach(btn => {
-        btn.addEventListener('click', function(e) {
-          e.stopPropagation();
-          const menu = this.dataset.menu;
-          if (currentPanel === menu) {
-            closeAllPanels();
-          } else {
-            closeAllPanels();
-            if (panels[menu]) {
-              panels[menu].classList.add('active');
-              this.classList.add('text-white', 'bg-white/10');
-              currentPanel = menu;
-            }
-          }
-        });
-      });
-
-      document.addEventListener('click', function(e) {
-        if (!e.target.closest('#navContainer')) {
-          closeAllPanels();
-        }
-      });
-
-      // Mobile Menu Toggle
-      mobileBtn.addEventListener('click', function() {
-        if (mobileMenu.style.display === 'none' || !mobileMenu.style.display) {
-          mobileMenu.style.display = 'block';
-          mobileBtn.innerHTML = '<i data-lucide="x" class="w-4"></i>';
-          lucide.createIcons();
-        } else {
-          mobileMenu.style.display = 'none';
-          mobileBtn.innerHTML = '<i data-lucide="menu" class="w-4"></i>';
-          lucide.createIcons();
-        }
-      });
-
-      // Scroll-Effekt
-      function onScroll() {
-        if (window.scrollY > 10) {
-          header.classList.add('navbar-scrolled');
-        } else {
-          header.classList.remove('navbar-scrolled');
-        }
-      }
-      window.addEventListener('scroll', onScroll);
-
-      // Mobile Links schließen das Menü
-      mobileMenu.querySelectorAll('a').forEach(link => {
-        link.addEventListener('click', () => {
-          mobileMenu.style.display = 'none';
-          mobileBtn.innerHTML = '<i data-lucide="menu" class="w-4"></i>';
-          lucide.createIcons();
-        });
-      });
-    })();
-  </script>
 </body>
-  </html>
+</html>
