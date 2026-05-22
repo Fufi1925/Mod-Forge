@@ -702,7 +702,62 @@
     .mm-link:hover { color: var(--t); background: rgba(255,255,255,0.05); }
     .mm-link svg { width: 13px; height: 13px; color: rgba(167,139,250,0.7); }
 
-    /* ═══════════════════════════
+
+
+.footer-bottom{
+    border-top:1px solid rgba(255,255,255,0.08);
+    margin-top:40px;
+    padding:22px;
+    text-align:center;
+    font-size:0.75rem;
+    color:var(--muted);
+}
+
+.footer-bottom .made{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:5px;
+    flex-wrap:wrap;
+}
+
+.footer-bottom .heart{
+    color:#ff4d8d;
+    animation:pulse 1.5s infinite;
+}
+
+.footer-bottom a{
+    color:#a78bfa;
+    font-weight:700;
+    text-decoration:none;
+    transition:0.2s;
+}
+
+.footer-bottom a:hover{
+    color:#c4b5fd;
+}
+
+.footer-copy{
+    margin-top:6px;
+    opacity:0.8;
+}
+
+@keyframes pulse{
+    0%{
+        transform:scale(1);
+    }
+    50%{
+        transform:scale(1.15);
+    }
+    100%{
+        transform:scale(1);
+    }
+}
+
+
+
+    
+    /* ══════════════════════════
        RESPONSIVE
     ═══════════════════════════ */
     @media (max-width: 1100px) {
@@ -1243,7 +1298,7 @@
     </div>
 
     <div class="mt-1">
-      Solo-developed in Germany 🇩🇪 · Hosted on Railway · Not affiliated with Discord Inc.
+      Solo-developed in Germany 🇩🇪 · Hosted by BotForge · Not affiliated with Discord Inc.
     </div>
 
   </div>
