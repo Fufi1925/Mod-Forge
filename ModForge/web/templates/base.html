@@ -3,96 +3,688 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <title>{% block title %}ModForge – Discord Security &amp; AutoMod Bot{% endblock %}</title>
-  <meta name="description" content="Der stärkste Discord‑Sicherheitsbot. Anti‑Nuke, Anti‑Raid, AutoMod, Cases &amp; Web‑Dashboard.">
-  <link rel="stylesheet" href="/static/style.css">
+
+  <meta name="description" content="Der stärkste Discord-Sicherheitsbot. Anti-Nuke, Anti-Raid, AutoMod, Cases &amp; Web-Dashboard.">
+
+  <style>
+
+    :root{
+      --bg:#060816;
+      --card:#0d111f;
+      --fg:#ffffff;
+      --muted:#7c7c90;
+      --p:#8b5cf6;
+      --cyan:#06b6d4;
+      --ok:#4ade80;
+      --border:rgba(255,255,255,.08);
+    }
+
+    *{
+      margin:0;
+      padding:0;
+      box-sizing:border-box;
+    }
+
+    body{
+      background:var(--bg);
+      color:var(--fg);
+      font-family:
+        Inter,
+        Arial,
+        sans-serif;
+
+      overflow-x:hidden;
+    }
+
+    a{
+      text-decoration:none;
+      color:inherit;
+    }
+
+    .page-wrapper{
+      position:relative;
+      z-index:2;
+    }
+
+    .container{
+      width:100%;
+      max-width:1400px;
+      margin:auto;
+      padding:0 20px;
+    }
+
+    /* =========================
+       NOTICE
+    ========================= */
+
+    .global-notice{
+      width:100%;
+
+      padding:14px 20px;
+
+      background:
+        rgba(255,0,0,.08);
+
+      border-bottom:
+        1px solid rgba(255,0,0,.15);
+
+      font-size:.95rem;
+    }
+
+    .global-notice a{
+      color:#67e8f9;
+      font-weight:700;
+      text-decoration:underline;
+    }
+
+    /* =========================
+       MODERN NAVBAR
+    ========================= */
+
+    .modern-navbar{
+      position:sticky;
+      top:12px;
+      z-index:9999;
+
+      width:calc(100% - 40px);
+      max-width:1400px;
+
+      margin:20px auto;
+
+      padding:14px 22px;
+
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+
+      border:1px solid var(--border);
+
+      background:
+        rgba(10,10,20,.75);
+
+      backdrop-filter:blur(18px);
+
+      border-radius:24px;
+
+      box-shadow:
+        0 10px 40px rgba(0,0,0,.45);
+    }
+
+    /* LOGO */
+
+    .modern-brand{
+      display:flex;
+      align-items:center;
+      gap:14px;
+    }
+
+    .modern-brand-icon{
+      width:46px;
+      height:46px;
+
+      display:flex;
+      align-items:center;
+      justify-content:center;
+
+      border-radius:16px;
+
+      background:
+        linear-gradient(
+          135deg,
+          #7c3aed,
+          #06b6d4
+        );
+
+      font-size:1.3rem;
+
+      box-shadow:
+        0 0 30px rgba(124,58,237,.4);
+    }
+
+    .modern-brand-text{
+      display:flex;
+      flex-direction:column;
+      line-height:1.1;
+    }
+
+    .modern-logo{
+      font-size:1.1rem;
+      font-weight:900;
+
+      background:
+        linear-gradient(
+          90deg,
+          #a78bfa,
+          #67e8f9
+        );
+
+      -webkit-background-clip:text;
+      -webkit-text-fill-color:transparent;
+    }
+
+    .modern-version{
+      font-size:.65rem;
+      color:#7c7c90;
+
+      letter-spacing:2px;
+      text-transform:uppercase;
+    }
+
+    /* NAV LINKS */
+
+    .modern-nav-links{
+      display:flex;
+      align-items:center;
+      gap:10px;
+    }
+
+    .modern-link,
+    .modern-dropdown-btn{
+      padding:10px 16px;
+
+      border-radius:14px;
+
+      color:#d1d5db;
+
+      border:none;
+      background:none;
+
+      cursor:pointer;
+
+      transition:.25s;
+
+      font-size:.9rem;
+      font-weight:600;
+    }
+
+    .modern-link:hover,
+    .modern-dropdown-btn:hover{
+      background:rgba(255,255,255,.06);
+      color:#fff;
+    }
+
+    .modern-link.active{
+      background:rgba(255,255,255,.08);
+      color:#fff;
+    }
+
+    .modern-link.live{
+      color:#4ade80;
+    }
+
+    .modern-link.premium{
+      color:#facc15;
+    }
+
+    /* DROPDOWN */
+
+    .modern-dropdown{
+      position:relative;
+    }
+
+    .modern-dropdown-menu{
+      position:absolute;
+      top:60px;
+      left:0;
+
+      width:620px;
+
+      padding:24px;
+
+      display:none;
+      gap:30px;
+
+      border-radius:24px;
+
+      background:#0d111f;
+
+      border:1px solid rgba(255,255,255,.08);
+
+      box-shadow:
+        0 20px 60px rgba(0,0,0,.5);
+    }
+
+    .modern-dropdown:hover .modern-dropdown-menu{
+      display:flex;
+    }
+
+    .dropdown-column{
+      flex:1;
+    }
+
+    .dropdown-column h4{
+      color:#7c7c90;
+
+      font-size:.7rem;
+
+      margin-bottom:14px;
+
+      text-transform:uppercase;
+
+      letter-spacing:2px;
+    }
+
+    .dropdown-column a{
+      display:flex;
+      flex-direction:column;
+
+      padding:12px;
+
+      border-radius:14px;
+
+      margin-bottom:8px;
+
+      transition:.25s;
+    }
+
+    .dropdown-column a:hover{
+      background:rgba(255,255,255,.05);
+    }
+
+    .dropdown-column strong{
+      color:#fff;
+      font-size:.92rem;
+    }
+
+    .dropdown-column span{
+      color:#8b8ba7;
+      font-size:.75rem;
+      margin-top:4px;
+    }
+
+    /* RIGHT */
+
+    .modern-nav-right{
+      display:flex;
+      align-items:center;
+      gap:12px;
+    }
+
+    .modern-dashboard-btn{
+      padding:11px 18px;
+
+      border-radius:14px;
+
+      background:
+        linear-gradient(
+          135deg,
+          #7c3aed,
+          #06b6d4
+        );
+
+      color:#fff;
+
+      font-weight:700;
+
+      transition:.25s;
+    }
+
+    .modern-dashboard-btn:hover{
+      transform:translateY(-2px);
+      box-shadow:
+        0 10px 30px rgba(124,58,237,.35);
+    }
+
+    .modern-mobile-btn{
+      display:none;
+
+      width:42px;
+      height:42px;
+
+      border-radius:14px;
+
+      border:1px solid rgba(255,255,255,.1);
+
+      background:rgba(255,255,255,.04);
+
+      color:#fff;
+
+      cursor:pointer;
+    }
+
+    /* FOOTER */
+
+    .footer{
+      margin-top:80px;
+
+      border-top:
+        1px solid rgba(255,255,255,.08);
+    }
+
+    .footer-inner{
+      display:grid;
+      grid-template-columns:
+        repeat(auto-fit,minmax(220px,1fr));
+
+      gap:40px;
+
+      padding:60px 20px;
+    }
+
+    .footer h4{
+      margin-bottom:14px;
+      font-size:1rem;
+    }
+
+    .footer a{
+      display:block;
+      margin-bottom:10px;
+      color:#9ca3af;
+      transition:.2s;
+    }
+
+    .footer a:hover{
+      color:#fff;
+    }
+
+    .footer-bottom{
+      padding:20px;
+      text-align:center;
+      border-top:
+        1px solid rgba(255,255,255,.05);
+
+      color:#6b7280;
+      font-size:.85rem;
+    }
+
+    /* MOBILE */
+
+    @media(max-width:1100px){
+
+      .modern-nav-links{
+        display:none;
+      }
+
+      .modern-mobile-btn{
+        display:block;
+      }
+
+      .modern-navbar{
+        padding:14px 16px;
+      }
+
+      .modern-dashboard-btn{
+        display:none;
+      }
+
+      .modern-dropdown-menu{
+        display:none !important;
+      }
+    }
+
+  </style>
 </head>
+
 <body class="page-bg">
 
-  <!-- 3D-Canvas wird automatisch von script.js erstellt -->
-
-  <!-- Seite über den Canvas heben -->
   <div class="page-wrapper">
 
-    <!-- ⚠️ HINWEIS-BANNER -->
-    <div id="global-notice" class="global-notice" style="display: none;">
-      <div class="container" style="display: flex; align-items: center; justify-content: space-between;">
+    <!-- NOTICE -->
+    <div id="global-notice" class="global-notice" style="display:none;">
+      <div class="container" style="display:flex;align-items:center;justify-content:space-between;gap:20px;">
+
         <span>
-          ⚠️ <strong>Admin‑Dashboard vorübergehend ausgefallen</strong> –
-          <span style="color: var(--ok);">🟢 NEU:</span>
-          <a href="/live" style="color: var(--p); font-weight: 600; text-decoration: underline;">/live – Echtzeit‑Bot‑Aktivität jetzt verfolgen</a>
+          ⚠️
+          <strong>Admin-Dashboard vorübergehend ausgefallen</strong>
+          —
+          <span style="color:var(--ok);">🟢 NEU:</span>
+
+          <a href="/live">
+            /live – Echtzeit-Bot-Aktivität jetzt verfolgen
+          </a>
         </span>
-        <button id="close-notice" style="background: none; border: none; color: var(--fg); font-size: 1.3rem; cursor: pointer; line-height: 1;">&times;</button>
+
+        <button
+          id="close-notice"
+          style="
+            background:none;
+            border:none;
+            color:white;
+            font-size:1.3rem;
+            cursor:pointer;
+          "
+        >
+          ×
+        </button>
+
       </div>
     </div>
 
-    <nav class="topnav">
-      <a class="brand" href="/">
-        <div class="brand-icon">🛡️</div>
-        <span class="grad">ModForge</span>
+    <!-- NAVBAR -->
+    <nav class="modern-navbar">
+
+      <!-- LOGO -->
+      <a class="modern-brand" href="/">
+
+        <div class="modern-brand-icon">
+          🛡️
+        </div>
+
+        <div class="modern-brand-text">
+          <span class="modern-logo">
+            ModForge
+          </span>
+
+          <span class="modern-version">
+            v3.0 · Live
+          </span>
+        </div>
+
       </a>
-      <div class="nav-links">
-        <a href="/">Home</a>
-        <a href="/status">Status</a>
-        <a href="/changelog">Changelog</a>
-        <a href="/live" style="color: var(--ok);">⚡ Live</a>
-        <a href="/terms">Terms</a>
-        <a href="/privacy">Privacy</a>
-        <a href="/login" class="nav-cta">Dashboard ↗</a>
+
+      <!-- NAV -->
+      <div class="modern-nav-links">
+
+        <a href="/" class="modern-link active">
+          🏠 Home
+        </a>
+
+        <!-- DROPDOWN -->
+        <div class="modern-dropdown">
+
+          <button class="modern-dropdown-btn">
+            ✨ Produkt ⌄
+          </button>
+
+          <div class="modern-dropdown-menu">
+
+            <div class="dropdown-column">
+
+              <h4>Module</h4>
+
+              <a href="/features">
+                <strong>Alle Features</strong>
+                <span>Komplette Übersicht</span>
+              </a>
+
+              <a href="/commands">
+                <strong>100+ Commands</strong>
+                <span>Slash + Prefix Commands</span>
+              </a>
+
+              <a href="/economy">
+                <strong>Economy System</strong>
+                <span>Coins, Shop & Gambling</span>
+              </a>
+
+              <a href="/ai">
+                <strong>AI Features</strong>
+                <span>GPT-4 Integration</span>
+              </a>
+
+            </div>
+
+            <div class="dropdown-column">
+
+              <h4>Tools</h4>
+
+              <a href="/templates">
+                <strong>Server Templates</strong>
+                <span>Vorgefertigte Setups</span>
+              </a>
+
+              <a href="/integrations">
+                <strong>Integrationen</strong>
+                <span>Twitch, YouTube, GitHub</span>
+              </a>
+
+              <a href="/widgets">
+                <strong>Embed Widgets</strong>
+                <span>Stats für deine Website</span>
+              </a>
+
+              <a href="/emojis">
+                <strong>Emoji Pack</strong>
+                <span>Custom Emojis Download</span>
+              </a>
+
+            </div>
+
+          </div>
+        </div>
+
+        <a href="/status" class="modern-link">
+          📊 Status
+        </a>
+
+        <a href="/pricing" class="modern-link premium">
+          👑 Pricing
+        </a>
+
+        <a href="/live" class="modern-link live">
+          ⚡ Live
+        </a>
+
       </div>
+
+      <!-- RIGHT -->
+      <div class="modern-nav-right">
+
+        <a href="/login" class="modern-dashboard-btn">
+          Dashboard ↗
+        </a>
+
+        <button class="modern-mobile-btn">
+          ☰
+        </button>
+
+      </div>
+
     </nav>
 
+    <!-- CONTENT -->
     {% block content %}{% endblock %}
 
-    <footer class="footer page-bg">
+    <!-- FOOTER -->
+    <footer class="footer">
+
       <div class="footer-inner container">
+
         <div>
-          <div class="brand" style="margin-bottom:10px">
-            <div class="brand-icon">🛡️</div>
-            <span class="grad" style="font-size:1rem">ModForge</span>
+
+          <div class="modern-brand" style="margin-bottom:14px;">
+
+            <div class="modern-brand-icon">
+              🛡️
+            </div>
+
+            <div class="modern-brand-text">
+
+              <span class="modern-logo">
+                ModForge
+              </span>
+
+            </div>
+
           </div>
-          <p style="font-size:.75rem;color:var(--muted)">Security &amp; AutoMod Bot für Discord.</p>
+
+          <p style="font-size:.9rem;color:var(--muted);">
+            Security &amp; AutoMod Bot für Discord.
+          </p>
+
         </div>
+
         <div>
+
           <h4>Links</h4>
+
           <a href="/status">Status</a>
           <a href="/changelog">Changelog</a>
           <a href="/live">Live Aktivität</a>
           <a href="/login">Dashboard</a>
+
         </div>
+
         <div>
+
           <h4>Rechtliches</h4>
+
           <a href="/terms">Terms of Service</a>
           <a href="/privacy">Privacy Policy</a>
           <a href="/imprint">Impressum</a>
+
         </div>
+
         <div>
+
           <h4>Community</h4>
-          <a href="https://discord.gg/gwryX3dbkt" target="_blank">Support Server</a>
-          <a href="/admin/login">Admin Panel</a>
+
+          <a href="https://discord.gg/gwryX3dbkt" target="_blank">
+            Support Server
+          </a>
+
+          <a href="/admin/login">
+            Admin Panel
+          </a>
+
         </div>
+
       </div>
-      <div class="footer-bottom">&copy; 2026 ModForge · Powered by BotForge · v3.0.0</div>
+
+      <div class="footer-bottom">
+        &copy; 2026 ModForge · Powered by BotForge · v3.0.0
+      </div>
+
     </footer>
 
   </div>
 
+  <!-- SCRIPTS -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
   <script src="/static/script.js"></script>
 
-  <!-- Banner-Logik -->
+  <!-- NOTICE -->
   <script>
-    (function() {
-      var notice = document.getElementById('global-notice');
-      var closeBtn = document.getElementById('close-notice');
-      if (!localStorage.getItem('global-notice-closed')) {
+
+    (function(){
+
+      var notice =
+        document.getElementById('global-notice');
+
+      var closeBtn =
+        document.getElementById('close-notice');
+
+      if(!localStorage.getItem('global-notice-closed')){
         notice.style.display = 'block';
       }
-      closeBtn.addEventListener('click', function() {
+
+      closeBtn.addEventListener('click', function(){
+
         notice.style.display = 'none';
-        localStorage.setItem('global-notice-closed', 'true');
+
+        localStorage.setItem(
+          'global-notice-closed',
+          'true'
+        );
+
       });
+
     })();
+
   </script>
+
 </body>
 </html>
