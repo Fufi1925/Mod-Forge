@@ -10,338 +10,207 @@
   <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;700&family=Outfit:wght@400;500;600;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/style.css">
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
+    /* ── BASE LAYOUT ── */
     :root {
-      --v:      #7c3aed;
-      --vl:     #a78bfa;
-      --vd:     #4c1d95;
-      --c:      #22d3ee;
-      --cl:     #67e8f9;
-      --amber:  #f59e0b;
-      --amberl: #fcd34d;
-      --green:  #4ade80;
-      --red:    #f87171;
-      --redl:   #fca5a5;
-      --orange: #fb923c;
-      --bg:     #060610;
-      --t:      #e2e8f0;
-      --m:      #94a3b8;
-      --bdr:    rgba(255,255,255,0.07);
-      --bdrv:   rgba(139,92,246,0.3);
-      --glass:  rgba(255,255,255,0.03);
-      --glass2: rgba(255,255,255,0.055);
-      --r:      0.2s cubic-bezier(.4,0,.2,1);
-      --outage-h: 0px;
-      --banner-h: 2.6rem;
-      --nav-h:    3.6rem;
-      --chrome-offset: 12rem;
+      --outage-h: 2.6rem;
+      --trust-h:  2.6rem;
+      --nav-h:    4rem;
+      --chrome:   calc(var(--outage-h) + var(--trust-h) + var(--nav-h));
     }
 
-    html { scroll-behavior: smooth; }
-
-    body {
-      background: var(--bg);
-      color: var(--t);
-      font-family: 'Outfit', system-ui, sans-serif;
-      line-height: 1.5;
-      -webkit-font-smoothing: antialiased;
-      overflow-x: hidden;
-      /* Push content below fixed chrome */
-      padding-top: var(--chrome-offset);
-    }
-    a { color: inherit; text-decoration: none; }
-    .page-wrapper { display: flex; flex-direction: column; min-height: 100vh; }
+    body { padding-top: var(--chrome); }
 
     /* ══════════════════════════════════════════
-       ROUND GLASS BUTTON UTILITY
-    ══════════════════════════════════════════ */
-    .btn-glass {
-      display: inline-flex; align-items: center; gap: 0.45rem;
-      padding: 0.55rem 1.3rem; border-radius: 999px;
-      font-size: 0.8rem; font-weight: 700;
-      color: var(--t);
-      background: rgba(255,255,255,0.07);
-      backdrop-filter: blur(20px) saturate(1.8);
-      -webkit-backdrop-filter: blur(20px) saturate(1.8);
-      border: 1px solid rgba(255,255,255,0.13);
-      box-shadow: 0 2px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08);
-      cursor: pointer; transition: all var(--r);
-      font-family: 'Outfit', system-ui, sans-serif;
-      text-decoration: none; white-space: nowrap;
-    }
-    .btn-glass:hover {
-      background: rgba(255,255,255,0.12);
-      border-color: rgba(255,255,255,0.22);
-      box-shadow: 0 4px 20px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.12);
-      transform: translateY(-1px);
-    }
-    .btn-glass:active { transform: translateY(0); }
-    .btn-glass-primary {
-      background: linear-gradient(135deg, rgba(109,40,217,0.7) 0%, rgba(30,64,175,0.7) 100%);
-      border-color: rgba(139,92,246,0.4);
-      box-shadow: 0 2px 16px rgba(109,40,217,0.35), inset 0 1px 0 rgba(255,255,255,0.1);
-      color: #fff;
-    }
-    .btn-glass-primary:hover {
-      background: linear-gradient(135deg, rgba(124,58,237,0.85) 0%, rgba(37,99,235,0.85) 100%);
-      border-color: rgba(167,139,250,0.5);
-      box-shadow: 0 4px 24px rgba(109,40,217,0.55), inset 0 1px 0 rgba(255,255,255,0.15);
-    }
-    .btn-glass-danger {
-      background: rgba(239,68,68,0.12);
-      border-color: rgba(248,113,113,0.3);
-      color: var(--redl);
-      box-shadow: 0 2px 12px rgba(239,68,68,0.15), inset 0 1px 0 rgba(255,255,255,0.05);
-    }
-    .btn-glass-danger:hover {
-      background: rgba(239,68,68,0.22);
-      border-color: rgba(248,113,113,0.5);
-    }
-    .btn-glass-amber {
-      background: rgba(245,158,11,0.1);
-      border-color: rgba(245,158,11,0.3);
-      color: var(--amberl);
-    }
-    .btn-glass-amber:hover {
-      background: rgba(245,158,11,0.2);
-      border-color: rgba(245,158,11,0.5);
-    }
-    .btn-glass svg { width: 0.8rem; height: 0.8rem; flex-shrink: 0; }
-
-    /* ══════════════════════════════════════════
-       OUTAGE BANNER
+       OUTAGE BAR
     ══════════════════════════════════════════ */
     #outage-bar {
-      position: fixed; top: 0; left: 0; right: 0; z-index: 10010;
+      position: fixed; top:0; left:0; right:0; z-index: 10010;
+      height: var(--outage-h);
       background: linear-gradient(90deg,
-        rgba(185,28,28,0.98) 0%,
-        rgba(153,27,27,0.98) 50%,
-        rgba(185,28,28,0.98) 100%);
-      border-bottom: 1px solid rgba(248,113,113,0.3);
+        rgba(153,27,27,0.98) 0%,
+        rgba(185,28,28,0.98) 50%,
+        rgba(153,27,27,0.98) 100%);
+      border-bottom: 1px solid rgba(248,113,113,0.25);
     }
     .outage-inner {
-      max-width: 1280px; width: 100%; margin: 0 auto;
-      padding: 0 1.5rem;
-      height: 2.6rem;
+      max-width: 1280px; margin: 0 auto;
+      height: 100%; padding: 0 1.5rem;
       display: flex; align-items: center; gap: 0.65rem;
     }
     .outage-icon {
+      width: 1.35rem; height: 1.35rem; border-radius: 50%;
+      background: rgba(255,255,255,0.15);
       display: flex; align-items: center; justify-content: center;
       flex-shrink: 0;
-      width: 1.4rem; height: 1.4rem;
-      background: rgba(255,255,255,0.15);
-      border-radius: 50%;
       animation: outagePulse 1.5s ease-in-out infinite;
     }
-    .outage-icon svg { width: 0.7rem; height: 0.7rem; color: #fff; }
-    @keyframes outagePulse {
-      0%,100% { box-shadow: 0 0 0 0 rgba(255,255,255,0.4); }
-      50%      { box-shadow: 0 0 0 5px rgba(255,255,255,0); }
-    }
+    .outage-icon svg { width:.65rem; height:.65rem; color:#fff; }
     .outage-badge {
       flex-shrink: 0;
       display: inline-flex; align-items: center;
-      padding: 0.15rem 0.55rem; border-radius: 999px;
-      background: rgba(0,0,0,0.3);
-      border: 1px solid rgba(255,255,255,0.2);
-      font-family: 'Geist Mono', monospace;
-      font-size: 0.58rem; font-weight: 700; letter-spacing: 0.1em;
-      text-transform: uppercase; color: #fff;
+      padding: .14rem .5rem; border-radius: 999px;
+      background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2);
+      font-family: 'Geist Mono',monospace;
+      font-size: .56rem; font-weight:700; letter-spacing:.1em;
+      text-transform: uppercase; color:#fff;
     }
     .outage-text {
-      flex: 1; min-width: 0;
-      font-size: 0.78rem; font-weight: 600; color: #fff;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      flex:1; min-width:0;
+      font-size:.76rem; font-weight:600; color:#fff;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
     }
-    .outage-text strong { font-weight: 800; }
+    .outage-text strong { font-weight:800; }
     .outage-link {
-      flex-shrink: 0;
-      display: inline-flex; align-items: center; gap: 0.25rem;
-      padding: 0.22rem 0.75rem; border-radius: 999px;
-      font-size: 0.68rem; font-weight: 700; color: #fff;
-      background: rgba(255,255,255,0.12);
-      border: 1px solid rgba(255,255,255,0.25);
-      backdrop-filter: blur(10px);
-      transition: all var(--r);
-      white-space: nowrap;
+      flex-shrink:0;
+      display: inline-flex; align-items:center; gap:.25rem;
+      padding:.22rem .75rem; border-radius:999px;
+      font-size:.66rem; font-weight:700; color:#fff;
+      background:rgba(255,255,255,0.12);
+      border:1px solid rgba(255,255,255,0.25);
+      backdrop-filter:blur(10px);
+      transition:all var(--r); white-space:nowrap;
     }
-    .outage-link:hover { background: rgba(255,255,255,0.22); transform: translateY(-1px); }
-    .outage-link svg { width: 0.65rem; height: 0.65rem; }
+    .outage-link:hover { background:rgba(255,255,255,0.22); transform:translateY(-1px); }
+    .outage-link svg { width:.62rem; height:.62rem; }
 
     /* ══════════════════════════════════════════
-       TRUST BANNER  — completely redesigned
+       TRUST BAR — animated marquee
     ══════════════════════════════════════════ */
     #trust-bar {
-      position: fixed; left: 0; right: 0; z-index: 10005;
+      position: fixed; left:0; right:0; z-index: 10005;
+      top: var(--outage-h);
+      height: var(--trust-h);
       overflow: hidden;
     }
-    /* gradient border top/bottom */
-    #trust-bar::before,
-    #trust-bar::after {
-      content: '';
-      position: absolute; left: 0; right: 0; height: 1px;
-    }
-    #trust-bar::before {
-      top: 0;
-      background: linear-gradient(90deg,
-        transparent 0%,
-        rgba(124,58,237,0.4) 20%,
-        rgba(34,211,238,0.4) 50%,
-        rgba(124,58,237,0.4) 80%,
-        transparent 100%);
-    }
-    #trust-bar::after {
-      bottom: 0;
-      background: linear-gradient(90deg,
-        transparent 0%,
-        rgba(255,255,255,0.06) 50%,
-        transparent 100%);
-    }
-
     .trust-bg {
-      position: absolute; inset: 0;
-      background:
-        linear-gradient(90deg,
-          rgba(124,58,237,0.18) 0%,
-          rgba(7,7,22,0.97) 15%,
-          rgba(7,7,22,0.97) 85%,
-          rgba(34,211,238,0.15) 100%);
+      position: absolute; inset:0;
+      background: linear-gradient(90deg,
+        rgba(124,58,237,0.2) 0%,
+        rgba(7,7,22,0.97) 15%,
+        rgba(7,7,22,0.97) 85%,
+        rgba(34,211,238,0.16) 100%);
       backdrop-filter: blur(40px) saturate(2);
       -webkit-backdrop-filter: blur(40px) saturate(2);
     }
-    /* animated scan line */
-    .trust-scan {
-      position: absolute; inset: 0; pointer-events: none; overflow: hidden;
-    }
-    .trust-scan::after {
-      content: '';
-      position: absolute; top: 0; left: -100%; width: 60%; height: 100%;
+    #trust-bar::before {
+      content:''; position:absolute; top:0; left:0; right:0; height:1px;
       background: linear-gradient(90deg,
         transparent 0%,
-        rgba(124,58,237,0.06) 40%,
-        rgba(34,211,238,0.08) 50%,
-        rgba(124,58,237,0.06) 60%,
+        rgba(124,58,237,0.5) 30%,
+        rgba(34,211,238,0.4) 60%,
         transparent 100%);
-      animation: trustScan 4s ease-in-out infinite;
     }
-    @keyframes trustScan {
-      0%   { left: -100%; }
-      100% { left: 200%; }
+    #trust-bar::after {
+      content:''; position:absolute; bottom:0; left:0; right:0; height:1px;
+      background: linear-gradient(90deg,
+        transparent,rgba(255,255,255,0.05),transparent);
     }
-
+    .trust-scan {
+      position:absolute; inset:0; pointer-events:none; overflow:hidden;
+    }
+    .trust-scan::after {
+      content:'';
+      position:absolute; top:0; left:-100%; width:55%; height:100%;
+      background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(124,58,237,0.07) 40%,
+        rgba(34,211,238,0.09) 50%,
+        rgba(124,58,237,0.07) 60%,
+        transparent 100%);
+      animation: trustScan 4.5s ease-in-out infinite;
+    }
     .trust-inner {
-      position: relative; z-index: 1;
-      max-width: 1280px; width: 100%; margin: 0 auto;
-      padding: 0 1.5rem; height: 2.6rem;
-      display: flex; align-items: center; gap: 0.75rem;
+      position:relative; z-index:1;
+      max-width:1280px; margin:0 auto;
+      height:100%; padding:0 1.5rem;
+      display:flex; align-items:center; gap:.75rem;
     }
-
-    /* Live badge */
     .trust-live {
-      display: flex; align-items: center; gap: 0.4rem;
-      padding: 0.2rem 0.65rem; border-radius: 999px;
-      background: rgba(74,222,128,0.08);
-      border: 1px solid rgba(74,222,128,0.25);
-      flex-shrink: 0;
+      display:flex; align-items:center; gap:.38rem;
+      padding:.18rem .65rem; border-radius:999px;
+      background:rgba(74,222,128,0.09);
+      border:1px solid rgba(74,222,128,0.22);
+      flex-shrink:0;
     }
     .trust-dot {
-      width: 0.42rem; height: 0.42rem; border-radius: 50%;
-      background: var(--green); flex-shrink: 0;
+      width:.42rem; height:.42rem; border-radius:50%;
+      background:var(--green); flex-shrink:0;
       animation: tdot 2s ease-in-out infinite;
     }
-    @keyframes tdot {
-      0%,100% { opacity:1; box-shadow: 0 0 6px rgba(74,222,128,0.8); }
-      50%      { opacity:.6; box-shadow: 0 0 2px rgba(74,222,128,0.3); }
-    }
     .trust-live-label {
-      font-size: 0.6rem; font-weight: 800; color: var(--green);
-      letter-spacing: 0.12em; text-transform: uppercase;
-      font-family: 'Geist Mono', monospace;
+      font-size:.58rem; font-weight:800; color:var(--green);
+      letter-spacing:.12em; text-transform:uppercase;
+      font-family:'Geist Mono',monospace;
     }
-
-    .trust-sep { width: 1px; height: 1.1rem; background: rgba(255,255,255,0.08); flex-shrink: 0; }
-
-    /* Stats pills */
+    .trust-vsep { width:1px; height:1rem; background:rgba(255,255,255,0.08); flex-shrink:0; }
     .trust-stats {
-      display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0;
+      display:flex; align-items:center; gap:.5rem; flex-shrink:0;
     }
-    .trust-stat {
-      display: flex; align-items: center; gap: 0.3rem;
-      font-size: 0.72rem;
-    }
+    .trust-stat { display:flex; align-items:center; gap:.28rem; font-size:.7rem; }
     .trust-stat-num {
-      font-weight: 800; color: var(--t);
-      font-family: 'Geist Mono', monospace;
-      font-size: 0.75rem;
+      font-weight:800; color:var(--t);
+      font-family:'Geist Mono',monospace; font-size:.72rem;
     }
-    .trust-stat-label { color: var(--m); font-weight: 500; font-size: 0.68rem; }
-
-    /* Scrolling marquee text */
+    .trust-stat-label { color:var(--m); font-weight:500; font-size:.64rem; }
     .trust-marquee-wrap {
-      flex: 1; min-width: 0; overflow: hidden;
-      mask-image: linear-gradient(90deg, transparent 0%, black 8%, black 92%, transparent 100%);
-      -webkit-mask-image: linear-gradient(90deg, transparent 0%, black 8%, black 92%, transparent 100%);
+      flex:1; min-width:0; overflow:hidden;
+      mask-image:linear-gradient(90deg,transparent,black 8%,black 92%,transparent);
+      -webkit-mask-image:linear-gradient(90deg,transparent,black 8%,black 92%,transparent);
     }
     .trust-marquee {
-      display: flex; gap: 3rem; width: max-content;
-      animation: marqueeScroll 28s linear infinite;
+      display:flex; gap:3rem; width:max-content;
+      animation: marqueeScroll 30s linear infinite;
     }
-    .trust-marquee:hover { animation-play-state: paused; }
-    @keyframes marqueeScroll {
-      0%   { transform: translateX(0); }
-      100% { transform: translateX(-50%); }
-    }
+    .trust-marquee:hover { animation-play-state:paused; }
     .trust-marquee-item {
-      display: flex; align-items: center; gap: 0.4rem;
-      font-size: 0.72rem; color: var(--m); white-space: nowrap;
-      flex-shrink: 0;
+      display:flex; align-items:center; gap:.38rem;
+      font-size:.7rem; color:var(--m); white-space:nowrap; flex-shrink:0;
     }
-    .trust-marquee-item strong { color: var(--t); font-weight: 600; }
-    .trust-marquee-item .hi { color: var(--vl); font-weight: 700; }
-    .trust-marquee-item .dot-sep {
-      width: 0.2rem; height: 0.2rem; border-radius: 50%;
-      background: rgba(148,163,184,0.3);
+    .trust-marquee-item strong { color:var(--t); font-weight:600; }
+    .trust-marquee-item .hi { color:var(--vl); font-weight:700; }
+    .trust-marquee-item .dsep {
+      width:.2rem; height:.2rem; border-radius:50%;
+      background:rgba(148,163,184,0.3);
     }
-
-    /* CTA button in banner */
     .trust-cta {
-      flex-shrink: 0;
-      display: inline-flex; align-items: center; gap: 0.3rem;
-      padding: 0.25rem 0.8rem; border-radius: 999px;
-      font-size: 0.65rem; font-weight: 700; color: var(--vl);
-      background: rgba(124,58,237,0.12);
-      border: 1px solid rgba(124,58,237,0.3);
-      transition: all var(--r); white-space: nowrap;
+      flex-shrink:0;
+      display:inline-flex; align-items:center; gap:.3rem;
+      padding:.22rem .78rem; border-radius:999px;
+      font-size:.63rem; font-weight:700; color:var(--vl);
+      background:rgba(124,58,237,0.12);
+      border:1px solid rgba(124,58,237,0.3);
+      transition:all var(--r); white-space:nowrap;
     }
     .trust-cta:hover {
-      background: rgba(124,58,237,0.25);
-      border-color: rgba(124,58,237,0.5);
-      transform: translateY(-1px);
+      background:rgba(124,58,237,0.24);
+      border-color:rgba(124,58,237,0.5);
+      transform:translateY(-1px);
     }
-    .trust-cta svg { width: 0.6rem; height: 0.6rem; }
+    .trust-cta svg { width:.6rem; height:.6rem; }
 
     /* ══════════════════════════════════════════
-       HEADER / NAV
+       NAVBAR
     ══════════════════════════════════════════ */
     #sh {
-      position: fixed; left: 0; right: 0; z-index: 9000;
-      padding: 0.55rem 0;
-      transition: padding .3s ease, top .35s ease, background .3s ease;
+      position: fixed; left:0; right:0; z-index: 9000;
+      top: calc(var(--outage-h) + var(--trust-h));
+      padding: .5rem 0;
+      transition: padding .3s ease, background .3s ease;
     }
     #sh.scrolled {
-      padding: 0.3rem 0;
-      background: rgba(6,6,16,0.5);
+      padding: .28rem 0;
+      background: rgba(6,6,16,0.55);
       backdrop-filter: blur(40px);
       -webkit-backdrop-filter: blur(40px);
     }
     #nw {
-      max-width: 1280px; margin: 0 auto;
-      padding: 0 1rem;
+      max-width: 1280px; margin:0 auto;
+      /* on mobile keep it from going edge-to-edge */
+      padding: 0 .75rem;
       position: relative;
     }
 
-    /* ── PILL ── */
+    /* PILL */
     #nb {
       display: flex; align-items: center;
       height: var(--nav-h);
@@ -355,6 +224,9 @@
         0 8px 32px rgba(0,0,0,0.55);
       transition: border-color var(--r), box-shadow var(--r);
       overflow: hidden;
+      /* prevent pill from ever overflowing viewport */
+      min-width: 0;
+      max-width: 100%;
     }
     #sh.scrolled #nb {
       border-color: rgba(124,58,237,0.22);
@@ -364,995 +236,1048 @@
         0 0 60px rgba(124,58,237,0.06);
     }
 
-    /* ── BRAND ── */
+    /* Brand */
     .nav-brand {
-      display: flex; align-items: center; gap: 0.5rem;
-      padding: 0 1.1rem; flex-shrink: 0;
-      border-right: 1px solid rgba(255,255,255,0.06);
-      height: 100%; text-decoration: none;
+      display:flex; align-items:center; gap:.5rem;
+      padding: 0 1rem; flex-shrink:0;
+      border-right:1px solid rgba(255,255,255,0.06);
+      height:100%; text-decoration:none;
     }
     .nav-orb {
-      position: relative; width: 2rem; height: 2rem; border-radius: 50%;
-      background: linear-gradient(135deg, #6d28d9 0%, #1d4ed8 100%);
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0;
-      animation: orbPulse 3.5s ease-in-out infinite;
+      position:relative; width:2rem; height:2rem; border-radius:50%;
+      background:linear-gradient(135deg,#6d28d9 0%,#1d4ed8 100%);
+      display:flex; align-items:center; justify-content:center;
+      flex-shrink:0;
+      animation:orbPulse 3.5s ease-in-out infinite;
     }
-    @keyframes orbPulse {
-      0%,100% { box-shadow: 0 0 10px rgba(109,40,217,0.5); }
-      50%      { box-shadow: 0 0 22px rgba(34,211,238,0.45); }
-    }
-    .nav-orb svg { width: 1rem; height: 1rem; color: #fff; }
+    .nav-orb svg { width:1rem; height:1rem; color:#fff; }
     .nav-orb-dot {
-      position: absolute; bottom: -1px; right: -1px;
-      width: 0.5rem; height: 0.5rem; border-radius: 50%;
-      background: var(--green); border: 2px solid #060610;
-      animation: sPulse 2s ease-in-out infinite;
+      position:absolute; bottom:-1px; right:-1px;
+      width:.48rem; height:.48rem; border-radius:50%;
+      background:var(--green); border:2px solid #060610;
+      animation:sPulse 2s ease-in-out infinite;
     }
-    @keyframes sPulse {
-      0%,100% { box-shadow: 0 0 0 0 rgba(74,222,128,0.6); }
-      50%      { box-shadow: 0 0 0 4px rgba(74,222,128,0); }
-    }
-    .nav-wordmark { display: flex; flex-direction: column; line-height: 1.15; }
+    .nav-wordmark { display:flex; flex-direction:column; line-height:1.15; }
     .nav-name {
-      font-size: 0.88rem; font-weight: 900; letter-spacing: -0.03em;
-      background: linear-gradient(135deg, var(--vl) 20%, var(--c) 100%);
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-      background-clip: text;
+      font-size:.86rem; font-weight:900; letter-spacing:-.03em;
+      background:linear-gradient(135deg,var(--vl) 20%,var(--c) 100%);
+      -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+      background-clip:text;
     }
     .nav-version {
-      font-size: 0.5rem; color: var(--m); letter-spacing: 0.1em;
-      text-transform: uppercase; font-family: 'Geist Mono', monospace;
+      font-size:.47rem; color:var(--m); letter-spacing:.1em;
+      text-transform:uppercase; font-family:'Geist Mono',monospace;
     }
 
-    /* ── CENTER ── */
+    /* Center links */
     #nav-center {
-      display: flex; align-items: center; gap: 0.05rem;
-      flex: 1; padding: 0 0.5rem; overflow: hidden;
+      display:flex; align-items:center; gap:.03rem;
+      flex:1; padding:0 .4rem; overflow:hidden; min-width:0;
     }
     .nl, .nb-btn {
-      display: inline-flex; align-items: center; gap: 0.3rem;
-      padding: 0.38rem 0.75rem; border-radius: 999px;
-      font-size: 0.78rem; font-weight: 500; color: var(--m);
-      background: transparent; border: 1px solid transparent;
-      cursor: pointer; white-space: nowrap;
-      transition: color var(--r), background var(--r), border-color var(--r);
-      font-family: 'Outfit', system-ui, sans-serif;
-      flex-shrink: 0;
+      display:inline-flex; align-items:center; gap:.28rem;
+      padding:.35rem .7rem; border-radius:999px;
+      font-size:.76rem; font-weight:500; color:var(--m);
+      background:transparent; border:1px solid transparent;
+      cursor:pointer; white-space:nowrap;
+      transition:color var(--r),background var(--r),border-color var(--r);
+      font-family:'Outfit',system-ui,sans-serif; flex-shrink:0;
     }
-    .nl svg, .nb-btn svg { color: var(--vl); width: 0.75rem; height: 0.75rem; flex-shrink: 0; }
-    .nl:hover, .nb-btn:hover {
-      color: var(--t); background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.08);
+    .nl svg,.nb-btn svg { color:var(--vl); width:.72rem; height:.72rem; flex-shrink:0; }
+    .nl:hover,.nb-btn:hover {
+      color:var(--t);
+      background:rgba(255,255,255,0.06);
+      border-color:rgba(255,255,255,0.08);
     }
-    .nl.act { color: var(--vl); background: rgba(124,58,237,0.12); border-color: rgba(124,58,237,0.2); }
-    .nl.hl { color: var(--amberl); }
-    .nl.hl svg { color: var(--amberl); }
-    .nl.hl:hover { background: rgba(245,158,11,0.08); }
-    .chv { width: 0.55rem !important; height: 0.55rem !important; color: rgba(148,163,184,0.5) !important; transition: transform var(--r); }
-    .nb-btn.mop .chv { transform: rotate(180deg); }
-    .nb-btn.mop { color: var(--vl); background: rgba(124,58,237,0.1); border-color: rgba(124,58,237,0.18); }
+    .nl.act { color:var(--vl); background:rgba(124,58,237,0.12); border-color:rgba(124,58,237,0.2); }
+    .nl.hl  { color:var(--amberl); }
+    .nl.hl svg { color:var(--amberl); }
+    .nl.hl:hover { background:rgba(245,158,11,0.08); }
+    .chv {
+      width:.52rem!important; height:.52rem!important;
+      color:rgba(148,163,184,0.5)!important;
+      transition:transform var(--r);
+    }
+    .nb-btn.mop .chv { transform:rotate(180deg); }
+    .nb-btn.mop {
+      color:var(--vl);
+      background:rgba(124,58,237,0.1);
+      border-color:rgba(124,58,237,0.18);
+    }
 
-    /* ── RIGHT ── */
+    /* Right zone */
     #nav-right {
-      display: flex; align-items: center; gap: 0.4rem;
-      padding: 0 0.6rem;
-      border-left: 1px solid rgba(255,255,255,0.06);
-      height: 100%; flex-shrink: 0;
-      /* push to far right */
-      margin-left: auto;
+      display:flex; align-items:center; gap:.38rem;
+      padding:0 .6rem; flex-shrink:0;
+      border-left:1px solid rgba(255,255,255,0.06);
+      height:100%;
+      margin-left:auto;
     }
-    .nav-outage-pill {
-      display: flex; align-items: center; gap: 0.35rem;
-      padding: 0.3rem 0.7rem; border-radius: 999px;
-      background: rgba(239,68,68,0.1);
-      border: 1px solid rgba(239,68,68,0.25);
-      font-size: 0.65rem; font-weight: 700;
-      color: var(--redl); white-space: nowrap; flex-shrink: 0;
-    }
-    .nav-outage-pill svg { width: 0.65rem; height: 0.65rem; animation: outagePulse 1.5s ease-in-out infinite; }
 
-    /* Primary CTA — glass style */
+    /* Outage pill */
+    .nav-outage-pill {
+      display:flex; align-items:center; gap:.32rem;
+      padding:.28rem .65rem; border-radius:999px;
+      background:rgba(239,68,68,0.1);
+      border:1px solid rgba(239,68,68,0.25);
+      font-size:.62rem; font-weight:700;
+      color:var(--redl); white-space:nowrap; flex-shrink:0;
+    }
+    .nav-outage-pill svg { width:.6rem; height:.6rem; animation:outagePulse 1.5s ease-in-out infinite; }
+
+    /* Nav CTA */
     .nav-cta {
-      display: inline-flex; align-items: center; gap: 0.4rem;
-      padding: 0.45rem 1.15rem; border-radius: 999px;
-      font-size: 0.75rem; font-weight: 700; color: #fff;
-      background: linear-gradient(135deg, rgba(109,40,217,0.8) 0%, rgba(30,64,175,0.8) 100%);
-      backdrop-filter: blur(20px);
-      border: 1px solid rgba(167,139,250,0.3);
-      box-shadow: 0 2px 16px rgba(109,40,217,0.4), inset 0 1px 0 rgba(255,255,255,0.12);
-      transition: all var(--r); white-space: nowrap; flex-shrink: 0;
-      text-decoration: none;
+      display:inline-flex; align-items:center; gap:.38rem;
+      padding:.42rem 1.1rem; border-radius:999px;
+      font-size:.73rem; font-weight:700; color:#fff;
+      background:linear-gradient(135deg,rgba(109,40,217,.82) 0%,rgba(30,64,175,.82) 100%);
+      backdrop-filter:blur(20px);
+      border:1px solid rgba(167,139,250,0.35);
+      box-shadow:0 2px 16px rgba(109,40,217,0.4),inset 0 1px 0 rgba(255,255,255,0.12);
+      transition:all var(--r); white-space:nowrap; flex-shrink:0;
+      text-decoration:none;
     }
     .nav-cta:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 4px 24px rgba(109,40,217,0.6), inset 0 1px 0 rgba(255,255,255,0.18);
-      border-color: rgba(167,139,250,0.5);
+      transform:translateY(-1px);
+      box-shadow:0 4px 24px rgba(109,40,217,0.6),inset 0 1px 0 rgba(255,255,255,0.18);
+      border-color:rgba(167,139,250,0.55);
     }
-    .nav-cta svg { width: 0.7rem; height: 0.7rem; }
+    .nav-cta svg { width:.68rem; height:.68rem; }
 
-    /* Mobile hamburger — pushed to far right */
+    /* Mobile hamburger — always far right, round glass */
     .nav-mob-btn {
-      display: none;
-      width: 2.2rem; height: 2.2rem; border-radius: 999px;
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(255,255,255,0.1);
-      color: var(--m); cursor: pointer;
-      align-items: center; justify-content: center;
-      transition: all var(--r); flex-shrink: 0;
-      backdrop-filter: blur(10px);
+      display:none;
+      width:2.1rem; height:2.1rem; border-radius:999px;
+      background:rgba(255,255,255,0.05);
+      border:1px solid rgba(255,255,255,0.1);
+      color:var(--m); cursor:pointer;
+      align-items:center; justify-content:center;
+      transition:all var(--r); flex-shrink:0;
+      backdrop-filter:blur(12px);
     }
-    .nav-mob-btn:hover { background: rgba(255,255,255,0.12); color: #fff; border-color: rgba(255,255,255,0.2); }
-    .nav-mob-btn svg { width: 1rem; height: 1rem; }
+    .nav-mob-btn:hover { background:rgba(255,255,255,0.12); color:#fff; border-color:rgba(255,255,255,0.22); }
+    .nav-mob-btn svg { width:.95rem; height:.95rem; }
 
     /* ══════════════════════════════════════════
        MEGA PANEL
     ══════════════════════════════════════════ */
     #mp {
-      position: absolute; left: 0; right: 0; top: calc(100% + 0.5rem);
-      border-radius: 1.25rem; overflow: hidden;
-      display: none; z-index: 8998;
-      background: linear-gradient(160deg,
-        rgba(12,8,36,0.96) 0%,
-        rgba(7,7,20,0.98) 50%,
-        rgba(5,9,28,0.97) 100%);
-      backdrop-filter: blur(80px) saturate(2.5);
-      -webkit-backdrop-filter: blur(80px) saturate(2.5);
-      border: 1px solid rgba(255,255,255,0.07);
-      box-shadow: 0 0 0 1px rgba(124,58,237,0.05) inset, 0 40px 100px rgba(0,0,0,0.8);
+      position:absolute; left:0; right:0;
+      top:calc(100% + .5rem);
+      border-radius:1.2rem; overflow:hidden;
+      display:none; z-index:8998;
+      background:linear-gradient(160deg,
+        rgba(12,8,36,.96) 0%,
+        rgba(7,7,20,.98) 50%,
+        rgba(5,9,28,.97) 100%);
+      backdrop-filter:blur(80px) saturate(2.5);
+      -webkit-backdrop-filter:blur(80px) saturate(2.5);
+      border:1px solid rgba(255,255,255,0.07);
+      box-shadow:
+        0 0 0 1px rgba(124,58,237,0.05) inset,
+        0 40px 100px rgba(0,0,0,0.82);
     }
-    #mp.open { display: block; animation: mpIn .22s ease forwards; }
-    @keyframes mpIn {
-      from { opacity:0; transform:translateY(-6px) scale(0.985); }
-      to   { opacity:1; transform:none; }
-    }
+    #mp.open { display:block; animation:mpIn .22s ease forwards; }
 
-    .pb { display: none; }
-    .pb.vis { display: flex; flex-direction: column; }
-    .pb-layout { display: flex; min-height: 280px; }
+    .pb { display:none; }
+    .pb.vis { display:flex; flex-direction:column; }
+    .pb-layout { display:flex; min-height:270px; }
+
+    /* Sidebar */
     .pb-sidebar {
-      width: 11.5rem; flex-shrink: 0; padding: 1.2rem 0.5rem;
-      border-right: 1px solid rgba(255,255,255,0.04);
-      background: rgba(0,0,0,0.12);
-      display: flex; flex-direction: column; gap: 0.1rem;
+      width:11rem; flex-shrink:0; padding:1.1rem .45rem;
+      border-right:1px solid rgba(255,255,255,0.04);
+      background:rgba(0,0,0,0.12);
+      display:flex; flex-direction:column; gap:.08rem;
     }
     .pb-sidebar-title {
-      font-size: 0.5rem; font-weight: 700; letter-spacing: 0.12em;
-      text-transform: uppercase; color: rgba(148,163,184,0.3);
-      padding: 0 0.5rem; margin-bottom: 0.4rem;
-      font-family: 'Geist Mono', monospace;
+      font-size:.48rem; font-weight:700; letter-spacing:.12em;
+      text-transform:uppercase; color:rgba(148,163,184,0.28);
+      padding:0 .45rem; margin-bottom:.35rem;
+      font-family:'Geist Mono',monospace;
     }
     .pbtab {
-      display: flex; align-items: center; gap: 0.45rem;
-      padding: 0.5rem 0.65rem; border-radius: 0.75rem;
-      font-size: 0.74rem; font-weight: 500; color: var(--m);
-      border: 1px solid transparent; cursor: pointer;
-      width: 100%; text-align: left;
-      background: transparent; transition: all var(--r);
-      font-family: 'Outfit', system-ui, sans-serif;
+      display:flex; align-items:center; gap:.42rem;
+      padding:.46rem .6rem; border-radius:999px;
+      font-size:.72rem; font-weight:500; color:var(--m);
+      border:1px solid transparent; cursor:pointer;
+      width:100%; text-align:left;
+      background:transparent; transition:all var(--r);
+      font-family:'Outfit',system-ui,sans-serif;
     }
-    .pbtab svg { color: var(--vl); width: 0.8rem; height: 0.8rem; flex-shrink: 0; }
-    .pbtab:hover { color: var(--t); background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.06); }
-    .pbtab.on { color: var(--t); background: rgba(124,58,237,0.15); border-color: rgba(124,58,237,0.22); }
-    .pbtab-desc { font-size: 0.58rem; color: rgba(148,163,184,0.4); margin-top: 0.05rem; }
-    .pb-content { flex: 1; padding: 1.4rem; overflow: hidden; }
-    .ptc { display: none; }
-    .ptc.vis { display: block; }
+    .pbtab svg { color:var(--vl); width:.75rem; height:.75rem; flex-shrink:0; }
+    .pbtab:hover { color:var(--t); background:rgba(255,255,255,0.05); border-color:rgba(255,255,255,0.06); }
+    .pbtab.on { color:var(--t); background:rgba(124,58,237,0.15); border-color:rgba(124,58,237,0.22); }
+    .pbtab-desc { font-size:.56rem; color:rgba(148,163,184,0.38); margin-top:.04rem; }
+
+    /* Content */
+    .pb-content { flex:1; padding:1.3rem; overflow:hidden; }
+    .ptc { display:none; }
+    .ptc.vis { display:block; }
     .sg {
-      font-size: 0.52rem; font-weight: 700; letter-spacing: 0.12em;
-      text-transform: uppercase; color: rgba(148,163,184,0.3);
-      margin-bottom: 0.65rem; font-family: 'Geist Mono', monospace;
+      font-size:.5rem; font-weight:700; letter-spacing:.12em;
+      text-transform:uppercase; color:rgba(148,163,184,0.28);
+      margin-bottom:.6rem; font-family:'Geist Mono',monospace;
     }
-    .mc3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 0.2rem; }
-    .mc2 { display: grid; grid-template-columns: repeat(2,1fr); gap: 0.2rem; }
+    .mc3 { display:grid; grid-template-columns:repeat(3,1fr); gap:.18rem; }
+    .mc2 { display:grid; grid-template-columns:repeat(2,1fr); gap:.18rem; }
+
     .mi {
-      display: flex; align-items: center; gap: 0.55rem;
-      padding: 0.55rem 0.65rem; border-radius: 0.75rem;
-      background: rgba(255,255,255,0.02); border: 1px solid transparent;
-      transition: all var(--r); cursor: pointer; text-decoration: none;
+      display:flex; align-items:center; gap:.5rem;
+      padding:.5rem .6rem; border-radius:.7rem;
+      background:rgba(255,255,255,0.02);
+      border:1px solid transparent;
+      transition:all var(--r); text-decoration:none;
     }
-    .mi:hover { background: rgba(255,255,255,0.055); border-color: rgba(255,255,255,0.07); }
+    .mi:hover { background:rgba(255,255,255,0.052); border-color:rgba(255,255,255,0.07); }
     .mi-ic {
-      width: 2rem; height: 2rem; border-radius: 0.6rem;
-      background: rgba(124,58,237,0.1); border: 1px solid rgba(124,58,237,0.16);
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0; transition: all var(--r);
+      width:1.9rem; height:1.9rem; border-radius:.55rem;
+      background:rgba(124,58,237,0.1);
+      border:1px solid rgba(124,58,237,0.16);
+      display:flex; align-items:center; justify-content:center;
+      flex-shrink:0; transition:all var(--r);
     }
-    .mi-ic svg { width: 0.82rem; height: 0.82rem; color: var(--vl); }
-    .mi:hover .mi-ic { background: rgba(124,58,237,0.22); border-color: rgba(124,58,237,0.35); }
-    .mi-lb { font-size: 0.73rem; font-weight: 600; color: var(--t); display: flex; align-items: center; gap: 0.3rem; }
-    .mi-dc { font-size: 0.63rem; color: var(--m); margin-top: 0.08rem; }
+    .mi-ic svg { width:.78rem; height:.78rem; color:var(--vl); }
+    .mi:hover .mi-ic { background:rgba(124,58,237,0.22); border-color:rgba(124,58,237,0.35); }
+    .mi-lb { font-size:.7rem; font-weight:600; color:var(--t); display:flex; align-items:center; gap:.28rem; }
+    .mi-dc { font-size:.6rem; color:var(--m); margin-top:.06rem; }
+
     .mbg {
-      font-size: 0.48rem; font-weight: 800; letter-spacing: 0.04em;
-      text-transform: uppercase; padding: 0.1rem 0.32rem; border-radius: 999px;
-      font-family: 'Geist Mono', monospace;
+      font-size:.46rem; font-weight:800; letter-spacing:.04em;
+      text-transform:uppercase; padding:.08rem .28rem; border-radius:999px;
+      font-family:'Geist Mono',monospace;
     }
-    .mbg-n { background: rgba(34,211,238,0.12); color: #67e8f9; border: 1px solid rgba(34,211,238,0.2); }
-    .mbg-h { background: rgba(248,113,113,0.12); color: #fca5a5; border: 1px solid rgba(248,113,113,0.2); }
-    .mbg-t { background: rgba(245,158,11,0.12); color: #fcd34d; border: 1px solid rgba(245,158,11,0.2); }
-    .pb-cta { padding: 0.9rem 1.4rem; border-top: 1px solid rgba(255,255,255,0.04); background: rgba(0,0,0,0.08); }
+    .mbg-n { background:rgba(34,211,238,0.12); color:#67e8f9; border:1px solid rgba(34,211,238,0.2); }
+    .mbg-h { background:rgba(248,113,113,0.12); color:#fca5a5; border:1px solid rgba(248,113,113,0.2); }
+    .mbg-t { background:rgba(245,158,11,0.12);  color:#fcd34d; border:1px solid rgba(245,158,11,0.2); }
+
+    /* CTA footer */
+    .pb-cta { padding:.85rem 1.3rem; border-top:1px solid rgba(255,255,255,0.04); background:rgba(0,0,0,0.08); }
     .pb-cta-link {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 0.75rem 1.1rem; border-radius: 0.9rem;
-      background: linear-gradient(135deg,
-        rgba(109,40,217,0.12), rgba(30,64,175,0.12), rgba(34,211,238,0.06));
-      border: 1px solid rgba(109,40,217,0.18);
-      transition: all var(--r); text-decoration: none;
+      display:flex; align-items:center; justify-content:space-between;
+      padding:.7rem 1.1rem; border-radius:.85rem;
+      background:linear-gradient(135deg,
+        rgba(109,40,217,0.12),rgba(30,64,175,0.12),rgba(34,211,238,0.06));
+      border:1px solid rgba(109,40,217,0.18);
+      transition:all var(--r); text-decoration:none;
     }
-    .pb-cta-link:hover { border-color: rgba(109,40,217,0.38); box-shadow: 0 0 20px rgba(109,40,217,0.12); }
-    .cta-t { font-size: 0.78rem; font-weight: 700; color: #fff; }
-    .cta-d { font-size: 0.68rem; color: var(--m); margin-top: 0.08rem; }
+    .pb-cta-link:hover { border-color:rgba(109,40,217,0.38); box-shadow:0 0 20px rgba(109,40,217,0.12); }
+    .cta-t { font-size:.76rem; font-weight:700; color:#fff; }
+    .cta-d { font-size:.64rem; color:var(--m); margin-top:.06rem; }
     .cta-arr {
-      width: 1.8rem; height: 1.8rem; border-radius: 50%;
-      background: rgba(109,40,217,0.2); border: 1px solid rgba(109,40,217,0.28);
-      display: flex; align-items: center; justify-content: center; transition: all var(--r);
+      width:1.7rem; height:1.7rem; border-radius:50%;
+      background:rgba(109,40,217,0.2); border:1px solid rgba(109,40,217,0.28);
+      display:flex; align-items:center; justify-content:center;
+      transition:all var(--r);
     }
-    .pb-cta-link:hover .cta-arr { background: rgba(109,40,217,0.45); }
-    .cta-arr svg { width: 0.75rem; height: 0.75rem; color: var(--vl); }
+    .pb-cta-link:hover .cta-arr { background:rgba(109,40,217,0.45); }
+    .cta-arr svg { width:.7rem; height:.7rem; color:var(--vl); }
 
     /* ══════════════════════════════════════════
        MOBILE MENU
     ══════════════════════════════════════════ */
     #mm {
-      position: absolute; left: 0; right: 0; top: calc(100% + 0.5rem);
-      border-radius: 1.25rem; overflow: hidden;
-      display: none; z-index: 8998;
-      max-height: calc(100dvh - 12rem);
-      overflow-y: auto;
-      background: linear-gradient(160deg, rgba(12,8,36,0.97) 0%, rgba(7,7,20,0.98) 100%);
-      backdrop-filter: blur(70px) saturate(2.5);
-      -webkit-backdrop-filter: blur(70px) saturate(2.5);
-      border: 1px solid rgba(255,255,255,0.07);
-      box-shadow: 0 30px 80px rgba(0,0,0,0.85);
+      position:absolute; left:0; right:0;
+      top:calc(100% + .45rem);
+      border-radius:1.2rem; overflow:hidden;
+      display:none; z-index:8998;
+      max-height:calc(100dvh - var(--chrome) - 1.5rem);
+      overflow-y:auto;
+      background:linear-gradient(160deg,rgba(12,8,36,.97) 0%,rgba(7,7,20,.98) 100%);
+      backdrop-filter:blur(70px) saturate(2.5);
+      -webkit-backdrop-filter:blur(70px) saturate(2.5);
+      border:1px solid rgba(255,255,255,0.07);
+      box-shadow:0 30px 80px rgba(0,0,0,.88);
     }
-    #mm.open { display: block; animation: mpIn .22s ease forwards; }
-    .mm-in { padding: 0.85rem; }
+    #mm.open { display:block; animation:mpIn .22s ease forwards; }
+    .mm-in { padding:.8rem; }
 
+    /* outage notice */
     .mm-outage {
-      display: flex; align-items: center; gap: 0.5rem;
-      padding: 0.55rem 0.8rem; border-radius: 0.85rem;
-      background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.22);
-      margin-bottom: 0.7rem;
+      display:flex; align-items:center; gap:.45rem;
+      padding:.5rem .75rem; border-radius:.8rem;
+      background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.22);
+      margin-bottom:.65rem;
     }
-    .mm-outage svg { width: 0.85rem; height: 0.85rem; color: var(--redl); flex-shrink: 0; animation: outagePulse 1.5s ease-in-out infinite; }
-    .mm-outage-text { font-size: 0.73rem; font-weight: 600; color: var(--redl); flex: 1; }
-    .mm-outage-text small { display: block; font-size: 0.62rem; color: rgba(252,165,165,0.6); font-weight: 400; margin-top: 0.05rem; }
+    .mm-outage svg { width:.8rem; height:.8rem; color:var(--redl); flex-shrink:0; animation:outagePulse 1.5s ease-in-out infinite; }
+    .mm-outage-text { font-size:.7rem; font-weight:600; color:var(--redl); flex:1; }
+    .mm-outage-text small { display:block; font-size:.6rem; color:rgba(252,165,165,.55); font-weight:400; margin-top:.04rem; }
 
+    /* search */
     .mm-srch {
-      display: flex; align-items: center; gap: 0.45rem;
-      padding: 0.45rem 0.75rem; border-radius: 0.75rem;
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(255,255,255,0.06); margin-bottom: 0.75rem;
+      display:flex; align-items:center; gap:.4rem;
+      padding:.42rem .7rem; border-radius:999px;
+      background:rgba(255,255,255,0.04);
+      border:1px solid rgba(255,255,255,0.06);
+      margin-bottom:.7rem;
     }
-    .mm-srch svg { width: 0.75rem; height: 0.75rem; color: var(--m); flex-shrink: 0; }
+    .mm-srch svg { width:.72rem; height:.72rem; color:var(--m); flex-shrink:0; }
     .mm-srch input {
-      flex: 1; background: none; border: none; outline: none;
-      font-size: 0.78rem; color: var(--t); font-family: 'Outfit', system-ui, sans-serif;
+      flex:1; background:none; border:none; outline:none;
+      font-size:.76rem; color:var(--t);
+      font-family:'Outfit',system-ui,sans-serif;
     }
-    .mm-quick { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 0.75rem; }
+
+    /* quick links */
+    .mm-quick { display:flex; flex-wrap:wrap; gap:.32rem; margin-bottom:.7rem; }
     .mm-ql {
-      display: inline-flex; align-items: center; gap: 0.25rem;
-      padding: 0.38rem 0.75rem; border-radius: 999px;
-      font-size: 0.7rem; font-weight: 600; color: var(--m);
-      background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
-      text-decoration: none; white-space: nowrap;
+      display:inline-flex; align-items:center; gap:.22rem;
+      padding:.34rem .72rem; border-radius:999px;
+      font-size:.68rem; font-weight:600; color:var(--m);
+      background:rgba(255,255,255,0.03);
+      border:1px solid rgba(255,255,255,0.06);
+      text-decoration:none; white-space:nowrap;
+      transition:all var(--r);
     }
-    .mm-ql svg { color: var(--vl); width: 0.7rem; height: 0.7rem; }
-    .mm-ql:hover { color: var(--t); background: rgba(255,255,255,0.07); }
-    .mm-ql.hl { color: var(--amberl); border-color: rgba(245,158,11,0.18); background: rgba(245,158,11,0.05); }
-    .mm-ql.hl svg { color: var(--amberl); }
-    .mm-div { height: 1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent); margin: 0.55rem 0; }
-    .ma { border-radius: 0.85rem; margin-bottom: 0.2rem; border: 1px solid transparent; overflow: hidden; }
-    .ma[open] { border-color: rgba(124,58,237,0.14); background: rgba(124,58,237,0.025); }
+    .mm-ql:hover { color:var(--t); background:rgba(255,255,255,0.07); }
+    .mm-ql.hl { color:var(--amberl); border-color:rgba(245,158,11,.18); background:rgba(245,158,11,.05); }
+
+    .mm-div { height:1px; background:linear-gradient(90deg,transparent,rgba(255,255,255,0.05),transparent); margin:.5rem 0; }
+
+    /* accordion sections */
+    .ma { border-radius:.8rem; margin-bottom:.18rem; border:1px solid transparent; overflow:hidden; }
+    .ma[open] { border-color:rgba(124,58,237,0.14); background:rgba(124,58,237,.022); }
     .ma summary {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 0.55rem 0.85rem; border-radius: 0.75rem;
-      font-size: 0.78rem; font-weight: 600; color: var(--m);
-      cursor: pointer; list-style: none;
-      background: rgba(255,255,255,0.02); transition: all var(--r);
+      display:flex; align-items:center; justify-content:space-between;
+      padding:.5rem .8rem; border-radius:.75rem;
+      font-size:.76rem; font-weight:600; color:var(--m);
+      cursor:pointer; list-style:none;
+      background:rgba(255,255,255,.02); transition:all var(--r);
     }
-    .ma summary:hover { color: var(--t); background: rgba(255,255,255,0.05); }
-    .ma[open] summary { color: var(--t); border-radius: 0.75rem 0.75rem 0 0; }
-    .ma-left { display: flex; align-items: center; gap: 0.45rem; }
-    .ma-left svg { width: 0.85rem; height: 0.85rem; color: var(--vl); }
-    .ma-chv { width: 0.75rem; height: 0.75rem; opacity: 0.35; transition: transform var(--r); flex-shrink: 0; }
-    .ma[open] .ma-chv { transform: rotate(180deg); opacity: 0.6; }
-    .ma-body { padding: 0.2rem 0.5rem 0.6rem 2rem; display: grid; grid-template-columns: 1fr 1fr; gap: 0.08rem; }
+    .ma summary:hover { color:var(--t); background:rgba(255,255,255,.05); }
+    .ma[open] summary { color:var(--t); border-radius:.75rem .75rem 0 0; }
+    .ma-left { display:flex; align-items:center; gap:.42rem; }
+    .ma-left svg { width:.8rem; height:.8rem; color:var(--vl); }
+    .ma-chv { width:.7rem; height:.7rem; opacity:.32; transition:transform var(--r); flex-shrink:0; }
+    .ma[open] .ma-chv { transform:rotate(180deg); opacity:.55; }
+    .ma-body { padding:.18rem .45rem .55rem 1.85rem; display:grid; grid-template-columns:1fr 1fr; gap:.06rem; }
     .ma-sl {
-      display: flex; align-items: center; gap: 0.35rem;
-      padding: 0.38rem 0.55rem; border-radius: 0.6rem;
-      font-size: 0.69rem; font-weight: 500; color: rgba(148,163,184,0.75);
-      border: 1px solid transparent; text-decoration: none; transition: all var(--r);
+      display:flex; align-items:center; gap:.32rem;
+      padding:.35rem .5rem; border-radius:999px;
+      font-size:.67rem; font-weight:500; color:rgba(148,163,184,.72);
+      border:1px solid transparent; text-decoration:none; transition:all var(--r);
     }
-    .ma-sl svg { width: 0.6rem; height: 0.6rem; color: rgba(167,139,250,0.45); }
-    .ma-sl:hover { color: var(--t); background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.05); }
+    .ma-sl:hover { color:var(--t); background:rgba(255,255,255,.05); border-color:rgba(255,255,255,.05); }
+
+    /* mobile CTA */
     .mm-cta {
-      display: flex; align-items: center; justify-content: center; gap: 0.45rem;
-      padding: 0.75rem; border-radius: 999px;
-      font-size: 0.78rem; font-weight: 700; color: #fff;
-      background: linear-gradient(135deg, rgba(109,40,217,0.8) 0%, rgba(30,64,175,0.8) 100%);
-      border: 1px solid rgba(167,139,250,0.3);
-      box-shadow: 0 2px 16px rgba(109,40,217,0.35), inset 0 1px 0 rgba(255,255,255,0.1);
-      margin-top: 0.75rem; text-decoration: none;
-      transition: all var(--r);
+      display:flex; align-items:center; justify-content:center; gap:.42rem;
+      padding:.7rem; border-radius:999px;
+      font-size:.76rem; font-weight:700; color:#fff;
+      background:linear-gradient(135deg,rgba(109,40,217,.8) 0%,rgba(30,64,175,.8) 100%);
+      border:1px solid rgba(167,139,250,0.32);
+      box-shadow:0 2px 16px rgba(109,40,217,.35),inset 0 1px 0 rgba(255,255,255,.1);
+      margin-top:.7rem; text-decoration:none;
+      transition:all var(--r);
     }
     .mm-cta:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 4px 24px rgba(109,40,217,0.55), inset 0 1px 0 rgba(255,255,255,0.15);
-      border-color: rgba(167,139,250,0.5);
+      transform:translateY(-1px);
+      box-shadow:0 4px 24px rgba(109,40,217,.55),inset 0 1px 0 rgba(255,255,255,.16);
+      border-color:rgba(167,139,250,.5);
     }
-    .mm-cta svg { width: 0.78rem; height: 0.78rem; }
+    .mm-cta svg { width:.75rem; height:.75rem; }
 
     /* ══════════════════════════════════════════
-       PAGE BODY fix: content never hides under nav
+       FOOTER (base template)
     ══════════════════════════════════════════ */
-    .page-body {
-      flex: 1;
-    }
-
-    /* ══════════════════════════════════════════
-       FOOTER
-    ══════════════════════════════════════════ */
-    .footer {
-      margin-top: 4rem; padding-top: 3rem;
-      border-top: 1px solid rgba(255,255,255,0.05);
+    .site-footer {
+      margin-top:5rem; padding-top:3rem;
+      border-top:1px solid rgba(255,255,255,0.05);
       background:
-        radial-gradient(circle at top left, rgba(124,58,237,0.07), transparent 35%),
-        radial-gradient(circle at top right, rgba(34,211,238,0.05), transparent 35%);
+        radial-gradient(circle at top left,rgba(124,58,237,0.07),transparent 35%),
+        radial-gradient(circle at top right,rgba(34,211,238,0.05),transparent 35%);
+      backdrop-filter:blur(10px);
     }
-    .footer-inner {
-      max-width: 1280px; margin: 0 auto; padding: 0 1.25rem 2rem;
-      display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: 2rem;
+    .site-footer-inner {
+      max-width:1280px; margin:0 auto; padding:0 1.5rem 2.5rem;
+      display:grid; grid-template-columns:repeat(auto-fit,minmax(9rem,1fr)); gap:2rem;
     }
-    .footer h4 { font-size: 0.85rem; margin-bottom: 0.75rem; font-weight: 700; }
-    .footer a { display: block; font-size: 0.73rem; color: var(--m); margin-bottom: 0.45rem; transition: 0.2s; }
-    .footer a:hover { color: var(--vl); transform: translateX(3px); }
-    .footer-bottom {
-      border-top: 1px solid rgba(255,255,255,0.07); background: rgba(255,255,255,0.012);
-      padding: 1.2rem; text-align: center; font-size: 0.68rem; color: var(--m);
+    .site-footer h4 {
+      font-size:.75rem; margin-bottom:.7rem; font-weight:700;
+      text-transform:uppercase; letter-spacing:.06em;
+      color:var(--vl); font-family:'Geist Mono',monospace;
     }
-    .footer-bottom .made { display: flex; align-items: center; justify-content: center; gap: 0.3rem; flex-wrap: wrap; }
-    .footer-bottom .heart { color: #ff4d8d; animation: pulse 1.5s infinite; }
-    @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.15)} }
-    .footer-bottom a { color: #a78bfa; font-weight: 700; display: inline; margin: 0; }
-    .footer-bottom a:hover { color: #c4b5fd; }
-    .footer-brand { display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.5rem; font-size: 0.88rem; font-weight: 700; }
-    .footer-brand-icon { font-size: 1.1rem; }
+    .site-footer a {
+      display:block; font-size:.73rem; color:var(--m);
+      margin-bottom:.42rem; transition:.2s;
+    }
+    .site-footer a:hover { color:var(--vl); transform:translateX(3px); }
+    .site-footer-bottom {
+      border-top:1px solid rgba(255,255,255,0.06);
+      background:rgba(255,255,255,.01);
+      padding:1.25rem; text-align:center;
+      font-size:.66rem; color:var(--m);
+    }
+    .site-footer-bottom .made {
+      display:flex; align-items:center; justify-content:center;
+      gap:.3rem; flex-wrap:wrap;
+    }
+    .site-footer-bottom .heart { color:#ff4d8d; animation:pulse 1.5s infinite; }
+    .site-footer-bottom a { color:var(--vl); font-weight:700; display:inline; margin:0; }
+    .site-footer-bottom a:hover { color:#c4b5fd; }
+    .footer-brand-wrap { display:flex; align-items:center; gap:.4rem; margin-bottom:.5rem; }
     .footer-brand-name {
-      background: linear-gradient(135deg, var(--vl) 30%, var(--c) 100%);
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-      background-clip: text;
+      background:linear-gradient(135deg,var(--vl) 30%,var(--c) 100%);
+      -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+      background-clip:text; font-size:.9rem; font-weight:900;
     }
 
     /* ══════════════════════════════════════════
        RESPONSIVE
     ══════════════════════════════════════════ */
     @media (max-width: 1100px) {
-      #nav-center { display: none; }
-      .nav-mob-btn { display: flex; }
-      .nav-outage-pill { display: none; }
+      #nav-center { display:none; }
+      .nav-mob-btn { display:flex; }
+      .nav-outage-pill { display:none; }
     }
     @media (max-width: 700px) {
-      .nav-cta { display: none; }
-      #nw { padding: 0 0.5rem; }
-      #nb { height: 3.2rem; }
-      .nav-brand { padding: 0 0.75rem; }
-      .outage-inner { padding: 0 0.75rem; gap: 0.4rem; }
-      .outage-badge { display: none; }
-      .outage-link { display: none; }
-      .trust-inner { padding: 0 0.75rem; gap: 0.5rem; }
-      .trust-stats { display: none; }
-      .trust-cta { display: none; }
-      .trust-sep { display: none; }
-      .footer-inner { grid-template-columns: 1fr 1fr; gap: 1.4rem; }
-      #mm { max-height: calc(100dvh - 10rem); }
+      :root { --nav-h: 3.2rem; }
+      .nav-cta { display:none; }
+      #nw { padding:0 .4rem; }
+      .nav-brand { padding:0 .7rem; }
+      .outage-badge { display:none; }
+      .outage-link { display:none; }
+      .trust-stats { display:none; }
+      .trust-cta  { display:none; }
+      .trust-vsep { display:none; }
+      .site-footer-inner { grid-template-columns:1fr 1fr; gap:1.25rem; }
     }
     @media (max-width: 420px) {
-      .nav-name { font-size: 0.8rem; }
-      .footer-inner { grid-template-columns: 1fr; }
-      .trust-live { display: none; }
+      .trust-live { display:none; }
+      .nav-name { font-size:.76rem; }
+      .site-footer-inner { grid-template-columns:1fr; }
     }
   </style>
 </head>
 <body>
 <div class="page-wrapper">
 
-  <!-- ══════ OUTAGE BANNER ══════ -->
-  <div id="outage-bar">
-    <div class="outage-inner">
-      <div class="outage-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-          <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-        </svg>
-      </div>
-      <span class="outage-badge">Dashboard · Ausfall</span>
-      <span class="outage-text">
-        <strong>Das Web-Dashboard ist aktuell nicht erreichbar.</strong>
-        Wir arbeiten an einer Lösung – der Bot läuft stabil weiter.
-      </span>
-      <a href="/status" class="outage-link">
-        Status
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <polyline points="9 18 15 12 9 6"/>
-        </svg>
-      </a>
+<!-- ══════ OUTAGE BAR ══════ -->
+<div id="outage-bar">
+  <div class="outage-inner">
+    <div class="outage-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+        <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+      </svg>
     </div>
+    <span class="outage-badge">Dashboard · Ausfall</span>
+    <span class="outage-text">
+      <strong>Das Web-Dashboard ist aktuell nicht erreichbar.</strong>
+      Wir arbeiten an einer Lösung – der Bot läuft stabil weiter.
+    </span>
+    <a href="/status" class="outage-link">
+      Status
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <polyline points="9 18 15 12 9 6"/>
+      </svg>
+    </a>
   </div>
-
-  <!-- ══════ TRUST BANNER — redesigned ══════ -->
-  <div id="trust-bar">
-    <div class="trust-bg"></div>
-    <div class="trust-scan"></div>
-    <div class="trust-inner">
-
-      <!-- Live badge -->
-      <div class="trust-live">
-        <span class="trust-dot"></span>
-        <span class="trust-live-label">Live</span>
-      </div>
-
-      <span class="trust-sep"></span>
-
-      <!-- Stats -->
-      <div class="trust-stats">
-        <div class="trust-stat">
-          <span class="trust-stat-num">100+</span>
-          <span class="trust-stat-label">Server</span>
-        </div>
-        <span class="trust-sep"></span>
-        <div class="trust-stat">
-          <span class="trust-stat-num">99.9%</span>
-          <span class="trust-stat-label">Uptime</span>
-        </div>
-        <span class="trust-sep"></span>
-        <div class="trust-stat">
-          <span class="trust-stat-num">24/7</span>
-          <span class="trust-stat-label">Schutz</span>
-        </div>
-      </div>
-
-      <span class="trust-sep"></span>
-
-      <!-- Scrolling text -->
-      <div class="trust-marquee-wrap">
-        <div class="trust-marquee">
-          <!-- Items repeated twice for seamless loop -->
-          <div class="trust-marquee-item">
-            <span>Vertraut von über</span>
-            <strong>100+ Communities</strong>
-            <span class="dot-sep"></span>
-          </div>
-          <div class="trust-marquee-item">
-            <span>ModForge schützt Discord-Server</span>
-            <strong class="hi">weltweit</strong>
-            <span class="dot-sep"></span>
-          </div>
-          <div class="trust-marquee-item">
-            <span>Anti-Nuke · Anti-Raid ·</span>
-            <strong>AutoMod 2.0</strong>
-            <span class="dot-sep"></span>
-          </div>
-          <div class="trust-marquee-item">
-            <span>KI-gestützte Echtzeit-Moderation</span>
-            <span class="dot-sep"></span>
-          </div>
-          <div class="trust-marquee-item">
-            <span>Vertraut von über</span>
-            <strong>100+ Communities</strong>
-            <span class="dot-sep"></span>
-          </div>
-          <div class="trust-marquee-item">
-            <span>ModForge schützt Discord-Server</span>
-            <strong class="hi">weltweit</strong>
-            <span class="dot-sep"></span>
-          </div>
-          <div class="trust-marquee-item">
-            <span>Anti-Nuke · Anti-Raid ·</span>
-            <strong>AutoMod 2.0</strong>
-            <span class="dot-sep"></span>
-          </div>
-          <div class="trust-marquee-item">
-            <span>KI-gestützte Echtzeit-Moderation</span>
-            <span class="dot-sep"></span>
-          </div>
-        </div>
-      </div>
-
-      <!-- CTA -->
-      <a href="/features" class="trust-cta">
-        Mehr erfahren
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <polyline points="9 18 15 12 9 6"/>
-        </svg>
-      </a>
-
-    </div>
-  </div>
-
-  <!-- ══════ HEADER ══════ -->
-  <header id="sh">
-    <div id="nw">
-      <div id="nb">
-
-        <!-- Brand -->
-        <a href="/" class="nav-brand">
-          <div class="nav-orb">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3" y="11" width="18" height="10" rx="2"/>
-              <circle cx="12" cy="5" r="2"/><path d="M12 7v4"/>
-            </svg>
-            <span class="nav-orb-dot"></span>
-          </div>
-          <div class="nav-wordmark">
-            <span class="nav-name">ModForge</span>
-            <span class="nav-version">v3.0 · Online</span>
-          </div>
-        </a>
-
-        <!-- Center nav -->
-        <nav id="nav-center">
-          <a href="/" class="nl">Home</a>
-          <button class="nb-btn" data-mg="produkt">
-            Produkt <svg class="chv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
-          <button class="nb-btn" data-mg="ressourcen">
-            Ressourcen <svg class="chv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
-          <button class="nb-btn" data-mg="community">
-            Community <svg class="chv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
-          <button class="nb-btn" data-mg="support">
-            Support <svg class="chv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
-          <a href="/pricing" class="nl hl">Pricing</a>
-          <a href="/status" class="nl">Status</a>
-        </nav>
-
-        <!-- Right — always at far right edge of pill -->
-        <div id="nav-right">
-          <div class="nav-outage-pill">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-              <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-            </svg>
-            Dashboard offline
-          </div>
-          <a href="https://discord.com/api/oauth2/authorize?client_id=YOUR_CLIENT_ID&permissions=8&scope=bot%20applications.commands"
-             target="_blank" rel="noopener" class="nav-cta">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
-            Bot einladen
-          </a>
-          <!-- Hamburger — far right, round glass -->
-          <button class="nav-mob-btn" id="mtb" aria-label="Menü öffnen">
-            <svg id="ic-m" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/>
-            </svg>
-            <svg id="ic-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:none">
-              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
-          </button>
-        </div>
-      </div>
-
-      <!-- ══════ MEGA PANEL ══════ -->
-      <div id="mp">
-
-        <!-- PRODUKT -->
-        <div class="pb" data-panel="produkt">
-          <div class="pb-layout">
-            <div class="pb-sidebar">
-              <div class="pb-sidebar-title">Kategorien</div>
-              <button class="pbtab on" data-ptab="produkt" data-ptc="pt-module">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="9" height="9" rx="1"/><rect x="13" y="2" width="9" height="9" rx="1"/><rect x="2" y="13" width="9" height="9" rx="1"/><rect x="13" y="13" width="9" height="9" rx="1"/></svg>
-                <div><div>Module</div><div class="pbtab-desc">Alle Features</div></div>
-              </button>
-              <button class="pbtab" data-ptab="produkt" data-ptc="pt-tools">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-                <div><div>Tools</div><div class="pbtab-desc">Integrationen</div></div>
-              </button>
-              <button class="pbtab" data-ptab="produkt" data-ptc="pt-security">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                <div><div>Sicherheit</div><div class="pbtab-desc">Anti-Nuke & AutoMod</div></div>
-              </button>
-              <button class="pbtab" data-ptab="produkt" data-ptc="pt-premium">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                <div><div>Premium</div><div class="pbtab-desc">Pro-Features</div></div>
-              </button>
-            </div>
-            <div class="pb-content">
-              <div id="pt-module" class="ptc vis">
-                <div class="sg">Kernfunktionen</div>
-                <div class="mc3">
-                  <a href="/features" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="9" height="9" rx="1"/><rect x="13" y="2" width="9" height="9" rx="1"/><rect x="2" y="13" width="9" height="9" rx="1"/><rect x="13" y="13" width="9" height="9" rx="1"/></svg></div><div><div class="mi-lb">Alle Features</div><div class="mi-dc">Komplette Übersicht</div></div></a>
-                  <a href="/commands" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></div><div><div class="mi-lb">100+ Commands</div><div class="mi-dc">Slash & Prefix</div></div></a>
-                  <a href="/ai" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/></svg></div><div><div class="mi-lb">AI Features <span class="mbg mbg-n">Neu</span></div><div class="mi-dc">GPT-4 Integration</div></div></a>
-                  <a href="/economy" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div><div><div class="mi-lb">Economy System</div><div class="mi-dc">Coins, Shop & Gambling</div></div></a>
-                  <a href="/docs/music" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div><div><div class="mi-lb">Music Player</div><div class="mi-dc">Lavalink Audio</div></div></a>
-                  <a href="/badges" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg></div><div><div class="mi-lb">Badges & XP</div><div class="mi-dc">Achievement-System</div></div></a>
-                </div>
-              </div>
-              <div id="pt-tools" class="ptc">
-                <div class="sg">Tools & Integrationen</div>
-                <div class="mc3">
-                  <a href="/templates" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg></div><div><div class="mi-lb">Server Templates</div><div class="mi-dc">Vorgefertigte Setups</div></div></a>
-                  <a href="/integrations" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4m0 14v4M4.22 4.22l2.83 2.83m9.9 9.9 2.83 2.83M1 12h4m14 0h4M4.22 19.78l2.83-2.83m9.9-9.9 2.83-2.83"/></svg></div><div><div class="mi-lb">Integrationen</div><div class="mi-dc">Twitch, YouTube, GitHub</div></div></a>
-                  <a href="/widgets" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div><div><div class="mi-lb">Embed Widgets</div><div class="mi-dc">Stats für deine Website</div></div></a>
-                  <a href="/migrate" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.41"/></svg></div><div><div class="mi-lb">Migration <span class="mbg mbg-h">Hot</span></div><div class="mi-dc">Von MEE6, Dyno & Co.</div></div></a>
-                  <a href="/emojis" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></div><div><div class="mi-lb">Emoji Pack</div><div class="mi-dc">Custom Emojis</div></div></a>
-                  <a href="/api-docs" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div><div><div class="mi-lb">API</div><div class="mi-dc">REST API Referenz</div></div></a>
-                </div>
-              </div>
-              <div id="pt-security" class="ptc">
-                <div class="sg">Schutz & Moderation</div>
-                <div class="mc2" style="max-width:560px">
-                  <a href="/docs/automod" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div><div><div class="mi-lb">AutoMod 2.0</div><div class="mi-dc">KI-Schutz in Echtzeit</div></div></a>
-                  <a href="/docs/tickets" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 0 0-2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3a2 2 0 0 0 0-4V7a2 2 0 0 0-2-2H5z"/></svg></div><div><div class="mi-lb">Ticket System</div><div class="mi-dc">Dropdown-Panels</div></div></a>
-                  <a href="/security" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div><div><div class="mi-lb">Anti-Nuke</div><div class="mi-dc">Server-Schutz</div></div></a>
-                  <a href="/docs/moderation" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div><div><div class="mi-lb">Moderation</div><div class="mi-dc">Mod-Befehle & Cases</div></div></a>
-                </div>
-              </div>
-              <div id="pt-premium" class="ptc">
-                <div class="sg">Premium Features</div>
-                <div class="mc2" style="max-width:560px">
-                  <a href="/premium" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div><div><div class="mi-lb">Premium <span class="mbg mbg-t">Pro</span></div><div class="mi-dc">Alle Pro-Features</div></div></a>
-                  <a href="/docs/music" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/></svg></div><div><div class="mi-lb">24/7 Music</div><div class="mi-dc">Non-Stop Audio</div></div></a>
-                  <a href="/branding" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div><div><div class="mi-lb">Custom Branding</div><div class="mi-dc">Eigenes Branding</div></div></a>
-                  <a href="/support" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/></svg></div><div><div class="mi-lb">Priority Support</div><div class="mi-dc">Direkter Dev-Zugang</div></div></a>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="pb-cta"><a href="/premium" class="pb-cta-link"><div><div class="cta-t">Premium freischalten</div><div class="cta-d">24/7 Music, Custom Branding & Priority Support</div></div><div class="cta-arr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg></div></a></div>
-        </div>
-
-        <!-- RESSOURCEN -->
-        <div class="pb" data-panel="ressourcen">
-          <div class="pb-layout">
-            <div class="pb-sidebar">
-              <div class="pb-sidebar-title">Kategorien</div>
-              <button class="pbtab on" data-ptab="ressourcen" data-ptc="rr-lernen">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-                <div><div>Lernen</div><div class="pbtab-desc">Guides & Tutorials</div></div>
-              </button>
-              <button class="pbtab" data-ptab="ressourcen" data-ptc="rr-dev">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-                <div><div>Entwickler</div><div class="pbtab-desc">API & Changelog</div></div>
-              </button>
-              <button class="pbtab" data-ptab="ressourcen" data-ptc="rr-mehr">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-                <div><div>Mehr</div><div class="pbtab-desc">Blog & Downloads</div></div>
-              </button>
-            </div>
-            <div class="pb-content">
-              <div id="rr-lernen" class="ptc vis">
-                <div class="sg">Lernmaterialien</div>
-                <div class="mc2" style="max-width:540px">
-                  <a href="/docs" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></div><div><div class="mi-lb">Dokumentation</div><div class="mi-dc">Vollständiger Guide</div></div></a>
-                  <a href="/tutorials" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></div><div><div class="mi-lb">Video Tutorials</div><div class="mi-dc">8+ Anleitungen</div></div></a>
-                  <a href="/faq" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div><div><div class="mi-lb">FAQ</div><div class="mi-dc">Häufige Fragen</div></div></a>
-                  <a href="/docs/setup" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div><div><div class="mi-lb">Setup Guide</div><div class="mi-dc">In 2 Min startklar</div></div></a>
-                </div>
-              </div>
-              <div id="rr-dev" class="ptc">
-                <div class="sg">Für Entwickler</div>
-                <div class="mc2" style="max-width:540px">
-                  <a href="/api-docs" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div><div><div class="mi-lb">API Docs</div><div class="mi-dc">REST API Referenz</div></div></a>
-                  <a href="/changelog" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><div><div class="mi-lb">Changelog</div><div class="mi-dc">Alle Updates</div></div></a>
-                  <a href="/roadmap" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div><div><div class="mi-lb">Roadmap</div><div class="mi-dc">Was kommt als nächstes</div></div></a>
-                  <a href="/branding" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div><div><div class="mi-lb">Brand Kit</div><div class="mi-dc">Logos & Farben</div></div></a>
-                </div>
-              </div>
-              <div id="rr-mehr" class="ptc">
-                <div class="sg">Weitere Ressourcen</div>
-                <div class="mc2" style="max-width:540px">
-                  <a href="/migrate" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.41"/></svg></div><div><div class="mi-lb">Migration <span class="mbg mbg-h">Hot</span></div><div class="mi-dc">Von MEE6 & Co.</div></div></a>
-                  <a href="/blog" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><div><div class="mi-lb">Blog & News</div><div class="mi-dc">Updates & Guides</div></div></a>
-                  <a href="/downloads" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"/></svg></div><div><div class="mi-lb">Downloads</div><div class="mi-dc">Apps & Assets</div></div></a>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="pb-cta"><a href="/migrate" class="pb-cta-link"><div><div class="cta-t">Kostenlos migrieren</div><div class="cta-d">Von MEE6, Dyno & Co.</div></div><div class="cta-arr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg></div></a></div>
-        </div>
-
-        <!-- COMMUNITY -->
-        <div class="pb" data-panel="community">
-          <div class="pb-layout">
-            <div class="pb-sidebar">
-              <div class="pb-sidebar-title">Kategorien</div>
-              <button class="pbtab on" data-ptab="community" data-ptc="cm-join">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-                <div><div>Mitmachen</div><div class="pbtab-desc">Partner & Affiliate</div></div>
-              </button>
-              <button class="pbtab" data-ptab="community" data-ptc="cm-showcase">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/></svg>
-                <div><div>Showcase</div><div class="pbtab-desc">Top Communities</div></div>
-              </button>
-              <button class="pbtab" data-ptab="community" data-ptc="cm-about">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-                <div><div>Über uns</div><div class="pbtab-desc">Team & Karriere</div></div>
-              </button>
-            </div>
-            <div class="pb-content">
-              <div id="cm-join" class="ptc vis">
-                <div class="sg">Community beitreten</div>
-                <div class="mc2" style="max-width:540px">
-                  <a href="/partners" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div><div><div class="mi-lb">Partner <span class="mbg mbg-t">Top</span></div><div class="mi-dc">Werbung + Premium gratis</div></div></a>
-                  <a href="/affiliate" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/></svg></div><div><div class="mi-lb">Affiliate</div><div class="mi-dc">20% Lifetime-Provision</div></div></a>
-                  <a href="/suggest" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/></svg></div><div><div class="mi-lb">Vorschläge</div><div class="mi-dc">Feature-Voting</div></div></a>
-                  <a href="/contact" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div><div><div class="mi-lb">Kontakt</div><div class="mi-dc">Nimm Verbindung auf</div></div></a>
-                </div>
-              </div>
-              <div id="cm-showcase" class="ptc">
-                <div class="sg">Community Showcase</div>
-                <div class="mc2" style="max-width:540px">
-                  <a href="/showcase" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/></svg></div><div><div class="mi-lb">Server Showcase</div><div class="mi-dc">Top Communities</div></div></a>
-                  <a href="/testimonials" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div><div><div class="mi-lb">Bewertungen</div><div class="mi-dc">Was User sagen</div></div></a>
-                  <a href="/leaderboard" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div><div><div class="mi-lb">XP Leaderboard</div><div class="mi-dc">Globale Bestenliste</div></div></a>
-                </div>
-              </div>
-              <div id="cm-about" class="ptc">
-                <div class="sg">Über ModForge</div>
-                <div class="mc2" style="max-width:540px">
-                  <a href="/team" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div><div><div class="mi-lb">Team</div><div class="mi-dc">Lerne uns kennen</div></div></a>
-                  <a href="/jobs" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg></div><div><div class="mi-lb">Karriere</div><div class="mi-dc">Wir suchen Talente</div></div></a>
-                  <a href="/events" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg></div><div><div class="mi-lb">Events</div><div class="mi-dc">Live-Streams & Drops</div></div></a>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="pb-cta"><a href="https://discord.gg/gwryX3dbkt" target="_blank" class="pb-cta-link"><div><div class="cta-t">Discord beitreten</div><div class="cta-d">850+ Member</div></div><div class="cta-arr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg></div></a></div>
-        </div>
-
-        <!-- SUPPORT -->
-        <div class="pb" data-panel="support">
-          <div class="pb-layout">
-            <div class="pb-sidebar">
-              <div class="pb-sidebar-title">Kategorien</div>
-              <button class="pbtab on" data-ptab="support" data-ptc="sp-help">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/></svg>
-                <div><div>Hilfe</div><div class="pbtab-desc">Support & Docs</div></div>
-              </button>
-              <button class="pbtab" data-ptab="support" data-ptc="sp-status">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-                <div><div>Status</div><div class="pbtab-desc">Uptime & Vorfälle</div></div>
-              </button>
-              <button class="pbtab" data-ptab="support" data-ptc="sp-legal">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                <div><div>Rechtliches</div><div class="pbtab-desc">DSGVO & Terms</div></div>
-              </button>
-            </div>
-            <div class="pb-content">
-              <div id="sp-help" class="ptc vis">
-                <div class="sg">Hilfe & Support</div>
-                <div class="mc2" style="max-width:540px">
-                  <a href="/support" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/></svg></div><div><div class="mi-lb">Support-Center</div><div class="mi-dc">Hilfe-Übersicht</div></div></a>
-                  <a href="/faq" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div><div><div class="mi-lb">FAQ</div><div class="mi-dc">Häufige Fragen</div></div></a>
-                  <a href="/contact" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/></svg></div><div><div class="mi-lb">Kontakt</div><div class="mi-dc">Wir antworten schnell</div></div></a>
-                  <a href="/docs" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></div><div><div class="mi-lb">Dokumentation</div><div class="mi-dc">Anleitungen</div></div></a>
-                </div>
-              </div>
-              <div id="sp-status" class="ptc">
-                <div class="sg">System Status</div>
-                <div class="mc2" style="max-width:540px">
-                  <a href="/status" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div><div><div class="mi-lb">Live Status</div><div class="mi-dc">99.9% Uptime</div></div></a>
-                  <a href="/uptime" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div><div><div class="mi-lb">Uptime Monitor</div><div class="mi-dc">Live-Counter</div></div></a>
-                  <a href="/status/incidents" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div><div><div class="mi-lb">Vorfälle</div><div class="mi-dc">Historie & Updates</div></div></a>
-                </div>
-              </div>
-              <div id="sp-legal" class="ptc">
-                <div class="sg">Rechtliches & Datenschutz</div>
-                <div class="mc2" style="max-width:540px">
-                  <a href="/security" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div><div><div class="mi-lb">Sicherheit</div><div class="mi-dc">DSGVO & TLS 1.3</div></div></a>
-                  <a href="/privacy" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div><div><div class="mi-lb">Datenschutz</div><div class="mi-dc">Privacy Policy</div></div></a>
-                  <a href="/terms" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><div><div class="mi-lb">Nutzungsbedingungen</div><div class="mi-dc">Terms of Service</div></div></a>
-                  <a href="/legal" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg></div><div><div class="mi-lb">Impressum</div><div class="mi-dc">Rechtliche Infos</div></div></a>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="pb-cta"><a href="/premium" class="pb-cta-link"><div><div class="cta-t">Premium Support</div><div class="cta-d">Direkter Zugang zum Dev-Team</div></div><div class="cta-arr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg></div></a></div>
-        </div>
-
-      </div><!-- /#mp -->
-
-      <!-- ══════ MOBILE MENU ══════ -->
-      <div id="mm">
-        <div class="mm-in">
-
-          <div class="mm-outage">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-              <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-            </svg>
-            <div class="mm-outage-text">
-              Dashboard offline
-              <small>Wir arbeiten daran – Bot läuft stabil</small>
-            </div>
-          </div>
-
-          <div class="mm-srch">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <input type="text" id="msi" placeholder="Suche…">
-          </div>
-          <div class="mm-quick">
-            <a href="/" class="mm-ql">Home</a>
-            <a href="/pricing" class="mm-ql hl">Pricing</a>
-            <a href="/status" class="mm-ql">Status</a>
-            <a href="/login" class="mm-ql">Dashboard</a>
-          </div>
-          <div class="mm-div"></div>
-          <details class="ma">
-            <summary><span class="ma-left"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>Produkt</span><svg class="ma-chv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></summary>
-            <div class="ma-body"><a href="/features" class="ma-sl">Alle Features</a><a href="/commands" class="ma-sl">100+ Commands</a><a href="/ai" class="ma-sl">AI Features</a><a href="/economy" class="ma-sl">Economy</a><a href="/docs/automod" class="ma-sl">AutoMod 2.0</a><a href="/docs/tickets" class="ma-sl">Ticket System</a><a href="/docs/music" class="ma-sl">Music Player</a><a href="/migrate" class="ma-sl">Migration Tool</a></div>
-          </details>
-          <details class="ma">
-            <summary><span class="ma-left"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>Ressourcen</span><svg class="ma-chv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></summary>
-            <div class="ma-body"><a href="/docs" class="ma-sl">Dokumentation</a><a href="/tutorials" class="ma-sl">Tutorials</a><a href="/faq" class="ma-sl">FAQ</a><a href="/changelog" class="ma-sl">Changelog</a><a href="/roadmap" class="ma-sl">Roadmap</a><a href="/api-docs" class="ma-sl">API Docs</a></div>
-          </details>
-          <details class="ma">
-            <summary><span class="ma-left"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>Community</span><svg class="ma-chv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></summary>
-            <div class="ma-body"><a href="/partners" class="ma-sl">Partner</a><a href="/affiliate" class="ma-sl">Affiliate</a><a href="/showcase" class="ma-sl">Showcase</a><a href="/team" class="ma-sl">Team</a><a href="/events" class="ma-sl">Events</a></div>
-          </details>
-          <details class="ma">
-            <summary><span class="ma-left"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/></svg>Support</span><svg class="ma-chv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></summary>
-            <div class="ma-body"><a href="/support" class="ma-sl">Support</a><a href="/faq" class="ma-sl">FAQ</a><a href="/contact" class="ma-sl">Kontakt</a><a href="/privacy" class="ma-sl">Datenschutz</a><a href="/terms" class="ma-sl">Nutzung</a><a href="/status" class="ma-sl">Status</a></div>
-          </details>
-          <div class="mm-div"></div>
-          <a href="https://discord.com/api/oauth2/authorize?client_id=YOUR_CLIENT_ID&permissions=8&scope=bot%20applications.commands"
-             target="_blank" class="mm-cta">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Bot einladen – Kostenlos starten
-          </a>
-        </div>
-      </div>
-
-    </div>
-  </header>
-
-  <!-- Page content goes here -->
-  <div class="page-body">
-    {% block content %}{% endblock %}
-  </div>
-
-  <!-- ══════ FOOTER ══════ -->
-  <footer class="footer">
-    <div class="footer-inner">
-      <div>
-        <div class="footer-brand">
-          <span class="footer-brand-icon">🛡️</span>
-          <span class="footer-brand-name">ModForge</span>
-        </div>
-        <p style="font-size:0.73rem;color:var(--m);line-height:1.6">
-          Security &amp; AutoMod Bot für Discord.
-        </p>
-      </div>
-      <div>
-        <h4>Links</h4>
-        <a href="/status">Status</a>
-        <a href="/changelog">Changelog</a>
-        <a href="/live">Live Aktivität</a>
-        <a href="/login">Dashboard</a>
-      </div>
-      <div>
-        <h4>Rechtliches</h4>
-        <a href="/terms">Terms of Service</a>
-        <a href="/privacy">Privacy Policy</a>
-        <a href="/imprint">Impressum</a>
-      </div>
-      <div>
-        <h4>Community</h4>
-        <a href="https://discord.gg/gwryX3dbkt" target="_blank">Support Server</a>
-        <a href="/admin/login">Admin Panel</a>
-      </div>
-    </div>
-    <div class="footer-bottom">
-      <div class="made">
-        Made with <span class="heart">❤️</span> by <a href="/team">@Fufi</a> &nbsp;·&nbsp; © 2026 ModForge
-      </div>
-      <div style="margin-top:0.3rem;opacity:0.6;">
-        Solo-developed in Germany 🇩🇪 · Not affiliated with Discord Inc.
-      </div>
-    </div>
-  </footer>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<!-- ══════ TRUST BAR ══════ -->
+<div id="trust-bar">
+  <div class="trust-bg"></div>
+  <div class="trust-scan"></div>
+  <div class="trust-inner">
+    <div class="trust-live">
+      <span class="trust-dot"></span>
+      <span class="trust-live-label">Live</span>
+    </div>
+    <span class="trust-vsep"></span>
+    <div class="trust-stats">
+      <div class="trust-stat">
+        <span class="trust-stat-num">100+</span>
+        <span class="trust-stat-label">Server</span>
+      </div>
+      <span class="trust-vsep"></span>
+      <div class="trust-stat">
+        <span class="trust-stat-num">99.9%</span>
+        <span class="trust-stat-label">Uptime</span>
+      </div>
+      <span class="trust-vsep"></span>
+      <div class="trust-stat">
+        <span class="trust-stat-num">24/7</span>
+        <span class="trust-stat-label">Schutz</span>
+      </div>
+    </div>
+    <span class="trust-vsep"></span>
+    <div class="trust-marquee-wrap">
+      <div class="trust-marquee">
+        <div class="trust-marquee-item">
+          <span>Vertraut von über</span><strong>100+ Communities</strong><span class="dsep"></span>
+        </div>
+        <div class="trust-marquee-item">
+          <span>ModForge schützt Discord-Server</span><strong class="hi">weltweit</strong><span class="dsep"></span>
+        </div>
+        <div class="trust-marquee-item">
+          <span>Anti-Nuke · Anti-Raid ·</span><strong>AutoMod 2.0</strong><span class="dsep"></span>
+        </div>
+        <div class="trust-marquee-item">
+          <span>KI-gestützte Echtzeit-Moderation</span><span class="dsep"></span>
+        </div>
+        <div class="trust-marquee-item">
+          <span>Vertraut von über</span><strong>100+ Communities</strong><span class="dsep"></span>
+        </div>
+        <div class="trust-marquee-item">
+          <span>ModForge schützt Discord-Server</span><strong class="hi">weltweit</strong><span class="dsep"></span>
+        </div>
+        <div class="trust-marquee-item">
+          <span>Anti-Nuke · Anti-Raid ·</span><strong>AutoMod 2.0</strong><span class="dsep"></span>
+        </div>
+        <div class="trust-marquee-item">
+          <span>KI-gestützte Echtzeit-Moderation</span><span class="dsep"></span>
+        </div>
+      </div>
+    </div>
+    <a href="/features" class="trust-cta">
+      Mehr erfahren
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <polyline points="9 18 15 12 9 6"/>
+      </svg>
+    </a>
+  </div>
+</div>
+
+<!-- ══════ HEADER ══════ -->
+<header id="sh">
+  <div id="nw">
+    <div id="nb">
+
+      <!-- Brand -->
+      <a href="/" class="nav-brand">
+        <div class="nav-orb">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="11" width="18" height="10" rx="2"/>
+            <circle cx="12" cy="5" r="2"/><path d="M12 7v4"/>
+          </svg>
+          <span class="nav-orb-dot"></span>
+        </div>
+        <div class="nav-wordmark">
+          <span class="nav-name">ModForge</span>
+          <span class="nav-version">v3.0 · Online</span>
+        </div>
+      </a>
+
+      <!-- Center nav -->
+      <nav id="nav-center">
+        <a href="/" class="nl">Home</a>
+        <button class="nb-btn" data-mg="produkt">
+          Produkt <svg class="chv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <button class="nb-btn" data-mg="ressourcen">
+          Ressourcen <svg class="chv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <button class="nb-btn" data-mg="community">
+          Community <svg class="chv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <button class="nb-btn" data-mg="support">
+          Support <svg class="chv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <a href="/pricing" class="nl hl">Pricing</a>
+        <a href="/status" class="nl">Status</a>
+      </nav>
+
+      <!-- Right -->
+      <div id="nav-right">
+        <div class="nav-outage-pill">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          Dashboard offline
+        </div>
+        <a href="https://discord.com/api/oauth2/authorize?client_id=YOUR_CLIENT_ID&permissions=8&scope=bot%20applications.commands"
+           target="_blank" rel="noopener" class="nav-cta">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          Bot einladen
+        </a>
+        <button class="nav-mob-btn" id="mtb" aria-label="Menü öffnen">
+          <svg id="ic-m" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="4" y1="7" x2="20" y2="7"/>
+            <line x1="4" y1="12" x2="20" y2="12"/>
+            <line x1="4" y1="17" x2="20" y2="17"/>
+          </svg>
+          <svg id="ic-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:none">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- ══════ MEGA PANEL ══════ -->
+    <div id="mp">
+
+      <!-- PRODUKT -->
+      <div class="pb" data-panel="produkt">
+        <div class="pb-layout">
+          <div class="pb-sidebar">
+            <div class="pb-sidebar-title">Kategorien</div>
+            <button class="pbtab on" data-ptc="pt-module">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="9" height="9" rx="1"/><rect x="13" y="2" width="9" height="9" rx="1"/><rect x="2" y="13" width="9" height="9" rx="1"/><rect x="13" y="13" width="9" height="9" rx="1"/></svg>
+              <div><div>Module</div><div class="pbtab-desc">Alle Features</div></div>
+            </button>
+            <button class="pbtab" data-ptc="pt-tools">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+              <div><div>Tools</div><div class="pbtab-desc">Integrationen</div></div>
+            </button>
+            <button class="pbtab" data-ptc="pt-security">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              <div><div>Sicherheit</div><div class="pbtab-desc">Anti-Nuke & AutoMod</div></div>
+            </button>
+            <button class="pbtab" data-ptc="pt-premium">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              <div><div>Premium</div><div class="pbtab-desc">Pro-Features</div></div>
+            </button>
+          </div>
+          <div class="pb-content">
+            <div id="pt-module" class="ptc vis">
+              <div class="sg">Kernfunktionen</div>
+              <div class="mc3">
+                <a href="/features" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="9" height="9" rx="1"/><rect x="13" y="2" width="9" height="9" rx="1"/><rect x="2" y="13" width="9" height="9" rx="1"/><rect x="13" y="13" width="9" height="9" rx="1"/></svg></div><div><div class="mi-lb">Alle Features</div><div class="mi-dc">Komplette Übersicht</div></div></a>
+                <a href="/commands" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></div><div><div class="mi-lb">100+ Commands</div><div class="mi-dc">Slash & Prefix</div></div></a>
+                <a href="/ai" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/></svg></div><div><div class="mi-lb">AI Features <span class="mbg mbg-n">Neu</span></div><div class="mi-dc">GPT-4 Integration</div></div></a>
+                <a href="/economy" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div><div><div class="mi-lb">Economy System</div><div class="mi-dc">Coins, Shop & Gambling</div></div></a>
+                <a href="/docs/music" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div><div><div class="mi-lb">Music Player</div><div class="mi-dc">Lavalink Audio</div></div></a>
+                <a href="/badges" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg></div><div><div class="mi-lb">Badges & XP</div><div class="mi-dc">Achievement-System</div></div></a>
+              </div>
+            </div>
+            <div id="pt-tools" class="ptc">
+              <div class="sg">Tools & Integrationen</div>
+              <div class="mc3">
+                <a href="/templates" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg></div><div><div class="mi-lb">Server Templates</div><div class="mi-dc">Vorgefertigte Setups</div></div></a>
+                <a href="/integrations" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4m0 14v4M4.22 4.22l2.83 2.83m9.9 9.9 2.83 2.83M1 12h4m14 0h4M4.22 19.78l2.83-2.83m9.9-9.9 2.83-2.83"/></svg></div><div><div class="mi-lb">Integrationen</div><div class="mi-dc">Twitch, YouTube, GitHub</div></div></a>
+                <a href="/migrate" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.41"/></svg></div><div><div class="mi-lb">Migration <span class="mbg mbg-h">Hot</span></div><div class="mi-dc">Von MEE6, Dyno & Co.</div></div></a>
+                <a href="/widgets" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div><div><div class="mi-lb">Embed Widgets</div><div class="mi-dc">Stats für deine Website</div></div></a>
+                <a href="/emojis" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/></svg></div><div><div class="mi-lb">Emoji Pack</div><div class="mi-dc">Custom Emojis</div></div></a>
+                <a href="/api-docs" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div><div><div class="mi-lb">API</div><div class="mi-dc">REST API Referenz</div></div></a>
+              </div>
+            </div>
+            <div id="pt-security" class="ptc">
+              <div class="sg">Schutz & Moderation</div>
+              <div class="mc2" style="max-width:540px">
+                <a href="/docs/automod" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div><div><div class="mi-lb">AutoMod 2.0</div><div class="mi-dc">KI-Schutz in Echtzeit</div></div></a>
+                <a href="/docs/tickets" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 0 0-2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3a2 2 0 0 0 0-4V7a2 2 0 0 0-2-2H5z"/></svg></div><div><div class="mi-lb">Ticket System</div><div class="mi-dc">Dropdown-Panels</div></div></a>
+                <a href="/security" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div><div><div class="mi-lb">Anti-Nuke</div><div class="mi-dc">Server-Schutz</div></div></a>
+                <a href="/docs/moderation" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div><div><div class="mi-lb">Moderation</div><div class="mi-dc">Mod-Befehle & Cases</div></div></a>
+              </div>
+            </div>
+            <div id="pt-premium" class="ptc">
+              <div class="sg">Premium Features</div>
+              <div class="mc2" style="max-width:540px">
+                <a href="/premium" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div><div><div class="mi-lb">Premium <span class="mbg mbg-t">Pro</span></div><div class="mi-dc">Alle Pro-Features</div></div></a>
+                <a href="/docs/music" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/></svg></div><div><div class="mi-lb">24/7 Music</div><div class="mi-dc">Non-Stop Audio</div></div></a>
+                <a href="/branding" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div><div><div class="mi-lb">Custom Branding</div><div class="mi-dc">Eigenes Branding</div></div></a>
+                <a href="/support" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/></svg></div><div><div class="mi-lb">Priority Support</div><div class="mi-dc">Direkter Dev-Zugang</div></div></a>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="pb-cta">
+          <a href="/premium" class="pb-cta-link">
+            <div><div class="cta-t">Premium freischalten</div><div class="cta-d">24/7 Music, Custom Branding & Priority Support</div></div>
+            <div class="cta-arr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg></div>
+          </a>
+        </div>
+      </div>
+
+      <!-- RESSOURCEN -->
+      <div class="pb" data-panel="ressourcen">
+        <div class="pb-layout">
+          <div class="pb-sidebar">
+            <div class="pb-sidebar-title">Kategorien</div>
+            <button class="pbtab on" data-ptc="rr-lernen">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+              <div><div>Lernen</div><div class="pbtab-desc">Guides & Tutorials</div></div>
+            </button>
+            <button class="pbtab" data-ptc="rr-dev">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+              <div><div>Entwickler</div><div class="pbtab-desc">API & Changelog</div></div>
+            </button>
+            <button class="pbtab" data-ptc="rr-mehr">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+              <div><div>Mehr</div><div class="pbtab-desc">Blog & Downloads</div></div>
+            </button>
+          </div>
+          <div class="pb-content">
+            <div id="rr-lernen" class="ptc vis">
+              <div class="sg">Lernmaterialien</div>
+              <div class="mc2" style="max-width:520px">
+                <a href="/docs" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></div><div><div class="mi-lb">Dokumentation</div><div class="mi-dc">Vollständiger Guide</div></div></a>
+                <a href="/tutorials" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></div><div><div class="mi-lb">Video Tutorials</div><div class="mi-dc">8+ Anleitungen</div></div></a>
+                <a href="/faq" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/></svg></div><div><div class="mi-lb">FAQ</div><div class="mi-dc">Häufige Fragen</div></div></a>
+                <a href="/docs/setup" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div><div><div class="mi-lb">Setup Guide</div><div class="mi-dc">In 2 Min startklar</div></div></a>
+              </div>
+            </div>
+            <div id="rr-dev" class="ptc">
+              <div class="sg">Für Entwickler</div>
+              <div class="mc2" style="max-width:520px">
+                <a href="/api-docs" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div><div><div class="mi-lb">API Docs</div><div class="mi-dc">REST API Referenz</div></div></a>
+                <a href="/changelog" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><div><div class="mi-lb">Changelog</div><div class="mi-dc">Alle Updates</div></div></a>
+                <a href="/roadmap" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div><div><div class="mi-lb">Roadmap</div><div class="mi-dc">Was kommt als nächstes</div></div></a>
+                <a href="/branding" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div><div><div class="mi-lb">Brand Kit</div><div class="mi-dc">Logos & Farben</div></div></a>
+              </div>
+            </div>
+            <div id="rr-mehr" class="ptc">
+              <div class="sg">Weitere Ressourcen</div>
+              <div class="mc2" style="max-width:520px">
+                <a href="/migrate" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.41"/></svg></div><div><div class="mi-lb">Migration <span class="mbg mbg-h">Hot</span></div><div class="mi-dc">Von MEE6 & Co.</div></div></a>
+                <a href="/blog" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><div><div class="mi-lb">Blog & News</div><div class="mi-dc">Updates & Guides</div></div></a>
+                <a href="/downloads" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"/></svg></div><div><div class="mi-lb">Downloads</div><div class="mi-dc">Apps & Assets</div></div></a>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="pb-cta">
+          <a href="/migrate" class="pb-cta-link">
+            <div><div class="cta-t">Kostenlos migrieren</div><div class="cta-d">Von MEE6, Dyno & Co.</div></div>
+            <div class="cta-arr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg></div>
+          </a>
+        </div>
+      </div>
+
+      <!-- COMMUNITY -->
+      <div class="pb" data-panel="community">
+        <div class="pb-layout">
+          <div class="pb-sidebar">
+            <div class="pb-sidebar-title">Kategorien</div>
+            <button class="pbtab on" data-ptc="cm-join">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+              <div><div>Mitmachen</div><div class="pbtab-desc">Partner & Affiliate</div></div>
+            </button>
+            <button class="pbtab" data-ptc="cm-showcase">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/></svg>
+              <div><div>Showcase</div><div class="pbtab-desc">Top Communities</div></div>
+            </button>
+            <button class="pbtab" data-ptc="cm-about">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+              <div><div>Über uns</div><div class="pbtab-desc">Team & Karriere</div></div>
+            </button>
+          </div>
+          <div class="pb-content">
+            <div id="cm-join" class="ptc vis">
+              <div class="sg">Community beitreten</div>
+              <div class="mc2" style="max-width:520px">
+                <a href="/partners" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div><div><div class="mi-lb">Partner <span class="mbg mbg-t">Top</span></div><div class="mi-dc">Werbung + Premium gratis</div></div></a>
+                <a href="/affiliate" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/></svg></div><div><div class="mi-lb">Affiliate</div><div class="mi-dc">20% Lifetime-Provision</div></div></a>
+                <a href="/suggest" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div><div><div class="mi-lb">Vorschläge</div><div class="mi-dc">Feature-Voting</div></div></a>
+                <a href="/contact" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div><div><div class="mi-lb">Kontakt</div><div class="mi-dc">Nimm Verbindung auf</div></div></a>
+              </div>
+            </div>
+            <div id="cm-showcase" class="ptc">
+              <div class="sg">Community Showcase</div>
+              <div class="mc2" style="max-width:520px">
+                <a href="/showcase" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/></svg></div><div><div class="mi-lb">Server Showcase</div><div class="mi-dc">Top Communities</div></div></a>
+                <a href="/testimonials" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div><div><div class="mi-lb">Bewertungen</div><div class="mi-dc">Was User sagen</div></div></a>
+                <a href="/leaderboard" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div><div><div class="mi-lb">XP Leaderboard</div><div class="mi-dc">Globale Bestenliste</div></div></a>
+              </div>
+            </div>
+            <div id="cm-about" class="ptc">
+              <div class="sg">Über ModForge</div>
+              <div class="mc2" style="max-width:520px">
+                <a href="/team" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div><div><div class="mi-lb">Team</div><div class="mi-dc">Lerne uns kennen</div></div></a>
+                <a href="/jobs" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg></div><div><div class="mi-lb">Karriere</div><div class="mi-dc">Wir suchen Talente</div></div></a>
+                <a href="/events" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div><div><div class="mi-lb">Events</div><div class="mi-dc">Live-Streams & Drops</div></div></a>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="pb-cta">
+          <a href="https://discord.gg/gwryX3dbkt" target="_blank" class="pb-cta-link">
+            <div><div class="cta-t">Discord beitreten</div><div class="cta-d">850+ Member</div></div>
+            <div class="cta-arr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg></div>
+          </a>
+        </div>
+      </div>
+
+      <!-- SUPPORT -->
+      <div class="pb" data-panel="support">
+        <div class="pb-layout">
+          <div class="pb-sidebar">
+            <div class="pb-sidebar-title">Kategorien</div>
+            <button class="pbtab on" data-ptc="sp-help">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/></svg>
+              <div><div>Hilfe</div><div class="pbtab-desc">Support & Docs</div></div>
+            </button>
+            <button class="pbtab" data-ptc="sp-status">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+              <div><div>Status</div><div class="pbtab-desc">Uptime & Vorfälle</div></div>
+            </button>
+            <button class="pbtab" data-ptc="sp-legal">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              <div><div>Rechtliches</div><div class="pbtab-desc">DSGVO & Terms</div></div>
+            </button>
+          </div>
+          <div class="pb-content">
+            <div id="sp-help" class="ptc vis">
+              <div class="sg">Hilfe & Support</div>
+              <div class="mc2" style="max-width:520px">
+                <a href="/support" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/></svg></div><div><div class="mi-lb">Support-Center</div><div class="mi-dc">Hilfe-Übersicht</div></div></a>
+                <a href="/faq" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/></svg></div><div><div class="mi-lb">FAQ</div><div class="mi-dc">Häufige Fragen</div></div></a>
+                <a href="/contact" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/></svg></div><div><div class="mi-lb">Kontakt</div><div class="mi-dc">Wir antworten schnell</div></div></a>
+                <a href="/docs" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></div><div><div class="mi-lb">Dokumentation</div><div class="mi-dc">Anleitungen</div></div></a>
+              </div>
+            </div>
+            <div id="sp-status" class="ptc">
+              <div class="sg">System Status</div>
+              <div class="mc2" style="max-width:520px">
+                <a href="/status" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div><div><div class="mi-lb">Live Status</div><div class="mi-dc">99.9% Uptime</div></div></a>
+                <a href="/uptime" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div><div><div class="mi-lb">Uptime Monitor</div><div class="mi-dc">Live-Counter</div></div></a>
+                <a href="/status/incidents" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div><div><div class="mi-lb">Vorfälle</div><div class="mi-dc">Historie & Updates</div></div></a>
+              </div>
+            </div>
+            <div id="sp-legal" class="ptc">
+              <div class="sg">Rechtliches</div>
+              <div class="mc2" style="max-width:520px">
+                <a href="/security" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div><div><div class="mi-lb">Sicherheit</div><div class="mi-dc">DSGVO & TLS 1.3</div></div></a>
+                <a href="/privacy" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div><div><div class="mi-lb">Datenschutz</div><div class="mi-dc">Privacy Policy</div></div></a>
+                <a href="/terms" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><div><div class="mi-lb">Nutzungsbedingungen</div><div class="mi-dc">Terms of Service</div></div></a>
+                <a href="/legal" class="mi"><div class="mi-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg></div><div><div class="mi-lb">Impressum</div><div class="mi-dc">Rechtliche Infos</div></div></a>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="pb-cta">
+          <a href="/premium" class="pb-cta-link">
+            <div><div class="cta-t">Premium Support</div><div class="cta-d">Direkter Zugang zum Dev-Team</div></div>
+            <div class="cta-arr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg></div>
+          </a>
+        </div>
+      </div>
+
+    </div><!-- /#mp -->
+
+    <!-- ══════ MOBILE MENU ══════ -->
+    <div id="mm">
+      <div class="mm-in">
+        <div class="mm-outage">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          <div class="mm-outage-text">
+            Dashboard offline
+            <small>Wir arbeiten daran – Bot läuft stabil</small>
+          </div>
+        </div>
+        <div class="mm-srch">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="msi" placeholder="Suche…">
+        </div>
+        <div class="mm-quick">
+          <a href="/" class="mm-ql">Home</a>
+          <a href="/pricing" class="mm-ql hl">Pricing</a>
+          <a href="/status" class="mm-ql">Status</a>
+          <a href="/login" class="mm-ql">Dashboard</a>
+          <a href="/docs" class="mm-ql">Docs</a>
+        </div>
+        <div class="mm-div"></div>
+        <details class="ma">
+          <summary><span class="ma-left"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>Produkt</span><svg class="ma-chv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></summary>
+          <div class="ma-body">
+            <a href="/features" class="ma-sl">Alle Features</a>
+            <a href="/commands" class="ma-sl">100+ Commands</a>
+            <a href="/ai" class="ma-sl">AI Features</a>
+            <a href="/economy" class="ma-sl">Economy</a>
+            <a href="/docs/automod" class="ma-sl">AutoMod 2.0</a>
+            <a href="/docs/tickets" class="ma-sl">Ticket System</a>
+            <a href="/docs/music" class="ma-sl">Music Player</a>
+            <a href="/migrate" class="ma-sl">Migration Tool</a>
+          </div>
+        </details>
+        <details class="ma">
+          <summary><span class="ma-left"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>Ressourcen</span><svg class="ma-chv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></summary>
+          <div class="ma-body">
+            <a href="/docs" class="ma-sl">Dokumentation</a>
+            <a href="/tutorials" class="ma-sl">Tutorials</a>
+            <a href="/faq" class="ma-sl">FAQ</a>
+            <a href="/changelog" class="ma-sl">Changelog</a>
+            <a href="/roadmap" class="ma-sl">Roadmap</a>
+            <a href="/api-docs" class="ma-sl">API Docs</a>
+          </div>
+        </details>
+        <details class="ma">
+          <summary><span class="ma-left"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>Community</span><svg class="ma-chv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></summary>
+          <div class="ma-body">
+            <a href="/partners" class="ma-sl">Partner</a>
+            <a href="/affiliate" class="ma-sl">Affiliate</a>
+            <a href="/showcase" class="ma-sl">Showcase</a>
+            <a href="/team" class="ma-sl">Team</a>
+            <a href="/events" class="ma-sl">Events</a>
+          </div>
+        </details>
+        <details class="ma">
+          <summary><span class="ma-left"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/></svg>Support</span><svg class="ma-chv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></summary>
+          <div class="ma-body">
+            <a href="/support" class="ma-sl">Support</a>
+            <a href="/faq" class="ma-sl">FAQ</a>
+            <a href="/contact" class="ma-sl">Kontakt</a>
+            <a href="/privacy" class="ma-sl">Datenschutz</a>
+            <a href="/terms" class="ma-sl">Nutzung</a>
+            <a href="/status" class="ma-sl">Status</a>
+          </div>
+        </details>
+        <div class="mm-div"></div>
+        <a href="https://discord.com/api/oauth2/authorize?client_id=YOUR_CLIENT_ID&permissions=8&scope=bot%20applications.commands"
+           target="_blank" class="mm-cta">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Bot einladen – Kostenlos starten
+        </a>
+      </div>
+    </div>
+
+  </div>
+</header>
+
+{% block content %}{% endblock %}
+
+<!-- ══════ FOOTER ══════ -->
+<footer class="site-footer">
+  <div class="site-footer-inner">
+    <div>
+      <div class="footer-brand-wrap">
+        <span style="font-size:1.1rem">🛡️</span>
+        <span class="footer-brand-name">ModForge</span>
+      </div>
+      <p style="font-size:.72rem;color:var(--m);line-height:1.65">
+        Security &amp; AutoMod Bot für Discord.<br>
+        Solo-developed in Germany 🇩🇪
+      </p>
+    </div>
+    <div>
+      <h4>Produkt</h4>
+      <a href="/features">Features</a>
+      <a href="/commands">Commands</a>
+      <a href="/pricing">Pricing</a>
+      <a href="/changelog">Changelog</a>
+    </div>
+    <div>
+      <h4>Ressourcen</h4>
+      <a href="/docs">Dokumentation</a>
+      <a href="/status">Status</a>
+      <a href="/live">Live Aktivität</a>
+      <a href="/login">Dashboard</a>
+    </div>
+    <div>
+      <h4>Rechtliches</h4>
+      <a href="/terms">Terms of Service</a>
+      <a href="/privacy">Privacy Policy</a>
+      <a href="/imprint">Impressum</a>
+    </div>
+    <div>
+      <h4>Community</h4>
+      <a href="https://discord.gg/gwryX3dbkt" target="_blank">Support Server</a>
+      <a href="/partners">Partner</a>
+      <a href="/affiliate">Affiliate</a>
+      <a href="/admin/login">Admin Panel</a>
+    </div>
+  </div>
+  <div class="site-footer-bottom">
+    <div class="made">
+      Made with <span class="heart">❤️</span> by
+      <a href="/team">@Fufi</a>
+      &nbsp;·&nbsp; © 2026 ModForge &nbsp;·&nbsp;
+      Not affiliated with Discord Inc.
+    </div>
+  </div>
+</footer>
+
+</div><!-- .page-wrapper -->
+
 <script src="/static/script.js"></script>
 <script>
 (function(){
   'use strict';
 
-  var outageBar = document.getElementById('outage-bar');
-  var trustBar  = document.getElementById('trust-bar');
-  var sh        = document.getElementById('sh');
-  var nw        = document.getElementById('nw');
-  var mp        = document.getElementById('mp');
-  var mm        = document.getElementById('mm');
-  var mtb       = document.getElementById('mtb');
-  var icM       = document.getElementById('ic-m');
-  var icX       = document.getElementById('ic-x');
-  var mgBtns    = document.querySelectorAll('.nb-btn[data-mg]');
-  var curPanel  = null;
-  var mOpen     = false;
+  /* ── refs ── */
+  var sh     = document.getElementById('sh');
+  var nw     = document.getElementById('nw');
+  var mp     = document.getElementById('mp');
+  var mm     = document.getElementById('mm');
+  var mtb    = document.getElementById('mtb');
+  var icM    = document.getElementById('ic-m');
+  var icX    = document.getElementById('ic-x');
+  var mgBtns = document.querySelectorAll('.nb-btn[data-mg]');
+  var cur    = null;
+  var mOpen  = false;
 
-  /* ── Measure & stack fixed layers, update body padding ── */
-  function updateLayout() {
-    var oh   = outageBar ? outageBar.offsetHeight : 0;
-    var th   = trustBar  ? trustBar.offsetHeight  : 0;
-    var nb   = document.getElementById('nb');
-    var navH = nb ? nb.offsetHeight : 56;
-
-    if (trustBar) trustBar.style.top = oh + 'px';
-    if (sh)       sh.style.top       = (oh + th) + 'px';
-
-    /* Total chrome height + a small gap so content starts below nav */
-    var total = oh + th + navH + 10;
+  /* ── dynamic body offset ── */
+  function updateOffset() {
+    var ob = document.getElementById('outage-bar');
+    var tb = document.getElementById('trust-bar');
+    var nb = document.getElementById('nb');
+    var oh = ob ? ob.offsetHeight : 0;
+    var th = tb ? tb.offsetHeight : 0;
+    var nh = nb ? nb.offsetHeight : 56;
+    var total = oh + th + nh + 8;
     document.body.style.paddingTop = total + 'px';
-    document.documentElement.style.setProperty('--chrome-offset', total + 'px');
+    if (tb) tb.style.top = oh + 'px';
+    if (sh) sh.style.top = (oh + th) + 'px';
   }
+  updateOffset();
+  window.addEventListener('resize', updateOffset, { passive: true });
 
-  updateLayout();
-  window.addEventListener('resize', updateLayout, { passive: true });
-
-  /* ── Scroll: add class after 30px ── */
+  /* ── scroll class ── */
   window.addEventListener('scroll', function(){
-    if (sh) sh.classList.toggle('scrolled', window.scrollY > 30);
+    if (sh) sh.classList.toggle('scrolled', window.scrollY > 24);
   }, { passive: true });
 
-  /* ── Active nav link ── */
+  /* ── active link ── */
   var path = window.location.pathname;
   document.querySelectorAll('a.nl, a.mm-ql, a.ma-sl').forEach(function(a){
     if (a.getAttribute('href') === path) a.classList.add('act');
   });
 
-  /* ── Mega panel ── */
+  /* ── mega open/close ── */
   function openMega(key, btn) {
     document.querySelectorAll('.pb').forEach(function(p){ p.classList.remove('vis'); });
     var panel = mp.querySelector('[data-panel="' + key + '"]');
     if (!panel) return;
     panel.classList.add('vis');
-    panel.querySelectorAll('.pbtab').forEach(function(t,i){ t.classList.toggle('on', i===0); });
-    panel.querySelectorAll('.ptc').forEach(function(tc,i){ tc.classList.toggle('vis', i===0); });
+    /* reset to first tab */
+    var tabs = panel.querySelectorAll('.pbtab');
+    var tcs  = panel.querySelectorAll('.ptc');
+    tabs.forEach(function(t,i){ t.classList.toggle('on', i===0); });
+    tcs.forEach(function(tc,i){ tc.classList.toggle('vis', i===0); });
     mgBtns.forEach(function(b){ b.classList.remove('mop'); });
     btn.classList.add('mop');
     mp.classList.add('open');
-    curPanel = key;
+    cur = key;
   }
   function closeMega() {
     mp.classList.remove('open');
     mgBtns.forEach(function(b){ b.classList.remove('mop'); });
-    curPanel = null;
+    cur = null;
   }
 
   mgBtns.forEach(function(btn){
     btn.addEventListener('click', function(e){
       e.stopPropagation();
-      var key = btn.dataset.mg;
-      curPanel === key ? closeMega() : openMega(key, btn);
+      cur === btn.dataset.mg ? closeMega() : openMega(btn.dataset.mg, btn);
       if (mOpen) closeMobile();
     });
   });
 
+  /* ── panel tabs ── */
   document.querySelectorAll('.pbtab').forEach(function(tab){
     tab.addEventListener('click', function(){
-      var tcId  = tab.dataset.ptc;
       var panel = tab.closest('.pb');
       panel.querySelectorAll('.pbtab').forEach(function(t){ t.classList.remove('on'); });
       tab.classList.add('on');
       panel.querySelectorAll('.ptc').forEach(function(tc){ tc.classList.remove('vis'); });
-      var tc = document.getElementById(tcId);
+      var tc = document.getElementById(tab.dataset.ptc);
       if (tc) tc.classList.add('vis');
     });
   });
 
+  /* ── outside click ── */
   document.addEventListener('click', function(e){
-    if (nw && !nw.contains(e.target)) closeMega();
+    if (nw && !nw.contains(e.target)) { closeMega(); if (mOpen) closeMobile(); }
   });
 
-  /* ── Mobile menu ── */
+  /* ── mobile ── */
   function closeMobile() {
     mOpen = false;
     mm.classList.remove('open');
@@ -1367,11 +1292,8 @@
     if (mOpen) closeMega();
   }
   if (mtb) mtb.addEventListener('click', function(e){ e.stopPropagation(); toggleMobile(); });
-  document.addEventListener('click', function(e){
-    if (mOpen && nw && !nw.contains(e.target)) closeMobile();
-  });
 
-  /* ── Mobile search filter ── */
+  /* ── mobile search ── */
   var msi = document.getElementById('msi');
   if (msi) {
     msi.addEventListener('input', function(){
@@ -1379,10 +1301,10 @@
       document.querySelectorAll('.ma-sl, .mm-ql').forEach(function(a){
         a.style.display = (!q || a.textContent.toLowerCase().includes(q)) ? '' : 'none';
       });
-      document.querySelectorAll('.ma').forEach(function(d){ if (q) d.open = true; });
+      if (q) document.querySelectorAll('.ma').forEach(function(d){ d.open = true; });
     });
   }
 })();
 </script>
 </body>
-          </html>
+  </html>
