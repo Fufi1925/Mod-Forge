@@ -4,357 +4,453 @@
 {% block content %}
 <style>
 /* ═══════════════════════════════════════════════════
-   INDEX‑SPECIFIC  ·  ULTRA MODERN
+   MODFORGE INDEX – COMBINED v1 + v2
 ═══════════════════════════════════════════════════ */
 
-/* ── 1. Scroll Progress ── */
-.scroll-progress{
-  position:fixed; top:0; left:0; height:2px; z-index:99999;
-  background:linear-gradient(90deg,var(--vl),var(--c));
-  transform-origin:left;
-  transform:scaleX(0);
-  transition:transform .05s linear;
+/* ── Utilities ── */
+.glow-text {
+  background: linear-gradient(135deg, #fff 0%, var(--cl) 40%, var(--vl) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.glass-panel {
+  background: rgba(255,255,255,.02);
+  backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: 1.5rem;
+  position: relative; overflow: hidden;
+}
+.glass-panel::before {
+  content: ''; position: absolute; inset: 0;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.02);
+  border-radius: inherit; pointer-events: none;
 }
 
-/* ── 2. Hero V2 ── */
-.hero-v2{
-  position:relative;
-  min-height:92vh;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  padding:6rem 1rem 4rem;
-  overflow:hidden;
+/* ── Noise Overlay ── */
+.noise {
+  position: fixed; inset: 0; pointer-events: none; z-index: 9998; opacity: .035;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-repeat: repeat; background-size: 256px;
 }
-#hero-particle-canvas{
-  position:absolute; inset:0; width:100%; height:100%;
-  z-index:0; pointer-events:none; opacity:.9;
+
+/* ── Scroll Progress ── */
+.scroll-progress {
+  position: fixed; top: 0; left: 0; height: 3px; z-index: 99999;
+  background: linear-gradient(90deg, var(--vl), var(--c));
+  transform-origin: left; transform: scaleX(0);
+  transition: transform .05s linear;
+  box-shadow: 0 0 8px var(--vl);
 }
-.hero-v2 .container{
-  position:relative; z-index:2;
-  display:grid;
-  grid-template-columns:1.1fr .9fr;
-  gap:3rem;
-  align-items:center;
-  max-width:1280px;
+
+/* ── Hero ── */
+.hero-v2 {
+  position: relative; min-height: 92vh;
+  display: flex; align-items: center; justify-content: center;
+  padding: 6rem 1rem 4rem; overflow: hidden;
 }
-@media(max-width:900px){
-  .hero-v2 .container{grid-template-columns:1fr;text-align:center}
-  .hero-terminal-wrap{display:none}
+#hero-particle-canvas {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  z-index: 0; pointer-events: none; opacity: .9;
+}
+.hero-glow {
+  position: absolute; width: 800px; height: 800px;
+  background: radial-gradient(circle, rgba(124,58,237,.15) 0%, transparent 60%);
+  top: 50%; left: 50%; transform: translate(-50%,-50%); pointer-events: none;
+}
+.hero-v2 .container {
+  position: relative; z-index: 2;
+  display: grid; grid-template-columns: 1.1fr .9fr;
+  gap: 3rem; align-items: center; max-width: 1280px;
+}
+@media(max-width:900px) {
+  .hero-v2 .container { grid-template-columns: 1fr; text-align: center; }
+  .hero-terminal-wrap { display: none; }
+  .hero-actions { justify-content: center; }
+}
+
+/* Shield animation */
+.hero-shield {
+  position: relative; width: 80px; height: 80px;
+  display: inline-flex; align-items: center; justify-content: center;
+  margin-bottom: 1.5rem;
+}
+.shield-ring {
+  position: absolute; inset: 0; border-radius: 50%;
+  border: 1px solid var(--vl); opacity: 0;
+  animation: shieldPulse 3s cubic-bezier(.4,0,.2,1) infinite;
+}
+.shield-ring:nth-child(2) { animation-delay: 1s; }
+.shield-ring:nth-child(3) { animation-delay: 2s; }
+@keyframes shieldPulse {
+  0%   { transform: scale(.5);  opacity: 1; border-width: 3px; }
+  100% { transform: scale(2.2); opacity: 0; border-width: 0; }
+}
+.hero-shield svg {
+  width: 40px; height: 40px; color: var(--cl); z-index: 2;
+  filter: drop-shadow(0 0 10px var(--vl));
 }
 
 /* Badge */
-.badge-glass{
-  display:inline-flex; align-items:center; gap:.5rem;
-  padding:.35rem 1rem; border-radius:999px;
-  background:rgba(124,58,237,.1);
-  border:1px solid rgba(124,58,237,.25);
-  color:var(--vl); font-size:.78rem; font-weight:700;
-  margin-bottom:1.25rem; backdrop-filter:blur(12px);
-  width:fit-content;
+.badge-glass {
+  display: inline-flex; align-items: center; gap: .5rem;
+  padding: .35rem 1rem; border-radius: 999px;
+  background: rgba(124,58,237,.1); border: 1px solid rgba(124,58,237,.25);
+  color: var(--vl); font-size: .78rem; font-weight: 700;
+  margin-bottom: 1.25rem; backdrop-filter: blur(12px); width: fit-content;
 }
-.badge-glass .pulse-dot{width:7px;height:7px}
+.badge-glass .pulse-dot { width: 7px; height: 7px; }
 
-/* Glitch Title */
-.glitch-target{
-  font-size:clamp(2.6rem,6.5vw,5.2rem);
-  font-weight:900; line-height:1.05;
-  letter-spacing:-.03em;
-  background:linear-gradient(135deg,#fff 0%,#d1d8ff 40%,var(--vl) 70%,var(--c) 100%);
-  -webkit-background-clip:text; -webkit-text-fill-color:transparent;
-  position:relative;
+/* Glitch title */
+.glitch-target {
+  font-size: clamp(2.6rem,6.5vw,5.2rem);
+  font-weight: 900; line-height: 1.05; letter-spacing: -.03em;
+  background: linear-gradient(135deg,#fff 0%,#d1d8ff 40%,var(--vl) 70%,var(--c) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  position: relative;
 }
-.glitch-target .typewriter{
-  -webkit-text-fill-color:var(--c);
-  border-right:2px solid var(--c);
-  animation:blinkCaret .75s step-end infinite;
-  padding-right:4px;
+.glitch-target .typewriter-word {
+  -webkit-text-fill-color: var(--c);
+  border-right: 2px solid var(--c);
+  animation: blinkCaret .75s step-end infinite;
+  padding-right: 4px;
 }
-@keyframes blinkCaret{0%,100%{border-color:transparent}50%{border-color:var(--c)}}
+@keyframes blinkCaret { 0%,100% { border-color: transparent; } 50% { border-color: var(--c); } }
 
-/* Sub */
-.hero-lead{
-  font-size:clamp(1rem,1.6vw,1.15rem);
-  color:var(--muted); max-width:520px;
-  margin:1.25rem 0 2rem; line-height:1.75;
+.hero-lead {
+  font-size: clamp(1rem,1.6vw,1.15rem); color: var(--muted);
+  max-width: 520px; margin: 1.25rem 0 2rem; line-height: 1.75;
 }
-.hero-actions{display:flex; gap:.9rem; flex-wrap:wrap}
-@media(max-width:900px){.hero-actions{justify-content:center}}
+.hero-actions { display: flex; gap: .9rem; flex-wrap: wrap; }
 
-/* ── 3. Magnetic Buttons ── */
-.magnetic{
-  transition:transform .15s ease-out;
-  will-change:transform;
-}
+/* Magnetic */
+.magnetic { transition: transform .15s ease-out; will-change: transform; }
 
-/* ── 4. Hero Terminal ── */
-.hero-terminal-wrap{perspective:1200px}
-.hero-terminal{
-  background:rgba(255,255,255,.03);
-  backdrop-filter:blur(40px) saturate(2);
-  border:1px solid rgba(255,255,255,.08);
-  border-radius:1.25rem;
-  overflow:hidden;
-  box-shadow:
-    0 0 0 1px rgba(124,58,237,.06) inset,
-    0 30px 80px rgba(0,0,0,.7);
-  transform-style:preserve-3d;
-  animation:floatTerminal 6s ease-in-out infinite;
+/* Hero Terminal */
+.hero-terminal-wrap { perspective: 1200px; }
+.hero-terminal {
+  background: rgba(255,255,255,.03); backdrop-filter: blur(40px) saturate(2);
+  border: 1px solid rgba(255,255,255,.08); border-radius: 1.25rem;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(124,58,237,.06) inset, 0 30px 80px rgba(0,0,0,.7);
+  transform-style: preserve-3d;
+  animation: floatTerminal 6s ease-in-out infinite;
 }
-@keyframes floatTerminal{
-  0%,100%{transform:translateY(0) rotateX(2deg) rotateY(-2deg)}
-  50%{transform:translateY(-12px) rotateX(2deg) rotateY(-2deg)}
+@keyframes floatTerminal {
+  0%,100% { transform: translateY(0)    rotateX(2deg) rotateY(-2deg); }
+  50%      { transform: translateY(-12px) rotateX(2deg) rotateY(-2deg); }
 }
-.term-bar{
-  display:flex; align-items:center; gap:.5rem;
-  padding:.65rem 1rem;
-  background:rgba(0,0,0,.25);
-  border-bottom:1px solid rgba(255,255,255,.06);
+.term-bar {
+  display: flex; align-items: center; gap: .5rem;
+  padding: .65rem 1rem; background: rgba(0,0,0,.25);
+  border-bottom: 1px solid rgba(255,255,255,.06);
 }
-.term-btn{width:11px;height:11px;border-radius:50%}
-.term-body{padding:1.25rem;font-family:'Geist Mono',monospace;font-size:.78rem;line-height:1.7;color:var(--muted)}
-.term-line{display:flex;gap:.6rem;margin-bottom:.25rem}
-.term-prompt{color:var(--vl);flex-shrink:0}
-.term-cursor{display:inline-block;width:8px;height:1.1em;background:var(--vl);animation:blinkCaret .8s step-end infinite;vertical-align:middle}
+.term-btn { width: 11px; height: 11px; border-radius: 50%; }
+.term-body { padding: 1.25rem; font-family: 'Geist Mono',monospace; font-size: .78rem; line-height: 1.7; color: var(--muted); }
+.term-line { display: flex; gap: .6rem; margin-bottom: .25rem; }
+.term-prompt { color: var(--vl); flex-shrink: 0; }
+.term-cursor { display: inline-block; width: 8px; height: 1.1em; background: var(--vl); animation: blinkCaret .8s step-end infinite; vertical-align: middle; }
 
-/* ── 5. Marquee ── */
-.marquee-section{
-  padding:2.5rem 0;
-  overflow:hidden;
-  border-top:1px solid rgba(255,255,255,.05);
-  border-bottom:1px solid rgba(255,255,255,.05);
-  background:rgba(255,255,255,.01);
+/* ── Marquee ── */
+.marquee-section {
+  padding: 2.5rem 0; overflow: hidden;
+  border-top: 1px solid rgba(255,255,255,.05);
+  border-bottom: 1px solid rgba(255,255,255,.05);
+  background: rgba(255,255,255,.01);
 }
-.marquee-track{
-  display:flex; gap:4rem; width:max-content;
-  animation:marqueeScroll 35s linear infinite;
-}
-.marquee-item{
-  display:flex; align-items:center; gap:.75rem;
-  font-size:.85rem; color:var(--muted); white-space:nowrap;
-  font-weight:600;
-}
-.marquee-item svg{width:1.1rem;height:1.1rem;color:var(--vl)}
-
-/* ── 6. Section Headers ── */
-.section-head{
-  text-align:center; margin-bottom:3.5rem;
-}
-.section-head h2{
-  font-size:clamp(1.9rem,4vw,2.8rem);
-  font-weight:800; letter-spacing:-.02em;
-  margin-bottom:.6rem;
-}
-.section-head p{color:var(--muted);font-size:1.05rem;max-width:560px;margin:0 auto;line-height:1.65}
-
-/* ── 7. Bento Features ── */
-.bento-grid{
-  display:grid;
-  gap:1rem;
-  grid-template-columns:repeat(3,1fr);
-  grid-auto-rows:minmax(180px,auto);
-}
-@media(max-width:900px){.bento-grid{grid-template-columns:1fr 1fr}}
-@media(max-width:560px){.bento-grid{grid-template-columns:1fr}}
-
-.bento-card{
-  position:relative;
-  background:rgba(255,255,255,.025);
-  backdrop-filter:blur(20px);
-  border:1px solid rgba(255,255,255,.07);
-  border-radius:1.25rem;
-  padding:1.6rem;
-  overflow:hidden;
-  transition:transform var(--r), border-color var(--r), box-shadow var(--r);
-  cursor:default;
-}
-.bento-card::before{
-  content:''; position:absolute; inset:0;
-  background:radial-gradient(600px circle at var(--mx,50%) var(--my,50%),
-    rgba(124,58,237,.12),transparent 40%);
-  opacity:0; transition:opacity .4s ease;
-  pointer-events:none; z-index:0;
-}
-.bento-card:hover::before{opacity:1}
-.bento-card:hover{
-  border-color:rgba(124,58,237,.35);
-  box-shadow:0 20px 50px rgba(0,0,0,.45);
-}
-.bento-card > *{position:relative;z-index:1}
-
-.bento-card.wide{grid-column:span 2}
-.bento-card.tall{grid-row:span 2}
-@media(max-width:900px){.bento-card.wide{grid-column:span 1}}
-
-.bento-icon{
-  width:44px;height:44px;border-radius:.85rem;
-  display:flex;align-items:center;justify-content:center;
-  font-size:1.3rem;margin-bottom:1rem;
-  background:rgba(124,58,237,.12);
-  border:1px solid rgba(124,58,237,.2);
-  transition:transform .3s ease;
-}
-.bento-card:hover .bento-icon{transform:scale(1.1) rotate(-6deg)}
-.bento-card h3{font-size:1.05rem;font-weight:700;margin-bottom:.35rem}
-.bento-card p{font-size:.82rem;color:var(--muted);line-height:1.6}
-
-/* ── 8. Stats ── */
-.stats-strip{
-  display:flex; justify-content:center; gap:clamp(2rem,6vw,5rem);
-  flex-wrap:wrap; padding:4rem 1rem;
-  position:relative;
-}
-.stat-block{text-align:center}
-.stat-block .num{
-  font-size:clamp(2.4rem,5vw,3.6rem);
-  font-weight:900; line-height:1;
-  font-family:'Geist Mono',monospace;
-  background:linear-gradient(135deg,#fff,var(--vl));
-  -webkit-background-clip:text; -webkit-text-fill-color:transparent;
-}
-.stat-block .lbl{font-size:.8rem;color:var(--muted);margin-top:.4rem;font-weight:500}
-
-/* ── 9. Interactive Terminal Demo ── */
-.demo-v2{
-  max-width:900px; margin:0 auto;
-  background:rgba(255,255,255,.025);
-  backdrop-filter:blur(40px) saturate(2);
-  border:1px solid rgba(255,255,255,.08);
-  border-radius:1.25rem;
-  overflow:hidden;
-  box-shadow:0 24px 70px rgba(0,0,0,.55);
-}
-.demo-tabs{
-  display:flex; gap:.25rem; padding:.5rem;
-  background:rgba(0,0,0,.2);
-  border-bottom:1px solid rgba(255,255,255,.06);
-}
-.demo-tab{
-  padding:.45rem 1rem; border-radius:999px;
-  font-size:.78rem; font-weight:600; color:var(--muted);
-  background:transparent; border:1px solid transparent;
-  cursor:pointer; transition:all var(--r);
-}
-.demo-tab.on{background:rgba(124,58,237,.15);color:var(--vl);border-color:rgba(124,58,237,.25)}
-.demo-tab:hover{color:var(--t)}
-.demo-v2-body{padding:1.25rem;min-height:260px}
-.demo-v2-panel{display:none}
-.demo-v2-panel.vis{display:block;animation:fadeUp .4s ease}
-.log-row{
-  display:flex;align-items:center;gap:.6rem;padding:.4rem .5rem;
-  border-radius:999px;margin-bottom:.35rem;
-  font-size:.72rem;font-family:'Geist Mono',monospace;
-  background:rgba(255,255,255,.03);
-  border:1px solid rgba(255,255,255,.04);
-  animation:fadeUp .35s ease both;
+.marquee-track { display: flex; gap: 4rem; width: max-content; animation: marqueeScroll 35s linear infinite; }
+@keyframes marqueeScroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.marquee-item {
+  display: flex; align-items: center; gap: .75rem;
+  font-size: .85rem; color: var(--muted); white-space: nowrap; font-weight: 600;
 }
 
-/* ── 10. Testimonials ── */
-.testi-track{
-  display:flex; gap:1.25rem;
-  overflow-x:auto; scroll-snap-type:x mandatory;
-  padding:1rem .5rem 2rem;
-  scrollbar-width:none;
-}
-.testi-track::-webkit-scrollbar{display:none}
-.testi-card{
-  flex:0 0 320px;
-  scroll-snap-align:start;
-  background:rgba(255,255,255,.025);
-  backdrop-filter:blur(16px);
-  border:1px solid rgba(255,255,255,.07);
-  border-radius:1.25rem;
-  padding:1.5rem;
-  transition:all var(--r);
-}
-.testi-card:hover{
-  border-color:rgba(124,58,237,.3);
-  transform:translateY(-4px);
-}
-.testi-stars{color:var(--amber);font-size:.9rem;margin-bottom:.6rem}
-.testi-text{font-size:.88rem;color:var(--muted);line-height:1.65;margin-bottom:1rem}
-.testi-author{display:flex;align-items:center;gap:.7rem}
-.testi-avatar{
-  width:36px;height:36px;border-radius:50%;
-  background:linear-gradient(135deg,var(--v),var(--p2));
-  display:flex;align-items:center;justify-content:center;
-  font-size:.8rem;font-weight:800;color:#fff;
-}
-.testi-name{font-size:.85rem;font-weight:700}
-.testi-role{font-size:.72rem;color:var(--muted)}
+/* ── Section Head ── */
+.section-head { text-align: center; margin-bottom: 3.5rem; }
+.section-head h2 { font-size: clamp(1.9rem,4vw,2.8rem); font-weight: 800; letter-spacing: -.02em; margin-bottom: .6rem; }
+.section-head p { color: var(--muted); font-size: 1.05rem; max-width: 560px; margin: 0 auto; line-height: 1.65; }
 
-/* ── 11. CTA V2 ── */
-.cta-v2{
-  position:relative;
-  padding:6rem 1rem;
-  overflow:hidden;
-  text-align:center;
+/* ── Bento Grid ── */
+.bento-grid {
+  display: grid; gap: 1rem;
+  grid-template-columns: repeat(3,1fr);
+  grid-auto-rows: minmax(180px,auto);
 }
-.cta-v2::before{
-  content:'';position:absolute;inset:0;
+@media(max-width:900px) { .bento-grid { grid-template-columns: 1fr 1fr; } }
+@media(max-width:560px) { .bento-grid { grid-template-columns: 1fr; } }
+
+.bento-card {
+  position: relative;
+  background: rgba(15,15,25,.8);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,.05);
+  border-radius: 1.25rem; padding: 1.6rem;
+  overflow: hidden; cursor: crosshair;
+  transition: transform var(--r), border-color var(--r), box-shadow var(--r);
+}
+/* spotlight glow */
+.bento-card::before {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(600px circle at var(--mx,50%) var(--my,50%),
+    rgba(124,58,237,.13), transparent 40%);
+  opacity: 0; transition: opacity .4s ease; pointer-events: none; z-index: 0;
+}
+/* border glow */
+.bento-card::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit;
+  padding: 2px;
+  background: radial-gradient(400px circle at var(--mx,50%) var(--my,50%),
+    rgba(124,58,237,.5), transparent 40%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+  pointer-events: none; opacity: 0; transition: opacity .4s ease;
+}
+.bento-card:hover::before,
+.bento-card:hover::after { opacity: 1; }
+.bento-card:hover {
+  border-color: rgba(124,58,237,.35);
+  box-shadow: 0 20px 50px rgba(0,0,0,.45);
+}
+.bento-card > * { position: relative; z-index: 1; }
+.bento-card.wide { grid-column: span 2; }
+@media(max-width:900px) { .bento-card.wide { grid-column: span 1; } }
+
+.bento-icon {
+  width: 44px; height: 44px; border-radius: .85rem;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.3rem; margin-bottom: 1rem;
+  background: rgba(124,58,237,.12); border: 1px solid rgba(124,58,237,.2);
+  transition: transform .3s ease;
+}
+.bento-card:hover .bento-icon { transform: scale(1.1) rotate(-6deg); }
+.bento-card h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: .35rem; }
+.bento-card p  { font-size: .82rem; color: var(--muted); line-height: 1.6; }
+
+/* ── Tilt ── */
+.tilt-card { transform-style: preserve-3d; transition: transform .1s ease-out; }
+
+/* ── Stats Strip ── */
+.stats-strip {
+  display: flex; justify-content: center; gap: clamp(2rem,6vw,5rem);
+  flex-wrap: wrap; padding: 4rem 1rem; position: relative;
+}
+.stat-block { text-align: center; }
+.stat-block .num {
+  font-size: clamp(2.4rem,5vw,3.6rem); font-weight: 900; line-height: 1;
+  font-family: 'Geist Mono',monospace;
+  background: linear-gradient(135deg,#fff,var(--vl));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.stat-block .lbl { font-size: .8rem; color: var(--muted); margin-top: .4rem; font-weight: 500; }
+
+/* ── AutoMod Sandbox ── */
+.sandbox-wrap { max-width: 900px; margin: 0 auto; }
+.sandbox-ui {
+  display: flex; flex-direction: column; gap: 1rem;
+  background: var(--bg2); padding: 2rem; border-radius: 1.5rem;
+  border: 1px solid var(--border); box-shadow: 0 20px 50px rgba(0,0,0,.5);
+}
+.dc-msg { display: flex; gap: 1rem; padding: 1rem; border-radius: .8rem; background: rgba(255,255,255,.02); transition: all .3s; }
+.dc-av { width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0; }
+.dc-content h4 { font-size: .9rem; color: #fff; margin-bottom: .2rem; display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.dc-bot-tag { background: #5865F2; font-size: .6rem; padding: .1rem .3rem; border-radius: 3px; text-transform: uppercase; }
+.dc-text { font-size: .9rem; color: #dcddde; }
+.sb-input-wrap { display: flex; gap: 1rem; margin-top: 1rem; }
+.sb-input-wrap input {
+  flex: 1; background: rgba(255,255,255,.05); padding: 1rem 1.5rem;
+  font-size: 1rem; border-radius: .75rem; border: 1px solid var(--border);
+  color: #fff; outline: none; font-family: inherit;
+}
+.sb-input-wrap input:focus { border-color: rgba(124,58,237,.5); }
+.deleted-msg { border: 1px solid rgba(239,68,68,.4) !important; background: rgba(239,68,68,.05) !important; }
+.deleted-msg .dc-text { text-decoration: line-through; opacity: .6; }
+
+/* ── Demo Tabs ── */
+.demo-v2 {
+  max-width: 900px; margin: 0 auto;
+  background: rgba(255,255,255,.025); backdrop-filter: blur(40px) saturate(2);
+  border: 1px solid rgba(255,255,255,.08); border-radius: 1.25rem;
+  overflow: hidden; box-shadow: 0 24px 70px rgba(0,0,0,.55);
+}
+.demo-tabs {
+  display: flex; gap: .25rem; padding: .5rem;
+  background: rgba(0,0,0,.2); border-bottom: 1px solid rgba(255,255,255,.06);
+}
+.demo-tab {
+  padding: .45rem 1rem; border-radius: 999px;
+  font-size: .78rem; font-weight: 600; color: var(--muted);
+  background: transparent; border: 1px solid transparent;
+  cursor: pointer; transition: all var(--r);
+}
+.demo-tab.on  { background: rgba(124,58,237,.15); color: var(--vl); border-color: rgba(124,58,237,.25); }
+.demo-tab:hover { color: var(--t); }
+.demo-v2-body   { padding: 1.25rem; min-height: 260px; }
+.demo-v2-panel  { display: none; }
+.demo-v2-panel.vis { display: block; animation: fadeUp .4s ease; }
+.log-row {
+  display: flex; align-items: center; gap: .6rem; padding: .4rem .5rem;
+  border-radius: 999px; margin-bottom: .35rem;
+  font-size: .72rem; font-family: 'Geist Mono',monospace;
+  background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.04);
+  animation: fadeUp .35s ease both;
+}
+@keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ── Split Grid ── */
+.split-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 4rem; max-width: 1280px; margin: 0 auto; padding: 0 1rem; align-items: center;
+}
+@media(max-width:900px) {
+  .split-grid { grid-template-columns: 1fr; text-align: center; }
+  .ai-chat { align-items: center; }
+}
+
+/* ── AI Chat ── */
+.ai-chat { max-width: 600px; margin: 0 auto; display: flex; flex-direction: column; gap: 1rem; }
+.chat-bubble { padding: 1rem 1.5rem; border-radius: 1.5rem; max-width: 80%; font-size: .9rem; line-height: 1.5; }
+.chat-user { background: rgba(255,255,255,.05); color: #fff; align-self: flex-end; border-bottom-right-radius: .2rem; }
+.chat-bot {
+  background: linear-gradient(135deg, rgba(124,58,237,.2), rgba(34,211,238,.1));
+  border: 1px solid rgba(124,58,237,.3); color: var(--cl);
+  align-self: flex-start; border-bottom-left-radius: .2rem;
+  box-shadow: 0 10px 20px rgba(124,58,237,.1);
+}
+
+/* ── Economy Profile ── */
+.eco-profile {
+  width: 320px; background: #18191c; border-radius: 16px;
+  overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,.6);
+  border: 1px solid rgba(255,255,255,.05); margin: 0 auto; transition: transform .3s;
+}
+.eco-profile:hover { transform: translateY(-10px) scale(1.02); }
+.eco-banner { height: 100px; background: linear-gradient(135deg, var(--v), var(--p)); position: relative; }
+.eco-av-wrap { width: 90px; height: 90px; border-radius: 50%; background: #18191c; padding: 6px; position: absolute; bottom: -45px; left: 16px; }
+.eco-av { width: 100%; height: 100%; border-radius: 50%; background: #3ba55c; }
+.eco-body { padding: 55px 20px 20px; }
+.eco-name { font-size: 1.2rem; font-weight: 800; color: #fff; margin-bottom: 1.5rem; }
+.eco-stat {
+  display: flex; justify-content: space-between; align-items: center;
+  background: #2f3136; padding: .8rem 1rem; border-radius: 8px; margin-bottom: .5rem;
+  cursor: pointer; transition: background .2s;
+}
+.eco-stat:hover { background: #36393f; }
+.eco-val { color: var(--amberl); font-weight: 700; font-family: 'Geist Mono',monospace; }
+
+/* ── Comparison Table ── */
+.compare-wrap { max-width: 1000px; margin: 0 auto; padding: 0 1rem; }
+.cmp-table { width: 100%; border-collapse: collapse; }
+.cmp-table th, .cmp-table td { padding: 1.2rem; text-align: center; border-bottom: 1px solid var(--border); }
+.cmp-table th { font-size: 1.1rem; color: #fff; }
+.cmp-table td:first-child { text-align: left; font-weight: 600; color: var(--muted); }
+.cmp-mf     { background: rgba(124,58,237,.1); border-left: 1px solid var(--v); border-right: 1px solid var(--v); }
+.cmp-mf-top { border-top: 1px solid var(--v); border-top-left-radius: 1rem; border-top-right-radius: 1rem; }
+.cmp-mf-bot { border-bottom: 1px solid var(--v); border-bottom-left-radius: 1rem; border-bottom-right-radius: 1rem; }
+.ic-check { color: var(--ok); filter: drop-shadow(0 0 5px var(--ok)); }
+.ic-cross  { color: var(--err); opacity: .5; }
+
+/* ── Testimonials ── */
+.testi-track { display: flex; gap: 1.25rem; overflow-x: auto; scroll-snap-type: x mandatory; padding: 1rem .5rem 2rem; scrollbar-width: none; }
+.testi-track::-webkit-scrollbar { display: none; }
+.testi-card {
+  flex: 0 0 320px; scroll-snap-align: start;
+  background: rgba(255,255,255,.025); backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,.07); border-radius: 1.25rem;
+  padding: 1.5rem; transition: all var(--r);
+}
+.testi-card:hover { border-color: rgba(124,58,237,.3); transform: translateY(-4px); }
+.testi-stars  { color: var(--amber); font-size: .9rem; margin-bottom: .6rem; }
+.testi-text   { font-size: .88rem; color: var(--muted); line-height: 1.65; margin-bottom: 1rem; }
+.testi-author { display: flex; align-items: center; gap: .7rem; }
+.testi-avatar {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--v), var(--p2));
+  display: flex; align-items: center; justify-content: center;
+  font-size: .8rem; font-weight: 800; color: #fff;
+}
+.testi-name { font-size: .85rem; font-weight: 700; }
+.testi-role { font-size: .72rem; color: var(--muted); }
+
+/* ── CTA ── */
+.cta-v2 { position: relative; padding: 6rem 1rem; overflow: hidden; text-align: center; }
+.cta-v2::before {
+  content: ''; position: absolute; inset: 0;
   background:
-    radial-gradient(circle at 20% 50%,rgba(124,58,237,.15),transparent 50%),
-    radial-gradient(circle at 80% 50%,rgba(34,211,238,.1),transparent 50%);
-  pointer-events:none;
+    radial-gradient(circle at 20% 50%, rgba(124,58,237,.15), transparent 50%),
+    radial-gradient(circle at 80% 50%, rgba(34,211,238,.1),  transparent 50%);
+  pointer-events: none;
 }
-.cta-v2 .container{position:relative;z-index:1}
-.cta-v2 h2{
-  font-size:clamp(2rem,5vw,3.2rem);
-  font-weight:900;letter-spacing:-.02em;margin-bottom:1rem;
-}
-.cta-v2 p{color:var(--muted);font-size:1.1rem;max-width:560px;margin:0 auto 2rem}
+.cta-v2 .container { position: relative; z-index: 1; }
+.cta-v2 h2 { font-size: clamp(2rem,5vw,3.2rem); font-weight: 900; letter-spacing: -.02em; margin-bottom: 1rem; }
+.cta-v2 p  { color: var(--muted); font-size: 1.1rem; max-width: 560px; margin: 0 auto 2rem; }
 
-/* ── 12. Parallax Floater ── */
-.parallax-wrap{position:relative;overflow:hidden}
-.floater{
-  position:absolute;border-radius:50%;filter:blur(80px);pointer-events:none;opacity:.5;
+/* ── Live Toasts ── */
+#toast-container {
+  position: fixed; bottom: 20px; left: 20px;
+  display: flex; flex-direction: column; gap: 10px; z-index: 10000; pointer-events: none;
 }
-
-/* ── 13. Tilt Utility ── */
-.tilt-card{transform-style:preserve-3d;transition:transform .1s ease-out}
-
-/* ── 14. SVG Draw ── */
-.draw-svg path{
-  stroke-dasharray:1000; stroke-dashoffset:1000;
-  transition:stroke-dashoffset 2s ease;
+.live-toast {
+  background: rgba(15,15,25,.92); backdrop-filter: blur(10px);
+  border-left: 3px solid var(--v); padding: 1rem; border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.5);
+  display: flex; align-items: center; gap: 10px;
+  animation: slideInLeft .4s cubic-bezier(.175,.885,.32,1.275) forwards;
+  width: 300px;
 }
-.draw-svg.in-view path{stroke-dashoffset:0}
+.toast-ic   { font-size: 1.2rem; flex-shrink: 0; }
+.toast-content h5 { font-size: .8rem; color: #fff; margin-bottom: .1rem; }
+.toast-content p  { font-size: .7rem; color: var(--muted); }
+@keyframes slideInLeft { from { transform: translateX(-120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+@keyframes fadeOut { to { opacity: 0; transform: translateY(10px); } }
 
-/* ── 15. Noise Overlay ── */
-.noise{
-  position:fixed;inset:0;pointer-events:none;z-index:9998;opacity:.035;
-  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  background-repeat:repeat;
-  background-size:256px;
-}
+/* ── Parallax Floater ── */
+.parallax-wrap { position: relative; overflow: hidden; }
+.floater { position: absolute; border-radius: 50%; filter: blur(80px); pointer-events: none; opacity: .5; }
 </style>
 
-<!-- ══════ NOISE OVERLAY ══════ -->
+<!-- ══════ NOISE ══════ -->
 <div class="noise"></div>
 
 <!-- ══════ SCROLL PROGRESS ══════ -->
 <div class="scroll-progress" id="scrollProgress"></div>
 
-<!-- ══════════════════════════════════════════
+<!-- ══════ TOAST CONTAINER ══════ -->
+<div id="toast-container"></div>
+
+<!-- ═══════════════════════════════════════════════════
    HERO
 ═══════════════════════════════════════════════════ -->
 <section class="hero-v2">
   <canvas id="hero-particle-canvas"></canvas>
+  <div class="hero-glow" style="opacity:.4;"></div>
   <div class="container">
+
+    <!-- Left: content -->
     <div class="hero-content">
+      <!-- Shield pulse from v2 -->
+      <div class="hero-shield">
+        <div class="shield-ring"></div>
+        <div class="shield-ring"></div>
+        <div class="shield-ring"></div>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+      </div>
+
       <div class="badge-glass">
         <span class="pulse-dot"></span>
         v3.0 – Jetzt mit AI AutoMod
       </div>
+
       <h1 class="glitch-target">
         Dein Discord-Server<br>
-        verdient <span class="typewriter" data-words="Sicherheit,AutoMod,Anti-Nuke,Premium-Schutz,24/7 Support"></span>
+        verdient <span class="typewriter-word" data-words="Sicherheit,AutoMod,Anti-Nuke,Premium-Schutz,24/7 Support"></span>
       </h1>
+
       <p class="hero-lead">
-        ModForge ist der modernste Security‑ & AutoMod‑Bot für Discord.
+        ModForge ist der modernste Security‑ &amp; AutoMod‑Bot für Discord.
         <strong>Anti‑Nuke, Anti‑Raid, KI‑Moderation</strong> und ein
         leistungsstarkes Web‑Dashboard – alles out‑of‑the‑box.
       </p>
+
       <div class="hero-actions">
         <a href="https://discord.com/api/oauth2/authorize?client_id=YOUR_CLIENT_ID&permissions=8&scope=bot%20applications.commands"
            target="_blank" class="btn-glass btn-glass-primary btn-lg magnetic">
@@ -371,7 +467,8 @@
         </a>
       </div>
 
-      <div class="stats-grid" style="margin-top:2.5rem;justify-content:flex-start;border:none;padding:0;gap:2.5rem">
+      <!-- Mini stats under hero CTA -->
+      <div class="stats-grid" style="margin-top:2.5rem;justify-content:flex-start;border:none;padding:0;gap:2.5rem;">
         <div class="stat-item">
           <div class="stat-num" data-target="150">0</div>
           <div class="stat-lbl">Server</div>
@@ -387,16 +484,16 @@
       </div>
     </div>
 
-    <!-- Interactive Terminal -->
+    <!-- Right: floating terminal -->
     <div class="hero-terminal-wrap">
       <div class="hero-terminal tilt-card" id="heroTerminal">
         <div class="term-bar">
           <span class="term-btn" style="background:#ff5f57"></span>
           <span class="term-btn" style="background:#febc2e"></span>
           <span class="term-btn" style="background:#28c840"></span>
-          <span style="margin-left:auto;font-size:.65rem;color:var(--muted);font-family:'Geist Mono',monospace">modforge — zsh</span>
+          <span style="margin-left:auto;font-size:.65rem;color:var(--muted);font-family:'Geist Mono',monospace;">modforge — zsh</span>
         </div>
-        <div class="term-body" id="termBody">
+        <div class="term-body">
           <div class="term-line"><span class="term-prompt">➜</span><span>system init...</span></div>
           <div class="term-line"><span class="term-prompt">➜</span><span>loading modules <span style="color:var(--green)">[OK]</span></span></div>
           <div class="term-line"><span class="term-prompt">➜</span><span id="termTyped"></span><span class="term-cursor"></span></div>
@@ -406,19 +503,17 @@
   </div>
 </section>
 
-<!-- ══════════════════════════════════════════
+<!-- ═══════════════════════════════════════════════════
    MARQUEE TRUST BAR
 ═══════════════════════════════════════════════════ -->
 <div class="marquee-section">
-  <div class="marquee-track" id="marqueeTrack">
-    <!-- items injected via JS for perf -->
-  </div>
+  <div class="marquee-track" id="marqueeTrack"></div>
 </div>
 
-<!-- ══════════════════════════════════════════
+<!-- ═══════════════════════════════════════════════════
    FEATURES  ·  BENTO GRID
 ═══════════════════════════════════════════════════ -->
-<section class="section">
+<section class="section parallax-wrap">
   <div class="container">
     <div class="section-head">
       <div class="section-label">🚀 Features</div>
@@ -427,34 +522,34 @@
     </div>
 
     <div class="bento-grid">
-      <div class="bento-card wide spotlight-card tilt-card">
+      <div class="bento-card wide tilt-card">
         <div class="bento-icon">🛡️</div>
-        <h3>Anti‑Nuke & Anti‑Raid</h3>
-        <p>Erkennt Massen‑Kicks, Channel‑Deletes und Rollen‑Changes in Echtzeit. Stoppt Angriffe bevor Schaden entsteht.</p>
+        <h3>Anti‑Nuke &amp; Anti‑Raid</h3>
+        <p>Erkennt Massen‑Kicks, Channel‑Deletes und Rollen‑Changes in Echtzeit. Stoppt Angriffe bevor Schaden entsteht. Isoliert kompromittierte Admin-Accounts in Millisekunden.</p>
       </div>
-      <div class="bento-card spotlight-card tilt-card">
+      <div class="bento-card tilt-card">
         <div class="bento-icon">🤖</div>
         <h3>AI AutoMod 2.0</h3>
-        <p>KI‑gestützte Toxicity‑Erkennung, Phishing‑Filter und intelligenter Spam‑Schutz.</p>
+        <p>KI‑gestützte Toxicity‑Erkennung, Phishing‑Filter und intelligenter Spam‑Schutz. Regex-Filter, BadWord-Listen &amp; Zalgo-Schutz.</p>
       </div>
-      <div class="bento-card spotlight-card tilt-card">
+      <div class="bento-card tilt-card">
         <div class="bento-icon">📊</div>
         <h3>Web Dashboard</h3>
-        <p>Konfiguriere alles per Drag & Drop. Echtzeit‑Logs, Statistiken und Mod‑Tools im Browser.</p>
+        <p>Konfiguriere alles per Drag &amp; Drop. Echtzeit‑Logs, Statistiken und Mod‑Tools im Browser.</p>
       </div>
-      <div class="bento-card spotlight-card tilt-card">
+      <div class="bento-card tilt-card">
         <div class="bento-icon">🎫</div>
         <h3>Ticket System</h3>
         <p>Professionelle Support‑Panels mit Dropdowns, Transcripts und Auto‑Close.</p>
       </div>
-      <div class="bento-card wide spotlight-card tilt-card">
+      <div class="bento-card wide tilt-card">
         <div class="bento-icon">🎵</div>
-        <h3>24/7 Music & Economy</h3>
-        <p>Lavalink‑Audio in Premium‑Qualität. Coins, Gambling, Shop‑System und Badges für deine Community.</p>
+        <h3>24/7 Music &amp; Economy</h3>
+        <p>Lavalink‑Audio in Premium‑Qualität. Coins, Gambling, Shop‑System und Badges für deine Community. Server-spezifische XP, Voice-XP und Custom Profilkarten.</p>
       </div>
-      <div class="bento-card spotlight-card tilt-card">
+      <div class="bento-card tilt-card">
         <div class="bento-icon">📜</div>
-        <h3>Cases & Logging</h3>
+        <h3>Cases &amp; Logging</h3>
         <p>Lückenlose Dokumentation jedes Mod‑Actions. Exportierbar, durchsuchbar, DSGVO‑konform.</p>
       </div>
     </div>
@@ -463,14 +558,59 @@
 
 <div class="divider"></div>
 
-<!-- ══════════════════════════════════════════
-   LIVE DEMO  ·  TERMINAL
+<!-- ═══════════════════════════════════════════════════
+   STATS STRIP
+═══════════════════════════════════════════════════ -->
+<div class="stats-strip">
+  <div class="stat-block"><div class="num" data-count="150">0</div><div class="lbl">Server geschützt</div></div>
+  <div class="stat-block"><div class="num" data-count="99">0</div><div class="lbl">% Uptime</div></div>
+  <div class="stat-block"><div class="num" data-count="100">0</div><div class="lbl">+ Commands</div></div>
+  <div class="stat-block"><div class="num" data-count="26">0</div><div class="lbl">Logging Module</div></div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════════════════════════════════════
+   AUTOMOD SANDBOX
 ═══════════════════════════════════════════════════ -->
 <section class="section section-alt">
   <div class="container">
     <div class="section-head">
-      <div class="section-label">📊 Live Demo</div>
-      <h2>Dashboard & Logs in Echtzeit</h2>
+      <div class="section-label">🔬 Live Demo</div>
+      <h2>Erlebe den AutoMod in Aktion</h2>
+      <p>Tippe ein Schimpfwort oder einen Phishing-Link ein und sieh, wie schnell ModForge reagiert.</p>
+    </div>
+
+    <div class="sandbox-wrap">
+      <div class="sandbox-ui glass-panel">
+        <div id="sb-chat" style="display:flex;flex-direction:column;gap:1rem;height:250px;overflow-y:auto;padding-right:1rem;">
+          <div class="dc-msg">
+            <div class="dc-av" style="background:#5865F2;"></div>
+            <div class="dc-content">
+              <h4>Fufi <span style="color:var(--muted);font-size:.75rem;">heute um 14:00</span></h4>
+              <div class="dc-text">Willkommen auf dem Server! Lies dir die Regeln durch.</div>
+            </div>
+          </div>
+        </div>
+        <div class="sb-input-wrap">
+          <input type="text" id="sb-input" placeholder="Tippe z.B. 'discord.gg/freemoney' oder ein Badword...">
+          <button class="btn-glass btn-glass-primary" id="sb-btn">Senden</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════════════════════════════════════
+   LIVE LOGS  ·  DEMO TABS
+═══════════════════════════════════════════════════ -->
+<section class="section">
+  <div class="container">
+    <div class="section-head">
+      <div class="section-label">📊 Live Logs</div>
+      <h2>Dashboard &amp; Logs in Echtzeit</h2>
       <p>So sieht ModForge im Einsatz aus.</p>
     </div>
 
@@ -481,14 +621,58 @@
         <button class="demo-tab" data-tab="music">Music</button>
       </div>
       <div class="demo-v2-body">
-        <div class="demo-v2-panel vis" id="tab-mod">
-          <div id="demoLogMod"></div>
+        <div class="demo-v2-panel vis" id="tab-mod"><div id="demoLogMod"></div></div>
+        <div class="demo-v2-panel"     id="tab-sec"><div id="demoLogSec"></div></div>
+        <div class="demo-v2-panel"     id="tab-music"><div id="demoLogMusic"></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════════════════════════════════════
+   SPLIT GRID – KI-ANALYSE + ECONOMY
+═══════════════════════════════════════════════════ -->
+<section class="section section-alt">
+  <div class="split-grid">
+    <!-- Left: AI Chat preview -->
+    <div>
+      <div class="section-label">🧠 GPT-4 Integration</div>
+      <h2 style="font-size:2.2rem;font-weight:800;margin:1rem 0;letter-spacing:-.02em;">KI-Sentiment Analyse</h2>
+      <p style="color:var(--muted);margin-bottom:2rem;font-size:1rem;line-height:1.7;">
+        ModForge versteht Kontext. Toxizität wird nicht nur an Wörtern erkannt, sondern an der Stimmung der Nachricht.
+      </p>
+      <div class="ai-chat">
+        <div class="chat-bubble chat-user">„Ihr seid doch alle komplett unfähig, löscht euch einfach!"</div>
+        <div class="chat-bubble chat-bot">
+          <strong>ModForge KI:</strong><br>
+          <span style="color:#fca5a5;">⚠️ Hohe Toxizität erkannt (92%).</span><br>
+          Aktion: Nachricht gelöscht, User verwarnt.
         </div>
-        <div class="demo-v2-panel" id="tab-sec">
-          <div id="demoLogSec"></div>
+      </div>
+    </div>
+
+    <!-- Right: Economy profile card -->
+    <div>
+      <div class="eco-profile">
+        <div class="eco-banner">
+          <div class="eco-av-wrap"><div class="eco-av"></div></div>
         </div>
-        <div class="demo-v2-panel" id="tab-music">
-          <div id="demoLogMusic"></div>
+        <div class="eco-body">
+          <div class="eco-name">Fufi <span style="color:var(--muted);font-weight:400;">#0001</span></div>
+          <div class="eco-stat">
+            <span style="color:var(--muted);font-size:.8rem;">Level</span>
+            <span class="eco-val" style="color:var(--cl);">42</span>
+          </div>
+          <div class="eco-stat">
+            <span style="color:var(--muted);font-size:.8rem;">Experience</span>
+            <span class="eco-val" style="color:#86efac;">14,500 XP</span>
+          </div>
+          <div class="eco-stat" id="coin-hover">
+            <span style="color:var(--muted);font-size:.8rem;">Balance (Hover!)</span>
+            <span class="eco-val" id="coin-val">🪙 5.000</span>
+          </div>
         </div>
       </div>
     </div>
@@ -497,16 +681,78 @@
 
 <div class="divider"></div>
 
-<!-- ══════════════════════════════════════════
-   TESTIMONIALS
+<!-- ═══════════════════════════════════════════════════
+   COMPARISON TABLE
 ═══════════════════════════════════════════════════ -->
 <section class="section">
+  <div class="container">
+    <div class="section-head">
+      <div class="section-label">⚖️ Vergleich</div>
+      <h2>Warum ModForge?</h2>
+      <p>Vergiss überteuerte Premium-Paywalls. Wir bieten Enterprise-Features standardmäßig.</p>
+    </div>
+
+    <div class="compare-wrap">
+      <div class="glass-panel" style="padding:0;">
+        <table class="cmp-table">
+          <thead>
+            <tr>
+              <th>Feature</th>
+              <th class="cmp-mf cmp-mf-top">🛡️ ModForge</th>
+              <th>MEE6</th>
+              <th>Dyno</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>KI AutoMod</td>
+              <td class="cmp-mf"><svg class="ic-check" viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="3" fill="none"><polyline points="20 6 9 17 4 12"></polyline></svg></td>
+              <td><svg class="ic-cross" viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="3" fill="none"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></td>
+              <td><svg class="ic-cross" viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="3" fill="none"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></td>
+            </tr>
+            <tr>
+              <td>Anti-Nuke Engine</td>
+              <td class="cmp-mf"><svg class="ic-check" viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="3" fill="none"><polyline points="20 6 9 17 4 12"></polyline></svg></td>
+              <td><svg class="ic-cross" viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="3" fill="none"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></td>
+              <td>Teilweise</td>
+            </tr>
+            <tr>
+              <td>Web Dashboard</td>
+              <td class="cmp-mf"><svg class="ic-check" viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="3" fill="none"><polyline points="20 6 9 17 4 12"></polyline></svg></td>
+              <td><svg class="ic-check" viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="3" fill="none"><polyline points="20 6 9 17 4 12"></polyline></svg></td>
+              <td><svg class="ic-check" viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="3" fill="none"><polyline points="20 6 9 17 4 12"></polyline></svg></td>
+            </tr>
+            <tr>
+              <td>Economy &amp; XP</td>
+              <td class="cmp-mf"><svg class="ic-check" viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="3" fill="none"><polyline points="20 6 9 17 4 12"></polyline></svg></td>
+              <td>Paywall ($$$)</td>
+              <td><svg class="ic-cross" viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="3" fill="none"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></td>
+            </tr>
+            <tr>
+              <td>Custom Branding</td>
+              <td class="cmp-mf cmp-mf-bot"><svg class="ic-check" viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="3" fill="none"><polyline points="20 6 9 17 4 12"></polyline></svg></td>
+              <td>Paywall ($$$)</td>
+              <td>Paywall</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ═══════════════════════════════════════════════════
+   TESTIMONIALS
+═══════════════════════════════════════════════════ -->
+<section class="section section-alt">
   <div class="container">
     <div class="section-head">
       <div class="section-label">💬 Community</div>
       <h2>Vertraut von Admins weltweit</h2>
     </div>
-    <div class="testi-track" id="testiTrack">
+    <div class="testi-track">
       <div class="testi-card">
         <div class="testi-stars">★★★★★</div>
         <div class="testi-text">„ModForge hat unseren Server vor einem koordinierten Raid gerettet. Der Anti‑Nuke ist blitzschnell."</div>
@@ -528,7 +774,7 @@
         <div class="testi-text">„Die AI AutoMod filtert Spam besser als alle anderen Bots, die wir getestet haben."</div>
         <div class="testi-author">
           <div class="testi-avatar">MR</div>
-          <div><div class="testi-name">Max R.</div><div class="testi-role">Dev & Founder</div></div>
+          <div><div class="testi-name">Max R.</div><div class="testi-role">Dev &amp; Founder</div></div>
         </div>
       </div>
       <div class="testi-card">
@@ -545,14 +791,14 @@
 
 <div class="divider"></div>
 
-<!-- ══════════════════════════════════════════
+<!-- ═══════════════════════════════════════════════════
    CTA
 ═══════════════════════════════════════════════════ -->
 <section class="cta-v2">
   <div class="container">
     <h2>Bereit für Next‑Level Security?</h2>
     <p>Join über 150+ Servern, die ModForge bereits vertrauen. Setup dauert unter 2 Minuten.</p>
-    <div class="btn-row" style="justify-content:center">
+    <div class="btn-row" style="justify-content:center;">
       <a href="https://discord.com/api/oauth2/authorize?client_id=YOUR_CLIENT_ID&permissions=8&scope=bot%20applications.commands"
          target="_blank" class="btn-glass btn-glass-primary btn-xl magnetic">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="20" height="20">
@@ -570,278 +816,381 @@
   </div>
 </section>
 
+<!-- ═══════════════════════════════════════════════════
+   JAVASCRIPT – ALLE FEATURES KOMBINIERT
+═══════════════════════════════════════════════════ -->
 <script>
-(function(){
+(function () {
 'use strict';
 
-/* ══════════════════════════════════════════
-   1. SCROLL PROGRESS
-═══════════════════════════════════════════════════ */
+/* ── 1. SCROLL PROGRESS ── */
 const sp = document.getElementById('scrollProgress');
-window.addEventListener('scroll',()=>{
+window.addEventListener('scroll', () => {
   const pct = window.scrollY / (document.body.scrollHeight - window.innerHeight);
-  sp.style.transform = `scaleX(${Math.min(1,Math.max(0,pct))})`;
-},{passive:true});
+  sp.style.transform = `scaleX(${Math.min(1, Math.max(0, pct))})`;
+}, { passive: true });
 
-/* ══════════════════════════════════════════
-   2. HERO PARTICLE CANVAS
-═══════════════════════════════════════════════════ */
+/* ── 2. HERO PARTICLE CANVAS ── */
 const cvs = document.getElementById('hero-particle-canvas');
-const ctx = cvs.getContext('2d');
-let W,H;
-function resize(){ W=cvs.width=cvs.offsetWidth; H=cvs.height=cvs.offsetHeight; }
-resize(); window.addEventListener('resize',resize,{passive:true});
+if (cvs) {
+  const ctx = cvs.getContext('2d');
+  let W, H;
+  const resize = () => { W = cvs.width = cvs.offsetWidth; H = cvs.height = cvs.offsetHeight; };
+  resize();
+  window.addEventListener('resize', resize, { passive: true });
 
-const particles = Array.from({length:70},()=>({
-  x:Math.random()*W, y:Math.random()*H,
-  vx:(Math.random()-.5)*.6, vy:(Math.random()-.5)*.6,
-  r:Math.random()*1.8+.6
-}));
-let mx=W/2,my=H/2;
-cvs.addEventListener('mousemove',e=>{ const r=cvs.getBoundingClientRect(); mx=e.clientX-r.left; my=e.clientY-r.top; });
-
-function drawParticles(){
-  ctx.clearRect(0,0,W,H);
-  particles.forEach((p,i)=>{
-    p.x+=p.vx; p.y+=p.vy;
-    if(p.x<0||p.x>W) p.vx*=-1;
-    if(p.y<0||p.y>H) p.vy*=-1;
-    const dx=mx-p.x, dy=my-p.y, d=Math.sqrt(dx*dx+dy*dy);
-    if(d<140){ p.x+=dx*.003; p.y+=dy*.003; }
-    ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
-    ctx.fillStyle='rgba(167,139,250,.45)'; ctx.fill();
-    for(let j=i+1;j<particles.length;j++){
-      const p2=particles[j], dx2=p.x-p2.x, dy2=p.y-p2.y, d2=Math.sqrt(dx2*dx2+dy2*dy2);
-      if(d2<100){ ctx.beginPath(); ctx.moveTo(p.x,p.y); ctx.lineTo(p2.x,p2.y); ctx.strokeStyle=`rgba(167,139,250,${.18-d2/550})`; ctx.lineWidth=.6; ctx.stroke(); }
-    }
+  const particles = Array.from({ length: 70 }, () => ({
+    x: Math.random() * W, y: Math.random() * H,
+    vx: (Math.random() - .5) * .6, vy: (Math.random() - .5) * .6,
+    r: Math.random() * 1.8 + .6
+  }));
+  let mx = W / 2, my = H / 2;
+  cvs.addEventListener('mousemove', e => {
+    const r = cvs.getBoundingClientRect();
+    mx = e.clientX - r.left; my = e.clientY - r.top;
   });
-  requestAnimationFrame(drawParticles);
-}
-drawParticles();
 
-/* ══════════════════════════════════════════
-   3. TYPEWRITER
-═══════════════════════════════════════════════════ */
-const tw = document.querySelector('.typewriter');
-if(tw){
+  (function drawParticles() {
+    ctx.clearRect(0, 0, W, H);
+    particles.forEach((p, i) => {
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < 0 || p.x > W) p.vx *= -1;
+      if (p.y < 0 || p.y > H) p.vy *= -1;
+      const dx = mx - p.x, dy = my - p.y, d = Math.hypot(dx, dy);
+      if (d < 140) { p.x += dx * .003; p.y += dy * .003; }
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(167,139,250,.45)'; ctx.fill();
+      for (let j = i + 1; j < particles.length; j++) {
+        const q = particles[j], d2 = Math.hypot(p.x - q.x, p.y - q.y);
+        if (d2 < 100) {
+          ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y);
+          ctx.strokeStyle = `rgba(167,139,250,${.18 - d2 / 550})`;
+          ctx.lineWidth = .6; ctx.stroke();
+        }
+      }
+    });
+    requestAnimationFrame(drawParticles);
+  })();
+}
+
+/* ── 3. TYPEWRITER ── */
+const tw = document.querySelector('.typewriter-word');
+if (tw) {
   const words = tw.dataset.words.split(',');
-  let wi=0, ci=0, del=false;
-  function type(){
+  let wi = 0, ci = 0, del = false;
+  (function type() {
     const cur = words[wi];
-    tw.textContent = cur.substring(0,ci);
-    if(!del && ci<cur.length){ ci++; setTimeout(type,100+Math.random()*60); }
-    else if(del && ci>0){ ci--; setTimeout(type,45); }
-    else { del=!del; if(!del) wi=(wi+1)%words.length; setTimeout(type,del?1800:300); }
-  }
-  type();
+    tw.textContent = cur.substring(0, ci);
+    if (!del && ci < cur.length)   { ci++;  setTimeout(type, 100 + Math.random() * 60); }
+    else if (del && ci > 0)         { ci--;  setTimeout(type, 45); }
+    else { del = !del; if (!del) wi = (wi + 1) % words.length; setTimeout(type, del ? 1800 : 300); }
+  })();
 }
 
-/* ══════════════════════════════════════════
-   4. MAGNETIC BUTTONS
-═══════════════════════════════════════════════════ */
-document.querySelectorAll('.magnetic').forEach(btn=>{
-  btn.addEventListener('mousemove',e=>{
-    const r=btn.getBoundingClientRect();
-    btn.style.transform=`translate(${(e.clientX-r.left-r.width/2)*.25}px,${(e.clientY-r.top-r.height/2)*.25}px)`;
+/* ── 4. MAGNETIC BUTTONS ── */
+document.querySelectorAll('.magnetic').forEach(btn => {
+  btn.addEventListener('mousemove', e => {
+    const r = btn.getBoundingClientRect();
+    btn.style.transform = `translate(${(e.clientX - r.left - r.width  / 2) * .25}px,`
+                        + `${(e.clientY - r.top  - r.height / 2) * .25}px)`;
   });
-  btn.addEventListener('mouseleave',()=>{ btn.style.transform=''; });
+  btn.addEventListener('mouseleave', () => { btn.style.transform = ''; });
 });
 
-/* ══════════════════════════════════════════
-   5. TILT CARDS
-═══════════════════════════════════════════════════ */
-document.querySelectorAll('.tilt-card').forEach(card=>{
-  card.addEventListener('mousemove',e=>{
-    const r=card.getBoundingClientRect();
-    const rx=(e.clientY-r.top-r.height/2)/(r.height/2)*-6;
-    const ry=(e.clientX-r.left-r.width/2)/(r.width/2)*6;
-    card.style.transform=`perspective(1000px) rotateX(${rx}deg) rotateY(${ry}deg)`;
+/* ── 5. TILT CARDS ── */
+document.querySelectorAll('.tilt-card').forEach(card => {
+  card.addEventListener('mousemove', e => {
+    const r  = card.getBoundingClientRect();
+    const rx = (e.clientY - r.top  - r.height / 2) / (r.height / 2) * -6;
+    const ry = (e.clientX - r.left - r.width  / 2) / (r.width  / 2) *  6;
+    card.style.transform = `perspective(1000px) rotateX(${rx}deg) rotateY(${ry}deg)`;
   });
-  card.addEventListener('mouseleave',()=>{ card.style.transform=''; });
+  card.addEventListener('mouseleave', () => { card.style.transform = ''; });
 });
 
-/* ══════════════════════════════════════════
-   6. SPOTLIGHT CARDS
-═══════════════════════════════════════════════════ */
-document.querySelectorAll('.spotlight-card').forEach(card=>{
-  card.addEventListener('mousemove',e=>{
-    const r=card.getBoundingClientRect();
-    card.style.setProperty('--mx',`${e.clientX-r.left}px`);
-    card.style.setProperty('--my',`${e.clientY-r.top}px`);
+/* ── 6. BENTO MOUSE TRACKING (spotlight + border glow) ── */
+document.querySelectorAll('.bento-card').forEach(card => {
+  card.addEventListener('mousemove', e => {
+    const r = card.getBoundingClientRect();
+    card.style.setProperty('--mx', `${e.clientX - r.left}px`);
+    card.style.setProperty('--my', `${e.clientY - r.top}px`);
   });
 });
 
-/* ══════════════════════════════════════════
-   7. GLITCH EFFECT (random)
-═══════════════════════════════════════════════════ */
+/* ── 7. GLITCH EFFECT ── */
 const gt = document.querySelector('.glitch-target');
-if(gt){
-  setInterval(()=>{
-    gt.style.textShadow=`2px 0 ${Math.random()>.5?'var(--red)':'var(--c)'}, -2px 0 ${Math.random()>.5?'var(--vl)':'var(--p2)'}`;
-    setTimeout(()=>gt.style.textShadow='',80);
-  },4500);
+if (gt) {
+  setInterval(() => {
+    gt.style.textShadow = `2px 0 ${Math.random() > .5 ? 'var(--red)' : 'var(--c)'}, -2px 0 ${Math.random() > .5 ? 'var(--vl)' : 'var(--p2)'}`;
+    setTimeout(() => { gt.style.textShadow = ''; }, 80);
+  }, 4500);
 }
 
-/* ══════════════════════════════════════════
-   8. ANIMATED COUNTERS
-═══════════════════════════════════════════════════ */
-const nums = document.querySelectorAll('[data-target]');
-const nObs = new IntersectionObserver((entries)=>{
-  entries.forEach(en=>{
-    if(!en.isIntersecting) return;
-    nObs.unobserve(en.target);
-    const el=en.target, t=+el.dataset.target, d=1800, s=performance.now(), sfx=el.dataset.suffix||'';
-    function tick(n){
-      const p=Math.min((n-s)/d,1), e=1-Math.pow(1-p,4);
-      el.textContent=Math.round(e*t)+sfx;
-      if(p<1) requestAnimationFrame(tick);
-    }
-    requestAnimationFrame(tick);
+/* ── 8. ANIMATED COUNTERS (hero mini-stats + stats-strip) ── */
+const counterObs = new IntersectionObserver(entries => {
+  entries.forEach(en => {
+    if (!en.isIntersecting) return;
+    counterObs.unobserve(en.target);
+    const el = en.target;
+    const target = +(el.dataset.target || el.dataset.count);
+    const start  = performance.now();
+    const dur    = 1800;
+    (function tick(now) {
+      const p = Math.min((now - start) / dur, 1);
+      const ease = 1 - Math.pow(1 - p, 4);
+      el.textContent = Math.round(ease * target);
+      if (p < 1) requestAnimationFrame(tick);
+    })(start);
   });
-},{threshold:.5});
-nums.forEach(n=>nObs.observe(n));
+}, { threshold: .5 });
 
-/* ══════════════════════════════════════════
-   9. MARQUEE INJECTION
-═══════════════════════════════════════════════════ */
-const mTrack = document.getElementById('marqueeTrack');
-const mItems = [
-  {t:'Anti‑Nuke aktiv',i:'🛡️'},{t:'99.9% Uptime',i:'📈'},{t:'150+ Server',i:'🌐'},
-  {t:'AI AutoMod',i:'🤖'},{t:'24/7 Support',i:'💬'},{t:'Slash Commands',i:'⚡'},
-  {t:'DSGVO konform',i:'🔒'},{t:'Open API',i:'🔌'}
-];
-function buildMarquee(){
-  let html='';
-  [...mItems,...mItems,...mItems,...mItems].forEach(it=>{
-    html+=`<div class="marquee-item"><span style="font-size:1.1rem">${it.i}</span><span>${it.t}</span></div>`;
+document.querySelectorAll('[data-target], [data-count]').forEach(el => counterObs.observe(el));
+
+/* ── 9. MARQUEE ── */
+(function buildMarquee() {
+  const track = document.getElementById('marqueeTrack');
+  if (!track) return;
+  const items = [
+    { t: 'Anti‑Nuke aktiv', i: '🛡️' }, { t: '99.9% Uptime', i: '📈' },
+    { t: '150+ Server',     i: '🌐' }, { t: 'AI AutoMod',   i: '🤖' },
+    { t: '24/7 Support',    i: '💬' }, { t: 'Slash Commands',i: '⚡' },
+    { t: 'DSGVO konform',   i: '🔒' }, { t: 'Open API',     i: '🔌' }
+  ];
+  let html = '';
+  [...items, ...items, ...items, ...items].forEach(it => {
+    html += `<div class="marquee-item"><span style="font-size:1.1rem">${it.i}</span><span>${it.t}</span></div>`;
   });
-  mTrack.innerHTML=html;
-}
-buildMarquee();
+  track.innerHTML = html;
+})();
 
-/* ══════════════════════════════════════════
-   10. TERMINAL TYPING
-═══════════════════════════════════════════════════ */
+/* ── 10. HERO TERMINAL TYPING ── */
 const termOut = document.getElementById('termTyped');
-const termLines = [
-  'scanning guilds...','modules loaded.','AI model v2.1 ready.',
-  'connecting to Lavalink...','dashboard online.'
-];
-let tli=0, tlc=0, tld=false;
-function typeTerm(){
-  const cur=termLines[tli];
-  termOut.textContent=cur.substring(0,tlc);
-  if(!tld && tlc<cur.length){ tlc++; setTimeout(typeTerm,60+Math.random()*40); }
-  else if(tld && tlc>0){ tlc--; setTimeout(typeTerm,30); }
-  else{ tld=!tld; if(!tld) tli=(tli+1)%termLines.length; setTimeout(typeTerm,tld?2000:400); }
+if (termOut) {
+  const lines = ['scanning guilds...', 'modules loaded.', 'AI model v2.1 ready.', 'connecting to Lavalink...', 'dashboard online.'];
+  let li = 0, ci = 0, del = false;
+  (function typeTerm() {
+    const cur = lines[li];
+    termOut.textContent = cur.substring(0, ci);
+    if (!del && ci < cur.length) { ci++; setTimeout(typeTerm, 60 + Math.random() * 40); }
+    else if (del && ci > 0)      { ci--; setTimeout(typeTerm, 30); }
+    else { del = !del; if (!del) li = (li + 1) % lines.length; setTimeout(typeTerm, del ? 2000 : 400); }
+  })();
 }
-typeTerm();
 
-/* ══════════════════════════════════════════
-   11. DEMO TABS + LIVE LOGS
-═══════════════════════════════════════════════════ */
-document.querySelectorAll('.demo-tab').forEach(tab=>{
-  tab.addEventListener('click',()=>{
-    document.querySelectorAll('.demo-tab').forEach(t=>t.classList.remove('on'));
+/* ── 11. HERO TERMINAL MOUSE PARALLAX ── */
+const heroTerminal = document.getElementById('heroTerminal');
+if (heroTerminal) {
+  document.addEventListener('mousemove', e => {
+    const x = (e.clientX / window.innerWidth  - .5) * 8;
+    const y = (e.clientY / window.innerHeight - .5) * 8;
+    heroTerminal.style.transform =
+      `perspective(1200px) rotateY(${x}deg) rotateX(${-y}deg) translateY(${Math.sin(Date.now() / 1000) * 6}px)`;
+  });
+}
+
+/* ── 12. DEMO TABS + LIVE LOG RENDERER ── */
+document.querySelectorAll('.demo-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.demo-tab').forEach(t => t.classList.remove('on'));
+    document.querySelectorAll('.demo-v2-panel').forEach(p => p.classList.remove('vis'));
     tab.classList.add('on');
-    document.querySelectorAll('.demo-v2-panel').forEach(p=>p.classList.remove('vis'));
-    document.getElementById('tab-'+tab.dataset.tab).classList.add('vis');
+    document.getElementById('tab-' + tab.dataset.tab).classList.add('vis');
   });
 });
+
+const COLOR_MAP = {
+  red:    ['#fca5a5', 'rgba(239,68,68,.18)'],
+  amber:  ['#fcd34d', 'rgba(245,158,11,.15)'],
+  green:  ['#86efac', 'rgba(34,197,94,.15)'],
+  cyan:   ['#67e8f9', 'rgba(34,211,238,.15)'],
+  purple: ['#c4b5fd', 'rgba(124,58,237,.18)']
+};
+
+function renderLog(id, pool) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.innerHTML = '';
+  pool.forEach((l, i) => {
+    const [fg, bg] = COLOR_MAP[l.c] || COLOR_MAP.purple;
+    const row = document.createElement('div');
+    row.className = 'log-row';
+    row.style.animationDelay = (i * .08) + 's';
+    row.innerHTML =
+      `<span style="display:inline-flex;padding:.1rem .45rem;border-radius:999px;` +
+      `font-size:.58rem;font-weight:800;font-family:'Geist Mono',monospace;` +
+      `background:${bg};color:${fg};border:1px solid ${fg}33">${l.b}</span>` +
+      `<span style="color:var(--fg);font-weight:600">${l.u}</span>` +
+      `<span style="color:var(--muted)">— ${l.a}</span>`;
+    el.appendChild(row);
+  });
+}
 
 const modLogs = [
-  {b:'BAN',u:'SpamBot#0001',a:'Mass mention spam',c:'red'},
-  {b:'WARN',u:'Troll#4421',a:'Beleidigung erkannt',c:'amber'},
-  {b:'MUTE',u:'Raider#9912',a:'Anti‑Raid triggered',c:'purple'},
-  {b:'OK',u:'Verified',a:'Captcha bestanden',c:'green'},
-  {b:'BAN',u:'Scam#0420',a:'Phishing‑Link',c:'red'},
+  { b:'BAN',   u:'SpamBot#0001', a:'Mass mention spam',   c:'red'    },
+  { b:'WARN',  u:'Troll#4421',   a:'Beleidigung erkannt', c:'amber'  },
+  { b:'MUTE',  u:'Raider#9912',  a:'Anti‑Raid triggered', c:'purple' },
+  { b:'OK',    u:'Verified',     a:'Captcha bestanden',   c:'green'  },
+  { b:'BAN',   u:'Scam#0420',    a:'Phishing‑Link',       c:'red'    },
 ];
 const secLogs = [
-  {b:'BLOCK',u:'Webhook',a:'Mass delete detected',c:'red'},
-  {b:'LOCK',u:'Channel',a:'Raid‑Modus aktiv',c:'purple'},
-  {b:'REST',u:'Role',a:'Privilege escalation',c:'amber'},
+  { b:'BLOCK', u:'Webhook', a:'Mass delete detected',   c:'red'    },
+  { b:'LOCK',  u:'Channel', a:'Raid‑Modus aktiv',       c:'purple' },
+  { b:'REST',  u:'Role',    a:'Privilege escalation',   c:'amber'  },
 ];
 const musLogs = [
-  {b:'PLAY',u:'Now',a:'Lo-Fi Beats – 24/7',c:'cyan'},
-  {b:'QUEUE',u:'Next',a:'Synthwave Mix',c:'purple'},
-  {b:'LIVE',u:'Stream',a:'Lavalink connected',c:'green'},
+  { b:'PLAY',  u:'Now',    a:'Lo-Fi Beats – 24/7',   c:'cyan'   },
+  { b:'QUEUE', u:'Next',   a:'Synthwave Mix',         c:'purple' },
+  { b:'LIVE',  u:'Stream', a:'Lavalink connected',    c:'green'  },
 ];
 
-function renderLog(container, pool){
-  container.innerHTML='';
-  pool.forEach((l,i)=>{
-    const row=document.createElement('div');
-    row.className='log-row';
-    row.style.animationDelay=(i*.08)+'s';
-    const badgeColor = l.c==='red'?'#fca5a5':l.c==='amber'?'#fcd34d':l.c==='green'?'#86efac':l.c==='cyan'?'#67e8f9':'#c4b5fd';
-    const badgeBg   = l.c==='red'?'rgba(239,68,68,.18)':l.c==='amber'?'rgba(245,158,11,.15)':l.c==='green'?'rgba(34,197,94,.15)':l.c==='cyan'?'rgba(34,211,238,.15)':'rgba(124,58,237,.18)';
-    row.innerHTML=`<span style="display:inline-flex;padding:.1rem .45rem;border-radius:999px;font-size:.58rem;font-weight:800;font-family:'Geist Mono',monospace;background:${badgeBg};color:${badgeColor};border:1px solid ${badgeColor}33">${l.b}</span><span style="color:var(--fg);font-weight:600">${l.u}</span><span style="color:var(--muted)">— ${l.a}</span>`;
-    container.appendChild(row);
+renderLog('demoLogMod',   modLogs);
+renderLog('demoLogSec',   secLogs);
+renderLog('demoLogMusic', musLogs);
+
+setInterval(() => {
+  modLogs.push(modLogs.shift());
+  secLogs.push(secLogs.shift());
+  musLogs.push(musLogs.shift());
+  renderLog('demoLogMod',   modLogs);
+  renderLog('demoLogSec',   secLogs);
+  renderLog('demoLogMusic', musLogs);
+}, 3500);
+
+/* ── 13. AUTOMOD SANDBOX ── */
+const sbInput = document.getElementById('sb-input');
+const sbBtn   = document.getElementById('sb-btn');
+const sbChat  = document.getElementById('sb-chat');
+
+const BAD_PATTERNS = ['discord.gg', 'fuck', 'idiot', 'scheiß', 'hurensohn', 'spam', 'free nitro', 'freemoney'];
+
+function sendSandboxMsg() {
+  if (!sbInput || !sbChat) return;
+  const text = sbInput.value.trim();
+  if (!text) return;
+
+  const msgId = 'msg-' + Date.now();
+  const isBad = BAD_PATTERNS.some(p => text.toLowerCase().includes(p));
+
+  sbChat.insertAdjacentHTML('beforeend', `
+    <div class="dc-msg" id="${msgId}">
+      <div class="dc-av" style="background:#faa61a;"></div>
+      <div class="dc-content">
+        <h4>GastUser <span style="color:var(--muted);font-size:.75rem;">gerade eben</span></h4>
+        <div class="dc-text">${text.replace(/&/g,'&amp;').replace(/</g,'&lt;')}</div>
+      </div>
+    </div>
+  `);
+  sbInput.value = '';
+  sbChat.scrollTop = sbChat.scrollHeight;
+
+  if (isBad) {
+    setTimeout(() => {
+      const msg = document.getElementById(msgId);
+      if (msg) msg.classList.add('deleted-msg');
+      sbChat.insertAdjacentHTML('beforeend', `
+        <div class="dc-msg">
+          <div class="dc-av" style="background:#5865F2;display:flex;align-items:center;justify-content:center;">
+            <svg style="color:#fff;width:20px;height:20px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+          </div>
+          <div class="dc-content">
+            <h4>ModForge <span class="dc-bot-tag">BOT</span>
+              <span style="color:var(--muted);font-size:.75rem;">gerade eben</span></h4>
+            <div class="dc-text" style="color:#fca5a5;">⚠️ Nachricht gelöscht (Verstoß gegen Anti-Spam Richtlinien).</div>
+          </div>
+        </div>
+      `);
+      sbChat.scrollTop = sbChat.scrollHeight;
+      spawnToast('🛡️', 'AutoMod aktiv', 'Nachricht von GastUser blockiert.');
+    }, 600);
+  }
+}
+
+if (sbBtn)   sbBtn.addEventListener('click', sendSandboxMsg);
+if (sbInput) sbInput.addEventListener('keypress', e => { if (e.key === 'Enter') sendSandboxMsg(); });
+
+/* ── 14. ECONOMY COIN HOVER ── */
+const coinHover = document.getElementById('coin-hover');
+const coinVal   = document.getElementById('coin-val');
+let coins = 5000;
+if (coinHover && coinVal) {
+  coinHover.addEventListener('mouseenter', () => {
+    coins += Math.floor(Math.random() * 50) + 10;
+    coinVal.textContent = '🪙 ' + coins.toLocaleString('de-DE');
+    coinVal.style.color = '#4ade80';
+    setTimeout(() => { coinVal.style.color = 'var(--amberl)'; }, 300);
   });
 }
-renderLog(document.getElementById('demoLogMod'),modLogs);
-renderLog(document.getElementById('demoLogSec'),secLogs);
-renderLog(document.getElementById('demoLogMusic'),musLogs);
 
-/* cycle logs */
-let logTick=0;
-setInterval(()=>{
-  logTick++;
-  const pools=[modLogs,secLogs,musLogs];
-  const ids=['demoLogMod','demoLogSec','demoLogMusic'];
-  pools.forEach((pool,i)=>{
-    pool.push(pool.shift());
-    renderLog(document.getElementById(ids[i]),pool);
-  });
-},3500);
+/* ── 15. LIVE TOASTS ── */
+const toastContainer = document.getElementById('toast-container');
+const toastEvents = [
+  { icon: '🛡️', title: 'Anti-Nuke',  desc: 'Massen-Ban auf Server #892 verhindert.' },
+  { icon: '🤖', title: 'AutoMod',    desc: 'Phishing-Welle (142 User) gestoppt.' },
+  { icon: '⭐', title: 'Level Up',   desc: 'User Fufi hat Level 43 erreicht.' },
+  { icon: '🎫', title: 'Ticket',     desc: 'Neues Support-Ticket auf CommunityX.' }
+];
 
-/* ══════════════════════════════════════════
-   12. PARALLAX FLOATERS
-═══════════════════════════════════════════════════ */
-document.querySelectorAll('.parallax-wrap').forEach(pw=>{
+function spawnToast(icon, title, desc) {
+  if (!toastContainer) return;
+  const t = document.createElement('div');
+  t.className = 'live-toast';
+  t.innerHTML = `<div class="toast-ic">${icon}</div><div class="toast-content"><h5>${title}</h5><p>${desc}</p></div>`;
+  toastContainer.appendChild(t);
+  setTimeout(() => {
+    t.style.animation = 'fadeOut .5s forwards';
+    setTimeout(() => t.remove(), 500);
+  }, 4000);
+}
+
+setInterval(() => {
+  if (Math.random() > .6) {
+    const ev = toastEvents[Math.floor(Math.random() * toastEvents.length)];
+    spawnToast(ev.icon, ev.title, ev.desc);
+  }
+}, 5000);
+
+/* ── 16. PARALLAX FLOATERS ── */
+document.querySelectorAll('.parallax-wrap').forEach(pw => {
   const fl = document.createElement('div');
-  fl.className='floater';
-  fl.style.cssText='width:300px;height:300px;background:rgba(124,58,237,.12);top:10%;left:-5%;';
+  fl.className = 'floater';
+  fl.style.cssText = 'width:300px;height:300px;background:rgba(124,58,237,.12);top:10%;left:-5%;z-index:0;';
   pw.appendChild(fl);
-  window.addEventListener('scroll',()=>{
-    const y=window.scrollY, r=pw.getBoundingClientRect();
-    if(r.top<window.innerHeight && r.bottom>0) fl.style.transform=`translateY(${y*.08}px)`;
-  },{passive:true});
+  window.addEventListener('scroll', () => {
+    const r = pw.getBoundingClientRect();
+    if (r.top < window.innerHeight && r.bottom > 0)
+      fl.style.transform = `translateY(${window.scrollY * .08}px)`;
+  }, { passive: true });
 });
 
-/* ══════════════════════════════════════════
-   13. SCROLL REVEAL (manual fallback)
-═══════════════════════════════════════════════════ */
-const reveals = document.querySelectorAll('.section-head, .bento-card, .demo-v2, .testi-card');
-const rObs = new IntersectionObserver((entries)=>{
-  entries.forEach(e=>{ if(e.isIntersecting){ e.target.style.opacity='1'; e.target.style.transform='translateY(0)'; rObs.unobserve(e.target);} });
-},{threshold:.08});
-reveals.forEach(el=>{
-  el.style.opacity='0'; el.style.transform='translateY(30px)'; el.style.transition='opacity .7s ease, transform .7s ease';
-  rObs.observe(el);
-});
-
-/* ══════════════════════════════════════════
-   14. HERO TERMINAL FLOAT (mouse parallax)
-═══════════════════════════════════════════════════ */
-const heroTerm = document.getElementById('heroTerminal');
-if(heroTerm){
-  document.addEventListener('mousemove',e=>{
-    const x=(e.clientX/window.innerWidth-.5)*8;
-    const y=(e.clientY/window.innerHeight-.5)*8;
-    heroTerm.style.transform=`perspective(1200px) rotateY(${x}deg) rotateX(${-y}deg) translateY(${Math.sin(Date.now()/1000)*6}px)`;
+/* ── 17. SCROLL REVEAL ── */
+const revealEls = document.querySelectorAll(
+  '.section-head, .bento-card, .demo-v2, .testi-card, .sandbox-wrap, .compare-wrap, .split-grid, .stats-strip'
+);
+const revealObs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      e.target.style.opacity  = '1';
+      e.target.style.transform = 'translateY(0)';
+      revealObs.unobserve(e.target);
+    }
   });
-}
+}, { threshold: .08 });
+revealEls.forEach(el => {
+  el.style.opacity   = '0';
+  el.style.transform = 'translateY(30px)';
+  el.style.transition = 'opacity .7s ease, transform .7s ease';
+  revealObs.observe(el);
+});
 
-/* ══════════════════════════════════════════
-   15. SMOOTH ANCHOR SCROLL
-═══════════════════════════════════════════════════ */
-document.querySelectorAll('a[href^="#"]').forEach(a=>{
-  a.addEventListener('click',e=>{
-    const id=a.getAttribute('href');
-    if(id==='#') return;
-    const t=document.querySelector(id);
-    if(t){ e.preventDefault(); t.scrollIntoView({behavior:'smooth',block:'start'}); }
+/* ── 18. SMOOTH ANCHOR SCROLL ── */
+document.querySelectorAll('a[href^="#"]').forEach(a => {
+  a.addEventListener('click', e => {
+    const id = a.getAttribute('href');
+    if (id === '#') return;
+    const target = document.querySelector(id);
+    if (target) { e.preventDefault(); target.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
   });
 });
 
