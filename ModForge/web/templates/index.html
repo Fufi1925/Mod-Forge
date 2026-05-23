@@ -4,7 +4,7 @@
 {% block content %}
 <style>
 /* ═══════════════════════════════════════════════════
-   MODFORGE INDEX – COMBINED v1 + v2
+   MODFORGE INDEX – COMBINED v1 + v2 (FINAL)
 ═══════════════════════════════════════════════════ */
 
 /* ── Utilities ── */
@@ -213,6 +213,9 @@
 .bento-card.wide { grid-column: span 2; }
 @media(max-width:900px) { .bento-card.wide { grid-column: span 1; } }
 
+/* Neu aus Code 2: tall card */
+.bento-card.tall { grid-row: span 2; }
+
 .bento-icon {
   width: 44px; height: 44px; border-radius: .85rem;
   display: flex; align-items: center; justify-content: center;
@@ -404,6 +407,16 @@
 /* ── Parallax Floater ── */
 .parallax-wrap { position: relative; overflow: hidden; }
 .floater { position: absolute; border-radius: 50%; filter: blur(80px); pointer-events: none; opacity: .5; }
+
+/* ── SVG Draw (aus Code 2) ── */
+.draw-svg path {
+  stroke-dasharray: 1000; stroke-dashoffset: 1000;
+  transition: stroke-dashoffset 2s ease;
+}
+.draw-svg.in-view path { stroke-dashoffset: 0; }
+
+/* ── Marquee SVG (aus Code 2) ── */
+.marquee-item svg { width: 1.1rem; height: 1.1rem; color: var(--vl); }
 </style>
 
 <!-- ══════ NOISE ══════ -->
@@ -522,32 +535,32 @@
     </div>
 
     <div class="bento-grid">
-      <div class="bento-card wide tilt-card">
+      <div class="bento-card wide spotlight-card tilt-card">
         <div class="bento-icon">🛡️</div>
         <h3>Anti‑Nuke &amp; Anti‑Raid</h3>
         <p>Erkennt Massen‑Kicks, Channel‑Deletes und Rollen‑Changes in Echtzeit. Stoppt Angriffe bevor Schaden entsteht. Isoliert kompromittierte Admin-Accounts in Millisekunden.</p>
       </div>
-      <div class="bento-card tilt-card">
+      <div class="bento-card spotlight-card tilt-card">
         <div class="bento-icon">🤖</div>
         <h3>AI AutoMod 2.0</h3>
         <p>KI‑gestützte Toxicity‑Erkennung, Phishing‑Filter und intelligenter Spam‑Schutz. Regex-Filter, BadWord-Listen &amp; Zalgo-Schutz.</p>
       </div>
-      <div class="bento-card tilt-card">
+      <div class="bento-card spotlight-card tilt-card">
         <div class="bento-icon">📊</div>
         <h3>Web Dashboard</h3>
         <p>Konfiguriere alles per Drag &amp; Drop. Echtzeit‑Logs, Statistiken und Mod‑Tools im Browser.</p>
       </div>
-      <div class="bento-card tilt-card">
+      <div class="bento-card spotlight-card tilt-card">
         <div class="bento-icon">🎫</div>
         <h3>Ticket System</h3>
         <p>Professionelle Support‑Panels mit Dropdowns, Transcripts und Auto‑Close.</p>
       </div>
-      <div class="bento-card wide tilt-card">
+      <div class="bento-card wide spotlight-card tilt-card">
         <div class="bento-icon">🎵</div>
         <h3>24/7 Music &amp; Economy</h3>
         <p>Lavalink‑Audio in Premium‑Qualität. Coins, Gambling, Shop‑System und Badges für deine Community. Server-spezifische XP, Voice-XP und Custom Profilkarten.</p>
       </div>
-      <div class="bento-card tilt-card">
+      <div class="bento-card spotlight-card tilt-card">
         <div class="bento-icon">📜</div>
         <h3>Cases &amp; Logging</h3>
         <p>Lückenlose Dokumentation jedes Mod‑Actions. Exportierbar, durchsuchbar, DSGVO‑konform.</p>
@@ -908,8 +921,8 @@ document.querySelectorAll('.tilt-card').forEach(card => {
   card.addEventListener('mouseleave', () => { card.style.transform = ''; });
 });
 
-/* ── 6. BENTO MOUSE TRACKING (spotlight + border glow) ── */
-document.querySelectorAll('.bento-card').forEach(card => {
+/* ── 6. BENTO & SPOTLIGHT MOUSE TRACKING (aus Code 1 + Code 2) ── */
+document.querySelectorAll('.bento-card, .spotlight-card').forEach(card => {
   card.addEventListener('mousemove', e => {
     const r = card.getBoundingClientRect();
     card.style.setProperty('--mx', `${e.clientX - r.left}px`);
