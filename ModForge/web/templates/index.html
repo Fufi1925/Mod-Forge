@@ -1,8 +1,11 @@
 {% extends "base.html" %}
-{% block title %}ModForge – Discord Security & AutoMod Bot{% endblock %}
+{% block title %}ModForge – Next-Level Discord Security{% endblock %}
 
 {% block content %}
 <style>
+  /* ═══════════════════════════════════════════════════
+     MODFORGE – VOLLSTÄNDIG VERSCHMOLZENE VERSION
+  ═══════════════════════════════════════════════════ */
   :root {
     --p: #5b6eff; --p2: #9b59b6; --card: #161827; --bg: #0b0c14;
     --border: rgba(255,255,255,0.08); --grad: linear-gradient(135deg, #5b6eff 0%, #9b59b6 100%);
@@ -21,7 +24,7 @@
   .section-alt { background: rgba(255,255,255,0.01); }
   .divider { height: 1px; background: var(--border); max-width: 1200px; margin: 0 auto; }
 
-  /* ── Buttons ── */
+  /* Buttons */
   .btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 24px; border-radius: 12px; font-weight: 700; font-size: .9rem; cursor: pointer; transition: .25s; text-decoration: none; border: 1px solid transparent; }
   .btn-primary { background: var(--grad); color: #fff; box-shadow: 0 4px 20px rgba(91,110,255,.35); }
   .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(91,110,255,.5); }
@@ -29,16 +32,14 @@
   .btn-ghost:hover { border-color: var(--p); background: rgba(91,110,255,.1); }
   .btn-xl { padding: 16px 32px; font-size: 1rem; border-radius: 16px; }
 
-  /* ── Glass Panel ── */
   .glass-panel { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 2rem; box-shadow: 0 20px 50px rgba(0,0,0,.3); }
 
-  /* ── Section Head ── */
   .section-head { text-align: center; margin-bottom: 3.5rem; }
   .section-head h2 { font-size: clamp(1.9rem,4vw,2.8rem); font-weight: 800; letter-spacing: -.02em; margin-bottom: .6rem; }
   .section-head p { color: var(--muted); font-size: 1.05rem; max-width: 560px; margin: 0 auto; line-height: 1.65; }
   .section-label { color: var(--p); font-weight: 700; font-size: .8rem; text-transform: uppercase; letter-spacing: 2px; margin-bottom: .5rem; }
 
-  /* ── Notification Widget ── */
+  /* Notification Widget */
   .notif-widget { position: fixed; top: 20px; right: 20px; z-index: 100000; }
   .notif-icon { width: 44px; height: 44px; border-radius: 50%; background: var(--card); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.2rem; position: relative; transition: .2s; }
   .notif-icon:hover { border-color: var(--p); }
@@ -49,16 +50,14 @@
   .notif-item:hover { background: rgba(91,110,255,.1); }
   .notif-dot { width: 7px; height: 7px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
 
-  /* ── Dark/Light Toggle ── */
   .theme-toggle { position: fixed; bottom: 20px; right: 20px; z-index: 100000; width: 44px; height: 44px; border-radius: 50%; background: var(--card); border: 1px solid var(--border); cursor: pointer; font-size: 1.3rem; display: flex; align-items: center; justify-content: center; transition: .2s; }
   .theme-toggle:hover { border-color: var(--p); transform: scale(1.1); }
 
-  /* ── Lang Switch ── */
   .lang-switch { position: fixed; top: 20px; left: 20px; z-index: 100000; display: flex; gap: 4px; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 4px; }
   .lang-btn { padding: 6px 12px; border-radius: 8px; font-size: .75rem; font-weight: 700; cursor: pointer; border: none; background: transparent; color: var(--muted); transition: .2s; }
   .lang-btn.active { background: var(--p); color: #fff; }
 
-  /* ── Hero ── */
+  /* Hero */
   .hero { position: relative; min-height: 85vh; display: flex; align-items: center; justify-content: center; padding: 6rem 1rem 4rem; overflow: hidden; text-align: center; }
   .hero-glow { position: absolute; width: 800px; height: 800px; background: radial-gradient(circle, rgba(91,110,255,.12), transparent 60%); top: 50%; left: 50%; transform: translate(-50%,-50%); pointer-events: none; }
   .hero h1 { font-size: clamp(2.6rem,6vw,4.5rem); font-weight: 900; line-height: 1.05; margin-bottom: 1.25rem; }
@@ -68,14 +67,7 @@
   .pulse-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; display: inline-block; }
   @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(34,197,94,.6); } 50% { box-shadow: 0 0 0 10px rgba(34,197,94,0); } }
 
-  /* ── Stats Grid ── */
-  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; }
-  .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; text-align: center; transition: .2s; }
-  .stat-card:hover { border-color: var(--p); transform: translateY(-2px); }
-  .stat-num { font-size: 2rem; font-weight: 900; background: var(--grad); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-  .stat-lbl { font-size: .75rem; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 1px; }
-
-  /* ── Live Status Widget ── */
+  /* Live Status */
   .live-status { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 1.5rem; display: flex; flex-wrap: wrap; gap: 1.5rem; align-items: center; justify-content: space-between; }
   .ls-item { display: flex; align-items: center; gap: .75rem; }
   .ls-dot { width: 10px; height: 10px; border-radius: 50%; }
@@ -83,7 +75,7 @@
   .ls-info strong { font-size: 1.1rem; }
   .ls-info span { font-size: .72rem; color: var(--muted); display: block; }
 
-  /* ── Feature Cards ── */
+  /* Feature Cards */
   .feat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; }
   .feat-card { background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 1.8rem; transition: .3s; cursor: default; }
   .feat-card:hover { border-color: rgba(91,110,255,.4); transform: translateY(-4px); box-shadow: 0 16px 35px rgba(91,110,255,.12); }
@@ -91,18 +83,7 @@
   .feat-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: .5rem; }
   .feat-card p { font-size: .82rem; color: var(--muted); line-height: 1.6; }
 
-  /* ── Demo Tabs / Live Logs ── */
-  .demo-window { background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; box-shadow: 0 24px 60px rgba(0,0,0,.4); }
-  .demo-tabs { display: flex; gap: .25rem; padding: .5rem; background: rgba(0,0,0,.2); border-bottom: 1px solid var(--border); }
-  .demo-tab { padding: .5rem 1rem; border-radius: 999px; font-size: .78rem; font-weight: 600; color: var(--muted); background: transparent; border: 1px solid transparent; cursor: pointer; transition: all .2s; }
-  .demo-tab.on { background: rgba(91,110,255,.15); color: var(--p); border-color: rgba(91,110,255,.25); }
-  .demo-body { padding: 1.25rem; min-height: 220px; }
-  .demo-panel { display: none; }
-  .demo-panel.vis { display: block; animation: fadeUp .4s ease; }
-  @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
-  .log-row { display: flex; align-items: center; gap: .6rem; padding: .4rem .6rem; border-radius: 999px; margin-bottom: .35rem; font-size: .7rem; font-family: 'Geist Mono', monospace; background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.04); animation: fadeUp .35s ease both; }
-
-  /* ── Chat Simulation ── */
+  /* Chat Simulation */
   .chat-sim { background: #313338; border-radius: 14px; overflow: hidden; border: 1px solid #3f4147; max-width: 700px; margin: 0 auto; box-shadow: 0 20px 50px rgba(0,0,0,.5); }
   .chat-header { background: #1e1f22; padding: 12px 16px; font-weight: 700; font-size: .85rem; border-bottom: 1px solid #3f4147; display: flex; align-items: center; gap: 8px; }
   .chat-messages { padding: 16px; display: flex; flex-direction: column; gap: 12px; min-height: 300px; max-height: 400px; overflow-y: auto; }
@@ -114,7 +95,18 @@
   .chat-bot-msg { border-left: 3px solid var(--p); padding-left: 10px; background: rgba(91,110,255,.06); border-radius: 0 6px 6px 0; }
   .chat-deleted { text-decoration: line-through; opacity: .5; color: var(--red); }
 
-  /* ── Pricing Calculator ── */
+  /* Demo / Logs */
+  .demo-window { background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; box-shadow: 0 24px 60px rgba(0,0,0,.4); }
+  .demo-tabs { display: flex; gap: .25rem; padding: .5rem; background: rgba(0,0,0,.2); border-bottom: 1px solid var(--border); }
+  .demo-tab { padding: .5rem 1rem; border-radius: 999px; font-size: .78rem; font-weight: 600; color: var(--muted); background: transparent; border: 1px solid transparent; cursor: pointer; transition: all .2s; }
+  .demo-tab.on { background: rgba(91,110,255,.15); color: var(--p); border-color: rgba(91,110,255,.25); }
+  .demo-body { padding: 1.25rem; min-height: 220px; }
+  .demo-panel { display: none; }
+  .demo-panel.vis { display: block; animation: fadeUp .4s ease; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+  .log-row { display: flex; align-items: center; gap: .6rem; padding: .4rem .6rem; border-radius: 999px; margin-bottom: .35rem; font-size: .7rem; font-family: 'Geist Mono', monospace; background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.04); animation: fadeUp .35s ease both; }
+
+  /* Pricing */
   .price-calc { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 2rem; max-width: 600px; margin: 0 auto; text-align: center; }
   .price-calc input[type=range] { width: 100%; margin: 1rem 0; accent-color: var(--p); }
   .price-result { font-size: 1.5rem; font-weight: 900; margin: 1rem 0; }
@@ -123,7 +115,7 @@
   .plan-premium { background: rgba(91,110,255,.15); color: var(--p); }
   .plan-enterprise { background: rgba(155,89,182,.15); color: var(--p2); }
 
-  /* ── Case Explorer ── */
+  /* Case Explorer */
   .case-explorer { display: flex; background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,.4); }
   .case-list { width: 220px; background: rgba(0,0,0,.2); padding: 12px; display: flex; flex-direction: column; gap: 6px; overflow-y: auto; border-right: 1px solid var(--border); }
   .case-item { padding: 10px 14px; border-radius: 8px; cursor: pointer; font-size: .8rem; transition: .15s; }
@@ -132,7 +124,7 @@
   .case-badge { padding: 3px 10px; border-radius: 10px; font-size: 10px; font-weight: 700; }
   @media(max-width:768px) { .case-explorer { flex-direction: column; } .case-list { width: 100%; border-right: none; border-bottom: 1px solid var(--border); } }
 
-  /* ── Drag & Drop ── */
+  /* Drag & Drop */
   .dnd-area { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; max-width: 900px; margin: 0 auto; }
   .dnd-panel { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; min-height: 250px; }
   .dnd-mod { background: rgba(91,110,255,.08); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; cursor: grab; display: flex; align-items: center; gap: 10px; font-size: .85rem; margin-bottom: 8px; transition: .2s; user-select: none; }
@@ -141,47 +133,88 @@
   .dnd-placed { background: rgba(91,110,255,.12); border: 1px solid rgba(91,110,255,.3); border-radius: 8px; padding: 8px 12px; font-size: .8rem; display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; animation: pop .25s ease; }
   @keyframes pop { 0% { transform: scale(.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
   .dnd-remove { background: none; border: none; color: var(--red); cursor: pointer; }
-  @media(max-width:768px) { .dnd-area { grid-template-columns: 1fr; } }
 
-  /* ── Benchmark ── */
+  /* Benchmark */
   .bench-row { margin-bottom: 1rem; }
   .bench-label { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: .85rem; }
   .bench-bar { height: 12px; border-radius: 50px; background: rgba(255,255,255,.05); overflow: hidden; }
   .bench-fill { height: 100%; border-radius: 50px; transition: width 1.4s ease; }
 
-  /* ── Security Score ── */
+  /* Security Score */
   .sec-score-wrap { text-align: center; padding: 2rem; background: var(--card); border: 1px solid var(--border); border-radius: 20px; max-width: 500px; margin: 0 auto; }
   .sec-score-big { font-size: 5rem; font-weight: 900; background: var(--grad); -webkit-background-clip: text; -webkit-text-fill-color: transparent; line-height: 1; }
 
-  /* ── Video Player Overlay ── */
+  /* Video */
   .video-overlay { display: none; position: fixed; inset: 0; z-index: 100001; background: rgba(0,0,0,.85); align-items: center; justify-content: center; }
   .video-overlay.show { display: flex; }
   .video-container { position: relative; width: 90%; max-width: 800px; aspect-ratio: 16/9; }
   .video-container iframe { width: 100%; height: 100%; border-radius: 14px; }
   .video-close { position: absolute; top: -40px; right: 0; background: none; border: none; color: #fff; font-size: 2rem; cursor: pointer; }
 
-  /* ── OAuth Modal ── */
   .oauth-modal { display: none; position: fixed; inset: 0; z-index: 100002; background: rgba(0,0,0,.8); align-items: center; justify-content: center; }
   .oauth-modal.show { display: flex; }
   .oauth-content { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 2rem; text-align: center; max-width: 480px; width: 90%; }
-  .oauth-success { font-size: 3rem; margin-bottom: 1rem; }
 
-  /* ── Marquee ── */
+  /* Marquee */
   .marquee-wrap { overflow: hidden; padding: 1.5rem 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
   .marquee-track { display: flex; gap: 3rem; width: max-content; animation: marquee 30s linear infinite; }
   @keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
   .marquee-item { display: flex; align-items: center; gap: .5rem; font-size: .85rem; color: var(--muted); white-space: nowrap; font-weight: 600; }
 
-  /* ── Community Stats ── */
+  /* Community Stats */
   .comm-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; }
   .comm-stat { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; text-align: center; transition: .3s; }
   .comm-stat .val { font-size: 1.8rem; font-weight: 900; background: var(--grad); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
   .comm-stat .lbl { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
 
-  /* ── CTA ── */
-  .cta-section { text-align: center; padding: 5rem 1rem; position: relative; overflow: hidden; }
-  .cta-section::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 30% 50%, rgba(91,110,255,.1), transparent 50%), radial-gradient(circle at 70% 50%, rgba(155,89,182,.08), transparent 50%); pointer-events: none; }
-  .cta-section h2 { font-size: clamp(2rem, 4vw, 3rem); font-weight: 900; margin-bottom: 1rem; }
+  /* Split Grid */
+  .split-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; max-width: 1280px; margin: 0 auto; align-items: center; }
+  @media(max-width:900px) { .split-grid { grid-template-columns: 1fr; } }
+
+  /* Flow */
+  .flow-diagram { display: flex; align-items: center; justify-content: center; gap: 0; flex-wrap: wrap; max-width: 900px; margin: 0 auto; }
+  .flow-node { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 22px 18px; text-align: center; width: 150px; flex-shrink: 0; transition: .3s; }
+  .flow-node .fn-icon { font-size: 2rem; margin-bottom: 10px; }
+  .flow-node .fn-label { font-size: .78rem; color: var(--muted); }
+  .flow-arrow { font-size: 1.5rem; color: var(--p); padding: 0 10px; animation: arrow-pulse 2s infinite; }
+  @keyframes arrow-pulse { 0%,100% { opacity: .4; } 50% { opacity: 1; } }
+
+  /* BA Slider */
+  .ba-wrapper { position: relative; max-width: 800px; margin: 0 auto; border-radius: 16px; overflow: hidden; cursor: ew-resize; user-select: none; box-shadow: 0 20px 50px rgba(0,0,0,.5); }
+  .ba-before, .ba-after { width: 100%; height: 360px; padding: 24px; display: flex; flex-direction: column; gap: 10px; box-sizing: border-box; }
+  .ba-before { background: #313338; }
+  .ba-after { background: linear-gradient(135deg,#1a1b2e,#0f1020); border: 1px solid rgba(91,110,255,.3); position: absolute; top: 0; left: 0; overflow: hidden; }
+  .ba-divider { position: absolute; top: 0; bottom: 0; width: 3px; background: var(--grad); cursor: ew-resize; z-index: 10; }
+  .ba-handle { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 38px; height: 38px; background: var(--grad); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 900; font-size: .8rem; }
+  .ba-msg { background: rgba(255,255,255,.05); border-radius: 8px; padding: 10px 14px; font-size: .8rem; color: #dbdee1; display: flex; align-items: center; gap: 10px; }
+  .ba-msg.spam { border-left: 3px solid var(--red); }
+  .ba-msg.clean { border-left: 3px solid var(--green); }
+  .ba-msg img { width: 24px; height: 24px; border-radius: 50%; }
+
+  /* Replay */
+  .replay-wrapper { background: #1e1f22; border-radius: 14px; overflow: hidden; max-width: 850px; margin: 0 auto; border: 1px solid var(--border); box-shadow: 0 20px 40px rgba(0,0,0,.4); }
+  .replay-header { background: #111214; padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); }
+  .replay-body { padding: 24px; min-height: 200px; }
+  .replay-timeline { display: flex; flex-direction: column; gap: 8px; }
+  .replay-event { background: rgba(255,255,255,.03); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; font-size: .8rem; display: flex; align-items: center; gap: 12px; opacity: 0; transform: translateX(-20px); transition: .4s; }
+  .replay-event.show { opacity: 1; transform: translateX(0); }
+  .re-time { color: var(--p); font-weight: 700; width: 60px; flex-shrink: 0; font-family: monospace; }
+  .re-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .replay-controls { display: flex; gap: 12px; justify-content: center; margin-top: 20px; }
+
+  /* Threat Map */
+  .threat-map { position: relative; width: 100%; max-width: 800px; margin: 0 auto; height: 300px; background: rgba(0,0,0,.3); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+  .threat-dot { position: absolute; width: 6px; height: 6px; border-radius: 50%; background: var(--red); animation: threatPulse 2s ease-in-out infinite; z-index: 2; }
+  @keyframes threatPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,.7); } 50% { box-shadow: 0 0 0 12px rgba(239,68,68,0); } }
+  .threat-line { position: absolute; height: 1px; background: rgba(239,68,68,.2); z-index: 1; animation: lineScan 4s linear infinite; }
+  @keyframes lineScan { 0% { width: 0; opacity: 0; } 50% { opacity: 1; } 100% { width: 100%; opacity: 0; } }
+
+  /* Security Calculator */
+  .security-calculator { max-width: 700px; margin: 0 auto; }
+  .sec-check-row { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; background: rgba(255,255,255,.02); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 8px; transition: .2s; }
+  .sec-check-row:hover { border-color: var(--p); }
+  .sec-check-row input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--p); }
+  .sec-score-display { text-align: center; font-size: 3rem; font-weight: 900; background: var(--grad); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 
   @media(max-width:768px) { .hero h1 { font-size: 2rem; } .live-status { flex-direction: column; align-items: flex-start; } }
 </style>
@@ -358,7 +391,7 @@
 
 <div class="divider"></div>
 
-<!-- ══════ SECURITY SCORE GENERATOR ══════ -->
+<!-- ══════ SECURITY SCORE + PDF ══════ -->
 <section class="section section-alt">
   <div class="container">
     <div class="section-head"><div class="section-label" data-lang="score_label">🔐 Schutz-Score</div><h2 data-lang="score_title">Dein persönlicher Schutz-Score</h2><p data-lang="score_desc">Beantworte die Fragen und erhalte eine PDF-Zusammenfassung.</p></div>
@@ -379,9 +412,104 @@
 
 <div class="divider"></div>
 
-<!-- ══════ CTA ══════ -->
-<section class="cta-section">
+<!-- ══════ FLOW DIAGRAM ══════ -->
+<section class="section">
   <div class="container">
+    <div class="section-head"><div class="section-label">👥 Wie es funktioniert</div><h2>ModForge & dein Team</h2><p>Automatisch erkennen, handeln & dein Mod-Team informieren.</p></div>
+    <div class="flow-diagram" data-aos="zoom-in">
+      <div class="flow-node"><div class="fn-icon">👤</div><div class="fn-label">User postet Scam-Link</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node"><div class="fn-icon">🤖</div><div class="fn-label">ModForge erkennt in 0.2s</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node"><div class="fn-icon">🔨</div><div class="fn-label">AutoAction löscht & bannt</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node"><div class="fn-icon">📢</div><div class="fn-label">Mod-Team erhält Log + Case</div></div>
+    </div>
+    <div style="text-align:center;margin-top:30px;"><button class="btn btn-ghost" onclick="animateFlow()">▶ Simulation starten</button></div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ══════ BEFORE / AFTER SLIDER ══════ -->
+<section class="section section-alt">
+  <div class="container">
+    <div class="section-head"><div class="section-label">🔄 Vergleich</div><h2>Vorher vs. Nachher</h2><p>Ziehe den Regler und sieh den Unterschied.</p></div>
+    <div class="ba-wrapper" id="ba-wrapper" data-aos="zoom-in">
+      <div class="ba-before" id="ba-before">
+        <div style="font-size:.75rem;color:#80848e;margin-bottom:8px;"># general – ohne ModForge</div>
+        <div class="ba-msg spam"><img src="https://cdn.discordapp.com/embed/avatars/2.png" alt="">💀 Free Nitro!! click.evil/free</div>
+        <div class="ba-msg spam"><img src="https://cdn.discordapp.com/embed/avatars/3.png" alt="">@everyone @everyone RAID!!!</div>
+        <div class="ba-msg spam"><img src="https://cdn.discordapp.com/embed/avatars/4.png" alt="">AAAAAAAAAAAAAA</div>
+        <div class="ba-msg"><img src="https://cdn.discordapp.com/embed/avatars/1.png" alt="">kann jemand mods holen??</div>
+        <div class="ba-msg spam"><img src="https://cdn.discordapp.com/embed/avatars/0.png" alt="">💣 buy accounts | best prices 💣</div>
+      </div>
+      <div class="ba-after" id="ba-after">
+        <div style="font-size:.75rem;color:#80848e;margin-bottom:8px;"># general – mit ModForge</div>
+        <div class="ba-msg clean"><img src="https://cdn.discordapp.com/embed/avatars/1.png" alt="">Hey, wie geht's allen?</div>
+        <div class="ba-msg clean"><img src="https://cdn.discordapp.com/embed/avatars/0.png" alt="">Ganz gut! Habt ihr das neue Update gesehen?</div>
+        <div class="ba-msg clean" style="background:rgba(91,110,255,.08);border-left:3px solid var(--p);">🤖 ModForge: Scam-Link erkannt & entfernt. Case #88 erstellt.</div>
+        <div class="ba-msg clean"><img src="https://cdn.discordapp.com/embed/avatars/3.png" alt="">Danke ModForge 🙏</div>
+      </div>
+      <div class="ba-divider" id="ba-divider"><div class="ba-handle">◀▶</div></div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ══════ REPLAY ══════ -->
+<section class="section">
+  <div class="container">
+    <div class="section-head"><div class="section-label">▶ Replay</div><h2>Mod-Log Replay</h2><p>Sieh, wie ModForge einen Raid in Echtzeit stoppt.</p></div>
+    <div class="replay-wrapper" data-aos="zoom-in">
+      <div class="replay-header"><div class="replay-title"><span class="live-dot" style="width:8px;height:8px;background:var(--green);border-radius:50%;display:inline-block;"></span> Raid erkannt – Server: Elite Gaming Hub</div><span style="font-size:.78rem;color:var(--muted);" id="replay-timer">00:00</span></div>
+      <div class="replay-body"><div class="replay-timeline" id="replay-events"></div></div>
+      <div class="replay-controls"><button class="btn btn-primary" onclick="startReplay()">▶ Replay starten</button><button class="btn btn-ghost" onclick="resetReplay()">↺ Reset</button></div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ══════ THREAT MAP ══════ -->
+<section class="section section-alt">
+  <div class="container">
+    <div class="section-head"><div class="section-label">🌐 Live Threat Map</div><h2>Angriffe weltweit in Echtzeit</h2><p>Simulierte Darstellung der globalen Bedrohungen, die ModForge abwehrt.</p></div>
+    <div class="threat-map" id="threat-map" data-aos="zoom-in">
+      <div class="threat-line" style="top:20%;left:0;"></div>
+      <div class="threat-line" style="top:50%;left:0;animation-delay:2s;"></div>
+      <div class="threat-line" style="top:70%;left:0;animation-delay:1s;"></div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ══════ SECURITY CALCULATOR ══════ -->
+<section class="section">
+  <div class="container">
+    <div class="section-head"><div class="section-label">🔐 Server Security Score</div><h2>Check: Wie gut bist du aufgestellt?</h2><p>Hake ab, was dein Server bereits hat – und sieh deine Schutzlücken.</p></div>
+    <div class="security-calculator" data-aos="fade-up" id="sec-calc">
+      <div class="sec-check-row"><label>🤖 AI AutoMod aktiv</label><input type="checkbox" data-points="25" onchange="calcSecScore()"></div>
+      <div class="sec-check-row"><label>🛡️ Anti-Nuke Engine</label><input type="checkbox" data-points="25" onchange="calcSecScore()"></div>
+      <div class="sec-check-row"><label>🚫 Anti-Raid Join-Gate</label><input type="checkbox" data-points="20" onchange="calcSecScore()"></div>
+      <div class="sec-check-row"><label>📝 Vollständiges Logging</label><input type="checkbox" data-points="15" onchange="calcSecScore()"></div>
+      <div class="sec-check-row"><label>✅ Verifikationssystem</label><input type="checkbox" data-points="10" onchange="calcSecScore()"></div>
+      <div class="sec-check-row"><label>📁 Case Management</label><input type="checkbox" data-points="5" onchange="calcSecScore()"></div>
+      <div style="text-align:center;margin-top:30px;">
+        <div class="sec-score-display" id="sec-score">0%</div>
+        <p id="sec-feedback" style="color:var(--muted);margin-top:8px;"></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ══════ CTA ══════ -->
+<section class="section cta-section">
+  <div class="container" style="text-align:center;">
     <h2 data-lang="cta_title">Bereit für Next‑Level Security?</h2>
     <p style="color:var(--muted);max-width:500px;margin:0 auto 2rem;" data-lang="cta_desc">Join über 150+ Servern, die ModForge bereits vertrauen.</p>
     <a href="https://discord.com/oauth2/authorize?client_id=BOT_CLIENT_ID&scope=bot+applications.commands&permissions=8" target="_blank" class="btn btn-primary btn-xl" id="cta-invite-btn" data-lang="cta_btn">🛡️ Kostenlos einladen</a>
@@ -393,6 +521,7 @@
 <script>
 (function(){
 'use strict';
+
 AOS.init({ duration: 800, once: true, offset: 80 });
 
 /* ════════════════════════════════════════════
@@ -548,11 +677,9 @@ window.closeOAuth = closeOAuth;
 function updateLiveStatus() {
   const servers = 150 + Math.floor(Math.random() * 10);
   const users = 245000 + Math.floor(Math.random() * 5000);
-  const modules = 24;
-  const active = 24;
   document.getElementById('ls-servers').textContent = servers.toLocaleString();
   document.getElementById('ls-users').textContent = users.toLocaleString();
-  document.getElementById('ls-modules').textContent = `${active}/${modules}`;
+  document.getElementById('ls-modules').textContent = '24/24';
 }
 updateLiveStatus();
 setInterval(updateLiveStatus, 5000);
@@ -669,7 +796,7 @@ setInterval(()=>{modLogs.push(modLogs.shift());secLogs.push(secLogs.shift());mus
 /* ════════════════════════════════════════════
    CASE EXPLORER
 ═══════════════════════════════════════════════ */
-const CASES=[{id:'#001',type:'ban',user:'dark_spam#0666',mod:'Admin_Lukas',reason:'Phishing-Link',date:'08.05.2025',color:'#ef4444',badge:'badge-ban',log:['Link erkannt','Nachricht gelöscht','Gebannt','Case erstellt']},{id:'#002',type:'warn',user:'rage_kid#1337',mod:'Mod_Sara',reason:'Massen-Erwähnungen',date:'07.05.2025',color:'#fbbf24',badge:'badge-warn',log:['Spam erkannt','Nachrichten entfernt','1. Verwarnung']},{id:'#003',type:'mute',user:'troll99#4200',mod:'AutoMod',reason:'Beleidigungen',date:'06.05.2025',color:'#818cf8',badge:'badge-mute',log:['Beleidigung erkannt','60 Min. stumm','DM gesendet']}];
+const CASES=[{id:'#001',type:'ban',user:'dark_spam#0666',mod:'Admin_Lukas',reason:'Phishing-Link',date:'08.05.2025',color:'#ef4444',log:['Link erkannt','Nachricht gelöscht','Gebannt','Case erstellt']},{id:'#002',type:'warn',user:'rage_kid#1337',mod:'Mod_Sara',reason:'Massen-Erwähnungen',date:'07.05.2025',color:'#fbbf24',log:['Spam erkannt','Nachrichten entfernt','1. Verwarnung']},{id:'#003',type:'mute',user:'troll99#4200',mod:'AutoMod',reason:'Beleidigungen',date:'06.05.2025',color:'#818cf8',log:['Beleidigung erkannt','60 Min. stumm','DM gesendet']}];
 (function(){
   const list=document.getElementById('case-list');
   CASES.forEach((c,i)=>{
@@ -843,11 +970,59 @@ window.secPrev = secPrev;
 window.downloadPDF = downloadPDF;
 
 /* ════════════════════════════════════════════
-   INIT
+   FLOW ANIMATION
 ═══════════════════════════════════════════════ */
-document.addEventListener('DOMContentLoaded', () => {
-  updatePrice();
-});
+function animateFlow(){document.querySelectorAll('.flow-node').forEach((n,i)=>{n.style.opacity='0.3';setTimeout(()=>{n.style.opacity='1';n.style.transform='scale(1.05)';setTimeout(()=>n.style.transform='',500)},i*600)})}
+window.animateFlow = animateFlow;
+
+/* ════════════════════════════════════════════
+   BEFORE/AFTER SLIDER
+═══════════════════════════════════════════════ */
+(function initBaSlider(){
+  const wrap=document.getElementById('ba-wrapper'),after=document.getElementById('ba-after'),divider=document.getElementById('ba-divider');let dragging=false;
+  function move(clientX){const rect=wrap.getBoundingClientRect();let pct=Math.max(5,Math.min(95,((clientX-rect.left)/rect.width)*100));after.style.clipPath=`inset(0 ${100-pct}% 0 0)`;divider.style.left=pct+'%'}
+  wrap.addEventListener('mousedown',()=>dragging=true);window.addEventListener('mouseup',()=>dragging=false);window.addEventListener('mousemove',e=>{if(dragging)move(e.clientX)});wrap.addEventListener('touchmove',e=>{e.preventDefault();move(e.touches[0].clientX)},{passive:false});
+})();
+
+/* ════════════════════════════════════════════
+   REPLAY
+═══════════════════════════════════════════════ */
+const REPLAY_EVENTS=[{time:'00:00',color:'#ef4444',text:'🚨 Raid erkannt – 25 Accounts in 3s beigetreten'},{time:'00:02',color:'#fbbf24',text:'⚡ Anti‑Raid aktiviert – Join‑Gate eingeschaltet'},{time:'00:03',color:'#ef4444',text:'🔨 23 Raid‑Accounts automatisch gebannt'},{time:'00:04',color:'#818cf8',text:'🔒 Server‑Joins für 5 Minuten gesperrt'},{time:'00:06',color:'#22c55e',text:'📢 Mod‑Team via DM alarmiert – Case #999 angelegt'},{time:'00:08',color:'#4ade80',text:'✅ Alle Bedrohungen neutralisiert – Normalbetrieb'}];
+(function buildReplayEvents(){const container=document.getElementById('replay-events');REPLAY_EVENTS.forEach(e=>{container.innerHTML+=`<div class="replay-event"><span class="re-time">${e.time}</span><div class="re-dot" style="background:${e.color};"></div><span>${e.text}</span></div>`})})();
+let replayRunning=false,replayTimer,replaySec=0;
+function startReplay(){if(replayRunning)return;replayRunning=true;resetReplayVisual();const events=document.querySelectorAll('.replay-event');events.forEach((ev,i)=>setTimeout(()=>ev.classList.add('show'),i*900));replaySec=0;document.getElementById('replay-timer').innerText='00:00';replayTimer=setInterval(()=>{replaySec++;document.getElementById('replay-timer').innerText=`00:${String(replaySec).padStart(2,'0')}`},1000);setTimeout(()=>{clearInterval(replayTimer);replayRunning=false},REPLAY_EVENTS.length*900+500)}
+function resetReplay(){clearInterval(replayTimer);replayRunning=false;replaySec=0;document.getElementById('replay-timer').innerText='00:00';resetReplayVisual()}
+function resetReplayVisual(){document.querySelectorAll('.replay-event').forEach(e=>e.classList.remove('show'))}
+window.startReplay = startReplay;
+window.resetReplay = resetReplay;
+
+/* ════════════════════════════════════════════
+   THREAT MAP
+═══════════════════════════════════════════════ */
+(function initThreatMap(){
+  const map=document.getElementById('threat-map');if(!map)return;
+  const cities=[{name:'Frankfurt',x:48,y:25},{name:'New York',x:25,y:30},{name:'Tokyo',x:82,y:35},{name:'Moscow',x:55,y:18},{name:'Sao Paulo',x:32,y:72},{name:'Sydney',x:85,y:78},{name:'Los Angeles',x:12,y:38},{name:'Mumbai',x:68,y:52}];
+  cities.forEach(c=>{
+    const dot=document.createElement('div');dot.className='threat-dot';dot.style.left=c.x+'%';dot.style.top=c.y+'%';dot.style.animationDelay=(Math.random()*3)+'s';dot.title=c.name;map.appendChild(dot);
+    setInterval(()=>{
+      dot.style.transform='scale(3)';dot.style.opacity='1';
+      setTimeout(()=>{dot.style.transform='scale(1)';dot.style.opacity='.6'},600);
+    },4000+Math.random()*3000);
+  });
+})();
+
+/* ════════════════════════════════════════════
+   SECURITY CALCULATOR
+═══════════════════════════════════════════════ */
+window.calcSecScore = function(){
+  const checks=document.querySelectorAll('#sec-calc input[type=checkbox]');
+  let total=0;checks.forEach(cb=>{if(cb.checked)total+=parseInt(cb.dataset.points)});
+  document.getElementById('sec-score').innerText=total+'%';
+  const fb=document.getElementById('sec-feedback');
+  if(total>=80)fb.innerText='🛡️ Exzellent! Dein Server ist bestens geschützt.';
+  else if(total>=50)fb.innerText='⚠️ Solide Basis – aber da geht noch mehr!';
+  else fb.innerText='🔴 Kritisch! Dein Server ist verwundbar.';
+};
 
 })();
 </script>
