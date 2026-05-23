@@ -1,1048 +1,478 @@
 {% extends "base.html" %}
-{% block title %}ModForge – Discord Security & AutoMod Bot{% endblock %}
+{% block title %}ModForge – Der stärkste Discord Security Bot{% endblock %}
+
 {% block content %}
+<!-- Page-Specific Styles -->
 <style>
-  /* ===== Zusätzliche Styles (unverändert) ===== */
-  :root {
-    --p: #5b6eff;
-    --p2: #9b59b6;
-    --card: #161827;
-    --border: rgba(255,255,255,0.08);
-    --grad: linear-gradient(135deg, #5b6eff 0%, #9b59b6 100%);
-    --green: #22c55e;
-    --red: #ef4444;
-    --yellow: #f59e0b;
+  /* ── GLOBALS & UTILS ── */
+  .glow-text {
+    background: linear-gradient(135deg, #fff 0%, var(--cl) 40%, var(--vl) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .glass-panel {
+    background: rgba(255,255,255,0.02);
+    backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 1.5rem;
+    position: relative; overflow: hidden;
+  }
+  .glass-panel::before {
+    content: ''; position: absolute; inset: 0;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
+    border-radius: inherit; pointer-events: none;
+  }
+  
+  /* 1. SCROLL PROGRESS BAR */
+  #scroll-progress {
+    position: fixed; top: 0; left: 0; height: 3px; background: var(--vl);
+    width: 0%; z-index: 99999; box-shadow: 0 0 10px var(--vl);
+    transition: width 0.1s;
   }
 
-  .particles{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;overflow:hidden}
-  .pt{position:absolute;border-radius:50%;animation:float linear infinite}
-  @keyframes float{0%{transform:translateY(100vh) rotate(0);opacity:0}10%{opacity:1}90%{opacity:1}100%{transform:translateY(-20px) rotate(720deg);opacity:0}}
-
-  .hero-sub{font-size:1.1rem;color:var(--muted);max-width:680px;margin:0 auto 30px;line-height:1.7}
-
-  .stats-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:20px}
-  .stat-item{text-align:center}
-  .stat-num{font-size:2.2rem;font-weight:800;color:var(--p);line-height:1}
-  .stat-lbl{font-size:.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
-
-  .server-ticker-wrap{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px 0;margin-top:25px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.4);position:relative}
-  .server-ticker-title{text-align:center;font-size:.85rem;color:var(--muted);margin-bottom:12px;text-transform:uppercase;letter-spacing:1px}
-  .server-ticker{display:flex;width:max-content;will-change:transform;transform:translate3d(0,0,0);animation:ticker 40s linear infinite}
-  .server-ticker:hover{animation-play-state:paused}
-  .ticker-card{display:flex;align-items:center;gap:8px;padding:8px 20px;border-right:1px solid var(--border);flex-shrink:0;font-size:.82rem;font-weight:600;color:var(--text);opacity:.7;transition:.2s;position:relative}
-  .ticker-card:hover{opacity:1;background:rgba(91,110,255,.05)}
-  .ticker-card img{width:28px;height:28px;border-radius:50%;border:2px solid var(--p)}
-  .ticker-card .server-security{font-size:.65rem;color:var(--green);margin-left:4px}
-  @keyframes ticker{0%{transform:translate3d(0,0,0)}100%{transform:translate3d(-50%,0,0)}}
-
-  .hover-preview{display:none;position:absolute;bottom:120%;left:50%;transform:translateX(-50%);background:#1e1f22;border:1px solid var(--p);border-radius:12px;padding:16px;width:240px;z-index:100;box-shadow:0 12px 30px rgba(0,0,0,.6);pointer-events:none}
-  .ticker-card:hover .hover-preview{display:block}
-  .hover-preview .preview-header{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-weight:700}
-  .hover-preview .preview-stat{font-size:.78rem;color:var(--muted);display:flex;justify-content:space-between;margin-bottom:4px}
-
-  .feat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:20px}
-  .feat-card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:28px;transition:.3s;cursor:default}
-  .feat-card:hover{border-color:rgba(91,110,255,.4);transform:translateY(-4px);box-shadow:0 16px 35px rgba(91,110,255,.12)}
-  .feat-icon{width:50px;height:50px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:1.4rem;margin-bottom:16px}
-  .feat-card h3{font-size:1rem;font-weight:700;margin-bottom:8px}
-  .feat-card p{font-size:.83rem;color:var(--muted);line-height:1.6}
-
-  .demo-window{background:#1a1b2e;border-radius:14px;overflow:hidden;border:1px solid #2d2e45;box-shadow:0 30px 60px rgba(0,0,0,.5)}
-  .demo-titlebar{background:#0f101a;padding:12px 16px;display:flex;align-items:center;gap:14px}
-  .demo-dots{display:flex;gap:6px}
-  .demo-dots span{width:10px;height:10px;border-radius:50%}
-  .demo-url{background:#1a1b2e;color:#5c5e8d;font-size:11px;padding:5px 16px;border-radius:5px;flex:1;text-align:center}
-
-  .log-grid{display:flex;flex-wrap:wrap;gap:10px}
-  .log-chip{background:rgba(91,110,255,.08);border:1px solid rgba(91,110,255,.2);padding:8px 16px;border-radius:8px;font-size:.82rem;display:flex;align-items:center;gap:6px;transition:.2s}
-  .log-chip:hover{background:rgba(91,110,255,.2)}
-  .hash{color:var(--p);font-weight:700}
-
-  .commands-preview-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
-  .command-card{background:var(--card);border:1px solid var(--border);border-radius:9px;padding:12px 16px;display:flex;gap:10px;align-items:center;transition:.2s}
-  .command-card:hover{border-color:rgba(91,110,255,.4)}
-  .command-card code{color:#5b6eff;font-size:.8rem;background:rgba(91,110,255,.1);padding:2px 8px;border-radius:5px}
-
-  .quiz-wrapper{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:40px;max-width:700px;margin:0 auto}
-  .quiz-progress{height:4px;background:rgba(255,255,255,.08);border-radius:2px;margin-bottom:30px}
-  .quiz-progress-bar{height:100%;background:var(--grad);border-radius:2px;transition:.4s}
-  .quiz-q{font-size:1.2rem;font-weight:700;margin-bottom:20px}
-  .quiz-options{display:flex;flex-direction:column;gap:10px}
-  .quiz-opt{background:rgba(255,255,255,.04);border:1px solid var(--border);padding:14px 20px;border-radius:10px;cursor:pointer;transition:.2s;text-align:left;color:var(--text);font-size:.9rem}
-  .quiz-opt:hover,.quiz-opt.selected{border-color:var(--p);background:rgba(91,110,255,.1)}
-  .quiz-nav{display:flex;justify-content:space-between;margin-top:24px}
-  .quiz-result{display:none;text-align:center}
-
-  .dnd-area{display:grid;grid-template-columns:1fr 1fr;gap:30px;max-width:900px;margin:0 auto}
-  .dnd-modules,.dnd-server{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;min-height:250px}
-  .dnd-module-list{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
-  .dnd-mod{background:rgba(91,110,255,.08);border:1px solid var(--border);border-radius:8px;padding:10px 14px;cursor:grab;display:flex;align-items:center;gap:10px;font-size:.85rem;transition:.25s;user-select:none}
-  .dnd-mod:hover{border-color:var(--p);background:rgba(91,110,255,.15);transform:translateX(4px)}
-  .dnd-mod.dragging{opacity:.5;cursor:grabbing}
-  .dnd-server-title{font-size:.8rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px}
-  .dnd-placed{background:rgba(91,110,255,.12);border:1px solid rgba(91,110,255,.3);border-radius:8px;padding:8px 12px;font-size:.8rem;display:flex;align-items:center;justify-content:space-between;gap:8px;animation:pop .25s ease}
-  @keyframes pop{0%{transform:scale(.8);opacity:0}100%{transform:scale(1);opacity:1}}
-  .dnd-remove{background:none;border:none;color:var(--red);cursor:pointer;font-size:.8rem}
-
-  .flow-diagram{display:flex;align-items:center;justify-content:center;gap:0;flex-wrap:wrap;max-width:900px;margin:0 auto}
-  .flow-node{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px 18px;text-align:center;width:150px;flex-shrink:0;transition:.3s}
-  .flow-node .fn-icon{font-size:2rem;margin-bottom:10px}
-  .flow-node .fn-label{font-size:.78rem;color:var(--muted)}
-  .flow-arrow{font-size:1.5rem;color:var(--p);padding:0 10px;animation:arrow-pulse 2s infinite}
-  @keyframes arrow-pulse{0%,100%{opacity:.4}50%{opacity:1}}
-
-  .ba-wrapper{position:relative;max-width:800px;margin:0 auto;border-radius:16px;overflow:hidden;cursor:ew-resize;user-select:none;box-shadow:0 20px 50px rgba(0,0,0,.5)}
-  .ba-before,.ba-after{width:100%;height:360px;padding:24px;display:flex;flex-direction:column;gap:10px;box-sizing:border-box}
-  .ba-before{background:#313338}
-  .ba-after{background:linear-gradient(135deg,#1a1b2e,#0f1020);border:1px solid rgba(91,110,255,.3);position:absolute;top:0;left:0;overflow:hidden}
-  .ba-divider{position:absolute;top:0;bottom:0;width:3px;background:var(--grad);cursor:ew-resize;z-index:10}
-  .ba-handle{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:38px;height:38px;background:var(--grad);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:.8rem;box-shadow:0 4px 14px rgba(91,110,255,.5)}
-  .ba-label{position:absolute;bottom:12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;padding:4px 12px;border-radius:20px}
-  .ba-label.left{left:14px;background:rgba(239,68,68,.2);color:#f87171}
-  .ba-label.right{right:14px;background:rgba(34,197,94,.2);color:#4ade80}
-  .ba-msg{background:rgba(255,255,255,.05);border-radius:8px;padding:10px 14px;font-size:.8rem;color:#dbdee1;display:flex;align-items:center;gap:10px}
-  .ba-msg.spam{border-left:3px solid var(--red)}
-  .ba-msg.clean{border-left:3px solid var(--green)}
-  .ba-msg img{width:24px;height:24px;border-radius:50%}
-
-  .gstats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:20px}
-  .gstat-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px 20px;text-align:center}
-  .gstat-num{font-size:2rem;font-weight:900;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-  .gstat-lbl{font-size:.78rem;color:var(--muted);margin-top:6px}
-
-  .case-explorer{background:#1e1f22;border-radius:14px;overflow:hidden;max-width:850px;margin:0 auto;border:1px solid var(--border);display:flex;box-shadow:0 20px 40px rgba(0,0,0,.4)}
-  .case-list{background:#111214;padding:16px;display:flex;flex-direction:column;gap:8px;width:240px;border-right:1px solid var(--border);overflow-y:auto}
-  .case-item{padding:12px 14px;border-radius:8px;cursor:pointer;transition:.2s;font-size:.83rem}
-  .case-item:hover,.case-item.active{background:rgba(91,110,255,.15)}
-  .case-detail{flex:1;padding:24px}
-  .case-header{display:flex;align-items:center;gap:14px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border)}
-  .case-badge{padding:4px 12px;border-radius:12px;font-size:11px;font-weight:700}
-  .badge-ban{background:rgba(239,68,68,.2);color:#f87171}
-  .badge-warn{background:rgba(251,191,36,.2);color:#fbbf24}
-  .badge-mute{background:rgba(91,110,255,.2);color:#818cf8}
-
-  .bench-wrapper{max-width:700px;margin:0 auto}
-  .bench-row{margin-bottom:20px}
-  .bench-label{display:flex;justify-content:space-between;margin-bottom:8px;font-size:.88rem}
-  .bench-bar-bg{background:rgba(255,255,255,.05);border-radius:50px;height:14px;overflow:hidden}
-  .bench-bar-fill{height:100%;border-radius:50px;transition:width 1.4s ease}
-  .bench-tag{font-size:10px;background:rgba(34,197,94,.15);color:#4ade80;padding:2px 8px;border-radius:10px;margin-left:8px}
-
-  .feedback-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
-  .dc-msg-card{background:#313338;border-radius:12px;padding:20px;border:1px solid #3f4147;transition:.2s}
-  .dc-msg-card:hover{transform:translateY(-3px);box-shadow:0 10px 25px rgba(0,0,0,.3)}
-  .dc-avatar{width:36px;height:36px;border-radius:50%;margin-right:10px}
-  .dc-username{font-weight:700;font-size:.88rem}
-  .dc-server{font-size:11px;color:#80848e}
-  .dc-stars{color:#fbbf24;font-size:.85rem;margin-top:8px}
-
-  .api-wrapper{background:#0f1020;border:1px solid var(--border);border-radius:14px;overflow:hidden;max-width:800px;margin:0 auto}
-  .api-tabs{display:flex;background:#0a0b14;border-bottom:1px solid var(--border)}
-  .api-tab{padding:12px 20px;font-size:.82rem;cursor:pointer;color:var(--muted);transition:.2s;border-bottom:2px solid transparent}
-  .api-tab.active{color:var(--p);border-bottom-color:var(--p)}
-  .api-body{padding:24px}
-  .api-code{font-family:monospace;font-size:.82rem;line-height:1.7;white-space:pre-wrap;color:#a8b4d4}
-
-  .roadmap{position:relative;max-width:800px;margin:0 auto;padding-left:30px}
-  .roadmap::before{content:'';position:absolute;left:10px;top:0;bottom:0;width:2px;background:linear-gradient(to bottom,var(--p),transparent)}
-  .rm-item{position:relative;margin-bottom:34px;padding-left:30px}
-  .rm-dot{position:absolute;left:-26px;top:4px;width:14px;height:14px;border-radius:50%;border:2px solid var(--p);background:var(--bg);z-index:1}
-  .rm-dot.done{background:var(--p);box-shadow:0 0 8px var(--p)}
-  .rm-dot.soon{background:rgba(91,110,255,.4);animation:pulse-dot 2s infinite}
-  @keyframes pulse-dot{0%{box-shadow:0 0 0 0 rgba(91,110,255,.7)}70%{box-shadow:0 0 0 8px rgba(91,110,255,0)}100%{box-shadow:0 0 0 0 rgba(91,110,255,0)}}
-  .rm-month{font-size:12px;color:var(--p);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
-  .rm-title{font-size:1rem;font-weight:700;margin-bottom:4px}
-  .rm-desc{font-size:.83rem;color:var(--muted)}
-  .rm-status{display:inline-block;font-size:10px;padding:2px 10px;border-radius:10px;margin-left:8px;vertical-align:middle}
-  .rm-done{background:rgba(34,197,94,.15);color:#4ade80}
-  .rm-soon{background:rgba(251,191,36,.15);color:#fbbf24}
-  .rm-future{background:rgba(91,110,255,.15);color:#818cf8}
-
-  .replay-wrapper{background:#1e1f22;border-radius:14px;overflow:hidden;max-width:850px;margin:0 auto;border:1px solid var(--border);box-shadow:0 20px 40px rgba(0,0,0,.4)}
-  .replay-header{background:#111214;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
-  .replay-title{font-size:.88rem;font-weight:700;display:flex;align-items:center;gap:8px}
-  .replay-body{padding:24px;min-height:200px}
-  .replay-timeline{display:flex;flex-direction:column;gap:8px}
-  .replay-event{background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:.8rem;display:flex;align-items:center;gap:12px;opacity:0;transform:translateX(-20px);transition:.4s}
-  .replay-event.show{opacity:1;transform:translateX(0)}
-  .re-time{color:var(--p);font-weight:700;width:60px;flex-shrink:0;font-family:monospace}
-  .re-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-  .replay-controls{display:flex;gap:12px;justify-content:center;margin-top:20px}
-
-  .invite-wrapper{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:40px;max-width:600px;margin:0 auto;text-align:center}
-  .invite-input{width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border);color:var(--text);padding:14px 20px;border-radius:12px;font-size:.95rem;margin-bottom:16px;outline:none;transition:.2s}
-  .invite-input:focus{border-color:var(--p)}
-  .invite-result{background:rgba(91,110,255,.08);border:1px solid rgba(91,110,255,.2);border-radius:12px;padding:16px;margin-top:16px;display:none;word-break:break-all;font-size:.85rem;color:var(--p)}
-
-  .privacy-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px}
-  .privacy-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px}
-  .tag-yes{background:rgba(34,197,94,.15);color:#4ade80;font-size:10px;padding:2px 8px;border-radius:10px}
-  .tag-no{background:rgba(239,68,68,.15);color:#f87171;font-size:10px;padding:2px 8px;border-radius:10px}
-
-  .btn-row{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:center}
-
-  @media (max-width: 768px) {
-    .stats-grid{grid-template-columns:repeat(2,1fr)}
-    .dnd-area{grid-template-columns:1fr}
-    .case-explorer{flex-direction:column}
-    .case-list{width:100%;border-right:none;border-bottom:1px solid var(--border)}
-    .flow-diagram{flex-direction:column;align-items:center}
-    .flow-arrow{transform:rotate(90deg);margin:10px 0}
+  /* 2. HERO SECTION & SHIELD */
+  .hero-sec {
+    position: relative; min-height: 90vh;
+    display: flex; align-items: center; justify-content: center;
+    padding: 6rem 1rem 4rem; text-align: center; overflow: hidden;
   }
+  .hero-glow {
+    position: absolute; width: 800px; height: 800px;
+    background: radial-gradient(circle, rgba(124,58,237,0.15) 0%, transparent 60%);
+    top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none;
+  }
+  .hero-shield {
+    position: relative; width: 120px; height: 120px; margin: 0 auto 2rem;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .shield-ring {
+    position: absolute; inset: 0; border-radius: 50%;
+    border: 1px solid var(--vl); opacity: 0;
+    animation: shieldPulse 3s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  }
+  .shield-ring:nth-child(2) { animation-delay: 1s; }
+  .shield-ring:nth-child(3) { animation-delay: 2s; }
+  @keyframes shieldPulse {
+    0% { transform: scale(0.5); opacity: 1; border-width: 3px; }
+    100% { transform: scale(2); opacity: 0; border-width: 0px; }
+  }
+  .hero-shield svg { width: 60px; height: 60px; color: var(--cl); z-index: 2; filter: drop-shadow(0 0 10px var(--cl)); }
+  
+  .hero-title { font-size: clamp(3rem, 8vw, 5.5rem); font-weight: 900; line-height: 1.1; letter-spacing: -0.03em; margin-bottom: 1.5rem; }
+  .hero-sub { font-size: clamp(1.1rem, 2vw, 1.4rem); color: var(--muted); max-width: 700px; margin: 0 auto 3rem; }
+  
+  /* 3. MAGNETIC BUTTONS (Handled in JS, styling here) */
+  .btn-magnetic { display: inline-block; transition: transform 0.1s; will-change: transform; }
+
+  /* 4. MOUSE-TRACKING GLOW CARDS */
+  .features-wrap { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; max-width: 1280px; margin: 4rem auto; padding: 0 1rem; }
+  .tr-card {
+    background: rgba(15, 15, 25, 0.8); border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 1.5rem; padding: 2rem; position: relative; overflow: hidden;
+    cursor: crosshair;
+  }
+  .tr-card::before {
+    content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    background: radial-gradient(800px circle at var(--mouse-x) var(--mouse-y), rgba(124,58,237,0.1), transparent 40%);
+    z-index: 0; opacity: 0; transition: opacity 0.5s; pointer-events: none;
+  }
+  .tr-card:hover::before { opacity: 1; }
+  .tr-card::after {
+    content: ''; position: absolute; inset: 0; border-radius: inherit;
+    padding: 2px; background: radial-gradient(400px circle at var(--mouse-x) var(--mouse-y), rgba(124,58,237,0.5), transparent 40%);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor; mask-composite: exclude; pointer-events: none; opacity: 0; transition: opacity 0.5s;
+  }
+  .tr-card:hover::after { opacity: 1; }
+  .tr-content { position: relative; z-index: 1; }
+  .tr-icon { width: 50px; height: 50px; background: rgba(124,58,237,0.15); border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 1.5rem; border: 1px solid rgba(124,58,237,0.3); color: var(--vl); }
+  .tr-card h3 { font-size: 1.2rem; margin-bottom: 0.8rem; }
+  .tr-card p { color: var(--muted); font-size: 0.9rem; line-height: 1.6; }
+
+  /* 5. INTERACTIVE AUTOMOD SANDBOX */
+  .sandbox-sec { max-width: 1000px; margin: 6rem auto; padding: 0 1rem; }
+  .sandbox-ui { display: flex; flex-direction: column; gap: 1rem; background: var(--bg2); padding: 2rem; border-radius: 1.5rem; border: 1px solid var(--border); box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+  .dc-msg { display: flex; gap: 1rem; padding: 1rem; border-radius: 0.8rem; background: rgba(255,255,255,0.02); transition: all 0.3s; }
+  .dc-av { width: 40px; height: 40px; border-radius: 50%; background: #ed4245; flex-shrink: 0; }
+  .dc-content h4 { font-size: 0.9rem; color: #fff; margin-bottom: 0.2rem; display: flex; align-items: center; gap: 0.5rem; }
+  .dc-bot-tag { background: #5865F2; font-size: 0.6rem; padding: 0.1rem 0.3rem; border-radius: 3px; text-transform: uppercase; }
+  .dc-text { font-size: 0.9rem; color: #dcddde; }
+  .sb-input-wrap { display: flex; gap: 1rem; margin-top: 1rem; }
+  .sb-input-wrap input { flex: 1; background: rgba(255,255,255,0.05); padding: 1rem 1.5rem; font-size: 1rem; }
+  
+  .deleted-msg { border-color: rgba(239,68,68,0.4); background: rgba(239,68,68,0.05); text-decoration: line-through; opacity: 0.6; }
+
+  /* 6. COMPARISON TABLE */
+  .compare-sec { max-width: 1000px; margin: 6rem auto; padding: 0 1rem; }
+  .cmp-table { width: 100%; border-collapse: collapse; }
+  .cmp-table th, .cmp-table td { padding: 1.2rem; text-align: center; border-bottom: 1px solid var(--border); }
+  .cmp-table th { font-size: 1.1rem; color: #fff; }
+  .cmp-table td:first-child { text-align: left; font-weight: 600; color: var(--muted); }
+  .cmp-mf { background: rgba(124,58,237,0.1); border-left: 1px solid var(--v); border-right: 1px solid var(--v); position: relative; }
+  .cmp-mf-top { border-top: 1px solid var(--v); border-top-left-radius: 1rem; border-top-right-radius: 1rem; }
+  .cmp-mf-bot { border-bottom: 1px solid var(--v); border-bottom-left-radius: 1rem; border-bottom-right-radius: 1rem; }
+  .ic-check { color: var(--ok); filter: drop-shadow(0 0 5px var(--ok)); }
+  .ic-cross { color: var(--err); opacity: 0.5; }
+
+  /* 7. DISCORD PROFILE (ECONOMY) */
+  .eco-profile { width: 320px; background: #18191c; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.05); margin: 0 auto; transition: transform 0.3s; }
+  .eco-profile:hover { transform: translateY(-10px) scale(1.02); }
+  .eco-banner { height: 100px; background: linear-gradient(135deg, var(--v), var(--p)); position: relative; }
+  .eco-av-wrap { width: 90px; height: 90px; border-radius: 50%; background: #18191c; padding: 6px; position: absolute; bottom: -45px; left: 16px; }
+  .eco-av { width: 100%; height: 100%; border-radius: 50%; background: #3ba55c; }
+  .eco-body { padding: 55px 20px 20px; }
+  .eco-name { font-size: 1.2rem; font-weight: 800; color: #fff; margin-bottom: 1.5rem; }
+  .eco-stat { display: flex; justify-content: space-between; align-items: center; background: #2f3136; padding: 0.8rem 1rem; border-radius: 8px; margin-bottom: 0.5rem; cursor: pointer; transition: background 0.2s; }
+  .eco-stat:hover { background: #36393f; }
+  .eco-val { color: var(--amberl); font-weight: 700; font-family: 'Geist Mono', monospace; }
+
+  /* 8. LIVE TOASTS */
+  #toast-container { position: fixed; bottom: 20px; left: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 10000; pointer-events: none; }
+  .live-toast { background: rgba(15,15,25,0.9); backdrop-filter: blur(10px); border-left: 3px solid var(--v); padding: 1rem; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: flex; align-items: center; gap: 10px; animation: slideInLeft 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; width: 300px; }
+  .toast-ic { width: 24px; height: 24px; border-radius: 50%; background: rgba(124,58,237,0.2); display: flex; align-items: center; justify-content: center; color: var(--vl); }
+  .toast-content h5 { font-size: 0.8rem; color: #fff; margin-bottom: 0.1rem; }
+  .toast-content p { font-size: 0.7rem; color: var(--muted); }
+  @keyframes slideInLeft { from { transform: translateX(-120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+  @keyframes fadeOut { to { opacity: 0; transform: translateY(10px); } }
+
+  /* 9. AI CHAT PREVIEW */
+  .ai-chat { max-width: 600px; margin: 0 auto; display: flex; flex-direction: column; gap: 1rem; }
+  .chat-bubble { padding: 1rem 1.5rem; border-radius: 1.5rem; max-width: 80%; font-size: 0.9rem; line-height: 1.5; position: relative; }
+  .chat-user { background: rgba(255,255,255,0.05); color: #fff; align-self: flex-end; border-bottom-right-radius: 0.2rem; }
+  .chat-bot { background: linear-gradient(135deg, rgba(124,58,237,0.2), rgba(34,211,238,0.1)); border: 1px solid rgba(124,58,237,0.3); color: var(--cl); align-self: flex-start; border-bottom-left-radius: 0.2rem; box-shadow: 0 10px 20px rgba(124,58,237,0.1); }
+  .typewriter { overflow: hidden; white-space: nowrap; border-right: 2px solid var(--vl); animation: typing 2s steps(40, end), blink-caret .75s step-end infinite; }
+  @keyframes typing { from { width: 0 } to { width: 100% } }
+  @keyframes blink-caret { from, to { border-color: transparent } 50% { border-color: var(--vl); } }
+
+  /* Grid Layouts */
+  .split-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; max-width: 1280px; margin: 6rem auto; padding: 0 1rem; align-items: center; }
+  @media (max-width: 900px) { .split-grid { grid-template-columns: 1fr; text-align: center; } .ai-chat { align-items: center; } }
 </style>
 
-<!-- Hero -->
-<section class="hero" style="position:relative; overflow:hidden; min-height:80vh; display:flex; align-items:center;">
-  <div class="particles" id="pts"></div>
-  <div style="position:relative; z-index:10" class="container">
-    <div class="hero-badge" data-aos="fade-down">
-      <span class="pulse-dot"></span> Version 3.0.0 · Jetzt verfügbar
+<!-- 1. SCROLL PROGRESS -->
+<div id="scroll-progress"></div>
+
+<!-- 2. HERO SECTION -->
+<section class="hero-sec">
+  <div class="hero-glow"></div>
+  <div style="position:relative; z-index:2; max-width: 900px;">
+    
+    <div class="hero-shield">
+      <div class="shield-ring"></div>
+      <div class="shield-ring"></div>
+      <div class="shield-ring"></div>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+      </svg>
     </div>
-    <h1 data-aos="fade-up">
-      <span class="grad">ModForge</span><br>
-      <span style="font-size:52%; font-weight:700; color:var(--fg)">Security & AutoMod Bot</span>
-    </h1>
-    <p class="hero-sub" data-aos="fade-up" data-aos-delay="100">
-      Der leistungsstärkste Discord-Moderationsbot mit vollständigem <strong>Web-Dashboard</strong>,
-      <strong>Anti-Nuke</strong>, <strong>Anti-Raid</strong>, <strong>AutoMod</strong>,
-      <strong>Case-System</strong> und viel mehr — alles in einer Lösung.
-    </p>
-    <div class="btn-row" data-aos="fade-up" data-aos-delay="200">
-      <a class="btn btn-primary" href="https://discord.com/oauth2/authorize?client_id={{ cid }}&scope=bot+applications.commands&permissions=8" target="_blank">🛡️ Bot einladen</a>
-      <a class="btn btn-ghost" href="/login">📊 Dashboard öffnen</a>
-      <a class="btn btn-ghost" href="https://discord.gg/gwryX3dbkt" target="_blank">💬 Support</a>
+
+    <div class="sec-badge" style="margin-bottom: 2rem;">🚀 ModForge v3.0 ist live</div>
+    
+    <h1 class="hero-title">Sichere deinen Discord.<br><span class="glow-text">Automatisiert. Intelligent.</span></h1>
+    <p class="hero-sub">Der fortschrittlichste AutoMod & Anti-Nuke Bot. Schütze deine Community vor Raids, Spam und Phishing – komplett ohne Aufwand.</p>
+    
+    <div class="btn-row">
+      <div class="btn-magnetic">
+        <a href="https://discord.com/oauth2/..." class="btn-glass-primary btn-xl">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Zu Discord hinzufügen
+        </a>
+      </div>
+      <div class="btn-magnetic">
+        <a href="/login" class="btn-glass btn-xl">
+          Dashboard öffnen
+        </a>
+      </div>
     </div>
   </div>
 </section>
 
-<!-- Stats (echte Jinja2-Variablen) -->
-<div class="container stats-wrap" style="margin-top:-50px; position:relative; z-index:20;">
-  <div class="stats-grid">
-    <div class="stat-item" data-aos="zoom-in">
-      <div class="stat-num" data-count="{{ gc_raw }}" data-suffix="+">{{ gc }}</div>
-      <div class="stat-lbl">Aktive Server</div>
+<!-- 3. MOUSE-TRACKING GLOW CARDS (Features) -->
+<section style="position: relative; z-index: 2;">
+  <div class="sec-head reveal">
+    <div class="section-label">Kernfunktionen</div>
+    <h2>Schutz auf Enterprise-Niveau</h2>
+    <p>Moderne Werkzeuge für Server-Admins, verpackt in einem wunderschönen Interface.</p>
+  </div>
+
+  <div class="features-wrap">
+    <div class="tr-card reveal">
+      <div class="tr-content">
+        <div class="tr-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+        <h3>AutoMod 2.0</h3>
+        <p>Regex-Filter, BadWord-Listen und Zalgo-Schutz. Der Bot lernt dazu und bestraft Regelbrecher automatisch per Case-System.</p>
+      </div>
     </div>
-    <div class="stat-item" data-aos="zoom-in" data-aos-delay="100">
-      <div class="stat-num" data-count="{{ mc_raw }}" data-suffix="+">{{ mc }}</div>
-      <div class="stat-lbl">Geschützte Mitglieder</div>
+    <div class="tr-card reveal">
+      <div class="tr-content">
+        <div class="tr-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+        <h3>Anti-Nuke & Raid</h3>
+        <p>Verhindert Massen-Bans, Kanal-Löschungen und Bot-Raids in Millisekunden. Isolierung kompromittierter Admin-Accounts.</p>
+      </div>
     </div>
-    <div class="stat-item" data-aos="zoom-in" data-aos-delay="200">
-      <div class="stat-num">99.9%</div>
-      <div class="stat-lbl">Uptime</div>
+    <div class="tr-card reveal">
+      <div class="tr-content">
+        <div class="tr-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div>
+        <h3>Economy & XP</h3>
+        <p>Belohne Aktivität mit globalen oder server-spezifischen XP. Interaktive Shops, Voice-XP und Custom Profilkarten.</p>
+      </div>
     </div>
-    <div class="stat-item" data-aos="zoom-in" data-aos-delay="300">
-      <div class="stat-num">{{ lat }}ms</div>
-      <div class="stat-lbl">Gateway Latenz</div>
+  </div>
+</section>
+
+<!-- 4. INTERACTIVE AUTOMOD SANDBOX -->
+<section class="sandbox-sec reveal">
+  <div class="sec-head">
+    <div class="section-label">Live Demo</div>
+    <h2>Erlebe den AutoMod in Aktion</h2>
+    <p>Tippe ein Schimpfwort oder einen Phishing-Link ein und sieh, wie schnell ModForge reagiert.</p>
+  </div>
+
+  <div class="sandbox-ui glass-panel">
+    <!-- Chat History -->
+    <div id="sb-chat" style="display: flex; flex-direction: column; gap: 1rem; height: 250px; overflow-y: auto; padding-right: 1rem;">
+      <div class="dc-msg">
+        <div class="dc-av" style="background:#5865F2;"></div>
+        <div class="dc-content">
+          <h4>Fufi <span>heute um 14:00</span></h4>
+          <div class="dc-text">Willkommen auf dem Server! Lies dir die Regeln durch.</div>
+        </div>
+      </div>
     </div>
-    <div class="stat-item" data-aos="zoom-in" data-aos-delay="400">
-      <div class="stat-num">0</div>
-      <div class="stat-lbl">Datenlecks</div>
+
+    <!-- Input Area -->
+    <div class="sb-input-wrap">
+      <input type="text" id="sb-input" placeholder="Tippe z.B. 'discord.gg/freemoney' oder ein Badword...">
+      <button class="btn-glass-primary" id="sb-btn">Senden</button>
+    </div>
+  </div>
+</section>
+
+<!-- 5. SPLIT GRID: AI & ECONOMY -->
+<div class="split-grid">
+  <!-- Left: AI Chat -->
+  <div class="reveal-left">
+    <div class="section-label">GPT-4 Integration</div>
+    <h2 style="font-size: 2.5rem; font-weight:800; margin:1rem 0;">KI-Sentiment Analyse</h2>
+    <p style="color:var(--muted); margin-bottom:2rem; font-size:1.1rem;">ModForge versteht den Kontext. Toxizität wird nicht nur an Wörtern erkannt, sondern an der Stimmung der Nachricht.</p>
+    
+    <div class="ai-chat">
+      <div class="chat-bubble chat-user">"Ihr seid doch alle komplett unfähig, löscht euch einfach!"</div>
+      <div class="chat-bubble chat-bot">
+        <strong>ModForge KI:</strong><br>
+        <span style="color:#fca5a5;">⚠️ Hohe Toxizität erkannt (92%).</span><br>
+        Aktion: Nachricht gelöscht, User verwarnt.
+      </div>
     </div>
   </div>
 
-  <!-- Server Ticker (statische Liste, keine API) -->
-  <div class="server-ticker-wrap" data-aos="fade-up">
-    <div class="server-ticker-title">Vertraut von über 100+ Member‑Servern</div>
-    <div class="server-ticker" id="server-ticker"></div>
+  <!-- Right: Economy Profile -->
+  <div class="reveal-right">
+    <div class="eco-profile">
+      <div class="eco-banner">
+        <div class="eco-av-wrap"><div class="eco-av"></div></div>
+      </div>
+      <div class="eco-body">
+        <div class="eco-name">Fufi <span style="color:var(--muted); font-weight:400;">#0001</span></div>
+        <div class="eco-stat">
+          <span style="color:var(--muted); font-size:0.8rem;">Level</span>
+          <span class="eco-val" style="color:var(--cl);">42</span>
+        </div>
+        <div class="eco-stat">
+          <span style="color:var(--muted); font-size:0.8rem;">Experience</span>
+          <span class="eco-val" style="color:#86efac;">14,500 XP</span>
+        </div>
+        <div class="eco-stat" id="coin-hover">
+          <span style="color:var(--muted); font-size:0.8rem;">Balance (Hover me)</span>
+          <span class="eco-val" id="coin-val">🪙 5,000</span>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
-<!-- Features -->
-<section class="section section-alt">
-  <div class="container">
-    <div class="sec-head" data-aos="fade-up">
-      <div class="sec-badge">🚀 Features</div>
-      <h2>Alles was du für deinen Server brauchst</h2>
-      <p>ModForge vereint alle wichtigen Sicherheits- und Moderations-Features — kein Stress mehr mit unzähligen Bots.</p>
-    </div>
-    <div class="feat-grid">
-      {% for f in features %}
-      <div class="feat-card" data-aos="fade-up" data-aos-delay="{{ loop.index0 * 50 }}">
-        <div class="feat-icon" style="background:{{ f.bg }}">{{ f.icon }}</div>
-        <h3>{{ f.title }}</h3>
-        <p>{{ f.desc }}</p>
-      </div>
-      {% endfor %}
-    </div>
+<!-- 6. COMPARISON TABLE -->
+<section class="compare-sec reveal">
+  <div class="sec-head">
+    <h2>Warum ModForge?</h2>
+    <p>Vergiss überteuerte Premium-Paywalls. Wir bieten Enterprise-Features standardmäßig.</p>
+  </div>
+  
+  <div class="glass-panel" style="padding: 0;">
+    <table class="cmp-table">
+      <thead>
+        <tr>
+          <th>Feature</th>
+          <th class="cmp-mf cmp-mf-top">🛡️ ModForge</th>
+          <th>MEE6</th>
+          <th>Dyno</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>KI AutoMod</td>
+          <td class="cmp-mf"><svg class="ic-check" viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="3" fill="none"><polyline points="20 6 9 17 4 12"></polyline></svg></td>
+          <td><svg class="ic-cross" viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="3" fill="none"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></td>
+          <td><svg class="ic-cross" viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="3" fill="none"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></td>
+        </tr>
+        <tr>
+          <td>Anti-Nuke Engine</td>
+          <td class="cmp-mf"><svg class="ic-check" viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="3" fill="none"><polyline points="20 6 9 17 4 12"></polyline></svg></td>
+          <td><svg class="ic-cross" viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="3" fill="none"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></td>
+          <td>Teilweise</td>
+        </tr>
+        <tr>
+          <td>Custom Branding</td>
+          <td class="cmp-mf cmp-mf-bot"><svg class="ic-check" viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="3" fill="none"><polyline points="20 6 9 17 4 12"></polyline></svg></td>
+          <td>Paywall ($$$)</td>
+          <td>Paywall</td>
+        </tr>
+      </tbody>
+    </table>
   </div>
 </section>
 
-<!-- Dashboard Mockup -->
-<section class="section">
-  <div class="container">
-    <div class="live-demo-grid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap:60px; align-items:center;">
-      <div data-aos="fade-right">
-        <div class="sec-badge" style="margin-bottom:14px">📊 Web Dashboard</div>
-        <h2 style="font-size:clamp(1.6rem, 3.5vw, 2.2rem); font-weight:800; margin-bottom:14px">
-          Alles im Blick –<br><span class="grad">direkt im Browser</span>
-        </h2>
-        <p style="color:var(--muted); margin-bottom:18px; line-height:1.7">
-          Konfiguriere alle Module deines Servers ohne einen einzigen Befehl zu tippen.
-          <strong style="color:var(--fg)">Discord OAuth2 Login</strong>, grafische Einstellungen und Live-Aktivitäten.
-        </p>
-        <ul class="feature-list" style="list-style:none; margin-bottom:22px; padding:0;">
-          <li style="display:flex; align-items:center; gap:9px; font-size:.9rem; margin-bottom:8px; color:var(--muted)">
-            <span style="color:#22c55e">✅</span> <span>Discord OAuth2 Login</span>
-          </li>
-          <li style="display:flex; align-items:center; gap:9px; font-size:.9rem; margin-bottom:8px; color:var(--muted)">
-            <span style="color:#22c55e">✅</span> <span>30+ konfigurierbare Module</span>
-          </li>
-          <li style="display:flex; align-items:center; gap:9px; font-size:.9rem; margin-bottom:8px; color:var(--muted)">
-            <span style="color:#22c55e">✅</span> <span>Live-Activity-Stream</span>
-          </li>
-        </ul>
-        <a class="btn btn-primary" href="/login">Dashboard öffnen ↗</a>
-      </div>
-      <div class="demo-window" data-aos="fade-left">
-        <div class="demo-titlebar">
-          <div class="demo-dots"><span style="background:#ef4444"></span><span style="background:#eab308"></span><span style="background:#22c55e"></span></div>
-          <div class="demo-url">modforge.app/dashboard/overview</div>
-        </div>
-        <div class="demo-inner" style="display:flex; height:280px;">
-          <div class="demo-sidebar" style="width:80px; border-right:1px solid var(--border); padding:10px;">
-            <div style="width:100%; height:8px; background:var(--border); border-radius:4px; margin-bottom:10px;"></div>
-            <div style="width:80%; height:8px; background:var(--border); border-radius:4px; margin-bottom:10px; opacity:0.5;"></div>
-          </div>
-          <div class="demo-content" style="flex:1; padding:15px;">
-            <div class="demo-kpis" style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:15px;">
-              <div class="demo-kpi" style="background:var(--border); height:40px; border-radius:6px;"></div>
-              <div class="demo-kpi" style="background:var(--border); height:40px; border-radius:6px;"></div>
-            </div>
-            <div class="demo-list-row" style="height:12px; background:var(--border); margin-bottom:8px; border-radius:4px;"></div>
-            <div class="demo-list-row" style="height:12px; background:var(--border); margin-bottom:8px; border-radius:4px; width:70%;"></div>
-          </div>
-        </div>
-      </div>
-    </div>
+<!-- 7. BOTTOM CTA -->
+<section style="padding: 8rem 1rem; text-align: center; position: relative;">
+  <div class="hero-glow" style="width: 600px; height: 600px; opacity: 0.5;"></div>
+  <h2 style="font-size: clamp(2rem, 5vw, 4rem); font-weight: 900; margin-bottom: 2rem; position: relative; z-index: 2;">Bereit für das Upgrade?</h2>
+  <div class="btn-magnetic" style="position: relative; z-index: 2;">
+    <a href="/login" class="btn-glass-primary btn-xl">Kostenlos starten</a>
   </div>
 </section>
 
-<!-- Logging -->
-<section class="section section-alt">
-  <div class="container">
-    <div class="sec-head" data-aos="fade-up">
-      <div class="sec-badge">📝 Logging</div>
-      <h2>Vollständiges Logging – 24 Module</h2>
-      <p>Pro Modul ein eigener Log-Kanal. Kein Event bleibt unbemerkt.</p>
-    </div>
-    <div class="log-grid" data-aos="fade-up">
-      {% for m in log_mods %}
-      <div class="log-chip"><span class="hash">#</span>{{ m }}</div>
-      {% endfor %}
-    </div>
-  </div>
-</section>
+<!-- 8. LIVE TOAST CONTAINER -->
+<div id="toast-container"></div>
 
-<!-- Commands -->
-<section class="section">
-  <div class="container">
-    <div class="sec-head" data-aos="fade-up">
-      <div class="sec-badge">⌨️ Commands</div>
-      <h2>Über 40 Befehle</h2>
-      <p>Moderne Slash-Commands für schnelle Moderation.</p>
-    </div>
-    <div class="commands-preview-grid" data-aos="fade-up">
-      {% for c in cmds_preview %}
-      <div class="command-card">
-        <code>{{ c.cmd }}</code>
-        <span style="font-size:.78rem; color:var(--muted)">{{ c.desc }}</span>
-      </div>
-      {% endfor %}
-    </div>
-  </div>
-</section>
-
-<!-- Security Quiz -->
-<section class="section section-alt">
-  <div class="container">
-    <div class="sec-head" data-aos="fade-up">
-      <div class="sec-badge">🔍 Sicherheits-Check</div>
-      <h2>Wie sicher ist dein Server?</h2>
-      <p>Beantworte 4 kurze Fragen und erfahre, welche ModForge-Module dich schützen würden.</p>
-    </div>
-    <div class="quiz-wrapper" data-aos="zoom-in">
-      <div class="quiz-progress"><div class="quiz-progress-bar" id="qprogress" style="width:0%"></div></div>
-      <div id="quiz-main">
-        <div class="quiz-q" id="quiz-question"></div>
-        <div class="quiz-options" id="quiz-options"></div>
-        <div class="quiz-nav">
-          <button class="btn btn-ghost" id="quiz-prev" onclick="quizPrev()">← Zurück</button>
-          <span id="quiz-counter" style="color:var(--muted);font-size:.85rem;align-self:center;"></span>
-          <button class="btn btn-primary" id="quiz-next" onclick="quizNext()">Weiter →</button>
-        </div>
-      </div>
-      <div class="quiz-result" id="quiz-result">
-        <div class="quiz-score" id="quiz-score-val"></div>
-        <p id="quiz-verdict"></p>
-        <div class="quiz-rec" id="quiz-recs"></div>
-        <button class="btn btn-ghost" style="margin-top:20px;" onclick="quizReset()">Nochmal versuchen</button>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- Drag & Drop -->
-<section class="section">
-  <div class="container">
-    <div class="sec-head" data-aos="fade-up">
-      <div class="sec-badge">🧩 Modulares System</div>
-      <h2>Drag & Drop – Baue deinen Bot</h2>
-      <p>Ziehe Module in deinen Server und aktiviere nur was du brauchst.</p>
-    </div>
-    <div class="dnd-area" data-aos="fade-up">
-      <div class="dnd-modules">
-        <div style="font-size:.8rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;">Verfügbare Module</div>
-        <div class="dnd-module-list" id="dnd-modules"></div>
-      </div>
-      <div class="dnd-server" id="dnd-server">
-        <div class="dnd-server-title">⬅ Module hierher ziehen</div>
-        <div id="dnd-dropzone" style="min-height: 150px;"></div>
-        <button class="btn btn-ghost" style="margin-top:12px;width:100%;font-size:.8rem;" onclick="dndReset()">Reset</button>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- Wie es funktioniert -->
-<section class="section section-alt">
-  <div class="container">
-    <div class="sec-head" data-aos="fade-up">
-      <div class="sec-badge">👥 Wie es funktioniert</div>
-      <h2>ModForge & dein Team</h2>
-      <p>Automatisch erkennen, handeln & dein Mod-Team informieren.</p>
-    </div>
-    <div class="flow-diagram" data-aos="zoom-in">
-      <div class="flow-node"><div class="fn-icon">👤</div><div class="fn-title">User</div><div class="fn-label">postet Scam-Link</div></div>
-      <div class="flow-arrow">→</div>
-      <div class="flow-node highlight"><div class="fn-icon">🤖</div><div class="fn-title">ModForge</div><div class="fn-label">erkennt in 0.2s</div></div>
-      <div class="flow-arrow">→</div>
-      <div class="flow-node"><div class="fn-icon">🔨</div><div class="fn-title">AutoAction</div><div class="fn-label">löscht & bannt</div></div>
-      <div class="flow-arrow">→</div>
-      <div class="flow-node"><div class="fn-icon">📢</div><div class="fn-title">Mod-Team</div><div class="fn-label">erhält Log + Case</div></div>
-    </div>
-    <div style="text-align:center;margin-top:30px;">
-      <button class="btn btn-ghost" onclick="animateFlow()">▶ Simulation starten</button>
-    </div>
-  </div>
-</section>
-
-<!-- Before/After Slider -->
-<section class="section">
-  <div class="container">
-    <div class="sec-head" data-aos="fade-up">
-      <div class="sec-badge">🔄 Vergleich</div>
-      <h2>Vorher vs. Nachher</h2>
-      <p>Ziehe den Regler und sieh den Unterschied.</p>
-    </div>
-    <div class="ba-wrapper" id="ba-wrapper" data-aos="zoom-in">
-      <div class="ba-before" id="ba-before">
-        <div style="font-size:.75rem;color:#80848e;margin-bottom:8px;"># general – ohne ModForge</div>
-        <div class="ba-msg spam"><img src="https://cdn.discordapp.com/embed/avatars/2.png" alt="">💀 Free Nitro!! click.evil/free</div>
-        <div class="ba-msg spam"><img src="https://cdn.discordapp.com/embed/avatars/3.png" alt="">@everyone @everyone @everyone RAID!!!</div>
-        <div class="ba-msg spam"><img src="https://cdn.discordapp.com/embed/avatars/4.png" alt="">AAAAAAAAAAAAAAAAAAAAAAAA</div>
-        <div class="ba-msg"><img src="https://cdn.discordapp.com/embed/avatars/1.png" alt="">kann jemand mods holen??</div>
-        <div class="ba-msg spam"><img src="https://cdn.discordapp.com/embed/avatars/0.png" alt="">💣 buy accounts | best prices 💣</div>
-      </div>
-      <div class="ba-after" id="ba-after">
-        <div style="font-size:.75rem;color:#80848e;margin-bottom:8px;"># general – mit ModForge</div>
-        <div class="ba-msg clean"><img src="https://cdn.discordapp.com/embed/avatars/1.png" alt="">Hey, wie geht's allen?</div>
-        <div class="ba-msg clean"><img src="https://cdn.discordapp.com/embed/avatars/0.png" alt="">Ganz gut! Habt ihr das neue Update gesehen?</div>
-        <div class="ba-msg clean" style="background:rgba(91,110,255,.08);border-left:3px solid var(--p);">🤖 ModForge: Scam-Link erkannt & entfernt. Case #88 erstellt.</div>
-        <div class="ba-msg clean"><img src="https://cdn.discordapp.com/embed/avatars/3.png" alt="">Danke ModForge 🙏</div>
-      </div>
-      <div class="ba-divider" id="ba-divider">
-        <div class="ba-handle">◀▶</div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- Global Stats (echte DB‑Werte) -->
-<section class="section section-alt">
-  <div class="container">
-    <div class="sec-head" data-aos="fade-up">
-      <div class="sec-badge">🌐 Globale Statistiken</div>
-      <h2>ModForge in Zahlen</h2>
-      <div class="live-pill"><span class="live-dot" style="width:6px;height:6px;"></span> Stand heute</div>
-    </div>
-    <div class="gstats-grid" data-aos="fade-up">
-      <div class="gstat-card"><div class="gstat-num">{{ raids }}</div><div class="gstat-lbl">Raids verhindert (gesamt)</div></div>
-      <div class="gstat-card"><div class="gstat-num">{{ spam }}</div><div class="gstat-lbl">Spam-Nachrichten gefiltert</div></div>
-      <div class="gstat-card"><div class="gstat-num">{{ phishing }}</div><div class="gstat-lbl">Phishing-Links blockiert</div></div>
-      <div class="gstat-card"><div class="gstat-num">{{ cases }}</div><div class="gstat-lbl">Cases erstellt</div></div>
-      <div class="gstat-card"><div class="gstat-num">{{ warns }}</div><div class="gstat-lbl">Warns ausgestellt</div></div>
-    </div>
-  </div>
-</section>
-
-<!-- Case System Explorer -->
-<section class="section">
-  <div class="container">
-    <div class="sec-head" data-aos="fade-up">
-      <div class="sec-badge">📁 Case System</div>
-      <h2>Intelligentes Case‑System</h2>
-      <p>Jede Aktion wird als transparenter Fall gespeichert – mit Timeline, Beweisen und Verantwortlichkeiten.</p>
-    </div>
-    <div class="case-explorer" data-aos="zoom-in">
-      <div class="case-list" id="case-list"></div>
-      <div class="case-detail" id="case-detail"></div>
-    </div>
-  </div>
-</section>
-
-<!-- Speed Benchmark -->
-<section class="section section-alt">
-  <div class="container">
-    <div class="sec-head" data-aos="fade-up">
-      <div class="sec-badge">⚡ Performance</div>
-      <h2>Speed-Benchmark</h2>
-      <p>ModForge reagiert schneller als ein Mensch überhaupt tippen kann.</p>
-    </div>
-    <div class="bench-wrapper" data-aos="fade-up">
-      <div class="bench-row">
-        <div class="bench-label"><span>🤖 ModForge</span><span class="bench-time" style="color:var(--green);">0.2s <span class="bench-tag">SIEGER</span></span></div>
-        <div class="bench-bar-bg"><div class="bench-bar-fill" id="b1" style="width:0%;background:var(--green);"></div></div>
-      </div>
-      <div class="bench-row">
-        <div class="bench-label"><span>👤 Mensch (Moderator)</span><span class="bench-time" style="color:var(--muted);">5.0s</span></div>
-        <div class="bench-bar-bg"><div class="bench-bar-fill" id="b2" style="width:0%;background:var(--red);"></div></div>
-      </div>
-      <div class="bench-row">
-        <div class="bench-label"><span>🤖 Anderer Bot</span><span class="bench-time" style="color:var(--muted);">1.8s</span></div>
-        <div class="bench-bar-bg"><div class="bench-bar-fill" id="b3" style="width:0%;background:var(--yellow);"></div></div>
-      </div>
-    </div>
-    <div style="text-align:center; margin-top:20px;">
-      <button class="btn btn-ghost" onclick="runBenchmark()">▶ Benchmark starten</button>
-    </div>
-  </div>
-</section>
-
-<!-- Community Feedback -->
-<section class="section">
-  <div class="container">
-    <div class="sec-head" data-aos="fade-up">
-      <div class="sec-badge">💬 Community</div>
-      <h2>Das sagen Server-Inhaber</h2>
-    </div>
-    <div class="feedback-grid" data-aos="fade-up" id="feedback-grid"></div>
-  </div>
-</section>
-
-<!-- API Corner -->
-<section class="section section-alt">
-  <div class="container">
-    <div class="sec-head" data-aos="fade-up">
-      <div class="sec-badge">🔧 Developer</div>
-      <h2>API-Corner</h2>
-      <p>Erweitere ModForge ganz einfach mit unserer REST-API.</p>
-    </div>
-    <div class="api-wrapper" data-aos="zoom-in">
-      <div class="api-tabs">
-        <button class="api-tab active" onclick="switchApi('get',this)">GET /cases</button>
-        <button class="api-tab" onclick="switchApi('post',this)">POST /action</button>
-        <button class="api-tab" onclick="switchApi('ws',this)">WebSocket</button>
-      </div>
-      <div class="api-body"><pre class="api-code" id="api-code"></pre></div>
-    </div>
-  </div>
-</section>
-
-<!-- Roadmap -->
-<section class="section">
-  <div class="container">
-    <div class="sec-head" data-aos="fade-up">
-      <div class="sec-badge">🗺 Roadmap</div>
-      <h2>Was kommt als Nächstes?</h2>
-      <p>Bleib auf dem Laufenden über neue Features.</p>
-    </div>
-    <div class="roadmap" data-aos="fade-up" id="roadmap-list"></div>
-  </div>
-</section>
-
-<!-- Mod-Log Replay -->
-<section class="section section-alt">
-  <div class="container">
-    <div class="sec-head" data-aos="fade-up">
-      <div class="sec-badge">▶ Replay</div>
-      <h2>Mod-Log Replay</h2>
-      <p>Sieh, wie ModForge einen Raid in Echtzeit stoppt.</p>
-    </div>
-    <div class="replay-wrapper" data-aos="zoom-in">
-      <div class="replay-header">
-        <div class="replay-title"><span class="live-dot" style="width:8px;height:8px;"></span> Raid erkannt – Server: Elite Gaming Hub</div>
-        <span style="font-size:.78rem;color:var(--muted);" id="replay-timer">00:00</span>
-      </div>
-      <div class="replay-body">
-        <div class="replay-timeline" id="replay-events"></div>
-      </div>
-      <div class="replay-controls">
-        <button class="btn btn-primary" onclick="startReplay()">▶ Replay starten</button>
-        <button class="btn btn-ghost" onclick="resetReplay()">↺ Reset</button>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- Invite Generator -->
-<section class="section">
-  <div class="container">
-    <div class="sec-head" data-aos="fade-up">
-      <div class="sec-badge">🔗 Einladungs-Generator</div>
-      <h2>Schnell‑Einladungs‑Generator</h2>
-      <p>Gib deinen Server‑Namen ein und erhalte deinen personalisierten Einladungslink.</p>
-    </div>
-    <div class="invite-wrapper" data-aos="zoom-in">
-      <input class="invite-input" id="server-name-input" placeholder="z.B. Elite Gaming Hub" oninput="generateInvite()"/>
-      <button class="btn btn-primary" onclick="generateInvite()" style="width:100%;">🔗 Link generieren</button>
-      <div class="invite-result" id="invite-result">
-        <div id="invite-link"></div>
-        <button class="btn btn-ghost" style="margin-top:10px;" onclick="copyInvite()">📋 Link kopieren</button>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- Privacy -->
-<section class="section section-alt">
-  <div class="container">
-    <div class="sec-head" data-aos="fade-up">
-      <div class="sec-badge">🔒 Datenschutz</div>
-      <h2>Transparenz – Was wir speichern</h2>
-      <p>Vertrauen entsteht durch Transparenz. Hier ist genau, was ModForge speichert.</p>
-    </div>
-    <div class="privacy-grid" data-aos="fade-up" id="privacy-grid"></div>
-  </div>
-</section>
-
-<!-- CTA -->
-<section class="section">
-  <div class="container">
-    <div class="cta-box" data-aos="zoom-in" style="text-align:center; padding:60px 20px; background:var(--card); border-radius:24px; border:1px solid var(--border); position:relative; overflow:hidden;">
-      <div style="position:absolute; top:-80px; left:50%; transform:translateX(-50%); width:400px; height:400px; background:radial-gradient(circle,rgba(91,110,255,.18),transparent); pointer-events:none;"></div>
-      <div style="font-size:3.5rem; margin-bottom:20px; position:relative;">🛡️</div>
-      <h2 class="grad" style="font-size:2.5rem; margin-bottom:15px; position:relative;">Bereit, deinen Server zu schützen?</h2>
-      <p style="margin-bottom:30px; color:var(--muted); max-width:600px; margin-left:auto; margin-right:auto; position:relative;">Lade ModForge jetzt ein. In weniger als 2 Minuten eingerichtet — völlig kostenlos.</p>
-      <div class="btn-row" style="justify-content:center; position:relative;">
-        <a class="btn btn-primary" href="https://discord.com/oauth2/authorize?client_id={{ cid }}&scope=bot+applications.commands&permissions=8" target="_blank">🛡️ Bot einladen</a>
-        <a class="btn btn-ghost" href="/login">Dashboard</a>
-      </div>
-    </div>
-  </div>
-</section>
-
-<script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+<!-- 9. INLINE SCRIPT FÜR DIE 10 NEUEN FUNKTIONEN -->
 <script>
-  const BOT_CLIENT_ID = "{{ cid }}";
+document.addEventListener('DOMContentLoaded', () => {
 
+  // Feature 1: Scroll Progress
+  window.addEventListener('scroll', () => {
+    const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+    const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+    const scrolled = (winScroll / height) * 100;
+    document.getElementById('scroll-progress').style.width = scrolled + "%";
+  });
 
-  // Reale Server-Daten vom Bot
-  const TRUSTED_SERVERS = [
-    {% for s in guilds %}
-    {
-      name: "{{ s.name | replace('"', '\\"') }}",
-      members: {{ s.members }},
-      online: {{ s.online }},
-      security: {{ s.security }},
-      avatar_url: "{{ s.avatar_url }}"
-    }{{ "," if not loop.last }}
-    {% endfor %}
-  ];
+  // Feature 2: Mouse Tracking Glow auf Cards
+  const cards = document.querySelectorAll('.tr-card');
+  cards.forEach(card => {
+    card.addEventListener('mousemove', e => {
+      const rect = card.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      card.style.setProperty('--mouse-x', `${x}px`);
+      card.style.setProperty('--mouse-y', `${y}px`);
+    });
+  });
 
-  function buildServerTicker() {
-    const ticker = document.getElementById('server-ticker');
-    let html = '';
-    for (let i = 0; i < 2; i++) {
-      TRUSTED_SERVERS.forEach(s => {
-        html += `
-          <div class="ticker-card">
-            <img src="${s.avatar_url}" alt="${s.name}">
-            <span>${s.name}</span>
-            <span style="color:var(--p); font-weight:700;">${s.members}+</span>
-            <span class="server-security">🛡️ ${s.security}</span>
-            <div class="hover-preview">
-              <div class="preview-header">
-                <img src="${s.avatar_url}" style="width:24px;height:24px;border-radius:50%;">
-                <span>${s.name}</span>
-              </div>
-              <div class="preview-stat"><span>👥 Mitglieder</span><span>${s.members}</span></div>
-              <div class="preview-stat"><span>🟢 Online</span><span>${s.online}</span></div>
-              <div class="preview-stat"><span>🛡️ Security Score</span><span style="color:var(--green)">${s.security}</span></div>
+  // Feature 3: Magnetic Buttons
+  const magnets = document.querySelectorAll('.btn-magnetic');
+  magnets.forEach(mag => {
+    mag.addEventListener('mousemove', e => {
+      const pos = mag.getBoundingClientRect();
+      const x = e.clientX - pos.left - pos.width / 2;
+      const y = e.clientY - pos.top - pos.height / 2;
+      mag.style.transform = `translate(${x * 0.3}px, ${y * 0.3}px)`;
+    });
+    mag.addEventListener('mouseleave', () => {
+      mag.style.transform = `translate(0px, 0px)`;
+    });
+  });
+
+  // Feature 4: Interactive AutoMod Sandbox
+  const sbInput = document.getElementById('sb-input');
+  const sbBtn = document.getElementById('sb-btn');
+  const sbChat = document.getElementById('sb-chat');
+
+  function sendSandboxMsg() {
+    const text = sbInput.value.trim();
+    if(!text) return;
+    
+    // User Message rendern
+    const msgId = 'msg-' + Date.now();
+    const isBad = text.includes('discord.gg') || text.includes('fuck') || text.includes('idiot');
+    
+    sbChat.innerHTML += `
+      <div class="dc-msg" id="${msgId}">
+        <div class="dc-av" style="background:#faa61a;"></div>
+        <div class="dc-content">
+          <h4>GastUser <span>gerade eben</span></h4>
+          <div class="dc-text">${text}</div>
+        </div>
+      </div>
+    `;
+    sbInput.value = '';
+    sbChat.scrollTop = sbChat.scrollHeight;
+
+    // Bot Reaktion (Fake Delay)
+    if(isBad) {
+      setTimeout(() => {
+        document.getElementById(msgId).classList.add('deleted-msg');
+        sbChat.innerHTML += `
+          <div class="dc-msg">
+            <div class="dc-av" style="background:#5b6eff;"><svg style="margin:8px;color:#fff" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+            <div class="dc-content">
+              <h4>ModForge <span class="dc-bot-tag">BOT</span> <span>gerade eben</span></h4>
+              <div class="dc-text" style="color:#fca5a5;">⚠️ Nachricht gelöscht (Verstoß gegen Anti-Spam Richtlinien).</div>
             </div>
           </div>
         `;
-      });
+        sbChat.scrollTop = sbChat.scrollHeight;
+        spawnToast('shield', 'AutoMod aktiv', 'Nachricht von GastUser blockiert.');
+      }, 600);
     }
-    ticker.innerHTML = html;
   }
 
+  sbBtn.addEventListener('click', sendSandboxMsg);
+  sbInput.addEventListener('keypress', e => { if(e.key === 'Enter') sendSandboxMsg(); });
 
-  document.addEventListener('DOMContentLoaded', function() {
-    AOS.init({ duration: 800, once: true, offset: 80 });
-
-    // Partikel
-    const pts = document.getElementById('pts');
-    for (let i = 0; i < 25; i++) {
-      const p = document.createElement('div');
-      p.className = 'pt';
-      p.style.cssText = `width:${Math.random()*4+2}px;height:${Math.random()*4+2}px;left:${Math.random()*100}%;
-        background:rgba(91,110,255,${Math.random()*0.3+0.1});
-        animation-duration:${Math.random()*12+8}s;
-        animation-delay:${Math.random()*8}s;`;
-      pts.appendChild(p);
-    }
-
-    // Ticker sofort bauen
-    buildServerTicker();
-
-    // Alle Komponenten aufbauen
-    buildQuiz();
-    buildDnD();
-    buildCases();
-    buildReplayEvents();
-    buildFeedback();
-    buildPrivacy();
-    buildRoadmap();
-    buildApi();
-    initBaSlider();
-
-    // Benchmark Autostart
-    const benchObs = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting) { runBenchmark(); benchObs.disconnect(); }
-    }, { threshold: 0.5 });
-    const benchWrapper = document.querySelector('.bench-wrapper');
-    if (benchWrapper) benchObs.observe(benchWrapper);
+  // Feature 5: Economy Coin Hover (Gamification)
+  const coinHover = document.getElementById('coin-hover');
+  const coinVal = document.getElementById('coin-val');
+  let coins = 5000;
+  coinHover.addEventListener('mouseenter', () => {
+    coins += Math.floor(Math.random() * 50) + 10;
+    coinVal.textContent = `🪙 ${coins.toLocaleString()}`;
+    coinVal.style.color = '#4ade80';
+    setTimeout(() => { coinVal.style.color = 'var(--amberl)'; }, 300);
   });
 
-  // ─── Quiz (unverändert) ───
-  const QUIZ_DATA = [
-    {q:'Hast du ein Anti-Nuke-System aktiv?', opts:['Ja, vollständig','Teilweise','Nein','Was ist das?'], weights:[0,1,2,3]},
-    {q:'Werden neue Joins auf Raids überprüft?', opts:['Ja, automatisch','Manuell durch Mods','Gar nicht','Nur teilweise'], weights:[0,1,3,2]},
-    {q:'Wie wird Spam behandelt?', opts:['AutoMod löscht sofort','Mods müssen manuell','Wird toleriert','Bot vorhanden aber langsam'], weights:[0,2,3,1]},
-    {q:'Logging für Mod-Aktionen?', opts:['Ja, mit Case-System','Nur einfache Logs','Kein Logging','Teilweise'], weights:[0,1,3,2]}
+  // Feature 6: Live Toasts Spawner
+  const toastContainer = document.getElementById('toast-container');
+  const events = [
+    { icon: '🛡️', title: 'Anti-Nuke', desc: 'Massen-Ban auf Server #892 verhindert.' },
+    { icon: '🤖', title: 'AutoMod', desc: 'Phishing-Welle (142 User) gestoppt.' },
+    { icon: '⭐', title: 'Level Up', desc: 'User Fufi hat Level 43 erreicht.' },
+    { icon: '🎫', title: 'Ticket', desc: 'Neues Support-Ticket auf CommunityX.' }
   ];
-  let qStep=0, qAnswers=[];
-  function buildQuiz(){qStep=0;qAnswers=[];renderQ();}
-  function renderQ(){
-    const d=QUIZ_DATA[qStep];
-    document.getElementById('quiz-question').innerText=d.q;
-    document.getElementById('quiz-counter').innerText=`${qStep+1} / ${QUIZ_DATA.length}`;
-    document.getElementById('qprogress').style.width=`${(qStep/QUIZ_DATA.length)*100}%`;
-    const opts=document.getElementById('quiz-options');
-    opts.innerHTML='';
-    d.opts.forEach((o,i)=>{
-      const b=document.createElement('button');
-      b.className='quiz-opt'+(qAnswers[qStep]===i?' selected':'');
-      b.innerText=o;
-      b.onclick=()=>{qAnswers[qStep]=i;document.querySelectorAll('.quiz-opt').forEach(x=>x.classList.remove('selected'));b.classList.add('selected');};
-      opts.appendChild(b);
-    });
-    document.getElementById('quiz-prev').style.opacity=qStep===0?'0.3':'1';
-  }
-  function quizNext(){
-    if(qAnswers[qStep]===undefined)return;
-    if(qStep<QUIZ_DATA.length-1){qStep++;renderQ();}else showQuizResult();
-  }
-  function quizPrev(){if(qStep>0){qStep--;renderQ();}}
-  function showQuizResult(){
-    const score=qAnswers.reduce((s,a,i)=>s+QUIZ_DATA[i].weights[a],0);
-    const max=QUIZ_DATA.reduce((s,q)=>s+Math.max(...q.weights),0);
-    const pct=Math.round((1-score/max)*100);
-    document.getElementById('quiz-main').style.display='none';
-    const r=document.getElementById('quiz-result');r.style.display='block';
-    const sc=document.getElementById('quiz-score-val');
-    sc.innerText=pct+'%';
-    sc.style.color=pct>=80?'#22c55e':pct>=50?'#fbbf24':'#ef4444';
-    document.getElementById('quiz-verdict').innerText=pct>=80?'Sehr gut!':pct>=50?'Solider Schutz.':'Dringend Schutz nötig!';
-    const recs=document.getElementById('quiz-recs');
-    recs.innerHTML='<div style="font-size:.85rem;font-weight:700;margin-bottom:8px;">Empfohlen:</div>';
-    if(score>2)recs.innerHTML+=`<div class="quiz-rec-item">🛡️ Anti-Nuke Ultra</div>`;
-    if(score>4)recs.innerHTML+=`<div class="quiz-rec-item">🚫 Anti-Raid</div>`;
-    if(score>3)recs.innerHTML+=`<div class="quiz-rec-item">📝 Logging</div>`;
-    if(score>1)recs.innerHTML+=`<div class="quiz-rec-item">🤖 AutoMod Ultra</div>`;
-  }
-  function quizReset(){document.getElementById('quiz-result').style.display='none';document.getElementById('quiz-main').style.display='block';buildQuiz();}
 
-  // ─── Drag & Drop (unverändert) ───
-  const DND_MODULES = [
-    {icon:'🛡️',name:'Anti-Nuke'},{icon:'🚫',name:'Anti-Raid'},{icon:'🤖',name:'AutoMod'},
-    {icon:'📝',name:'Logging'},{icon:'📁',name:'Case System'},{icon:'🔒',name:'Channel Lock'},
-    {icon:'📢',name:'Warn System'},{icon:'🎭',name:'Rollen'},{icon:'✅',name:'Verifikation'}
-  ];
-  function buildDnD(){
-    const modsContainer = document.getElementById('dnd-modules');
-    DND_MODULES.forEach(m => {
-      const div = document.createElement('div');
-      div.className = 'dnd-mod';
-      div.draggable = true;
-      div.innerHTML = `<span>${m.icon}</span><span>${m.name}</span>`;
-      div.dataset.name = m.name;
-      div.dataset.icon = m.icon;
-      div.addEventListener('dragstart', handleDragStart);
-      div.addEventListener('dragend', handleDragEnd);
-      div.addEventListener('touchstart', handleTouchStart, {passive: false});
-      div.addEventListener('touchmove', handleTouchMove, {passive: false});
-      div.addEventListener('touchend', handleTouchEnd);
-      modsContainer.appendChild(div);
-    });
-    const dropZone = document.getElementById('dnd-server');
-    dropZone.addEventListener('dragover', e => e.preventDefault());
-    dropZone.addEventListener('drop', handleDrop);
-    dropZone.addEventListener('touchmove', e => e.preventDefault(), {passive: false});
-    dropZone.addEventListener('touchend', handleTouchEnd);
-  }
-  let draggedElement = null;
-  function handleDragStart(e){ e.dataTransfer.setData('text/plain', JSON.stringify({name:this.dataset.name, icon:this.dataset.icon})); this.classList.add('dragging'); draggedElement = this; }
-  function handleDragEnd(){ this.classList.remove('dragging'); draggedElement = null; }
-  function handleTouchStart(e){ e.preventDefault(); this.classList.add('dragging'); draggedElement = this; }
-  function handleTouchMove(e){ e.preventDefault(); }
-  function handleTouchEnd(e){
-    e.preventDefault();
-    if(!draggedElement) return;
-    const touch = e.changedTouches[0];
-    const dropZone = document.getElementById('dnd-server');
-    const rect = dropZone.getBoundingClientRect();
-    if(touch.clientX > rect.left && touch.clientX < rect.right && touch.clientY > rect.top && touch.clientY < rect.bottom){
-      addModuleToServer(draggedElement.dataset.name, draggedElement.dataset.icon);
-    }
-    draggedElement.classList.remove('dragging');
-    draggedElement = null;
-  }
-  function handleDrop(e){
-    e.preventDefault();
-    const data = JSON.parse(e.dataTransfer.getData('text/plain'));
-    addModuleToServer(data.name, data.icon);
-    if(draggedElement) draggedElement.classList.remove('dragging');
-  }
-  function addModuleToServer(name, icon){
-    const container = document.getElementById('dnd-dropzone');
-    if([...container.querySelectorAll('.dnd-placed')].some(el => el.dataset.name === name)) return;
-    const placed = document.createElement('div');
-    placed.className = 'dnd-placed';
-    placed.dataset.name = name;
-    placed.innerHTML = `<span>${icon} ${name}</span><button class="dnd-remove" onclick="this.parentElement.remove()">✕</button>`;
-    container.appendChild(placed);
-  }
-  function dndReset(){
-    document.getElementById('dnd-dropzone').innerHTML = '';
-  }
-
-  // ─── Case Explorer ───
-  const CASES = [
-    {id:'#001',type:'ban',user:'dark_spam#0666',mod:'Admin_Lukas',reason:'Phishing-Link verbreitet',date:'08.05.2025 14:32',color:'#ef4444',badge:'badge-ban',log:['Link erkannt','Nachricht gelöscht','Nutzer gebannt','Case erstellt']},
-    {id:'#002',type:'warn',user:'rage_kid#1337',mod:'Mod_Sara',reason:'Massen-Erwähnungen',date:'07.05.2025 09:15',color:'#fbbf24',badge:'badge-warn',log:['Spam erkannt','Nachrichten entfernt','1. Verwarnung']},
-    {id:'#003',type:'mute',user:'troll99#4200',mod:'AutoMod',reason:'Wiederholte Beleidigungen',date:'06.05.2025 22:58',color:'#818cf8',badge:'badge-mute',log:['Beleidigung erkannt','60 Min. stummgeschaltet','DM gesendet']},
-    {id:'#004',type:'kick',user:'new_raider#0000',mod:'ModForge',reason:'Raid-Beteiligung',date:'05.05.2025 03:12',color:'#f59e0b',badge:'badge-warn',log:['Raid erkannt','Auto-Kick ausgeführt']}
-  ];
-  function buildCases(){
-    const list = document.getElementById('case-list');
-    CASES.forEach((c,i) => {
-      const div = document.createElement('div');
-      div.className = 'case-item' + (i===0?' active':'');
-      div.innerHTML = `<div style="font-weight:700;color:var(--p);">${c.id}</div><div style="font-size:.8rem;">${c.user}</div>`;
-      div.onclick = () => {
-        document.querySelectorAll('.case-item').forEach(x => x.classList.remove('active'));
-        div.classList.add('active');
-        showCase(c);
-      };
-      list.appendChild(div);
-    });
-    showCase(CASES[0]);
-  }
-  function showCase(c){
-    document.getElementById('case-detail').innerHTML = `
-      <div class="case-header">
-        <span style="font-size:1.4rem;">📁</span>
-        <div>
-          <div style="font-weight:800;font-size:1.1rem;">Case ${c.id}</div>
-          <span class="case-badge ${c.badge}">${c.type}</span>
-        </div>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
-        <div><label style="color:var(--muted);font-size:.75rem;text-transform:uppercase;">Nutzer</label><div style="font-weight:600;">${c.user}</div></div>
-        <div><label style="color:var(--muted);font-size:.75rem;text-transform:uppercase;">Moderator</label><div style="font-weight:600;">${c.mod}</div></div>
-        <div><label style="color:var(--muted);font-size:.75rem;text-transform:uppercase;">Datum</label><div>${c.date}</div></div>
-        <div><label style="color:var(--muted);font-size:.75rem;text-transform:uppercase;">Grund</label><div>${c.reason}</div></div>
-      </div>
-      <div style="margin-top:10px;">
-        <div style="color:var(--muted);font-size:.75rem;text-transform:uppercase;margin-bottom:10px;">Ablauf</div>
-        <div class="case-timeline">${c.log.map(l => `<div class="tl-item"><div class="tl-dot" style="background:${c.color};"></div><span>${l}</span></div>`).join('')}</div>
+  function spawnToast(type, title, desc) {
+    const t = document.createElement('div');
+    t.className = 'live-toast';
+    t.innerHTML = `
+      <div class="toast-ic">${type === 'shield' ? '🛡️' : '🤖'}</div>
+      <div class="toast-content">
+        <h5>${title}</h5>
+        <p>${desc}</p>
       </div>
     `;
+    toastContainer.appendChild(t);
+    setTimeout(() => {
+      t.style.animation = 'fadeOut 0.5s forwards';
+      setTimeout(() => t.remove(), 500);
+    }, 4000);
   }
 
-  // Flow Animation
-  function animateFlow(){
-    document.querySelectorAll('.flow-node').forEach((n,i) => {
-      n.style.opacity = '0.3';
-      setTimeout(() => {
-        n.style.opacity = '1';
-        n.style.transform = 'scale(1.05)';
-        setTimeout(() => n.style.transform = '', 500);
-      }, i*600);
-    });
-  }
-
-  // Before/After Slider
-  function initBaSlider(){
-    const wrap = document.getElementById('ba-wrapper');
-    const after = document.getElementById('ba-after');
-    const divider = document.getElementById('ba-divider');
-    let dragging = false;
-    function move(clientX){
-      const rect = wrap.getBoundingClientRect();
-      let pct = Math.max(5, Math.min(95, ((clientX - rect.left) / rect.width) * 100));
-      after.style.clipPath = `inset(0 ${100-pct}% 0 0)`;
-      divider.style.left = pct + '%';
+  // Random Toasts spawnen
+  setInterval(() => {
+    if(Math.random() > 0.6) {
+      const ev = events[Math.floor(Math.random() * events.length)];
+      spawnToast(ev.icon, ev.title, ev.desc);
     }
-    wrap.addEventListener('mousedown', () => dragging = true);
-    window.addEventListener('mouseup', () => dragging = false);
-    window.addEventListener('mousemove', e => { if(dragging) move(e.clientX); });
-    wrap.addEventListener('touchmove', e => { e.preventDefault(); move(e.touches[0].clientX); }, {passive: false});
-  }
+  }, 5000);
 
-  // Benchmark
-  function runBenchmark(){
-    document.getElementById('b1').style.width = '0%';
-    document.getElementById('b2').style.width = '0%';
-    document.getElementById('b3').style.width = '0%';
-    setTimeout(() => document.getElementById('b1').style.width = '4%', 100);
-    setTimeout(() => document.getElementById('b3').style.width = '36%', 300);
-    setTimeout(() => document.getElementById('b2').style.width = '100%', 600);
-  }
-
-  // Replay
-  const REPLAY_EVENTS = [
-    {time:'00:00',color:'#ef4444',text:'🚨 Raid erkannt – 25 Accounts in 3s beigetreten'},
-    {time:'00:02',color:'#fbbf24',text:'⚡ Anti‑Raid aktiviert – Join‑Gate eingeschaltet'},
-    {time:'00:03',color:'#ef4444',text:'🔨 23 Raid‑Accounts automatisch gebannt'},
-    {time:'00:04',color:'#818cf8',text:'🔒 Server‑Joins für 5 Minuten gesperrt'},
-    {time:'00:06',color:'#22c55e',text:'📢 Mod‑Team via DM alarmiert – Case #999 angelegt'},
-    {time:'00:08',color:'#4ade80',text:'✅ Alle Bedrohungen neutralisiert – Normalbetrieb'}
-  ];
-  function buildReplayEvents(){
-    const container = document.getElementById('replay-events');
-    REPLAY_EVENTS.forEach(e => {
-      container.innerHTML += `<div class="replay-event">
-        <span class="re-time">${e.time}</span>
-        <div class="re-dot" style="background:${e.color};"></div>
-        <span>${e.text}</span>
-      </div>`;
-    });
-  }
-  let replayRunning = false, replayTimer, replaySec = 0;
-  function startReplay(){
-    if(replayRunning) return;
-    replayRunning = true;
-    resetReplayVisual();
-    const events = document.querySelectorAll('.replay-event');
-    events.forEach((ev, i) => setTimeout(() => ev.classList.add('show'), i * 900));
-    replaySec = 0;
-    document.getElementById('replay-timer').innerText = '00:00';
-    replayTimer = setInterval(() => {
-      replaySec++;
-      document.getElementById('replay-timer').innerText = `00:${String(replaySec).padStart(2,'0')}`;
-    }, 1000);
-    setTimeout(() => { clearInterval(replayTimer); replayRunning = false; }, REPLAY_EVENTS.length * 900 + 500);
-  }
-  function resetReplay(){
-    clearInterval(replayTimer);
-    replayRunning = false;
-    replaySec = 0;
-    document.getElementById('replay-timer').innerText = '00:00';
-    resetReplayVisual();
-  }
-  function resetReplayVisual(){ document.querySelectorAll('.replay-event').forEach(e => e.classList.remove('show')); }
-
-  // API
-  const API_CODES = {
-    get:'<span class="cm">/* Alle Fälle eines Servers abrufen */</span>\n<span class="kw">const</span> res = <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">\'https://api.modforge.app/v1/cases\'</span>, {\n  headers: { <span class="str">\'Authorization\'</span>: <span class="str">\'Bearer YOUR_KEY\'</span> }\n});',
-    post:'<span class="cm">/* Aktion manuell auslösen */</span>\n<span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">\'https://api.modforge.app/v1/action\'</span>, {\n  method: <span class="str">\'POST\'</span>,\n  headers: { <span class="str">\'Authorization\'</span>: <span class="str">\'Bearer YOUR_KEY\'</span> },\n  body: <span class="fn">JSON.stringify</span>({ guild_id, action: <span class="str">\'warn\'</span>, user_id })\n});',
-    ws:'<span class="cm">/* Echtzeit via WebSocket */</span>\n<span class="kw">const</span> ws = <span class="kw">new</span> <span class="fn">WebSocket</span>(<span class="str">\'wss://gateway.modforge.app/events?token=YOUR_TOKEN\'</span>);\nws.<span class="fn">onmessage</span> = e => console.<span class="fn">log</span>(<span class="fn">JSON.parse</span>(e.data));'
-  };
-  function buildApi(){ switchApi('get', document.querySelector('.api-tab.active')); }
-  function switchApi(type, btn){
-    document.querySelectorAll('.api-tab').forEach(t => t.classList.remove('active'));
-    if(btn) btn.classList.add('active');
-    document.getElementById('api-code').innerHTML = API_CODES[type];
-  }
-
-  // Feedback & Privacy
-  const FEEDBACK = [
-    {name:'Lukas#0001',server:'Elite Gaming Hub',avatar:0,text:'ModForge hat einen Raid in Sekunden gestoppt. Absolut beeindruckend!',stars:5},
-    {name:'Sara_Dev#9999',server:'Dev Community',avatar:1,text:'Das Dashboard konnte ich in 5 Minuten einrichten – perfekt.',stars:5},
-    {name:'MaxoMod#4242',server:'Global Lounge',avatar:2,text:'Anti‑Nuke hat unser Mod‑Leben komplett verändert.',stars:5}
-  ];
-  function buildFeedback(){
-    const grid = document.getElementById('feedback-grid');
-    FEEDBACK.forEach(f => {
-      grid.innerHTML += `<div class="dc-msg-card">
-        <div class="dc-author" style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
-          <img src="https://cdn.discordapp.com/embed/avatars/${f.avatar}.png" class="dc-avatar" alt="">
-          <div>
-            <div class="dc-username">${f.name}</div>
-            <div class="dc-server">${f.server}</div>
-          </div>
-        </div>
-        <div style="font-size:.85rem;color:#dbdee1;line-height:1.5;">${f.text}</div>
-        <div class="dc-stars">${'⭐'.repeat(f.stars)}</div>
-      </div>`;
-    });
-  }
-  const PRIVACY = [
-    {icon:'✅',tag:'tag-yes',title:'Server- & User-IDs',text:'Notwendig für Cases & Konfigurationen.'},
-    {icon:'✅',tag:'tag-yes',title:'Moderationsfälle',text:'Alle Aktionen werden dokumentiert.'},
-    {icon:'❌',tag:'tag-no',title:'Nachrichteninhalte',text:'Wir speichern niemals Chat-Inhalte.'},
-    {icon:'❌',tag:'tag-no',title:'Passwörter',text:'Keine Zugangsdaten werden gespeichert.'}
-  ];
-  function buildPrivacy(){
-    const grid = document.getElementById('privacy-grid');
-    PRIVACY.forEach(p => {
-      grid.innerHTML += `<div class="privacy-card">
-        <h4 style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">${p.icon} ${p.title} <span class="${p.tag}">${p.tag==='tag-yes'?'GESPEICHERT':'NIEMALS'}</span></h4>
-        <p style="font-size:.8rem;color:var(--muted);">${p.text}</p>
-      </div>`;
-    });
-  }
-
-  // Roadmap
-  const ROADMAP = [
-    {month:'März 2025',title:'Anti‑Nuke Ultra v2',status:'done',dot:'done'},
-    {month:'Mai 2025',title:'Case System v3',status:'done',dot:'done'},
-    {month:'Juli 2025',title:'Premium Launch',status:'soon',dot:'soon'},
-    {month:'Q4 2025',title:'Mobile Dashboard',status:'future',dot:''}
-  ];
-  function buildRoadmap(){
-    const container = document.getElementById('roadmap-list');
-    ROADMAP.forEach(r => {
-      container.innerHTML += `<div class="rm-item">
-        <div class="rm-dot ${r.dot}"></div>
-        <div class="rm-month">${r.month}</div>
-        <div class="rm-title">${r.title} <span class="rm-status rm-${r.status}">${r.status==='done'?'✅ Fertig':r.status==='soon'?'🔄 Bald':'🔮 Geplant'}</span></div>
-      </div>`;
-    });
-  }
-
-  // Invite Generator
-  function generateInvite(){
-    const name = document.getElementById('server-name-input').value.trim();
-    const res = document.getElementById('invite-result');
-    const link = document.getElementById('invite-link');
-    if(name){
-      link.innerText = `https://discord.com/oauth2/authorize?client_id=${BOT_CLIENT_ID}&scope=bot+applications.commands&permissions=8&guild_name=${encodeURIComponent(name.toLowerCase().replace(/\s+/g,'-'))}`;
-      res.style.display = 'block';
-    } else {
-      res.style.display = 'none';
-    }
-  }
-  function copyInvite(){
-    navigator.clipboard.writeText(document.getElementById('invite-link').innerText);
-    // kleiner visueller Hinweis
-    const btn = document.querySelector('.invite-copy-btn');
-    if (btn) {
-      btn.innerText = '✅ Kopiert!';
-      setTimeout(() => btn.innerText = '📋 Link kopieren', 2000);
-    }
-  }
+});
 </script>
 {% endblock %}
