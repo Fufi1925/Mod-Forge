@@ -436,10 +436,10 @@ class ModForge(commands.Bot):
         # Rotierender Status 
         self.status_rotation = [
             (discord.ActivityType.watching, "🔒 ModForge Security | /help", 10),
-            (discord.ActivityType.streaming, "🛡️ Anti Raid Active", 3),
+            (discord.ActivityType.streaming, "🛡️ Anti Raid Active | /help", 3),
             (discord.ActivityType.listening, "🎵 Security Reports | /logs", 3),
             (discord.ActivityType.playing, "🔥 Live Protection | /setup", 3),
-            (discord.ActivityType.competing, "👀 Watching {member_count} Members | /help", 3),
+            (discord.ActivityType.competing, "👀 Watching {member_count} Members | /help", 10),
         ]
 
     async def _get_prefix(self, bot: commands.Bot, message: discord.Message) -> str:
