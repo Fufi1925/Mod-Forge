@@ -421,6 +421,7 @@ class HelpView(discord.ui.View):
         super().__init__(timeout=120)
         self.add_item(HelpCategorySelect())
 
+
 # ═══════════════════════════════════════════════════════════════════
 # BOT KLASSE
 # ═══════════════════════════════════════════════════════════════════
@@ -431,6 +432,15 @@ class ModForge(commands.Bot):
         self.db = Database()
         self.tracker = Tracker()
         self.start_time = time.time()
+
+        # Rotierender Status 
+        self.status_rotation = [
+            (discord.ActivityType.watching, "🔒 ModForge Security | /help", 10),
+            (discord.ActivityType.streaming, "🛡️ Anti Raid Active", 3),
+            (discord.ActivityType.listening, "🎵 Security Reports | /logs", 3),
+            (discord.ActivityType.playing, "🔥 Live Protection | /setup", 3),
+            (discord.ActivityType.competing, "👀 Watching {member_count} Members | /help", 3),
+        ]
 
     async def _get_prefix(self, bot: commands.Bot, message: discord.Message) -> str:
         if not message.guild:
@@ -454,10 +464,29 @@ class ModForge(commands.Bot):
 
     async def on_ready(self) -> None:
         log.info(f"Eingeloggt als {self.user} (ID: {self.user.id})")
-        await self.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name="🔒 ModForge Security | /help"))
         await self._warmup_caches()
         ACTIVITY.push("ready", f"Bot online als {self.user} – {len(self.guilds)} Guilds, {sum(g.member_count or 0 for g in self.guilds)} Member.")
 
+        if not hasattr(self, "_status_task"):
+            self._status_task = self.loop.create_task(self.rotate_status())
+
+    async def rotate_status(self) -> None:
+        """Wechselt den Status endlos in der festgelegten Reihenfolge."""
+        while True:
+            for activity_type, name, duration in self.status_rotation:
+                # Berechne die echte Live-Zahl aller Mitglieder (Sichere Variante mit 'or 0')
+                total_members = sum(g.member_count or 0 for g in self.guilds)
+                
+                # Fülle den Platzhalter {member_count} aus. Das :, formatiert es mit Tausendertrennzeichen (z.B. 1,500)
+                formatted_name = name.format(member_count=f"{total_members:,}")
+                
+                # Setze die Discord-Aktivität
+                activity = discord.Activity(type=activity_type, name=formatted_name)
+                await self.change_presence(activity=activity)
+                
+                
+                await asyncio.sleep(duration)
+    
     async def _warmup_caches(self) -> None:
         tasks_list = []
         for guild in self.guilds:
