@@ -963,91 +963,87 @@ async def _notify_owner_nuke(guild: discord.Guild, executor: Optional[discord.Me
         roles = "Nicht verfügbar"
 
     embed = create_embed(
-        title=f"{E.NUKE} KRITISCHER ANTI-NUKE ALARM",
-        description=(
-            f"### ⚠️ Sicherheitsverstoß auf deinem Server!\n\n"
-            f"Auf **{guild.name}** wurde eine potenziell zerstörerische Massenaktivität erkannt "
-            f"und **automatisch gestoppt**. Um deinen Server zu schützen, hat ModForge sofort "
-            f"einen **Lockdown aktiviert** und den Täter bestraft.\n\n"
-            f"Bitte lies die folgenden Details sorgfältig durch – sie helfen dir, den Vorfall "
-            f"vollständig zu verstehen und ggf. weitere Maßnahmen zu ergreifen."
-        ),
-        color=COLOR_DANGER,
-        thumbnail=guild.icon.url if guild.icon else None
-    )
+    title=f"{E.NUKE}  Anti-Nuke — Kritischer Alarm",
+    description=(
+        f"Ein **zerstörerischer Massenangriff** wurde auf **{guild.name}** erkannt und "
+        f"**automatisch neutralisiert**. ModForge hat sofort eingegriffen."
+    ),
+    color=COLOR_DANGER,
+    thumbnail=guild.icon.url if guild.icon else None
+)
 
-    embed.add_field(
-        name="📊 Analyse des Vorfalls",
-        value=(
-            f"**Erkannte Aktion:** `{action}`\n"
-            f"**Status:** 🛑 Gestoppt & Isoliert\n"
-            f"**Zeitpunkt:** {timestamp_f} ({timestamp_r})\n"
-            f"**Betroffener Server:** {guild.name} (`{guild.id}`)"
-        ),
-        inline=False
-    )
+# ── Vorfall ────────────────────────────────────────────────
+embed.add_field(
+    name="🔍  Vorfall",
+    value=(
+        f"```\n{action}\n```"
+        f"📅  {timestamp_f}  ·  {timestamp_r}\n"
+        f"🏠  {guild.name}  ·  `{guild.id}`"
+    ),
+    inline=True
+)
 
-    embed.add_field(
-        name="👤 Verursacher",
-        value=(
-            f"{user_line}{account_age}\n"
-            f"**User‑ID:** `{executor_id}`\n"
-            f"**Rollen:** {roles}\n"
-            f"**Verhängte Strafe:** {punishment}"
-        ),
-        inline=False
-    )
+# ── Verursacher ────────────────────────────────────────────
+embed.add_field(
+    name="👤  Verursacher",
+    value=(
+        f"{user_line}"
+        f"`{executor_id}`\n"
+        f"{account_age}\n"
+        f"🎭  {roles}"
+    ),
+    inline=True
+)
 
-    embed.add_field(
-        name="🔒 Sofortmaßnahmen",
-        value=(
-            f"1. **Server‑Lockdown** – alle Kanäle sind für Mitglieder gesperrt (Dauer: 10 Minuten).\n"
-            f"2. **Rollenentzug** – der Täter hat alle Rollen verloren (falls aktiviert).\n"
-            f"3. **Bestrafung** – der Täter wurde mit `{punishment}` bestraft.\n"
-            f"4. **Audit‑Log** – ein detaillierter Eintrag wurde im Log‑Kanal hinterlegt."
-        ),
-        inline=False
-    )
+# ── Strafe ─────────────────────────────────────────────────
+embed.add_field(
+    name="⚖️  Strafe",
+    value=f"```fix\n{punishment}\n```",
+    inline=True
+)
 
-    embed.add_field(
-        name="⏳ Lockdown-Informationen",
-        value=(
-            f"Der Lockdown wurde automatisch für **10 Minuten** aktiviert und wird danach "
-            f"selbstständig aufgehoben. Während dieser Zeit können normale Nutzer **keine Nachrichten senden**.\n\n"
-            f"Falls du den Lockdown vorzeitig beenden möchtest, nutze den Befehl `/unlockdown` "
-            f"oder ändere die Kanaleinstellungen manuell."
-        ),
-        inline=False
-    )
+# ── Sofortmaßnahmen ────────────────────────────────────────
+embed.add_field(
+    name="🛡️  Automatische Sofortmaßnahmen",
+    value=(
+        f"> 🔒  **Server-Lockdown** aktiv für **10 Minuten**\n"
+        f"> 🚫  **Alle Rollen** des Täters wurden entzogen\n"
+        f"> ⚖️  **Strafe** `{punishment}` wurde verhängt\n"
+        f"> 📁  **Case** wurde automatisch im System gespeichert"
+    ),
+    inline=False
+)
 
-    embed.add_field(
-        name="🛡️ Empfehlungen für dich",
-        value=(
-            "• **Audit‑Logs prüfen:** Gehe in die Server‑Einstellungen → Audit‑Log und "
-            "durchsuche den Zeitraum nach dem Vorfall.\n"
-            "• **Rollen & Berechtigungen:** Überprüfe, warum der Täter diese Aktionen ausführen "
-            "konnte, und passe ggf. die Rechte an.\n"
-            "• **Sicherheitsstufe erhöhen:** Erwäge `/security_level` auf 2 oder 3 zu setzen.\n"
-            "• **Team informieren:** Alarmiere dein Admin‑Team über diesen Vorfall.\n"
-            "• **Kontakt:** Bei Fragen oder Hilfe erstelle ein Ticket im Support‑Server."
-        ),
-        inline=False
-    )
+# ── Lockdown ───────────────────────────────────────────────
+embed.add_field(
+    name="⏳  Lockdown-Status",
+    value=(
+        f"Der Lockdown **läuft automatisch aus** – Mitglieder können währenddessen "
+        f"**keine Nachrichten senden**.\n"
+        f"Vorzeitig aufheben: `/unlockdown`"
+    ),
+    inline=False
+)
 
-    embed.add_field(
-        name="📋 Protokollierung",
-        value=(
-            "Dieser Vorfall wurde automatisch in der ModForge‑Datenbank als **Case** gespeichert "
-            "und kann von Administratoren mit `/case <id>` eingesehen werden."
-        ),
-        inline=False
-    )
+# ── Empfehlungen ───────────────────────────────────────────
+embed.add_field(
+    name="📋  Empfohlene Maßnahmen",
+    value=(
+        f"`1`  Audit-Log prüfen → *Servereinstellungen → Audit-Log*\n"
+        f"`2`  Rollen & Berechtigungen des Täters überprüfen\n"
+        f"`3`  Sicherheitsstufe erhöhen → `/security_level 2`\n"
+        f"`4`  Admin-Team über den Vorfall informieren\n"
+        f"`5`  Case einsehen → `/case <id>`"
+    ),
+    inline=False
+)
 
-    embed.set_footer(
-        text=f"ModForge Security · Server: {guild.name}",
-        icon_url=FOOTER_ICON
-    )
-    embed.timestamp = now
+# ── Footer ─────────────────────────────────────────────────
+embed.set_footer(
+    text=f"ModForge Security  ·  {guild.name}  ·  Case gespeichert",
+    icon_url=FOOTER_ICON
+)
+embed.timestamp = now
 
     try:
         await owner.send(embed=embed)
