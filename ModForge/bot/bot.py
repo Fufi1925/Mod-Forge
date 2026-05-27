@@ -901,222 +901,477 @@ async def _submit_appeal(user: discord.User, session: dict) -> None:
 # ═══════════════════════════════════════════════════════════════
 # HILFSFUNKTIONEN FÜR LOCKDOWN & NUKE
 # ═══════════════════════════════════════════════════════════════
+
 async def _activate_lockdown(guild: discord.Guild) -> None:
     """Sperrt alle Textkanäle für @everyone."""
+
     for channel in guild.text_channels:
+
         try:
-            await channel.set_permissions(guild.default_role, send_messages=False,
-                                          reason="Anti-Raid Lockdown")
+            await channel.set_permissions(
+                guild.default_role,
+                send_messages=False,
+                reason="Anti-Raid Lockdown"
+            )
+
         except discord.Forbidden:
             pass
-        await asyncio.sleep(0.3)  # Rate-Limit-Schutz
-    await bot.log_action(guild, f"{E.LOCK} Lockdown aktiviert",
-                         "Alle Kanäle wurden für @everyone gesperrt.",
-                         COLOR_DANGER, module="antiraid")
+
+        await asyncio.sleep(0.3)
+
+    await bot.log_action(
+        guild,
+        f"{E.LOCK} Lockdown aktiviert",
+        "Alle Kanäle wurden für @everyone gesperrt.",
+        COLOR_DANGER,
+        module="antiraid"
+    )
 
 
 async def _deactivate_lockdown(guild: discord.Guild) -> None:
     """Hebt den Lockdown vollständig auf."""
+
     for channel in guild.text_channels:
+
         try:
-            await channel.set_permissions(guild.default_role, send_messages=None,
-                                          reason="Lockdown aufgehoben")
+            await channel.set_permissions(
+                guild.default_role,
+                send_messages=None,
+                reason="Lockdown aufgehoben"
+            )
+
         except discord.Forbidden:
             pass
+
         await asyncio.sleep(0.3)
+
     bot.tracker.lockdown_active[guild.id] = False
-    await bot.log_action(guild, f"{E.UNLOCK} Lockdown aufgehoben",
-                         "Alle Kanäle wurden wieder entsperrt.",
-                         COLOR_SUCCESS, module="antiraid")
+
+    await bot.log_action(
+        guild,
+        f"{E.UNLOCK} Lockdown aufgehoben",
+        "Alle Kanäle wurden wieder entsperrt.",
+        COLOR_SUCCESS,
+        module="antiraid"
+    )
 
 
-async def _auto_deactivate_lockdown(guild: discord.Guild, delay: int) -> None:
-    """Hebt den Lockdown nach `delay` Sekunden auf, falls er noch aktiv ist."""
+async def _auto_deactivate_lockdown(
+    guild: discord.Guild,
+    delay: int
+) -> None:
+    """Hebt den Lockdown nach `delay` Sekunden auf."""
+
     await asyncio.sleep(delay)
+
     if bot.tracker.lockdown_active[guild.id]:
         await _deactivate_lockdown(guild)
 
 
-async def _notify_owner_nuke(guild: discord.Guild, executor: Optional[discord.Member],
-                             executor_id: int, action: str, punishment: str) -> None:
+async def _notify_owner_nuke(
+    guild: discord.Guild,
+    executor: Optional[discord.Member],
+    executor_id: int,
+    action: str,
+    punishment: str
+) -> None:
     """Sendet eine detaillierte Anti-Nuke-Alarm-DM an den Server-Owner."""
+
     owner = guild.owner
+
     if not owner:
+
         try:
-            owner = await guild.fetch_member(guild.owner_id)
+            owner = await guild.fetch_member(
+                guild.owner_id
+            )
+
         except Exception:
             return
+
     if not owner:
         return
 
-    now = datetime.datetime.now(datetime.timezone.utc)
-    timestamp_f = f"<t:{int(now.timestamp())}:F>"
-    timestamp_r = f"<t:{int(now.timestamp())}:R>"
+    now = datetime.datetime.now(
+        datetime.timezone.utc
+    )
 
-    user_line = executor.mention if executor else f"Unbekannter User (`{executor_id}`)"
+    timestamp_f = (
+        f"<t:{int(now.timestamp())}:F>"
+    )
+
+    timestamp_r = (
+        f"<t:{int(now.timestamp())}:R>"
+    )
+
+    user_line = (
+        executor.mention
+        if executor
+        else f"Unbekannter User (`{executor_id}`)"
+    )
+
     if executor:
-        account_created = f"<t:{int(executor.created_at.timestamp())}:R>"
-        account_age = f"\n**Account erstellt:** {account_created}"
-        roles = ", ".join(r.name for r in executor.roles if r.name != "@everyone") or "Keine"
+
+        account_created = (
+            f"<t:{int(executor.created_at.timestamp())}:R>"
+        )
+
+        account_age = (
+            f"\n**Account erstellt:** "
+            f"{account_created}"
+        )
+
+        roles = ", ".join(
+            r.name
+            for r in executor.roles
+            if r.name != "@everyone"
+        ) or "Keine"
+
     else:
+
         account_age = ""
+
         roles = "Nicht verfügbar"
 
     embed = create_embed(
-    title=f"{E.NUKE}  Anti-Nuke — Kritischer Alarm",
-    description=(
-        f"Ein **zerstörerischer Massenangriff** wurde auf **{guild.name}** erkannt und "
-        f"**automatisch neutralisiert**. ModForge hat sofort eingegriffen."
-    ),
-    color=COLOR_DANGER,
-    thumbnail=guild.icon.url if guild.icon else None
-)
+        title=(
+            f"{E.NUKE}  Anti-Nuke — Kritischer Alarm"
+        ),
 
-# ── Vorfall ────────────────────────────────────────────────
-embed.add_field(
-    name="🔍  Vorfall",
-    value=(
-        f"```\n{action}\n```"
-        f"📅  {timestamp_f}  ·  {timestamp_r}\n"
-        f"🏠  {guild.name}  ·  `{guild.id}`"
-    ),
-    inline=True
-)
+        description=(
+            f"Ein **zerstörerischer Massenangriff** "
+            f"wurde auf **{guild.name}** erkannt und "
+            f"**automatisch neutralisiert**. "
+            f"ModForge hat sofort eingegriffen."
+        ),
 
-# ── Verursacher ────────────────────────────────────────────
-embed.add_field(
-    name="👤  Verursacher",
-    value=(
-        f"{user_line}"
-        f"`{executor_id}`\n"
-        f"{account_age}\n"
-        f"🎭  {roles}"
-    ),
-    inline=True
-)
+        color=COLOR_DANGER,
 
-# ── Strafe ─────────────────────────────────────────────────
-embed.add_field(
-    name="⚖️  Strafe",
-    value=f"```fix\n{punishment}\n```",
-    inline=True
-)
+        thumbnail=(
+            guild.icon.url
+            if guild.icon
+            else None
+        )
+    )
 
-# ── Sofortmaßnahmen ────────────────────────────────────────
-embed.add_field(
-    name="🛡️  Automatische Sofortmaßnahmen",
-    value=(
-        f"> 🔒  **Server-Lockdown** aktiv für **10 Minuten**\n"
-        f"> 🚫  **Alle Rollen** des Täters wurden entzogen\n"
-        f"> ⚖️  **Strafe** `{punishment}` wurde verhängt\n"
-        f"> 📁  **Case** wurde automatisch im System gespeichert"
-    ),
-    inline=False
-)
+    # ── Vorfall ────────────────────────────────────────────────
 
-# ── Lockdown ───────────────────────────────────────────────
-embed.add_field(
-    name="⏳  Lockdown-Status",
-    value=(
-        f"Der Lockdown **läuft automatisch aus** – Mitglieder können währenddessen "
-        f"**keine Nachrichten senden**.\n"
-        f"Vorzeitig aufheben: `/unlockdown`"
-    ),
-    inline=False
-)
+    embed.add_field(
+        name="🔍  Vorfall",
 
-# ── Empfehlungen ───────────────────────────────────────────
-embed.add_field(
-    name="📋  Empfohlene Maßnahmen",
-    value=(
-        f"`1`  Audit-Log prüfen → *Servereinstellungen → Audit-Log*\n"
-        f"`2`  Rollen & Berechtigungen des Täters überprüfen\n"
-        f"`3`  Sicherheitsstufe erhöhen → `/security_level 2`\n"
-        f"`4`  Admin-Team über den Vorfall informieren\n"
-        f"`5`  Case einsehen → `/case <id>`"
-    ),
-    inline=False
-)
+        value=(
+            f"```\n{action}\n```"
+            f"📅  {timestamp_f}  ·  {timestamp_r}\n"
+            f"🏠  {guild.name}  ·  `{guild.id}`"
+        ),
 
-# ── Footer ─────────────────────────────────────────────────
-embed.set_footer(
-    text=f"ModForge Security  ·  {guild.name}  ·  Case gespeichert",
-    icon_url=FOOTER_ICON
-)
-embed.timestamp = now
+        inline=True
+    )
 
-try:
-    await owner.send(embed=embed)
-except (discord.Forbidden, discord.HTTPException):
-    pass
+    # ── Verursacher ────────────────────────────────────────────
+
+    embed.add_field(
+        name="👤  Verursacher",
+
+        value=(
+            f"{user_line}"
+            f"`{executor_id}`\n"
+            f"{account_age}\n"
+            f"🎭  {roles}"
+        ),
+
+        inline=True
+    )
+
+    # ── Strafe ─────────────────────────────────────────────────
+
+    embed.add_field(
+        name="⚖️  Strafe",
+
+        value=(
+            f"```fix\n"
+            f"{punishment}\n"
+            f"```"
+        ),
+
+        inline=True
+    )
+
+    # ── Sofortmaßnahmen ────────────────────────────────────────
+
+    embed.add_field(
+        name="🛡️  Automatische Sofortmaßnahmen",
+
+        value=(
+            f"> 🔒  **Server-Lockdown** aktiv "
+            f"für **10 Minuten**\n"
+
+            f"> 🚫  **Alle Rollen** des Täters "
+            f"wurden entzogen\n"
+
+            f"> ⚖️  **Strafe** `{punishment}` "
+            f"wurde verhängt\n"
+
+            f"> 📁  **Case** wurde automatisch "
+            f"im System gespeichert"
+        ),
+
+        inline=False
+    )
+
+    # ── Lockdown ───────────────────────────────────────────────
+
+    embed.add_field(
+        name="⏳  Lockdown-Status",
+
+        value=(
+            f"Der Lockdown **läuft automatisch aus** – "
+            f"Mitglieder können währenddessen "
+            f"**keine Nachrichten senden**.\n"
+
+            f"Vorzeitig aufheben: `/unlockdown`"
+        ),
+
+        inline=False
+    )
+
+    # ── Empfehlungen ───────────────────────────────────────────
+
+    embed.add_field(
+        name="📋  Empfohlene Maßnahmen",
+
+        value=(
+            f"`1`  Audit-Log prüfen "
+            f"→ *Servereinstellungen → Audit-Log*\n"
+
+            f"`2`  Rollen & Berechtigungen "
+            f"des Täters überprüfen\n"
+
+            f"`3`  Sicherheitsstufe erhöhen "
+            f"→ `/security_level 2`\n"
+
+            f"`4`  Admin-Team über den Vorfall "
+            f"informieren\n"
+
+            f"`5`  Case einsehen "
+            f"→ `/case <id>`"
+        ),
+
+        inline=False
+    )
+
+    # ── Footer ─────────────────────────────────────────────────
+
+    embed.set_footer(
+        text=(
+            f"ModForge Security  ·  "
+            f"{guild.name}  ·  "
+            f"Case gespeichert"
+        ),
+
+        icon_url=FOOTER_ICON
+    )
+
+    embed.timestamp = now
+
+    try:
+        await owner.send(embed=embed)
+
+    except (
+        discord.Forbidden,
+        discord.HTTPException
+    ):
+        pass
 
 
-async def _nuke_check(guild: discord.Guild, executor_id: int, action: str) -> None:
+async def _nuke_check(
+    guild: discord.Guild,
+    executor_id: int,
+    action: str
+) -> None:
     """Überwacht verdächtige Massenaktionen und leitet Gegenmaßnahmen ein."""
+
     cfg = bot.db.get_config(guild.id)
-    nuke_cfg = cfg.get("anti_nuke", {})
+
+    nuke_cfg = cfg.get(
+        "anti_nuke",
+        {}
+    )
+
     if not nuke_cfg.get("enabled"):
         return
 
     now = time.time()
-    dq = bot.tracker.nuke_tracker[guild.id][executor_id]
+
+    dq = bot.tracker.nuke_tracker[
+        guild.id
+    ][executor_id]
+
     dq.append(now)
-    bot.tracker.clean_old(dq, nuke_cfg.get("window", 10))
+
+    bot.tracker.clean_old(
+        dq,
+        nuke_cfg.get("window", 10)
+    )
 
     if len(dq) >= nuke_cfg.get("threshold", 5):
+
         dq.clear()
-        executor = guild.get_member(executor_id)
-        if not executor or bot.is_whitelisted(executor):
+
+        executor = guild.get_member(
+            executor_id
+        )
+
+        if (
+            not executor
+            or bot.is_whitelisted(executor)
+        ):
             return
 
-        # Rolle(n) entfernen, falls konfiguriert
-        if nuke_cfg.get("remove_roles") and executor:
+        # Rolle(n) entfernen
+
+        if (
+            nuke_cfg.get("remove_roles")
+            and executor
+        ):
+
             try:
-                await executor.edit(roles=[], reason="Anti-Nuke: Rollen entfernt")
-            except (discord.Forbidden, discord.HTTPException):
+                await executor.edit(
+                    roles=[],
+                    reason=(
+                        "Anti-Nuke: Rollen entfernt"
+                    )
+                )
+
+            except (
+                discord.Forbidden,
+                discord.HTTPException
+            ):
                 pass
 
         # Täter bestrafen
-        punishment = nuke_cfg.get("punishment", "ban")
-        await bot.punish(executor, punishment,
-                         f"Anti-Nuke: Verdächtige Aktivität ({action})")
 
-        # Automatischer Lockdown (10 Minuten) – nur einmal aktivieren
+        punishment = nuke_cfg.get(
+            "punishment",
+            "ban"
+        )
+
+        await bot.punish(
+            executor,
+            punishment,
+            (
+                f"Anti-Nuke: "
+                f"Verdächtige Aktivität "
+                f"({action})"
+            )
+        )
+
+        # Automatischer Lockdown
+
         if not bot.tracker.lockdown_active[guild.id]:
-            bot.tracker.lockdown_active[guild.id] = True
-            asyncio.create_task(_auto_deactivate_lockdown(guild, 600))
-            await _activate_lockdown(guild)
 
-        # Server-Owner per DM informieren
-        await _notify_owner_nuke(guild, executor, executor_id, action, punishment)
+            bot.tracker.lockdown_active[
+                guild.id
+            ] = True
 
-        # Ausführlicher Log-Eintrag
+            asyncio.create_task(
+                _auto_deactivate_lockdown(
+                    guild,
+                    600
+                )
+            )
+
+            await _activate_lockdown(
+                guild
+            )
+
+        # Owner informieren
+
+        await _notify_owner_nuke(
+            guild,
+            executor,
+            executor_id,
+            action,
+            punishment
+        )
+
+        # Log-Eintrag
+
         await bot.log_action(
             guild,
+
             f"{E.NUKE} ANTI-NUKE AUSGELÖST",
-            f"**{executor.mention if executor else executor_id}** hat verdächtige Massenaktionen durchgeführt!\n"
-            f"**Lockdown:** automatisch aktiviert (10 min).",
+
+            (
+                f"**"
+                f"{executor.mention if executor else executor_id}"
+                f"** hat verdächtige "
+                f"Massenaktionen durchgeführt!\n"
+
+                f"**Lockdown:** "
+                f"automatisch aktiviert "
+                f"(10 min)."
+            ),
+
             COLOR_DANGER,
-            [("Aktion", action, True),
-             ("Strafe", punishment, True),
-             ("Lockdown", "10 Minuten", True)],
+
+            [
+                (
+                    "Aktion",
+                    action,
+                    True
+                ),
+
+                (
+                    "Strafe",
+                    punishment,
+                    True
+                ),
+
+                (
+                    "Lockdown",
+                    "10 Minuten",
+                    True
+                )
+            ],
+
             user=executor,
             module="antinuke"
         )
 
 
-async def _audit_actor(guild: discord.Guild, action: discord.AuditLogAction,
-                       target_id: Optional[int] = None) -> Optional[discord.abc.User]:
+async def _audit_actor(
+    guild: discord.Guild,
+    action: discord.AuditLogAction,
+    target_id: Optional[int] = None
+) -> Optional[discord.abc.User]:
     """Holt den letzten Audit-Log Akteur für eine bestimmte Aktion."""
+
     try:
-        async for entry in guild.audit_logs(limit=5, action=action):
-            if target_id is None or (entry.target and getattr(entry.target, "id", None) == target_id):
+
+        async for entry in guild.audit_logs(
+            limit=5,
+            action=action
+        ):
+
+            if (
+                target_id is None
+                or (
+                    entry.target
+                    and getattr(
+                        entry.target,
+                        "id",
+                        None
+                    ) == target_id
+                )
+            ):
                 return entry.user
+
     except discord.Forbidden:
         return None
-    return None
-        
 
+    return None
+    
 
 # ═══════════════════════════════════════════════════════════════
 # EVENT: ON_MESSAGE
