@@ -5493,7 +5493,7 @@ class ReactionRoleView(discord.ui.View):
     def __init__(self) -> None:
         super().__init__(timeout=None)
 
-    @discord.ui.select(cls=discord.ui.RoleSelect, placeholder="Wähle eine Rolle...", min_values=1, max_values=1)
+    @discord.ui.select(cls=discord.ui.RoleSelect, placeholder="Wähle eine Rolle...", min_values=1, max_values=1, custom_id="modforge:reactionrole_select")
     async def select_role(self, interaction: discord.Interaction, select: discord.ui.RoleSelect) -> None:
         role = select.values[0]
         if role.managed or role.is_default():
