@@ -935,7 +935,7 @@ switchApi('get',document.querySelector('.api-tab.active'));
 /* ════════════════════════════════════════════
    29. INVITE GENERATOR
 ═══════════════════════════════════════════════ */
-function generateInvite(){const name=document.getElementById('server-name-input').value.trim();const res=document.getElementById('invite-result');const link=document.getElementById('invite-link');if(name){link.innerText=`https://discord.com/oauth2/authorize?client_id=BOT_CLIENT_ID&scope=bot+applications.commands&permissions=8&guild_name=${encodeURIComponent(name.toLowerCase().replace(/\s+/g,'-'))}`;res.style.display='block'}else{res.style.display='none'}}
+function generateInvite(){const name=document.getElementById('server-name-input').value.trim();const res=document.getElementById('invite-result');const link=document.getElementById('invite-link');if(name){link.innerText=`https://discord.com/oauth2/authorize?client_id=1491447622442160248&scope=bot+applications.commands&permissions=8&guild_name=${encodeURIComponent(name.toLowerCase().replace(/\s+/g,'-'))}`;res.style.display='block'}else{res.style.display='none'}}
 function copyInvite(){navigator.clipboard.writeText(document.getElementById('invite-link').innerText);const btn=document.querySelector('.invite-result .btn-glass');if(btn){btn.innerText='✅ Kopiert!';setTimeout(()=>btn.innerText='📋 Link kopieren',2000)}}
 
 /* ════════════════════════════════════════════
