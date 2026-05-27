@@ -1045,10 +1045,10 @@ embed.set_footer(
 )
 embed.timestamp = now
 
-    try:
-        await owner.send(embed=embed)
-    except (discord.Forbidden, discord.HTTPException):
-        pass
+try:
+    await owner.send(embed=embed)
+except (discord.Forbidden, discord.HTTPException):
+    pass
 
 
 async def _nuke_check(guild: discord.Guild, executor_id: int, action: str) -> None:
