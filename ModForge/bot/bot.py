@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 import asyncio
+import copy
 import datetime
+import hashlib
+import json
 import logging
 import random
 import re
@@ -453,12 +456,14 @@ class ModForge(commands.Bot):
         self.add_view(TicketView(self))
         self.add_view(TicketCloseView(self))
         self.add_view(AppealActionView(bot_ref=self))
+        self.add_view(ReactionRoleView())
         await self.db.ensure_indexes()
         await self.tree.sync()
         log.info("Slash-Commands synchronisiert.")
         self.cleanup_trackers.start()
         self.tempaction_loop.start()
         self.restore_persistent_mutes.start()
+        auto_backup_loop.start()
         global BOT_REF
         BOT_REF = self
 
@@ -549,7 +554,7 @@ class ModForge(commands.Bot):
                 executed = True
             elif punishment == "ban":
                 pre_messages = await self.db.aget_user_messages(guild.id, member.id, hours=48, limit=500)
-                await member.ban(reason=reason, delete_message_days=1)
+                await member.ban(reason=reason, delete_message_seconds=86400)
                 executed = True
                 case_id = await self.db.acreate_case(guild.id, member.id, mod_id, "ban", reason, duration=None)
                 if pre_messages:
@@ -777,7 +782,18 @@ async def on_member_join(member):
             except discord.Forbidden:
                 pass
         await bot.log_action(guild, f"{E.BOT} Bot hinzugefügt", f"Bot **{member.mention}**", COLOR_WARNING, user=member, module="members")
+        return
     await bot.log_action(guild, f"{E.JOIN} Mitglied beigetreten", f"{member.mention}", COLOR_SUCCESS, user=member, module="members")
+
+    # ── Welcome-Nachricht senden ──
+    try:
+        from bot.bot import _send_welcome, _restore_sticky_roles
+        await _send_welcome(member)
+        await _restore_sticky_roles(member)
+    except Exception as ex:
+        log.debug(f"Welcome/Sticky-Roles Fehler: {ex}")
+
+    # ── Temp-Voice: Nichts bei Join nötig ──
 
 # ═══════════════════════════════════════════════════════════════
 # APPEAL SESSIONS & HELFER
@@ -1758,6 +1774,40 @@ async def on_message_edit(before: discord.Message, after: discord.Message) -> No
 async def on_voice_state_update(member: discord.Member, before: discord.VoiceState,
                                 after: discord.VoiceState) -> None:
     guild = member.guild
+
+    # ── Temp-Voice: Join-to-Create ──
+    if not member.bot:
+        try:
+            cfg_tv = bot.db.get_config(guild.id)
+            tv = cfg_tv.get("temp_voice", {})
+            if tv.get("enabled") and tv.get("channel_id"):
+                if after.channel and after.channel.id == tv["channel_id"]:
+                    # User joined the join-to-create channel -> create temp channel
+                    cat = guild.get_channel(tv.get("category_id")) if tv.get("category_id") else None
+                    overwrites = {
+                        guild.default_role: discord.PermissionOverwrite(read_messages=True, connect=True),
+                        member: discord.PermissionOverwrite(read_messages=True, connect=True, manage_channels=True, move_members=True),
+                        guild.me: discord.PermissionOverwrite(read_messages=True, connect=True, manage_channels=True),
+                    }
+                    temp_ch = await guild.create_voice_channel(
+                        name=f"🔊 {member.display_name}", category=cat, overwrites=overwrites,
+                        reason=f"Temp-Voice von {member}"
+                    )
+                    await member.move_to(temp_ch, reason="Temp-Voice erstellt")
+                    await bot.log_action(guild, f"🎤 Temp-Voice erstellt", f"{member.mention} hat {temp_ch.mention} erstellt.", COLOR_SUCCESS, user=member, module="moderation")
+                    return
+
+                # Temp channel empty -> auto delete
+                if before.channel and before.channel != after.channel:
+                    ch_name = before.channel.name
+                    if ch_name.startswith("🔊 ") and before.channel.members == []:
+                        try:
+                            await before.channel.delete(reason="Temp-Voice: Kanal leer")
+                        except (discord.Forbidden, discord.NotFound):
+                            pass
+        except Exception as ex:
+            log.debug(f"Temp-Voice Fehler: {ex}")
+
     if before.channel == after.channel:
         return
     if not before.channel:
@@ -2041,22 +2091,18 @@ async def on_member_remove(member: discord.Member) -> None:
     except discord.Forbidden:
         pass
 
+    # ── Leave-Nachricht senden ──
+    try:
+        from bot.bot import _send_leave, _save_sticky_roles
+        await _send_leave(member)
+        await _save_sticky_roles(member)
+    except Exception as ex:
+        log.debug(f"Leave/Sticky-Roles Fehler: {ex}")
+
 
 # ═══════════════════════════════════════════════════════════════
 # EVENT: GUILD JOIN / LEAVE  (Bot wird zu Server hinzugefügt/entfernt)
 # ═══════════════════════════════════════════════════════════════
-@bot.event
-async def on_guild_join(guild: discord.Guild) -> None:
-    log.info(f"Bot zu Guild beigetreten: {guild.name} ({guild.id}) – {guild.member_count} Member")
-    ACTIVITY.push(
-        "guild_join",
-        f"Bot zu **{guild.name}** hinzugefügt – {guild.member_count} Member.",
-        guild_id=guild.id, guild_name=guild.name,
-    )
-    await bot.db.arecord_guild_event(
-        guild.id, guild.name, guild.member_count or 0, "join",
-    )
-
 @bot.event
 async def on_guild_remove(guild: discord.Guild) -> None:
     log.info(f"Bot von Guild entfernt: {guild.name} ({guild.id})")
@@ -2070,12 +2116,26 @@ async def on_guild_remove(guild: discord.Guild) -> None:
     )
 
 # ═══════════════════════════════════════════════════════════════════
-# ON GUILD JOIN  —  Welcome-Embed
-# Einfügen direkt in bot.py, z.B. nach on_ready oder nach on_guild_remove
+# ON GUILD JOIN  —  Welcome-Embed & Guild-Event-Aufzeichnung
 # ═══════════════════════════════════════════════════════════════════
 
 @bot.event
 async def on_guild_join(guild: discord.Guild) -> None:
+    """Sendet beim Bot-Beitritt ein vollständiges Feature-Embed und zeichnet das Guild-Event auf.
+    (Ursprünglich gab es zwei Handler – diese sind nun in EINEM zusammengeführt,
+     damit BOTH arecord_guild_event UND das Welcome-Embed ausgeführt werden.)
+    """
+    # ── Guild-Event aufzeichnen ───────────────────────────
+    log.info(f"Bot zu Guild beigetreten: {guild.name} ({guild.id}) – {guild.member_count} Member")
+    ACTIVITY.push(
+        "guild_join",
+        f"Bot zu **{guild.name}** hinzugefügt – {guild.member_count} Member.",
+        guild_id=guild.id, guild_name=guild.name,
+    )
+    await bot.db.arecord_guild_event(
+        guild.id, guild.name, guild.member_count or 0, "join",
+    )
+
     """Sendet beim Bot-Beitritt ein vollständiges Feature-Embed in den ersten beschreibbaren Kanal."""
 
     # ── Besten Kanal finden ────────────────────────────────
@@ -2844,7 +2904,7 @@ async def slash_tempkick(interaction: discord.Interaction, member: discord.Membe
     end = datetime.datetime.utcnow() + datetime.timedelta(seconds=seconds)
     try:
         await member.ban(reason=f"Tempkick {duration} – {interaction.user}: {reason}",
-                         delete_message_days=0)
+                         delete_message_seconds=0)
     except discord.Forbidden:
         await interaction.response.send_message(
             embed=create_embed(f"{E.FAIL} Forbidden", "Ich darf das nicht.", COLOR_DANGER), ephemeral=True)
@@ -3542,7 +3602,7 @@ async def slash_status(interaction: discord.Interaction) -> None:
         (f"{E.SERVER} Server", str(len(bot.guilds)), True),
         (f"{E.USERS} Nutzer", str(sum(g.member_count for g in bot.guilds)), True),
         (f"{E.CLOCK} Uptime", f"{uptime // 3600}h {(uptime % 3600) // 60}m", True),
-        ("Version", "2.6.1", True)
+        ("Version", "3.0.0", True)
     ], thumbnail=bot.user.display_avatar.url)
     await interaction.response.send_message(embed=embed)
 
@@ -4213,3 +4273,1252 @@ async def on_app_command_error(interaction: discord.Interaction,
             user=interaction.user if isinstance(interaction.user, discord.Member) else None,
             module="errors",
         )
+# ═══════════════════════════════════════════════════════════════════
+# BACKUP SYSTEM – Komplettes Server-Backup & Restore mit Passwort
+# ═══════════════════════════════════════════════════════════════════
+
+import hashlib as _hashlib
+import json as _json
+
+# ── Passwort-Hashing für Backups ──────────────────────────────────
+def _hash_password(password: str) -> str:
+    """Erzeugt einen SHA256-Hash mit Salt für Backup-Passwörter."""
+    salt = f"ModForge_Backup_{random.randint(10000,99999)}"
+    return _hashlib.sha256(f"{salt}:{password}".encode()).hexdigest() + f":{salt}"
+
+def _verify_password(password: str, stored_hash: str) -> bool:
+    """Überprüft ein Passwort gegen den gespeicherten Hash."""
+    try:
+        parts = stored_hash.split(":")
+        if len(parts) < 2:
+            return False
+        salt = parts[-1]
+        expected = _hashlib.sha256(f"{salt}:{password}".encode()).hexdigest()
+        return expected == parts[0]
+    except Exception:
+        return False
+
+# ── Backup-Daten sammeln ──────────────────────────────────────────
+async def _collect_backup_data(guild: discord.Guild) -> dict:
+    """Sammelt alle Server-Daten in ein serialisierbares Dict."""
+    data = {
+        "guild_id": guild.id,
+        "guild_name": guild.name,
+        "guild_icon_url": str(guild.icon.url) if guild.icon else None,
+        "guild_description": guild.description,
+        "verification_level": guild.verification_level.value,
+        "explicit_content_filter": guild.explicit_content_filter.value,
+        "default_notifications": guild.default_notifications.value,
+        "mfa_level": guild.mfa_level.value,
+        "system_channel_id": guild.system_channel.id if guild.system_channel else None,
+        "rules_channel_id": guild.rules_channel.id if guild.rules_channel else None,
+        "public_updates_channel_id": guild.public_updates_channel.id if guild.public_updates_channel else None,
+        "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
+    }
+    # Rollen
+    roles_list = []
+    for role in sorted(guild.roles, key=lambda r: r.position):
+        if role.is_default() or role.managed:
+            continue
+        roles_list.append({
+            "role_id": role.id, "name": role.name,
+            "color": role.color.value, "hoist": role.hoist,
+            "mentionable": role.mentionable, "position": role.position,
+            "permissions": role.permissions.value,
+            "is_bot_role": role.tags and role.tags.bot_id is not None,
+            "bot_id": role.tags.bot_id if role.tags else None,
+        })
+    data["roles"] = roles_list
+    # Kategorien
+    categories_list = []
+    for cat in guild.categories:
+        categories_list.append({
+            "category_id": cat.id, "name": cat.name,
+            "position": cat.position, "nsfw": getattr(cat, "nsfw", False),
+            "overwrites": _serialize_overwrites(cat.overwrites),
+        })
+    data["categories"] = sorted(categories_list, key=lambda c: c["position"])
+    # Kanäle
+    channels_list = []
+    for channel in guild.channels:
+        if isinstance(channel, discord.CategoryChannel):
+            continue
+        ch_data = {
+            "channel_id": channel.id, "name": channel.name,
+            "position": channel.position, "type": str(channel.type),
+            "category_id": channel.category.id if channel.category else None,
+            "overwrites": _serialize_overwrites(channel.overwrites),
+        }
+        if isinstance(channel, discord.TextChannel):
+            ch_data["topic"] = channel.topic
+            ch_data["slowmode_delay"] = channel.slowmode_delay
+            ch_data["nsfw"] = channel.nsfw
+        elif isinstance(channel, discord.VoiceChannel):
+            ch_data["bitrate"] = channel.bitrate
+            ch_data["user_limit"] = channel.user_limit
+        channels_list.append(ch_data)
+    data["channels"] = sorted(channels_list, key=lambda c: c["position"])
+    # Emojis
+    data["emojis"] = [{"emoji_id": e.id, "name": e.name, "url": str(e.url), "animated": e.animated} for e in guild.emojis]
+    data["stats"] = {
+        "total_members": guild.member_count,
+        "total_roles": len(guild.roles),
+        "total_channels": len(guild.channels),
+        "total_emojis": len(guild.emojis),
+    }
+    return data
+
+def _serialize_overwrites(overwrites: dict) -> list:
+    result = []
+    for target, overwrite in overwrites.items():
+        target_id = target.id if hasattr(target, "id") else int(target)
+        target_type = "role" if isinstance(target, discord.Role) else "member"
+        result.append({"target_id": target_id, "target_type": target_type, "allow": overwrite.pair()[0].value, "deny": overwrite.pair()[1].value})
+    return result
+
+def _deserialize_overwrites(guild: discord.Guild, overwrites_data: list, role_map: dict) -> dict:
+    result = {}
+    for ow in overwrites_data:
+        target_id = ow["target_id"]
+        overwrite = discord.PermissionOverwrite.from_pair(discord.Permissions(ow.get("allow", 0)), discord.Permissions(ow.get("deny", 0)))
+        if ow.get("target_type", "role") == "role":
+            role = role_map.get(target_id) or guild.get_role(target_id)
+            if role:
+                result[role] = overwrite
+            elif target_id == guild.default_role.id:
+                result[guild.default_role] = overwrite
+        else:
+            member = guild.get_member(target_id)
+            if member:
+                result[member] = overwrite
+    return result
+
+# ── Backup Restore ────────────────────────────────────────────────
+async def _restore_from_backup(guild: discord.Guild, backup: dict, interaction: discord.Interaction) -> dict:
+    report = {"roles_created": 0, "roles_updated": 0, "roles_skipped": 0,
+              "channels_created": 0, "channels_updated": 0, "channels_skipped": 0,
+              "categories_created": 0, "categories_updated": 0, "errors": []}
+    role_map: Dict[int, discord.Role] = {}
+    category_map: Dict[int, discord.CategoryChannel] = {}
+    existing_categories = {c.name.lower(): c for c in guild.categories}
+    for cat_data in backup.get("categories", []):
+        try:
+            existing = guild.get_channel(cat_data["category_id"])
+            if existing and isinstance(existing, discord.CategoryChannel):
+                try:
+                    await existing.edit(name=cat_data["name"], overwrites=_deserialize_overwrites(guild, cat_data.get("overwrites", []), role_map), reason=f"Backup-Restore")
+                except (discord.Forbidden, discord.HTTPException):
+                    pass
+                category_map[cat_data["category_id"]] = existing
+                report["categories_updated"] += 1
+            else:
+                existing_by_name = existing_categories.get(cat_data["name"].lower())
+                if existing_by_name:
+                    category_map[cat_data["category_id"]] = existing_by_name
+                    report["categories_updated"] += 1
+                    continue
+                try:
+                    new_cat = await guild.create_category(name=cat_data["name"], overwrites=_deserialize_overwrites(guild, cat_data.get("overwrites", []), role_map), reason="Backup-Restore")
+                    category_map[cat_data["category_id"]] = new_cat
+                    report["categories_created"] += 1
+                except (discord.Forbidden, discord.HTTPException) as e:
+                    report["errors"].append(f"Kategorie '{cat_data['name']}': {e}")
+        except Exception as e:
+            report["errors"].append(f"Kategorie '{cat_data.get('name', '?')}': {e}")
+    existing_roles = {r.name.lower(): r for r in guild.roles}
+    for role_data in backup.get("roles", []):
+        try:
+            if role_data.get("is_bot_role"):
+                report["roles_skipped"] += 1
+                continue
+            existing = guild.get_role(role_data["role_id"])
+            if existing:
+                try:
+                    await existing.edit(name=role_data["name"], color=discord.Color(role_data["color"]), hoist=role_data["hoist"], mentionable=role_data["mentionable"], permissions=discord.Permissions(role_data["permissions"]), reason="Backup-Restore")
+                except (discord.Forbidden, discord.HTTPException):
+                    pass
+                role_map[role_data["role_id"]] = existing
+                report["roles_updated"] += 1
+            else:
+                existing_by_name = existing_roles.get(role_data["name"].lower())
+                if existing_by_name:
+                    role_map[role_data["role_id"]] = existing_by_name
+                    try:
+                        await existing_by_name.edit(color=discord.Color(role_data["color"]), hoist=role_data["hoist"], mentionable=role_data["mentionable"], permissions=discord.Permissions(role_data["permissions"]), reason="Backup-Restore")
+                    except (discord.Forbidden, discord.HTTPException):
+                        pass
+                    report["roles_updated"] += 1
+                    continue
+                try:
+                    new_role = await guild.create_role(name=role_data["name"], color=discord.Color(role_data["color"]), hoist=role_data["hoist"], mentionable=role_data["mentionable"], permissions=discord.Permissions(role_data["permissions"]), reason="Backup-Restore")
+                    role_map[role_data["role_id"]] = new_role
+                    report["roles_created"] += 1
+                except (discord.Forbidden, discord.HTTPException) as e:
+                    report["errors"].append(f"Rolle '{role_data['name']}': {e}")
+        except Exception as e:
+            report["errors"].append(f"Rolle '{role_data.get('name', '?')}': {e}")
+    existing_channels = {c.name.lower(): c for c in guild.channels if not isinstance(c, discord.CategoryChannel)}
+    for ch_data in backup.get("channels", []):
+        try:
+            category = category_map.get(ch_data.get("category_id"))
+            overwrites = _deserialize_overwrites(guild, ch_data.get("overwrites", []), role_map)
+            existing = guild.get_channel(ch_data["channel_id"])
+            if existing:
+                kwargs = {"name": ch_data["name"], "overwrites": overwrites, "reason": "Backup-Restore"}
+                if isinstance(existing, discord.TextChannel):
+                    if ch_data.get("topic"):
+                        kwargs["topic"] = ch_data["topic"]
+                    kwargs["slowmode_delay"] = ch_data.get("slowmode_delay", 0)
+                    kwargs["nsfw"] = ch_data.get("nsfw", False)
+                if category:
+                    kwargs["category"] = category
+                try:
+                    await existing.edit(**kwargs)
+                except (discord.Forbidden, discord.HTTPException):
+                    pass
+                report["channels_updated"] += 1
+                continue
+            existing_by_name = existing_channels.get(ch_data["name"].lower())
+            if existing_by_name:
+                try:
+                    kwargs = {"overwrites": overwrites, "reason": "Backup-Restore"}
+                    if isinstance(existing_by_name, discord.TextChannel) and ch_data.get("topic"):
+                        kwargs["topic"] = ch_data["topic"]
+                    if category:
+                        kwargs["category"] = category
+                    await existing_by_name.edit(**kwargs)
+                except (discord.Forbidden, discord.HTTPException):
+                    pass
+                report["channels_updated"] += 1
+                continue
+            ch_type = ch_data.get("type", "text")
+            try:
+                if "voice" in ch_type:
+                    new_ch = await guild.create_voice_channel(name=ch_data["name"], category=category, overwrites=overwrites, bitrate=ch_data.get("bitrate", 64000), user_limit=ch_data.get("user_limit", 0), reason="Backup-Restore")
+                else:
+                    new_ch = await guild.create_text_channel(name=ch_data["name"], category=category, overwrites=overwrites, topic=ch_data.get("topic"), slowmode_delay=ch_data.get("slowmode_delay", 0), nsfw=ch_data.get("nsfw", False), reason="Backup-Restore")
+                report["channels_created"] += 1
+            except (discord.Forbidden, discord.HTTPException) as e:
+                report["errors"].append(f"Kanal-Erstellung '{ch_data['name']}': {e}")
+        except Exception as e:
+            report["errors"].append(f"Kanal '{ch_data.get('name', '?')}': {e}")
+    try:
+        await guild.edit(verification_level=discord.VerificationLevel(backup.get("verification_level", 0)), explicit_content_filter=discord.ExplicitContentFilter(backup.get("explicit_content_filter", 0)), default_notifications=discord.NotificationLevel(backup.get("default_notifications", 0)), reason="Backup-Restore")
+    except (discord.Forbidden, discord.HTTPException) as e:
+        report["errors"].append(f"Server-Einstellungen: {e}")
+    return report
+
+# ── Backup DB-Operationen ─────────────────────────────────────────
+async def _backup_db_save(backup_data: dict, created_by: int, label: str = None, password_hash: str = None) -> str:
+    backup_id = _hashlib.sha256(f"{backup_data['guild_id']}_{time.time()}_{random.randint(0, 999999)}".encode()).hexdigest()[:16]
+    doc = {
+        "backup_id": backup_id, "guild_id": backup_data["guild_id"],
+        "guild_name": backup_data.get("guild_name", "Unbekannt"),
+        "label": label or f"Backup vom {datetime.datetime.utcnow().strftime('%d.%m.%Y %H:%M')} UTC",
+        "created_by": created_by, "created_at": datetime.datetime.utcnow(),
+        "data": backup_data, "stats": backup_data.get("stats", {}),
+        "password_hash": password_hash,
+        "has_password": password_hash is not None,
+    }
+    try:
+        collection = bot.db.client["ModForge"]["backups"]
+        await collection.insert_one(doc)
+        return backup_id
+    except Exception as e:
+        log.error(f"Backup-Save Fehler: {e}")
+        return None
+
+async def _backup_db_list(guild_id: int, limit: int = 10) -> list:
+    try:
+        collection = bot.db.client["ModForge"]["backups"]
+        cursor = collection.find({"guild_id": guild_id}, {"backup_id": 1, "label": 1, "created_at": 1, "created_by": 1, "stats": 1, "has_password": 1, "_id": 0}).sort("created_at", -1).limit(limit)
+        return await cursor.to_list(length=limit)
+    except Exception as e:
+        log.error(f"Backup-List Fehler: {e}")
+        return []
+
+async def _backup_db_get(guild_id: int, backup_id: str) -> dict:
+    try:
+        collection = bot.db.client["ModForge"]["backups"]
+        return await collection.find_one({"guild_id": guild_id, "backup_id": backup_id})
+    except Exception as e:
+        log.error(f"Backup-Get Fehler: {e}")
+        return None
+
+async def _backup_db_get_any(backup_id: str) -> dict:
+    """Holt ein Backup von JEDEM Server (für Cross-Server-Restore)."""
+    try:
+        collection = bot.db.client["ModForge"]["backups"]
+        return await collection.find_one({"backup_id": backup_id})
+    except Exception as e:
+        log.error(f"Backup-Get-Any Fehler: {e}")
+        return None
+
+async def _backup_db_delete(guild_id: int, backup_id: str) -> bool:
+    try:
+        collection = bot.db.client["ModForge"]["backups"]
+        result = await collection.delete_one({"guild_id": guild_id, "backup_id": backup_id})
+        return result.deleted_count > 0
+    except Exception as e:
+        log.error(f"Backup-Delete Fehler: {e}")
+        return False
+
+# ── Backup Passwort-Modal ─────────────────────────────────────────
+class BackupPasswordModal(discord.ui.Modal, title="🔐 Backup-Passwort eingeben"):
+    password = discord.ui.TextInput(label="Passwort", placeholder="Gib das Backup-Passwort ein...", style=discord.TextStyle.short, required=True, min_length=1, max_length=100)
+    def __init__(self, backup_id: str, backup_label: str, guild: discord.Guild, user: discord.Member, source_guild_id: int = None) -> None:
+        super().__init__()
+        self.backup_id = backup_id
+        self.backup_label = backup_label
+        self.guild = guild
+        self.user = user
+        self.source_guild_id = source_guild_id
+
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        await interaction.response.defer()
+        if self.source_guild_id:
+            doc = await _backup_db_get_any(self.backup_id)
+        else:
+            doc = await _backup_db_get(self.guild.id, self.backup_id)
+        if not doc or not doc.get("data"):
+            embed = create_embed(f"{E.FAIL} Fehler", "Backup nicht gefunden.", COLOR_DANGER)
+            await interaction.followup.send(embed=embed)
+            return
+        pw_hash = doc.get("password_hash")
+        if not pw_hash or not _verify_password(self.password.value, pw_hash):
+            embed = create_embed(f"{E.FAIL} Falsches Passwort", "Das eingegebene Passwort ist falsch.", COLOR_DANGER)
+            await interaction.followup.send(embed=embed, ephemeral=True)
+            return
+        report = await _restore_from_backup(self.guild, doc["data"], interaction)
+        fields = [
+            ("Rollen erstellt/aktualisiert/übersprungen", f"✅ {report['roles_created']} / 🔄 {report['roles_updated']} / ⏭️ {report['roles_skipped']}", False),
+            ("Kategorien", f"✅ {report['categories_created']} / 🔄 {report['categories_updated']}", False),
+            ("Kanäle", f"✅ {report['channels_created']} / 🔄 {report['channels_updated']}", False),
+        ]
+        if report["errors"]:
+            error_text = "\n".join(f"• {e[:100]}" for e in report["errors"][:10])
+            fields.append(("⚠️ Fehler", error_text, False))
+        result_color = COLOR_SUCCESS if not report["errors"] else COLOR_WARNING
+        result_embed = create_embed(f"{E.OK} Backup-Restore abgeschlossen", f"Backup **{self.backup_label}** wurde wiederhergestellt.", result_color, fields)
+        await interaction.followup.send(embed=result_embed)
+        await bot.log_action(self.guild, f"{E.OK} Backup-Restore", f"Backup **{self.backup_label}** von {self.user.mention} wiederhergestellt.", result_color, fields, user=self.user, module="backup")
+
+# ── Backup Confirm Views ──────────────────────────────────────────
+class BackupRestoreConfirmView(discord.ui.View):
+    def __init__(self, backup_id: str, backup_label: str, guild: discord.Guild, user: discord.Member, has_password: bool = False) -> None:
+        super().__init__(timeout=60)
+        self.backup_id = backup_id
+        self.backup_label = backup_label
+        self.guild = guild
+        self.user = user
+        self.has_password = has_password
+
+    @discord.ui.button(label="Ja, Restore bestätigen", style=discord.ButtonStyle.danger, emoji="⚠️")
+    async def confirm_restore(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        if interaction.user.id != self.user.id:
+            await interaction.response.send_message(f"{E.FAIL} Nur der Initiator kann bestätigen.", ephemeral=True)
+            return
+        await interaction.response.defer()
+        if self.has_password:
+            embed = create_embed("🔐 Passwort erforderlich", "Dieses Backup ist passwortgeschützt. Bitte gib das Passwort ein.", COLOR_WARNING)
+            await interaction.followup.send(embed=embed, view=BackupPasswordPromptView(self.backup_id, self.backup_label, self.guild, self.user))
+            return
+        doc = await _backup_db_get(self.guild.id, self.backup_id)
+        if not doc or not doc.get("data"):
+            embed = create_embed(f"{E.FAIL} Fehler", "Backup nicht gefunden.", COLOR_DANGER)
+            await interaction.followup.send(embed=embed)
+            return
+        embed_progress = create_embed("⏳ Backup-Restore läuft...", f"Backup **{self.backup_label}** wird wiederhergestellt.", COLOR_WARNING)
+        await interaction.followup.send(embed=embed_progress)
+        report = await _restore_from_backup(self.guild, doc["data"], interaction)
+        fields = [("Rollen", f"✅{report['roles_created']} 🔄{report['roles_updated']} ⏭️{report['roles_skipped']}", False), ("Kategorien", f"✅{report['categories_created']} 🔄{report['categories_updated']}", False), ("Kanäle", f"✅{report['channels_created']} 🔄{report['channels_updated']}", False)]
+        if report["errors"]:
+            fields.append(("⚠️ Fehler", "\n".join(f"• {e[:100]}" for e in report["errors"][:10]), False))
+        rc = COLOR_SUCCESS if not report["errors"] else COLOR_WARNING
+        await interaction.channel.send(embed=create_embed(f"{E.OK} Backup-Restore abgeschlossen", f"Backup **{self.backup_label}** wiederhergestellt.", rc, fields))
+        await bot.log_action(self.guild, f"{E.OK} Backup-Restore", f"Backup **{self.backup_label}** von {self.user.mention} wiederhergestellt.", rc, fields, user=self.user, module="backup")
+
+    @discord.ui.button(label="Abbrechen", style=discord.ButtonStyle.secondary, emoji="❌")
+    async def cancel_restore(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        if interaction.user.id != self.user.id:
+            return
+        await interaction.response.edit_message(embed=create_embed("🚫 Restore abgebrochen", "Backup wurde NICHT wiederhergestellt.", COLOR_WARNING), view=None)
+
+class BackupPasswordPromptView(discord.ui.View):
+    def __init__(self, backup_id: str, backup_label: str, guild: discord.Guild, user: discord.Member, source_guild_id: int = None) -> None:
+        super().__init__(timeout=120)
+        self.backup_id = backup_id
+        self.backup_label = backup_label
+        self.guild = guild
+        self.user = user
+        self.source_guild_id = source_guild_id
+
+    @discord.ui.button(label="Passwort eingeben", style=discord.ButtonStyle.primary, emoji="🔑")
+    async def enter_pw(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        if interaction.user.id != self.user.id:
+            await interaction.response.send_message(f"{E.FAIL} Nur der Initiator.", ephemeral=True)
+            return
+        await interaction.response.send_modal(BackupPasswordModal(self.backup_id, self.backup_label, self.guild, self.user, self.source_guild_id))
+
+class BackupDeleteConfirmView(discord.ui.View):
+    def __init__(self, backup_id: str, backup_label: str, guild_id: int, user: discord.Member) -> None:
+        super().__init__(timeout=60)
+        self.backup_id = backup_id
+        self.backup_label = backup_label
+        self.guild_id = guild_id
+        self.user = user
+
+    @discord.ui.button(label="Ja, löschen", style=discord.ButtonStyle.danger, emoji="🗑️")
+    async def confirm_delete(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        if interaction.user.id != self.user.id:
+            return
+        success = await _backup_db_delete(self.guild_id, self.backup_id)
+        if success:
+            await interaction.response.edit_message(embed=create_embed(f"{E.DELETE} Backup gelöscht", f"Backup **{self.backup_label}** gelöscht.", COLOR_SUCCESS), view=None)
+        else:
+            await interaction.response.edit_message(embed=create_embed(f"{E.FAIL} Fehler", "Konnte nicht löschen.", COLOR_DANGER), view=None)
+        await bot.log_action(interaction.guild, f"{E.DELETE} Backup gelöscht", f"Backup **{self.backup_label}** von {self.user.mention} gelöscht.", COLOR_WARNING, user=self.user, module="backup")
+
+    @discord.ui.button(label="Abbrechen", style=discord.ButtonStyle.secondary, emoji="❌")
+    async def cancel_delete(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        if interaction.user.id != self.user.id:
+            return
+        await interaction.response.edit_message(embed=create_embed("🚫 Abgebrochen", "Backup wurde NICHT gelöscht.", COLOR_WARNING), view=None)
+
+# ── Backup-Passwort setzen Modal ──────────────────────────────────
+class BackupSetPasswordModal(discord.ui.Modal, title="🔐 Backup mit Passwort sichern"):
+    password = discord.ui.TextInput(label="Passwort", placeholder="Sicheres Passwort eingeben...", style=discord.TextStyle.short, required=True, min_length=4, max_length=100)
+    label = discord.ui.TextInput(label="Backup-Label (optional)", placeholder="z.B. Vor Server-Reset", style=discord.TextStyle.short, required=False, max_length=100)
+
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        await interaction.response.defer()
+        guild = interaction.guild
+        backup_data = await _collect_backup_data(guild)
+        pw_hash = _hash_password(self.password.value)
+        backup_id = await _backup_db_save(backup_data, interaction.user.id, self.label.value or None, password_hash=pw_hash)
+        if not backup_id:
+            await interaction.followup.send(embed=create_embed(f"{E.FAIL} Fehler", "Backup konnte nicht gespeichert werden.", COLOR_DANGER))
+            return
+        stats = backup_data.get("stats", {})
+        fields = [("Backup-ID", f"`{backup_id}`", True), ("🔐 Passwortgeschützt", "✅ Ja", True), ("Label", self.label.value or "Automatisch", True), ("Rollen", str(len(backup_data.get("roles", []))), True), ("Kanäle", str(len(backup_data.get("channels", []))), True), ("Kategorien", str(len(backup_data.get("categories", []))), True)]
+        await interaction.followup.send(embed=create_embed(f"{E.OK} Passwortgeschütztes Backup erstellt", f"Backup **{backup_id}** wurde mit Passwort gesichert.", COLOR_SUCCESS, fields))
+        await bot.log_action(guild, f"{E.OK} Passwort-Backup erstellt", f"Backup `{backup_id}` (passwortgeschützt) von {interaction.user.mention}.", COLOR_SUCCESS, user=interaction.user, module="backup")
+
+# ── Interaktives Backup-Dropdown-Menü ─────────────────────────────
+class BackupMainDropdown(discord.ui.Select):
+    def __init__(self) -> None:
+        options = [
+            discord.SelectOption(label="📦 Backup erstellen", value="create", description="Neues Backup des Servers erstellen", emoji="📦"),
+            discord.SelectOption(label="🔐 Passwort-Backup erstellen", value="create_pw", description="Backup mit Passwort sichern", emoji="🔐"),
+            discord.SelectOption(label="📋 Backups anzeigen", value="list", description="Alle Backups auflisten", emoji="📋"),
+            discord.SelectOption(label="🔍 Backup-Details", value="info", description="Details zu einem Backup anzeigen", emoji="🔍"),
+            discord.SelectOption(label="♻️ Backup wiederherstellen", value="restore", description="Backup auf diesem Server restoren", emoji="♻️"),
+            discord.SelectOption(label="🌐 Cross-Server Restore", value="restore_cross", description="Backup von einem anderen Server restoren", emoji="🌐"),
+            discord.SelectOption(label="🗑️ Backup löschen", value="delete", description="Ein Backup löschen", emoji="🗑️"),
+            discord.SelectOption(label="💣 Alle Backups löschen", value="purge", description="ALLE Backups dieses Servers löschen", emoji="💣"),
+            discord.SelectOption(label="⚙️ Auto-Backup konfigurieren", value="autosetup", description="Automatische Backups einstellen", emoji="⚙️"),
+        ]
+        super().__init__(placeholder="🔧 Backup-Aktion wählen...", options=options, min_values=1, max_values=1)
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        val = self.values[0]
+        if val == "create":
+            backup_data = await _collect_backup_data(interaction.guild)
+            backup_id = await _backup_db_save(backup_data, interaction.user.id)
+            if not backup_id:
+                await interaction.response.send_message(embed=create_embed(f"{E.FAIL} Fehler", "Backup fehlgeschlagen.", COLOR_DANGER), ephemeral=True)
+                return
+            stats = backup_data.get("stats", {})
+            fields = [("Backup-ID", f"`{backup_id}`", True), ("Rollen", str(len(backup_data.get("roles", []))), True), ("Kanäle", str(len(backup_data.get("channels", []))), True), ("Kategorien", str(len(backup_data.get("categories", []))), True), ("Mitglieder", str(stats.get("total_members", "?")), True), ("Emojis", str(len(backup_data.get("emojis", []))), True)]
+            await interaction.response.send_message(embed=create_embed(f"{E.OK} Backup erstellt", f"Backup **{backup_id}** gespeichert.", COLOR_SUCCESS, fields), ephemeral=True)
+            await bot.log_action(interaction.guild, f"{E.OK} Backup erstellt", f"Backup `{backup_id}` von {interaction.user.mention}.", COLOR_SUCCESS, user=interaction.user, module="backup")
+        elif val == "create_pw":
+            await interaction.response.send_modal(BackupSetPasswordModal())
+        elif val == "list":
+            await interaction.response.defer(ephemeral=True)
+            backups = await _backup_db_list(interaction.guild.id, limit=15)
+            if not backups:
+                await interaction.followup.send(embed=create_embed(f"{E.CHANNEL} Backups", "Keine Backups vorhanden.", COLOR_INFO), ephemeral=True)
+                return
+            fields = []
+            for b in backups:
+                ts = b.get("created_at")
+                ts_text = f"<t:{int(ts.timestamp())}:R>" if isinstance(ts, datetime.datetime) else str(ts)
+                pw_icon = " 🔐" if b.get("has_password") else ""
+                fields.append((f"`{b.get('backup_id')}`{pw_icon} – {b.get('label', 'Ohne Label')}", f"Erstellt {ts_text} von <@{b.get('created_by')}>", False))
+            await interaction.followup.send(embed=create_embed(f"{E.CHANNEL} Backups – {interaction.guild.name}", f"**{len(backups)}** Backups.", COLOR_PRIMARY, fields), ephemeral=True)
+        elif val == "info":
+            await interaction.response.send_message(embed=create_embed("🔍 Backup-Info", "Nutze `/backup_info <backup_id>` für Details.", COLOR_INFO), ephemeral=True)
+        elif val == "restore":
+            await interaction.response.send_message(embed=create_embed("♻️ Backup Restore", "Nutze `/backup_restore <backup_id>` um ein Backup wiederherzustellen.", COLOR_INFO), ephemeral=True)
+        elif val == "restore_cross":
+            await interaction.response.send_message(embed=create_embed("🌐 Cross-Server Restore", "Nutze `/backup_restore_cross <backup_id>` um ein Backup von einem anderen Server zu laden.", COLOR_INFO), ephemeral=True)
+        elif val == "delete":
+            await interaction.response.send_message(embed=create_embed("🗑️ Backup löschen", "Nutze `/backup_delete <backup_id>`.", COLOR_INFO), ephemeral=True)
+        elif val == "purge":
+            await interaction.response.defer(ephemeral=True)
+            collection = bot.db.client["ModForge"]["backups"]
+            result = await collection.delete_many({"guild_id": interaction.guild.id})
+            await interaction.followup.send(embed=create_embed(f"{E.DELETE} Alle Backups gelöscht", f"**{result.deleted_count}** Backups gelöscht.", COLOR_SUCCESS), ephemeral=True)
+        elif val == "autosetup":
+            await interaction.response.send_message(embed=create_embed("⚙️ Auto-Backup", "Nutze `/backup_autosetup` für die Konfiguration.", COLOR_INFO), ephemeral=True)
+
+class BackupMainView(discord.ui.View):
+    def __init__(self) -> None:
+        super().__init__(timeout=120)
+        self.add_item(BackupMainDropdown())
+
+# ═══════════════════════════════════════════════════════════════════
+# BACKUP SLASH COMMANDS
+# ═══════════════════════════════════════════════════════════════════
+@bot.tree.command(name="backup", description="Interaktives Backup-Menü mit Dropdown")
+@app_commands.default_permissions(administrator=True)
+async def slash_backup_menu(interaction: discord.Interaction) -> None:
+    embed = create_embed(f"{E.SHIELD} Backup-System", "Wähle eine Aktion aus dem Dropdown-Menü:\n\n📦 **Erstellen** – Backup ohne Passwort\n🔐 **Passwort-Backup** – Verschlüsselt mit Passwort\n📋 **Anzeigen** – Alle Backups listen\n♻️ **Restore** – Auf diesem Server wiederherstellen\n🌐 **Cross-Server** – Backup von anderem Server laden\n🗑️ **Löschen** – Einzelnes oder alle Backups\n⚙️ **Auto-Backup** – Automatische Backups konfigurieren", COLOR_PRIMARY,
+        [("Tipp", "Passwort-Backups können auf **jedem Server** restored werden, wenn du das Passwort kennst!", False)],
+        thumbnail=interaction.guild.icon.url if interaction.guild.icon else None)
+    await interaction.response.send_message(embed=embed, view=BackupMainView(), ephemeral=True)
+
+@bot.tree.command(name="backup_create", description="Erstellt ein vollständiges Backup des Servers")
+@app_commands.describe(label="Optionales Label für das Backup")
+@app_commands.default_permissions(administrator=True)
+async def slash_backup_create(interaction: discord.Interaction, label: str = None) -> None:
+    await interaction.response.defer()
+    backup_data = await _collect_backup_data(interaction.guild)
+    backup_id = await _backup_db_save(backup_data, interaction.user.id, label)
+    if not backup_id:
+        await interaction.followup.send(embed=create_embed(f"{E.FAIL} Fehler", "Backup fehlgeschlagen.", COLOR_DANGER))
+        return
+    stats = backup_data.get("stats", {})
+    fields = [("Backup-ID", f"`{backup_id}`", True), ("Label", label or "Automatisch", True), ("Erstellt von", interaction.user.mention, True), ("Rollen", str(len(backup_data.get("roles", []))), True), ("Kanäle", str(len(backup_data.get("channels", []))), True), ("Kategorien", str(len(backup_data.get("categories", []))), True)]
+    await interaction.followup.send(embed=create_embed(f"{E.OK} Backup erstellt", f"Backup **{backup_id}** gespeichert.", COLOR_SUCCESS, fields))
+    await bot.log_action(interaction.guild, f"{E.OK} Backup erstellt", f"Backup `{backup_id}` von {interaction.user.mention}.", COLOR_SUCCESS, user=interaction.user, module="backup")
+
+@bot.tree.command(name="backup_secure", description="Erstellt ein passwortgeschütztes Backup")
+@app_commands.default_permissions(administrator=True)
+async def slash_backup_secure(interaction: discord.Interaction) -> None:
+    await interaction.response.send_modal(BackupSetPasswordModal())
+
+@bot.tree.command(name="backup_list", description="Zeigt alle gespeicherten Backups")
+@app_commands.default_permissions(administrator=True)
+async def slash_backup_list(interaction: discord.Interaction) -> None:
+    backups = await _backup_db_list(interaction.guild.id, limit=15)
+    if not backups:
+        await interaction.response.send_message(embed=create_embed(f"{E.CHANNEL} Backups", "Keine Backups. Nutze `/backup_create`.", COLOR_INFO), ephemeral=True)
+        return
+    fields = []
+    for b in backups:
+        ts = b.get("created_at")
+        ts_text = f"<t:{int(ts.timestamp())}:R>" if isinstance(ts, datetime.datetime) else str(ts)
+        pw_icon = " 🔐" if b.get("has_password") else ""
+        fields.append((f"`{b.get('backup_id')}`{pw_icon} – {b.get('label', 'Ohne Label')}", f"Erstellt {ts_text} von <@{b.get('created_by')}>", False))
+    await interaction.response.send_message(embed=create_embed(f"{E.CHANNEL} Backups – {interaction.guild.name}", f"**{len(backups)}** Backups.", COLOR_PRIMARY, fields), ephemeral=True)
+
+@bot.tree.command(name="backup_info", description="Zeigt Details zu einem Backup")
+@app_commands.describe(backup_id="Die Backup-ID")
+@app_commands.default_permissions(administrator=True)
+async def slash_backup_info(interaction: discord.Interaction, backup_id: str) -> None:
+    await interaction.response.defer(ephemeral=True)
+    doc = await _backup_db_get(interaction.guild.id, backup_id)
+    if not doc:
+        await interaction.followup.send(embed=create_embed(f"{E.FAIL} Nicht gefunden", f"Kein Backup `{backup_id}`.", COLOR_DANGER))
+        return
+    data = doc.get("data", {})
+    stats = data.get("stats", {})
+    ts = doc.get("created_at")
+    ts_text = f"<t:{int(ts.timestamp())}:F>" if isinstance(ts, datetime.datetime) else str(ts)
+    pw_status = "🔐 Ja" if doc.get("has_password") else "❌ Nein"
+    fields = [("Backup-ID", f"`{doc.get('backup_id')}`", True), ("Label", doc.get("label", "Ohne Label"), True), ("Erstellt", ts_text, True), ("Von", f"<@{doc.get('created_by')}>", True), ("Passwortgeschützt", pw_status, True), ("Rollen", str(len(data.get("roles", []))), True), ("Kanäle", str(len(data.get("channels", []))), True), ("Kategorien", str(len(data.get("categories", []))), True), ("Emojis", str(len(data.get("emojis", []))), True)]
+    roles = data.get("roles", [])
+    if roles:
+        role_names = ", ".join(r["name"] for r in roles[:15])
+        if len(roles) > 15:
+            role_names += f" … +{len(roles)-15}"
+        fields.append(("Gesicherte Rollen", role_names, False))
+    await interaction.followup.send(embed=create_embed(f"{E.SHIELD} Backup-Info", f"Details zu **{backup_id}**", COLOR_INFO, fields))
+
+@bot.tree.command(name="backup_restore", description="Stellt ein Backup auf diesem Server wieder her")
+@app_commands.describe(backup_id="Die Backup-ID")
+@app_commands.default_permissions(administrator=True)
+async def slash_backup_restore(interaction: discord.Interaction, backup_id: str) -> None:
+    doc = await _backup_db_get(interaction.guild.id, backup_id)
+    if not doc:
+        await interaction.response.send_message(embed=create_embed(f"{E.FAIL} Nicht gefunden", f"Kein Backup `{backup_id}`.", COLOR_DANGER), ephemeral=True)
+        return
+    label = doc.get("label", backup_id)
+    pw = doc.get("has_password", False)
+    pw_text = "\n🔐 **Dieses Backup ist passwortgeschützt!** Du musst das Passwort eingeben." if pw else ""
+    embed = create_embed("⚠️ Backup-Restore bestätigen", f"Backup **{label}** (`{backup_id}`) wiederherstellen?\n\n> Fehlende Rollen/Kanäle werden **erstellt**\n> Bestehende werden **aktualisiert**\n> Nichts wird gelöscht{pw_text}", COLOR_DANGER)
+    await interaction.response.send_message(embed=embed, view=BackupRestoreConfirmView(backup_id, label, interaction.guild, interaction.user, has_password=pw))
+
+@bot.tree.command(name="backup_restore_cross", description="Stellt ein passwortgeschütztes Backup von einem anderen Server wieder her")
+@app_commands.describe(backup_id="Die Backup-ID vom anderen Server")
+@app_commands.default_permissions(administrator=True)
+async def slash_backup_restore_cross(interaction: discord.Interaction, backup_id: str) -> None:
+    doc = await _backup_db_get_any(backup_id)
+    if not doc:
+        await interaction.response.send_message(embed=create_embed(f"{E.FAIL} Nicht gefunden", f"Kein Backup `{backup_id}` gefunden.", COLOR_DANGER), ephemeral=True)
+        return
+    label = doc.get("label", backup_id)
+    source_name = doc.get("guild_name", "Unbekannt")
+    if not doc.get("has_password"):
+        await interaction.response.send_message(embed=create_embed(f"{E.FAIL} Kein Passwort-Schutz", "Cross-Server-Restore erfordert ein passwortgeschütztes Backup. Erstelle es mit `/backup_secure`.", COLOR_WARNING), ephemeral=True)
+        return
+    embed = create_embed("🌐 Cross-Server Restore", f"Backup **{label}** vom Server **{source_name}** (`{backup_id}`).\n\n🔐 Gib das Passwort ein, um fortzufahren.", COLOR_PRIMARY)
+    await interaction.response.send_message(embed=embed, view=BackupPasswordPromptView(backup_id, label, interaction.guild, interaction.user, source_guild_id=doc.get("guild_id")), ephemeral=True)
+
+@bot.tree.command(name="backup_delete", description="Löscht ein Backup")
+@app_commands.describe(backup_id="Die Backup-ID")
+@app_commands.default_permissions(administrator=True)
+async def slash_backup_delete(interaction: discord.Interaction, backup_id: str) -> None:
+    doc = await _backup_db_get(interaction.guild.id, backup_id)
+    if not doc:
+        await interaction.response.send_message(embed=create_embed(f"{E.FAIL} Nicht gefunden", f"Kein Backup `{backup_id}`.", COLOR_DANGER), ephemeral=True)
+        return
+    label = doc.get("label", backup_id)
+    await interaction.response.send_message(embed=create_embed("🗑️ Backup löschen?", f"**{label}** (`{backup_id}`) wirklich löschen?", COLOR_DANGER), view=BackupDeleteConfirmView(backup_id, label, interaction.guild.id, interaction.user), ephemeral=True)
+
+@bot.tree.command(name="backup_autosetup", description="Konfiguriert automatische Backups")
+@app_commands.describe(enabled="Aktivieren/Deaktivieren", interval_hours="Intervall in Stunden", max_backups="Max. Anzahl")
+@app_commands.choices(interval_hours=[app_commands.Choice(name="Alle 6 Stunden", value=6), app_commands.Choice(name="Alle 12 Stunden", value=12), app_commands.Choice(name="Täglich (24h)", value=24), app_commands.Choice(name="Alle 2 Tage (48h)", value=48)])
+@app_commands.default_permissions(administrator=True)
+async def slash_backup_autosetup(interaction: discord.Interaction, enabled: bool, interval_hours: int = 24, max_backups: int = 5) -> None:
+    cfg = bot.db.get_config(interaction.guild.id)
+    backup_cfg = cfg.get("backup_system", {}) or {}
+    backup_cfg["auto_enabled"] = enabled
+    backup_cfg["auto_interval_hours"] = interval_hours
+    backup_cfg["auto_max_backups"] = max_backups
+    cfg["backup_system"] = backup_cfg
+    await bot.db.set_config(interaction.guild.id, cfg)
+    status = f"{E.OK} **Aktiviert**" if enabled else f"{E.FAIL} **Deaktiviert**"
+    embed = create_embed(f"{E.SETTINGS} Auto-Backup", f"Automatische Backups aktualisiert.", COLOR_SUCCESS, [("Status", status, True), ("Intervall", f"{interval_hours}h", True), ("Max.", str(max_backups), True)])
+    await interaction.response.send_message(embed=embed)
+    await bot.log_action(interaction.guild, f"{E.SETTINGS} Auto-Backup {status}", f"{interaction.user.mention}: Intervall={interval_hours}h, Max={max_backups}", COLOR_INFO, user=interaction.user, module="backup")
+
+@bot.tree.command(name="backup_purge", description="Löscht ALLE Backups dieses Servers")
+@app_commands.default_permissions(administrator=True)
+async def slash_backup_purge(interaction: discord.Interaction) -> None:
+    await interaction.response.defer(ephemeral=True)
+    collection = bot.db.client["ModForge"]["backups"]
+    result = await collection.delete_many({"guild_id": interaction.guild.id})
+    await interaction.followup.send(embed=create_embed(f"{E.DELETE} Gelöscht", f"**{result.deleted_count}** Backups gelöscht.", COLOR_SUCCESS))
+    await bot.log_action(interaction.guild, f"{E.DELETE} Backup-Purge", f"{interaction.user.mention}: {result.deleted_count} Backups.", COLOR_WARNING, user=interaction.user, module="backup")
+
+# ═══════════════════════════════════════════════════════════════════
+# AUTO-BACKUP TASK
+# ═══════════════════════════════════════════════════════════════════
+@tasks.loop(minutes=30)
+async def auto_backup_loop() -> None:
+    now = datetime.datetime.utcnow()
+    for guild in bot.guilds:
+        try:
+            cfg = bot.db.get_config(guild.id)
+            backup_cfg = cfg.get("backup_system", {}) or {}
+            if not backup_cfg.get("auto_enabled"):
+                continue
+            interval_hours = backup_cfg.get("auto_interval_hours", 24)
+            last_backup_ts = backup_cfg.get("auto_last_backup")
+            if last_backup_ts:
+                try:
+                    last_dt = datetime.datetime.fromisoformat(last_backup_ts.replace("Z", "")) if isinstance(last_backup_ts, str) else last_backup_ts
+                except ValueError:
+                    last_dt = datetime.datetime.min
+                if (now - last_dt).total_seconds() / 3600 < interval_hours:
+                    continue
+            backup_data = await _collect_backup_data(guild)
+            backup_id = await _backup_db_save(backup_data, bot.user.id, f"Auto-Backup ({now.strftime('%d.%m.%Y %H:%M')})")
+            if backup_id:
+                backup_cfg["auto_last_backup"] = now.isoformat() + "Z"
+                cfg["backup_system"] = backup_cfg
+                await bot.db.set_config(guild.id, cfg)
+                max_backups = backup_cfg.get("auto_max_backups", 5)
+                try:
+                    collection = bot.db.client["ModForge"]["backups"]
+                    all_bk = await collection.find({"guild_id": guild.id}, {"_id": 1}).sort("created_at", 1).to_list(1000)
+                    if len(all_bk) > max_backups:
+                        for old_b in all_bk[:-max_backups]:
+                            await collection.delete_one({"_id": old_b["_id"]})
+                except Exception:
+                    pass
+                await bot.log_action(guild, f"{E.OK} Auto-Backup", f"`{backup_id}` erstellt. Intervall: **{interval_hours}h**", COLOR_SUCCESS, module="backup")
+        except Exception as e:
+            log.error(f"Auto-Backup Loop Fehler für {guild.name}: {e}")
+
+
+# ═══════════════════════════════════════════════════════════════════
+# 1) WELCOME & LEAVE SYSTEM
+# ═══════════════════════════════════════════════════════════════════
+async def _send_welcome(member: discord.Member) -> None:
+    cfg = bot.db.get_config(member.guild.id)
+    wc = cfg.get("welcome", {})
+    if not wc.get("enabled"):
+        return
+    channel_id = wc.get("channel_id")
+    if not channel_id:
+        return
+    channel = member.guild.get_channel(int(channel_id))
+    if not channel:
+        return
+    replacements = {
+        "{mention}": member.mention, "{user}": str(member),
+        "{server}": member.guild.name, "{count}": str(member.guild.member_count),
+        "{name}": member.display_name, "{id}": str(member.id),
+    }
+    title = wc.get("embed_title", "👋 Willkommen!")
+    desc = wc.get("embed_description", "")
+    for k, v in replacements.items():
+        title = title.replace(k, v)
+        desc = desc.replace(k, v)
+    color_hex = wc.get("embed_color", "#22c55e")
+    try:
+        color = int(color_hex.replace("#", ""), 16)
+    except ValueError:
+        color = COLOR_SUCCESS
+    thumb = member.display_avatar.url if wc.get("embed_thumbnail", True) else None
+    embed = create_embed(title, desc, color, thumbnail=thumb)
+    if wc.get("embed_image"):
+        embed.set_image(url=wc["embed_image"])
+    # Welcome-Rollen geben
+    add_roles_cfg = wc.get("add_roles", [])
+    if add_roles_cfg:
+        for r_id in add_roles_cfg:
+            role = member.guild.get_role(int(r_id))
+            if role:
+                try:
+                    await member.add_roles(role, reason="Welcome-Auto-Role")
+                except (discord.Forbidden, discord.HTTPException):
+                    pass
+    try:
+        await channel.send(content=member.mention if wc.get("mention", True) else None, embed=embed)
+    except (discord.Forbidden, discord.HTTPException):
+        pass
+    # DM senden
+    if wc.get("dm_enabled") and wc.get("dm_description"):
+        dm_text = wc["dm_description"]
+        for k, v in replacements.items():
+            dm_text = dm_text.replace(k, v)
+        try:
+            await member.send(dm_text)
+        except (discord.Forbidden, discord.HTTPException):
+            pass
+
+async def _send_leave(member: discord.Member) -> None:
+    cfg = bot.db.get_config(member.guild.id)
+    lc = cfg.get("leave", {})
+    if not lc.get("enabled"):
+        return
+    channel_id = lc.get("channel_id")
+    if not channel_id:
+        return
+    channel = member.guild.get_channel(int(channel_id))
+    if not channel:
+        return
+    replacements = {
+        "{mention}": member.mention, "{user}": str(member),
+        "{server}": member.guild.name, "{count}": str(member.guild.member_count),
+        "{name}": member.display_name, "{id}": str(member.id),
+    }
+    title = lc.get("embed_title", "👋 Auf Wiedersehen!")
+    desc = lc.get("embed_description", "")
+    for k, v in replacements.items():
+        title = title.replace(k, v)
+        desc = desc.replace(k, v)
+    color_hex = lc.get("embed_color", "#ef4444")
+    try:
+        color = int(color_hex.replace("#", ""), 16)
+    except ValueError:
+        color = COLOR_DANGER
+    embed = create_embed(title, desc, color)
+    if lc.get("embed_image"):
+        embed.set_image(url=lc["embed_image"])
+    try:
+        await channel.send(embed=embed)
+    except (discord.Forbidden, discord.HTTPException):
+        pass
+
+# Welcome/Leave in on_member_join/remove einbinden
+# Welcome Setup Dropdown
+class WelcomeChannelSelect(discord.ui.ChannelSelect):
+    def __init__(self) -> None:
+        super().__init__(channel_types=[discord.ChannelType.text], placeholder="Kanal wählen...", max_values=1)
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        channel = self.values[0].resolve()
+        if not channel:
+            return
+        cfg = bot.db.get_config(interaction.guild.id)
+        wc = cfg.get("welcome", {})
+        if not isinstance(wc, dict):
+            wc = {}
+        wc["channel_id"] = channel.id
+        cfg["welcome"] = wc
+        await bot.db.set_config(interaction.guild.id, cfg)
+        await interaction.response.edit_message(embed=create_embed(f"{E.OK} Welcome-Kanal gesetzt", f"Willkommens-Nachrichten werden in {channel.mention} gesendet.", COLOR_SUCCESS), view=None)
+
+class WelcomeSetupView(discord.ui.View):
+    def __init__(self) -> None:
+        super().__init__(timeout=120)
+    @discord.ui.button(label="Welcome-Kanal setzen", style=discord.ButtonStyle.primary, emoji="📢")
+    async def set_channel(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        await interaction.response.send_message("Wähle den Kanal:", view=discord.ui.View().add_item(WelcomeChannelSelect()), ephemeral=True)
+    @discord.ui.button(label="Welcome aktivieren", style=discord.ButtonStyle.success, emoji="✅")
+    async def enable(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        cfg = bot.db.get_config(interaction.guild.id)
+        wc = cfg.get("welcome", {})
+        wc["enabled"] = True
+        cfg["welcome"] = wc
+        await bot.db.set_config(interaction.guild.id, cfg)
+        await interaction.response.send_message(embed=create_embed(f"{E.OK} Welcome aktiviert", "Willkommens-Nachrichten sind jetzt aktiv.", COLOR_SUCCESS), ephemeral=True)
+    @discord.ui.button(label="Leave-Kanal setzen", style=discord.ButtonStyle.secondary, emoji="👋")
+    async def set_leave_ch(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        await interaction.response.send_message("Wähle den Leave-Kanal:", view=discord.ui.View().add_item(LeaveChannelSelect()), ephemeral=True)
+    @discord.ui.button(label="Leave aktivieren", style=discord.ButtonStyle.green, emoji="🚪")
+    async def enable_leave(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        cfg = bot.db.get_config(interaction.guild.id)
+        lc = cfg.get("leave", {})
+        lc["enabled"] = True
+        cfg["leave"] = lc
+        await bot.db.set_config(interaction.guild.id, cfg)
+        await interaction.response.send_message(embed=create_embed(f"{E.OK} Leave aktiviert", "Leave-Nachrichten sind jetzt aktiv.", COLOR_SUCCESS), ephemeral=True)
+
+class LeaveChannelSelect(discord.ui.ChannelSelect):
+    def __init__(self) -> None:
+        super().__init__(channel_types=[discord.ChannelType.text], placeholder="Leave-Kanal wählen...", max_values=1)
+    async def callback(self, interaction: discord.Interaction) -> None:
+        channel = self.values[0].resolve()
+        if not channel:
+            return
+        cfg = bot.db.get_config(interaction.guild.id)
+        lc = cfg.get("leave", {})
+        lc["channel_id"] = channel.id
+        cfg["leave"] = lc
+        await bot.db.set_config(interaction.guild.id, cfg)
+        await interaction.response.edit_message(embed=create_embed(f"{E.OK} Leave-Kanal gesetzt", f"Leave-Nachrichten in {channel.mention}.", COLOR_SUCCESS), view=None)
+
+@bot.tree.command(name="welcome_setup", description="Richtet das Welcome & Leave System ein")
+@app_commands.default_permissions(administrator=True)
+async def slash_welcome_setup(interaction: discord.Interaction) -> None:
+    embed = create_embed("👋 Welcome & Leave Setup", "Konfiguriere Welcome- und Leave-Nachrichten.\n\nVariablen: `{mention}` `{user}` `{server}` `{count}` `{name}` `{id}`\n\nNutze das Web-Dashboard für den Embed-Builder mit Live-Vorschau.", COLOR_PRIMARY)
+    await interaction.response.send_message(embed=embed, view=WelcomeSetupView(), ephemeral=True)
+
+@bot.tree.command(name="welcome_channel", description="Setzt den Kanal für Willkommens-Nachrichten")
+@app_commands.describe(channel="Der Welcome-Kanal")
+@app_commands.default_permissions(administrator=True)
+async def slash_welcome_channel(interaction: discord.Interaction, channel: discord.TextChannel) -> None:
+    cfg = bot.db.get_config(interaction.guild.id)
+    wc = cfg.get("welcome", {})
+    wc["channel_id"] = channel.id
+    cfg["welcome"] = wc
+    await bot.db.set_config(interaction.guild.id, cfg)
+    await interaction.response.send_message(embed=create_embed(f"{E.OK} Welcome-Kanal", f"Willkommens-Nachrichten in {channel.mention}.", COLOR_SUCCESS))
+
+@bot.tree.command(name="leave_channel", description="Setzt den Kanal für Leave-Nachrichten")
+@app_commands.describe(channel="Der Leave-Kanal")
+@app_commands.default_permissions(administrator=True)
+async def slash_leave_channel(interaction: discord.Interaction, channel: discord.TextChannel) -> None:
+    cfg = bot.db.get_config(interaction.guild.id)
+    lc = cfg.get("leave", {})
+    lc["channel_id"] = channel.id
+    cfg["leave"] = lc
+    await bot.db.set_config(interaction.guild.id, cfg)
+    await interaction.response.send_message(embed=create_embed(f"{E.OK} Leave-Kanal", f"Leave-Nachrichten in {channel.mention}.", COLOR_SUCCESS))
+
+
+# ═══════════════════════════════════════════════════════════════════
+# 2) AUTO-ROLE SYSTEM
+# ═══════════════════════════════════════════════════════════════════
+class AutoRoleDropdown(discord.ui.Select):
+    def __init__(self, roles: list) -> None:
+        options = [discord.SelectOption(label=r.name, value=str(r.id), emoji="🏷️") for r in roles[:25]]
+        super().__init__(placeholder="Rolle(n) für Auto-Role wählen...", options=options, min_values=1, max_values=min(len(options), 10))
+    async def callback(self, interaction: discord.Interaction) -> None:
+        cfg = bot.db.get_config(interaction.guild.id)
+        wc = cfg.get("welcome", {})
+        wc["add_roles"] = [int(v) for v in self.values]
+        cfg["welcome"] = wc
+        await bot.db.set_config(interaction.guild.id, cfg)
+        role_mentions = " ".join(f"<@&{v}>" for v in self.values)
+        await interaction.response.edit_message(embed=create_embed(f"{E.OK} Auto-Rollen gesetzt", f"Neue Mitglieder erhalten: {role_mentions}", COLOR_SUCCESS), view=None)
+
+class AutoRoleView(discord.ui.View):
+    def __init__(self, roles: list) -> None:
+        super().__init__(timeout=120)
+        self.add_item(AutoRoleDropdown(roles))
+
+@bot.tree.command(name="autorole", description="Setzt Rollen die neue Mitglieder automatisch erhalten")
+@app_commands.describe(role="Rolle die automatisch gegeben wird (oder nutze Dropdown ohne Parameter)")
+@app_commands.default_permissions(administrator=True)
+async def slash_autorole(interaction: discord.Interaction, role: Optional[discord.Role] = None) -> None:
+    if role:
+        cfg = bot.db.get_config(interaction.guild.id)
+        wc = cfg.get("welcome", {})
+        roles_list = wc.get("add_roles", [])
+        if role.id not in roles_list:
+            roles_list.append(role.id)
+        wc["add_roles"] = roles_list
+        cfg["welcome"] = wc
+        await bot.db.set_config(interaction.guild.id, cfg)
+        await interaction.response.send_message(embed=create_embed(f"{E.OK} Auto-Role", f"{role.mention} wird neuen Mitgliedern gegeben.", COLOR_SUCCESS))
+    else:
+        manageable_roles = [r for r in interaction.guild.roles if not r.is_default() and not r.managed and r.position < interaction.guild.me.top_role.position]
+        if not manageable_roles:
+            await interaction.response.send_message(embed=create_embed(f"{E.FAIL} Keine Rollen", "Keine verwaltbaren Rollen gefunden.", COLOR_DANGER), ephemeral=True)
+            return
+        await interaction.response.send_message(embed=create_embed("🏷️ Auto-Role wählen", "Wähle eine oder mehrere Rollen:", COLOR_PRIMARY), view=AutoRoleView(manageable_roles), ephemeral=True)
+
+@bot.tree.command(name="autorole_remove", description="Entfernt eine Auto-Role")
+@app_commands.describe(role="Die zu entfernende Rolle")
+@app_commands.default_permissions(administrator=True)
+async def slash_autorole_remove(interaction: discord.Interaction, role: discord.Role) -> None:
+    cfg = bot.db.get_config(interaction.guild.id)
+    wc = cfg.get("welcome", {})
+    roles_list = wc.get("add_roles", [])
+    if role.id in roles_list:
+        roles_list.remove(role.id)
+        wc["add_roles"] = roles_list
+        cfg["welcome"] = wc
+        await bot.db.set_config(interaction.guild.id, cfg)
+        await interaction.response.send_message(embed=create_embed(f"{E.OK} Entfernt", f"{role.mention} ist keine Auto-Role mehr.", COLOR_SUCCESS))
+    else:
+        await interaction.response.send_message(embed=create_embed(f"{E.FAIL} Nicht gefunden", f"{role.mention} war keine Auto-Role.", COLOR_WARNING), ephemeral=True)
+
+
+# ═══════════════════════════════════════════════════════════════════
+# 3) CASES-LIST mit Pagination & Dropdown
+# ═══════════════════════════════════════════════════════════════════
+class CasesPageView(discord.ui.View):
+    def __init__(self, cases: list, guild: discord.Guild, page: int = 0, per_page: int = 10) -> None:
+        super().__init__(timeout=120)
+        self.cases = cases
+        self.guild = guild
+        self.page = page
+        self.per_page = per_page
+        self.max_page = max(0, (len(cases) - 1) // per_page)
+        self._update_buttons()
+
+    def _update_buttons(self) -> None:
+        self.children.clear()
+        if self.page > 0:
+            self.add_item(discord.ui.Button(label="◀️ Zurück", style=discord.ButtonStyle.secondary, custom_id="prev"))
+        if self.page < self.max_page:
+            self.add_item(discord.ui.Button(label="▶️ Weiter", style=discord.ButtonStyle.secondary, custom_id="next"))
+
+    def _get_embed(self) -> discord.Embed:
+        start = self.page * self.per_page
+        end = start + self.per_page
+        page_cases = self.cases[start:end]
+        if not page_cases:
+            return create_embed(f"{E.CHANNEL} Cases", "Keine Cases vorhanden.", COLOR_INFO)
+        fields = []
+        for c in page_cases:
+            ts = c.get("created_at")
+            ts_text = f"<t:{int(ts.timestamp())}:R>" if isinstance(ts, datetime.datetime) else "?"
+            fields.append((f"Case #{c.get('case_id', '?')} – {c.get('action', '?').upper()}", f"<@{c.get('user_id', '?')}> | {c.get('reason', '—')[:60]} | {ts_text}", False))
+        return create_embed(f"{E.CHANNEL} Cases – {self.guild.name} (Seite {self.page+1}/{self.max_page+1})", f"**{len(self.cases)}** Cases insgesamt.", COLOR_INFO, fields)
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        return True
+
+    async def on_error(self, interaction: discord.Interaction, error: Exception, item: discord.ui.Item) -> None:
+        log.error(f"CasesPageView Fehler: {error}")
+
+    @discord.ui.button(label="◀️ Zurück", style=discord.ButtonStyle.secondary)
+    async def prev_page(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        self.page = max(0, self.page - 1)
+        self._update_buttons()
+        await interaction.response.edit_message(embed=self._get_embed(), view=self)
+
+    @discord.ui.button(label="▶️ Weiter", style=discord.ButtonStyle.secondary)
+    async def next_page(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        self.page = min(self.max_page, self.page + 1)
+        self._update_buttons()
+        await interaction.response.edit_message(embed=self._get_embed(), view=self)
+
+@bot.tree.command(name="cases", description="Zeigt alle Cases mit Pagination")
+@app_commands.describe(user="Optional: Nur Cases eines bestimmten Nutzers")
+@app_commands.default_permissions(manage_messages=True)
+async def slash_cases(interaction: discord.Interaction, user: Optional[discord.User] = None) -> None:
+    await interaction.response.defer(ephemeral=True)
+    if user:
+        cases = await bot.db.aget_recent_cases(interaction.guild.id, limit=200)
+        cases = [c for c in cases if c.get("user_id") == user.id]
+    else:
+        cases = await bot.db.aget_recent_cases(interaction.guild.id, limit=200)
+    if not cases:
+        await interaction.followup.send(embed=create_embed(f"{E.CHANNEL} Cases", "Keine Cases gefunden.", COLOR_INFO), ephemeral=True)
+        return
+    view = CasesPageView(cases, interaction.guild)
+    await interaction.followup.send(embed=view._get_embed(), view=view, ephemeral=True)
+
+
+# ═══════════════════════════════════════════════════════════════════
+# 4) STICKY ROLES
+# ═══════════════════════════════════════════════════════════════════
+async def _save_sticky_roles(member: discord.Member) -> None:
+    cfg = bot.db.get_config(member.guild.id)
+    sticky_roles = cfg.get("sticky_roles", [])
+    if not sticky_roles:
+        return
+    member_sticky = [r.id for r in member.roles if r.id in sticky_roles and not r.is_default() and not r.managed]
+    if member_sticky:
+        try:
+            collection = bot.db.client["ModForge"]["sticky_roles"]
+            await collection.update_one({"guild_id": member.guild.id, "user_id": member.id}, {"$set": {"roles": member_sticky, "saved_at": datetime.datetime.utcnow()}}, upsert=True)
+        except Exception as e:
+            log.error(f"Sticky-Roles Save Fehler: {e}")
+
+async def _restore_sticky_roles(member: discord.Member) -> None:
+    cfg = bot.db.get_config(member.guild.id)
+    sticky_roles = cfg.get("sticky_roles", [])
+    if not sticky_roles:
+        return
+    try:
+        collection = bot.db.client["ModForge"]["sticky_roles"]
+        doc = await collection.find_one({"guild_id": member.guild.id, "user_id": member.id})
+        if doc and doc.get("roles"):
+            for r_id in doc["roles"]:
+                role = member.guild.get_role(r_id)
+                if role and role.id in sticky_roles:
+                    try:
+                        await member.add_roles(role, reason="Sticky-Roles Restore")
+                    except (discord.Forbidden, discord.HTTPException):
+                        pass
+    except Exception as e:
+        log.error(f"Sticky-Roles Restore Fehler: {e}")
+
+class StickyRoleDropdown(discord.ui.Select):
+    def __init__(self, roles: list, current_sticky: list) -> None:
+        options = [discord.SelectOption(label=r.name, value=str(r.id), default=r.id in current_sticky, emoji="📌") for r in roles[:25]]
+        super().__init__(placeholder="Sticky-Rollen wählen...", options=options, min_values=0, max_values=min(len(options), 10))
+    async def callback(self, interaction: discord.Interaction) -> None:
+        cfg = bot.db.get_config(interaction.guild.id)
+        cfg["sticky_roles"] = [int(v) for v in self.values]
+        await bot.db.set_config(interaction.guild.id, cfg)
+        roles_text = " ".join(f"<@&{v}>" for v in self.values) if self.values else "Keine"
+        await interaction.response.edit_message(embed=create_embed(f"{E.OK} Sticky-Rollen aktualisiert", f"Aktive Sticky-Rollen: {roles_text}", COLOR_SUCCESS), view=None)
+
+class StickyRoleView(discord.ui.View):
+    def __init__(self, roles: list, current_sticky: list) -> None:
+        super().__init__(timeout=120)
+        self.add_item(StickyRoleDropdown(roles, current_sticky))
+
+@bot.tree.command(name="stickyrole", description="Konfiguriert Sticky-Rollen (werden nach Rejoin zurückgegeben)")
+@app_commands.describe(role="Rolle als Sticky markieren (oder ohne Parameter für Dropdown)")
+@app_commands.default_permissions(administrator=True)
+async def slash_stickyrole(interaction: discord.Interaction, role: Optional[discord.Role] = None) -> None:
+    cfg = bot.db.get_config(interaction.guild.id)
+    sticky = cfg.get("sticky_roles", [])
+    if role:
+        if role.id not in sticky:
+            sticky.append(role.id)
+        cfg["sticky_roles"] = sticky
+        await bot.db.set_config(interaction.guild.id, cfg)
+        await interaction.response.send_message(embed=create_embed(f"{E.OK} Sticky-Role", f"{role.mention} ist jetzt eine Sticky-Role.", COLOR_SUCCESS))
+    else:
+        manageable = [r for r in interaction.guild.roles if not r.is_default() and not r.managed and r.position < interaction.guild.me.top_role.position]
+        if not manageable:
+            await interaction.response.send_message(embed=create_embed(f"{E.FAIL} Keine Rollen", "Keine verwaltbaren Rollen.", COLOR_DANGER), ephemeral=True)
+            return
+        await interaction.response.send_message(embed=create_embed("📌 Sticky-Rollen", "Wähle Rollen die nach Rejoin zurückgegeben werden:", COLOR_PRIMARY), view=StickyRoleView(manageable, sticky), ephemeral=True)
+
+@bot.tree.command(name="stickyrole_remove", description="Entfernt eine Sticky-Role")
+@app_commands.describe(role="Die zu entfernende Rolle")
+@app_commands.default_permissions(administrator=True)
+async def slash_stickyrole_remove(interaction: discord.Interaction, role: discord.Role) -> None:
+    cfg = bot.db.get_config(interaction.guild.id)
+    sticky = cfg.get("sticky_roles", [])
+    if role.id in sticky:
+        sticky.remove(role.id)
+        cfg["sticky_roles"] = sticky
+        await bot.db.set_config(interaction.guild.id, cfg)
+        await interaction.response.send_message(embed=create_embed(f"{E.OK} Entfernt", f"{role.mention} ist keine Sticky-Role mehr.", COLOR_SUCCESS))
+    else:
+        await interaction.response.send_message(embed=create_embed(f"{E.FAIL} Nicht gefunden", f"{role.mention} ist keine Sticky-Role.", COLOR_WARNING), ephemeral=True)
+
+
+# ═══════════════════════════════════════════════════════════════════
+# 5) TEMPORARY VOICE CHANNELS
+# ═══════════════════════════════════════════════════════════════════
+class TempVoiceDropdown(discord.ui.Select):
+    def __init__(self) -> None:
+        options = [
+            discord.SelectOption(label="🎤 Kanal erstellen", value="create", description="Temp-Voice-Setup starten", emoji="🎤"),
+            discord.SelectOption(label="⚙️ Einstellungen", value="settings", description="Temp-Voice konfigurieren", emoji="⚙️"),
+            discord.SelectOption(label="🗑️ Setup entfernen", value="remove", description="Temp-Voice deaktivieren", emoji="🗑️"),
+        ]
+        super().__init__(placeholder="Temp-Voice Aktion...", options=options, min_values=1, max_values=1)
+    async def callback(self, interaction: discord.Interaction) -> None:
+        val = self.values[0]
+        if val == "create":
+            await interaction.response.send_message(embed=create_embed("🎤 Temp-Voice Setup", "Nutze `/tempvoice_setup <channel>` um einen Join-to-Create Kanal einzurichten.", COLOR_INFO), ephemeral=True)
+        elif val == "settings":
+            cfg = bot.db.get_config(interaction.guild.id)
+            tv = cfg.get("temp_voice", {})
+            fields = [("Aktiviert", f"{'✅' if tv.get('enabled') else '❌'}", True), ("Join-Kanal", f"<#{tv.get('channel_id')}>" if tv.get('channel_id') else "Nicht gesetzt", True), ("Kategorie", f"<#{tv.get('category_id')}>" if tv.get('category_id') else "Auto", True)]
+            await interaction.response.edit_message(embed=create_embed("⚙️ Temp-Voice Einstellungen", "", COLOR_INFO, fields), view=None)
+        elif val == "remove":
+            cfg = bot.db.get_config(interaction.guild.id)
+            cfg["temp_voice"] = {"enabled": False}
+            await bot.db.set_config(interaction.guild.id, cfg)
+            await interaction.response.edit_message(embed=create_embed(f"{E.OK} Temp-Voice deaktiviert", "Temporäre Voice-Kanäle sind jetzt deaktiviert.", COLOR_SUCCESS), view=None)
+
+class TempVoiceMenuView(discord.ui.View):
+    def __init__(self) -> None:
+        super().__init__(timeout=120)
+        self.add_item(TempVoiceDropdown())
+
+@bot.tree.command(name="tempvoice", description="Interaktives Temp-Voice Menü")
+@app_commands.default_permissions(administrator=True)
+async def slash_tempvoice_menu(interaction: discord.Interaction) -> None:
+    await interaction.response.send_message(embed=create_embed("🎤 Temp-Voice System", "Wähle eine Aktion:", COLOR_PRIMARY), view=TempVoiceMenuView(), ephemeral=True)
+
+@bot.tree.command(name="tempvoice_setup", description="Richtet temporäre Voice-Kanäle ein")
+@app_commands.describe(channel="Der Join-to-Create Kanal", category="Kategorie für temporäre Kanäle")
+@app_commands.default_permissions(administrator=True)
+async def slash_tempvoice_setup(interaction: discord.Interaction, channel: discord.VoiceChannel, category: Optional[discord.CategoryChannel] = None) -> None:
+    cfg = bot.db.get_config(interaction.guild.id)
+    cfg["temp_voice"] = {"enabled": True, "channel_id": channel.id, "category_id": category.id if category else None}
+    await bot.db.set_config(interaction.guild.id, cfg)
+    embed = create_embed(f"{E.OK} Temp-Voice eingerichtet", f"Join-to-Create: {channel.mention}\nKategorie: {category.mention if category else 'Automatisch'}", COLOR_SUCCESS)
+    await interaction.response.send_message(embed=embed)
+    await bot.log_action(interaction.guild, f"{E.OK} Temp-Voice Setup", f"{channel.mention} als Join-to-Create von {interaction.user.mention}.", COLOR_SUCCESS, user=interaction.user, module="moderation")
+
+
+# ═══════════════════════════════════════════════════════════════════
+# 8) MASS-BAN COMMAND
+# ═══════════════════════════════════════════════════════════════════
+class MassBanConfirmView(discord.ui.View):
+    def __init__(self, user_ids: list, reason: str, user: discord.Member) -> None:
+        super().__init__(timeout=60)
+        self.user_ids = user_ids
+        self.reason = reason
+        self.user = user
+
+    @discord.ui.button(label="Ja, alle Bannen", style=discord.ButtonStyle.danger, emoji="🔨")
+    async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        if interaction.user.id != self.user.id:
+            return
+        await interaction.response.defer()
+        banned = 0
+        failed = 0
+        for uid in self.user_ids:
+            try:
+                target = await interaction.guild.fetch_member(uid)
+                await target.ban(reason=f"Mass-Ban: {self.reason} (durch {interaction.user})")
+                banned += 1
+            except (discord.NotFound, discord.Forbidden, discord.HTTPException):
+                failed += 1
+            await asyncio.sleep(0.5)
+        embed = create_embed(f"{E.BAN} Mass-Ban abgeschlossen", f"**{banned}** gebannt, **{failed}** fehlgeschlagen.", COLOR_DANGER if banned > 0 else COLOR_WARNING)
+        await interaction.followup.send(embed=embed)
+        await bot.log_action(interaction.guild, f"{E.BAN} Mass-Ban", f"{interaction.user.mention} hat {banned} Nutzer gebannt: {self.reason}", COLOR_DANGER, user=interaction.user, module="moderation")
+
+    @discord.ui.button(label="Abbrechen", style=discord.ButtonStyle.secondary, emoji="❌")
+    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        if interaction.user.id != self.user.id:
+            return
+        await interaction.response.edit_message(embed=create_embed("🚫 Abgebrochen", "Mass-Ban nicht ausgeführt.", COLOR_WARNING), view=None)
+
+@bot.tree.command(name="massban", description="Bannt mehrere Nutzer gleichzeitig")
+@app_commands.describe(user_ids="Komma-getrennte User-IDs (z.B. 123,456,789)", reason="Grund für den Mass-Ban")
+@app_commands.default_permissions(ban_members=True)
+async def slash_massban(interaction: discord.Interaction, user_ids: str, reason: str = "Mass-Ban") -> None:
+    id_list = []
+    for part in re.split(r'[,;\s]+', user_ids.strip()):
+        part = part.strip()
+        if part.isdigit():
+            id_list.append(int(part))
+    if not id_list:
+        await interaction.response.send_message(embed=create_embed(f"{E.FAIL} Fehler", "Keine gültigen IDs gefunden.", COLOR_DANGER), ephemeral=True)
+        return
+    if len(id_list) > 50:
+        await interaction.response.send_message(embed=create_embed(f"{E.FAIL} Zu viele", "Max. 50 Nutzer pro Mass-Ban.", COLOR_DANGER), ephemeral=True)
+        return
+    id_text = ", ".join(f"`{uid}`" for uid in id_list[:10])
+    if len(id_list) > 10:
+        id_text += f" … +{len(id_list)-10}"
+    embed = create_embed("⚠️ Mass-Ban bestätigen", f"**{len(id_list)} Nutzer** werden gebannt.\nGrund: {reason}\nIDs: {id_text}", COLOR_DANGER)
+    await interaction.response.send_message(embed=embed, view=MassBanConfirmView(id_list, reason, interaction.user))
+
+
+# ═══════════════════════════════════════════════════════════════════
+# 9) VOTE / TOP.GG SYSTEM
+# ═══════════════════════════════════════════════════════════════════
+@bot.tree.command(name="vote", description="VOTE für ModForge auf top.gg und erhalte Belohnungen!")
+async def slash_vote(interaction: discord.Interaction) -> None:
+    embed = create_embed("⬆️ Vote für ModForge!", "Supporte ModForge indem du auf top.gg votest!\n\n**Deine Vorteile:**\n> 🏆 Extra Backup-Slots\n> ⚡ Prioritäts-Support\n> 🎨 Exklusive Commands\n> 🛡️ Erweiterte Security-Funktionen", COLOR_PRIMARY,
+        [("[🔗 Auf top.gg voten](https://top.gg/bot/VOTE_HERE/vote)", "Klicke hier zum Voten!", False),
+         ("💡 Tipp", "Nach dem Vote erhältst du automatisch deine Belohnungen!", False)])
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+@bot.tree.command(name="vote_setup", description="Setzt die Vote-Belohnungsrolle")
+@app_commands.describe(role="Die Vote-Belohnungsrolle")
+@app_commands.default_permissions(administrator=True)
+async def slash_vote_setup(interaction: discord.Interaction, role: discord.Role) -> None:
+    cfg = bot.db.get_config(interaction.guild.id)
+    cfg["vote_reward_role"] = role.id
+    await bot.db.set_config(interaction.guild.id, cfg)
+    await interaction.response.send_message(embed=create_embed(f"{E.OK} Vote-Belohnung gesetzt", f"{role.mention} wird nach dem Vote gegeben (24h gültig).", COLOR_SUCCESS))
+
+@bot.tree.command(name="vote_status", description="Zeigt dein Vote-Status")
+async def slash_vote_status(interaction: discord.Interaction) -> None:
+    cfg = bot.db.get_config(interaction.guild.id)
+    reward_role_id = cfg.get("vote_reward_role")
+    embed = create_embed("⬆️ Vote-Status", f"Hallo {interaction.user.mention}!\n\nVoten unterstützt die Entwicklung von ModForge.", COLOR_INFO,
+        [("[🔗 Jetzt voten](https://top.gg/bot/VOTE_HERE/vote)", "Jeder Vote zählt!", False),
+         ("Belohnungsrolle", f"<@&{reward_role_id}>" if reward_role_id else "Nicht konfiguriert", True)])
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+
+# ═══════════════════════════════════════════════════════════════════
+# 10) REACTION ROLES
+# ═══════════════════════════════════════════════════════════════════
+class ReactionRoleDropdown(discord.ui.Select):
+    def __init__(self, roles: list) -> None:
+        options = [discord.SelectOption(label=r.name, value=str(r.id), emoji="🎭") for r in roles[:25]]
+        super().__init__(placeholder="Rolle(n) wählen...", options=options, min_values=1, max_values=min(len(options), 10))
+    async def callback(self, interaction: discord.Interaction) -> None:
+        selected_roles = self.values
+        role_mentions = " ".join(f"<@&{r}>" for r in selected_roles)
+        await interaction.response.edit_message(embed=create_embed(f"{E.OK} Rollen erhalten", f"Dir wurden folgende Rollen gegeben: {role_mentions}", COLOR_SUCCESS), view=None)
+        for r_id in selected_roles:
+            role = interaction.guild.get_role(int(r_id))
+            if role:
+                try:
+                    await interaction.user.add_roles(role, reason="Reaction Role (Dropdown)")
+                except (discord.Forbidden, discord.HTTPException):
+                    pass
+
+class ReactionRoleView(discord.ui.View):
+    def __init__(self) -> None:
+        super().__init__(timeout=None)
+
+    @discord.ui.select(cls=discord.ui.RoleSelect, placeholder="Wähle eine Rolle...", min_values=1, max_values=1)
+    async def select_role(self, interaction: discord.Interaction, select: discord.ui.RoleSelect) -> None:
+        role = select.values[0]
+        if role.managed or role.is_default():
+            await interaction.response.send_message(f"{E.FAIL} Diese Rolle kann nicht vergeben werden.", ephemeral=True)
+            return
+        try:
+            if role in interaction.user.roles:
+                await interaction.user.remove_roles(role, reason="Reaction Role (abgewählt)")
+                await interaction.response.send_message(embed=create_embed(f"{E.OK} Rolle entfernt", f"{role.mention} wurde entfernt.", COLOR_WARNING), ephemeral=True)
+            else:
+                await interaction.user.add_roles(role, reason="Reaction Role")
+                await interaction.response.send_message(embed=create_embed(f"{E.OK} Rolle erhalten", f"{role.mention} wurde dir gegeben.", COLOR_SUCCESS), ephemeral=True)
+        except discord.Forbidden:
+            await interaction.response.send_message(f"{E.FAIL} Keine Berechtigung.", ephemeral=True)
+
+@bot.tree.command(name="reactionrole", description="Erstellt eine Reaction-Role Nachricht mit Dropdown")
+@app_commands.describe(channel="Kanal für die Reaction-Role Nachricht", title="Titel der Nachricht", description="Beschreibung der Nachricht")
+@app_commands.default_permissions(administrator=True)
+async def slash_reactionrole(interaction: discord.Interaction, channel: discord.TextChannel, title: str = "🎭 Wähle deine Rollen", description: str = "Klicke auf das Dropdown um Rollen zu erhalten oder zu entfernen.") -> None:
+    embed = create_embed(title, description, COLOR_PRIMARY, [("Anleitung", "Nutze das Dropdown unten um Rollen zu togglen.", False)],
+        thumbnail=interaction.guild.icon.url if interaction.guild.icon else None)
+    view = ReactionRoleView()
+    try:
+        msg = await channel.send(embed=embed, view=view)
+        await interaction.response.send_message(embed=create_embed(f"{E.OK} Reaction-Role erstellt", f"Nachricht in {channel.mention}: [Link]({msg.jump_url})", COLOR_SUCCESS))
+        await bot.log_action(interaction.guild, f"{E.OK} Reaction-Role", f"Dropdown in {channel.mention} von {interaction.user.mention}.", COLOR_SUCCESS, user=interaction.user, module="moderation")
+    except discord.Forbidden:
+        await interaction.response.send_message(embed=create_embed(f"{E.FAIL} Keine Rechte", "Ich darf dort keine Nachrichten senden.", COLOR_DANGER), ephemeral=True)
