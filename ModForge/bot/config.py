@@ -136,9 +136,12 @@ LOG_MODULES = (
     "antimention", "automod", "antiscam", "antishortener", "voice",
     "members", "nicknames", "channels", "roles", "permissions",
     "webhooks", "appeal", "verify", "tickets", "warns", "errors",
-    "cases", "audit", "backup", "messages", "messages_sent", "ghostping",
-    "welcome", "leave",
+    "cases", "audit", "backup", "welcome",
 )
+
+# Zusätzliche Module die per /logset als String eingegeben werden können
+# (nicht als Dropdown-Choice, da Discord max 25 erlaubt)
+LOG_MODULES_EXTRA = ("messages", "messages_sent", "ghostping", "leave")
 
 DEFAULT_CONFIG = {
     "security_level": 0,
