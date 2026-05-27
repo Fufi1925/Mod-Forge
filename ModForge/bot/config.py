@@ -136,7 +136,8 @@ LOG_MODULES = (
     "antimention", "automod", "antiscam", "antishortener", "voice",
     "members", "nicknames", "channels", "roles", "permissions",
     "webhooks", "appeal", "verify", "tickets", "warns", "errors",
-    "cases", "audit",
+    "cases", "audit", "backup", "messages", "messages_sent", "ghostping",
+    "welcome", "leave",
 )
 
 DEFAULT_CONFIG = {
@@ -209,7 +210,43 @@ DEFAULT_CONFIG = {
         ],
         "max_safe_position_pct": 80
     },
-    "appeal_log_channel": None
+    "appeal_log_channel": None,
+    "backup_system": {
+        "auto_enabled": False,
+        "auto_interval_hours": 24,
+        "auto_max_backups": 5,
+        "auto_last_backup": None
+    },
+    "welcome": {
+        "enabled": False,
+        "channel_id": None,
+        "embed_title": "👋 Willkommen auf {server}!",
+        "embed_description": "Hallo {mention}! Willkommen auf **{server}**! Du bist Mitglied #{count}.",
+        "embed_color": "#22c55e",
+        "embed_image": "",
+        "embed_thumbnail": True,
+        "embed": True,
+        "mention": True,
+        "add_roles": [],
+        "dm_enabled": False,
+        "dm_description": ""
+    },
+    "leave": {
+        "enabled": False,
+        "channel_id": None,
+        "embed_title": "👋 Auf Wiedersehen!",
+        "embed_description": "**{user}** hat den Server verlassen. Wir haben jetzt {count} Mitglieder.",
+        "embed_color": "#ef4444",
+        "embed_image": "",
+        "embed": True
+    },
+    "sticky_roles": [],
+    "temp_voice": {
+        "enabled": False,
+        "channel_id": None,
+        "category_id": None
+    },
+    "vote_reward_role": None
 }
 
 # ═══════════════════════════════════════════════════════════════
@@ -338,6 +375,34 @@ HELP_DATA = {
         ("User DM: !start", "Beginnt Fragebogen", "—", "—"),
         ("User DM: !abbruch", "Bricht Appeal ab", "—", "—"),
         ("Buttons im Appeal-Channel", "Mod kann annehmen/ablehnen mit Notiz", "Ban Members", "—"),
+    ]),
+    "backup": (f"{E.SHIELD} Backup-System", [
+        ("/backup", "Interaktives Backup-Menü mit Dropdown", "Administrator", "/backup"),
+        ("/backup_create [label]", "Backup ohne Passwort", "Administrator", "/backup_create Vor Reset"),
+        ("/backup_secure", "Passwortgeschütztes Backup", "Administrator", "/backup_secure"),
+        ("/backup_list", "Alle Backups anzeigen", "Administrator", "/backup_list"),
+        ("/backup_info <id>", "Details zu einem Backup", "Administrator", "/backup_info abc123"),
+        ("/backup_restore <id>", "Backup restoren", "Administrator", "/backup_restore abc123"),
+        ("/backup_restore_cross <id>", "Cross-Server Restore (passwortgeschützt)", "Administrator", "/backup_restore_cross abc123"),
+        ("/backup_delete <id>", "Backup löschen", "Administrator", "/backup_delete abc123"),
+        ("/backup_autosetup <on/off>", "Auto-Backups konfigurieren", "Administrator", "/backup_autosetup true"),
+        ("/backup_purge", "ALLE Backups löschen", "Administrator", "/backup_purge"),
+    ]),
+    "extras": (f"{E.GEAR} Extras", [
+        ("/autorole [role]", "Auto-Role für neue Mitglieder", "Administrator", "/autorole @Member"),
+        ("/autorole_remove <role>", "Auto-Role entfernen", "Administrator", "/autorole_remove @Member"),
+        ("/stickyrole [role]", "Sticky-Role (nach Rejoin)", "Administrator", "/stickyrole @VIP"),
+        ("/stickyrole_remove <role>", "Sticky-Role entfernen", "Administrator", "/stickyrole_remove @VIP"),
+        ("/tempvoice", "Temp-Voice Menü (Dropdown)", "Administrator", "/tempvoice"),
+        ("/tempvoice_setup <channel>", "Temp-Voice Join-to-Create", "Administrator", "/tempvoice_setup #JoinVoice"),
+        ("/welcome_setup", "Welcome & Leave Setup", "Administrator", "/welcome_setup"),
+        ("/welcome_channel <#ch>", "Welcome-Kanal setzen", "Administrator", "/welcome_channel #welcome"),
+        ("/leave_channel <#ch>", "Leave-Kanal setzen", "Administrator", "/leave_channel #leave"),
+        ("/cases [user]", "Cases-Liste mit Pagination", "Manage Messages", "/cases @User"),
+        ("/massban <ids> [reason]", "Massen-Ban", "Ban Members", "/massban 123,456,789 Spam"),
+        ("/reactionrole <#ch>", "Reaction-Role Dropdown erstellen", "Administrator", "/reactionrole #roles"),
+        ("/vote", "Für ModForge voten", "—", "/vote"),
+        ("/vote_setup <role>", "Vote-Belohnungsrolle", "Administrator", "/vote_setup @Voter"),
     ]),
 }
 
