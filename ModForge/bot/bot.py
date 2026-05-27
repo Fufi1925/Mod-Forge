@@ -24,6 +24,7 @@ from bot.config import (
     COLOR_INFO, COLOR_PURPLE, FOOTER_TEXT, FOOTER_ICON, VERIFY_BANNER_URL,
     E, URL_REGEX, INVITE_REGEX, ZALGO_REGEX, SUSPICIOUS_NAME_REGEX,
     SCAM_DOMAINS, URL_SHORTENERS, VALID_PUNISHMENTS, LOG_MODULES,
+    LOG_MODULES_EXTRA,
     DEFAULT_CONFIG, HELP_DATA, get_uptime, BOT_START_TIME, EXTRA_UPTIME, log
 )
 from bot.utils import (
@@ -4028,7 +4029,8 @@ async def slash_logview(interaction: discord.Interaction) -> None:
 
     fields = [("Standard / Fallback",
                f"<#{default_id}>" if default_id else "*Nicht gesetzt*", False)]
-    for mod in LOG_MODULES:
+    all_modules = list(LOG_MODULES) + list(LOG_MODULES_EXTRA)
+    for mod in all_modules:
         cid = log_channels.get(mod)
         fields.append((mod, f"<#{cid}>" if cid else "*Standard*", True))
     embed = create_embed(f"{E.CHANNEL} Log-Konfiguration",
@@ -4040,7 +4042,8 @@ async def slash_logview(interaction: discord.Interaction) -> None:
 @bot.tree.command(name="logmodules", description="Listet alle verfügbaren Log-Module")
 @app_commands.default_permissions(administrator=True)
 async def slash_logmodules(interaction: discord.Interaction) -> None:
-    text = "\n".join(f"• `{m}`" for m in LOG_MODULES)
+    all_mods = list(LOG_MODULES) + list(LOG_MODULES_EXTRA)
+    text = "\n".join(f"• `{m}`" for m in all_mods)
     embed = create_embed(f"{E.CHANNEL} Verfügbare Log-Module",
                          text, COLOR_INFO)
     await interaction.response.send_message(embed=embed, ephemeral=True)
