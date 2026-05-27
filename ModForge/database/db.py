@@ -356,6 +356,13 @@ class Database:
                 [("guild_id", ASCENDING), ("user_id", ASCENDING)], name="cases_user_lookup")
             await self.guild_events.create_index([("timestamp", DESCENDING)], name="events_recent")
             await self.server_accounts.create_index("guild_id", unique=True, name="sa_guild_unique")
+            # Backup-Collection Indizes
+            try:
+                backup_col = self.client["ModForge"]["backups"]
+                await backup_col.create_index([("guild_id", 1), ("backup_id", 1)], unique=True, name="backup_guild_id_unique")
+                await backup_col.create_index([("guild_id", 1), ("created_at", -1)], name="backup_guild_created")
+            except Exception as e:
+                log.warning(f"Backup-Index Fehler (nicht kritisch): {e}")
             log.info("MongoDB-Indizes erstellt/verifiziert.")
         except PyMongoError as e:
             log.error(f"DB ensure_indexes Fehler: {e}")
