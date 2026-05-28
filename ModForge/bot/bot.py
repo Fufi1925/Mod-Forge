@@ -56,6 +56,30 @@ class Tracker:
         while dq and now - dq[0] > window:
             dq.popleft()
 
+# ═══════════════════════════════════════════════════════════════
+# DM COOLDOWN — verhindert doppelte DMs
+# ═══════════════════════════════════════════════════════════════
+_dm_sent: Dict[str, float] = {}
+
+async def safe_dm(user, embed, cooldown_key: str = None, cooldown_seconds: int = 30):
+    """Sendet eine DM an einen User mit Duplikat-Schutz."""
+    if user.bot:
+        return False
+    key = cooldown_key or f"{user.id}:{embed.title or 'dm'}"
+    now = time.time()
+    if key in _dm_sent and now - _dm_sent[key] < cooldown_seconds:
+        return False  # Duplikat — nicht senden
+    try:
+        await user.send(embed=embed)
+        _dm_sent[key] = now
+        # Cleanup alte Einträge
+        expired = [k for k, v in _dm_sent.items() if now - v > 300]
+        for k in expired:
+            _dm_sent.pop(k, None)
+        return True
+    except (discord.Forbidden, discord.HTTPException):
+        return False
+
 # ═══════════════════════════════════════════════════════════════════
 # VIEWS & MODALS
 # ═══════════════════════════════════════════════════════════════════
@@ -545,16 +569,56 @@ class ModForge(commands.Bot):
                 count = await self.db.aadd_warning(guild.id, member.id, reason, mod_id)
                 await self._check_warn_thresholds(member, count)
                 executed = True
+                # DM an User
+                dm_e = create_embed(
+                    f"{E.WARN} Verwarnung erhalten",
+                    f"Du wurdest auf **{guild.name}** verwarnt.\n\n"
+                    f"**Grund:** {reason}\n"
+                    f"**Verwarnungen:** {count}",
+                    COLOR_WARNING,
+                    thumbnail=guild.icon.url if guild.icon else None
+                )
+                dm_e.set_footer(text=f"{guild.name} · ModForge", icon_url=FOOTER_ICON)
+                await safe_dm(member, dm_e, cooldown_key=f"warn:{guild.id}:{member.id}")
             elif punishment == "timeout":
                 until = discord.utils.utcnow() + datetime.timedelta(seconds=duration)
                 await member.timeout(until, reason=reason)
                 await self.db.aadd_mute(guild.id, member.id, reason, mod_id, duration)
                 executed = True
+                # DM wird von on_member_update gesendet (Timeout-Event)
             elif punishment == "kick":
+                # DM VOR dem Kick (danach nicht mehr möglich)
+                dm_e = create_embed(
+                    f"{E.KICK} Du wurdest gekickt",
+                    f"Du wurdest von **{guild.name}** gekickt.\n\n**Grund:** {reason}",
+                    COLOR_DANGER,
+                    thumbnail=guild.icon.url if guild.icon else None
+                )
+                dm_e.set_footer(text=f"{guild.name} · ModForge", icon_url=FOOTER_ICON)
+                await safe_dm(member, dm_e, cooldown_key=f"kick:{guild.id}:{member.id}")
                 await member.kick(reason=reason)
                 executed = True
             elif punishment == "ban":
                 pre_messages = await self.db.aget_user_messages(guild.id, member.id, hours=48, limit=500)
+                # DM VOR dem Ban senden
+                cfg_ban = self.db.get_config(guild.id)
+                autoappeal = cfg_ban.get("auto_ban_appeal", {})
+                appeal_text = ""
+                if autoappeal.get("enabled"):
+                    appeal_text = (
+                        f"\n\n**📋 Ban-Appeal:**\n"
+                        f"Du kannst einen Entbannungsantrag stellen.\n"
+                        f"Sende `!start` in diese DM um den Prozess zu starten."
+                    )
+                dm_e = create_embed(
+                    f"{E.BAN} Du wurdest gebannt",
+                    f"Du wurdest von **{guild.name}** gebannt.\n\n"
+                    f"**Grund:** {reason}{appeal_text}",
+                    COLOR_DANGER,
+                    thumbnail=guild.icon.url if guild.icon else None
+                )
+                dm_e.set_footer(text=f"{guild.name} · ModForge", icon_url=FOOTER_ICON)
+                await safe_dm(member, dm_e, cooldown_key=f"ban:{guild.id}:{member.id}")
                 await member.ban(reason=reason, delete_message_seconds=86400)
                 executed = True
                 case_id = await self.db.acreate_case(guild.id, member.id, mod_id, "ban", reason, duration=None)
@@ -618,6 +682,12 @@ class ModForge(commands.Bot):
                 continue
 
     def is_whitelisted(self, member, bypass_type=None) -> bool:
+        # Bot erkennt sich IMMER als whitelisted — nie gegen sich selbst handeln
+        if member.id == self.user.id:
+            return True
+        # Server-Owner ist immer geschützt
+        if member.id == member.guild.owner_id:
+            return True
         wl = self.db.get_whitelist(member.guild.id)
         if member.id in wl.get("users", []):
             return True
@@ -1191,13 +1261,12 @@ async def _notify_owner_nuke(
 
     embed.timestamp = now
 
-    try:
-        await owner.send(embed=embed)
-
-    except (
-        discord.Forbidden,
-        discord.HTTPException
-    ):
+    await safe_dm(
+        owner, embed,
+        cooldown_key=f"nuke_alert:{guild.id}",
+        cooldown_seconds=60
+    )
+    if False:  # kept for structure
         pass
 
 
@@ -1266,22 +1335,70 @@ async def _nuke_check(
             ):
                 pass
 
-        # Täter bestrafen
+        # Nie gegen den Bot selbst oder Owner handeln
+        if executor.id == bot.user.id:
+            return
+        if executor.id == guild.owner_id:
+            return
 
         punishment = nuke_cfg.get(
             "punishment",
             "ban"
         )
 
-        await bot.punish(
-            executor,
-            punishment,
-            (
-                f"Anti-Nuke: "
-                f"Verdächtige Aktivität "
-                f"({action})"
+        # Hierarchie-Check: Kann der Bot den Täter überhaupt bestrafen?
+        bot_member = guild.me
+        can_act = True
+        hierarchy_msg = ""
+        try:
+            if bot_member.top_role <= executor.top_role:
+                can_act = False
+                hierarchy_msg = (
+                    f"Die Rolle von **{executor.display_name}** "
+                    f"(`{executor.top_role.name}`) ist höher oder gleich "
+                    f"der Bot-Rolle (`{bot_member.top_role.name}`).\n"
+                    f"Der Bot kann diesen User **nicht bestrafen**."
+                )
+        except Exception:
+            pass
+
+        if can_act:
+            await bot.punish(
+                executor,
+                punishment,
+                (
+                    f"Anti-Nuke: "
+                    f"Verdächtige Aktivität "
+                    f"({action})"
+                )
             )
-        )
+        else:
+            # Bot kann nicht handeln → Owner-DM mit Warnung
+            owner = guild.owner
+            if owner:
+                alert_embed = create_embed(
+                    f"{E.NUKE} ⚠️ ANTI-NUKE ALARM — Bot kann nicht handeln!",
+                    (
+                        f"**{executor.mention}** führt verdächtige "
+                        f"Massenaktionen auf **{guild.name}** durch!\n\n"
+                        f"**⚠️ Problem:** {hierarchy_msg}\n\n"
+                        f"**Was du tun solltest:**\n"
+                        f"> 1. Rolle von `{executor.display_name}` sofort entfernen\n"
+                        f"> 2. User manuell bannen\n"
+                        f"> 3. Bot-Rolle über alle Admin-Rollen verschieben\n"
+                        f"> 4. `/security_level 3` für Lockdown"
+                    ),
+                    COLOR_DANGER,
+                    thumbnail=executor.display_avatar.url if executor else None
+                )
+                alert_embed.add_field(
+                    name="🔍 Erkannte Aktion",
+                    value=f"```{action}```",
+                    inline=False
+                )
+                await safe_dm(owner, alert_embed,
+                              cooldown_key=f"nuke_hierarchy:{guild.id}:{executor.id}",
+                              cooldown_seconds=120)
 
         # Automatischer Lockdown
 
@@ -2102,6 +2219,22 @@ async def on_member_update(before: discord.Member, after: discord.Member) -> Non
                 COLOR_DANGER, user=after, module="moderation"
             )
 
+            # DM an den User
+            dm_embed = create_embed(
+                f"{E.MUTE} Du wurdest getimeoutet",
+                (
+                    f"Du wurdest auf **{guild.name}** getimeoutet.\n\n"
+                    f"**Dauer:** {remaining}\n"
+                    f"**Endet:** <t:{int(after_timeout.timestamp())}:R>\n"
+                    f"{reason_info.replace(chr(10)+'Grund: ', chr(10)+'**Grund:** ') if reason_info else ''}\n"
+                    f"{moderator_info.replace(chr(10)+'Durch: ', chr(10)+'**Moderator:** ') if moderator_info else ''}"
+                ),
+                COLOR_DANGER,
+                thumbnail=guild.icon.url if guild.icon else None
+            )
+            dm_embed.set_footer(text=f"{guild.name} · ModForge Security", icon_url=FOOTER_ICON)
+            await safe_dm(after, dm_embed, cooldown_key=f"timeout_set:{guild.id}:{after.id}")
+
         elif before_timeout and (not after_timeout or after_timeout <= discord.utils.utcnow()):
             # Timeout wurde aufgehoben
             moderator_info = ""
@@ -2119,6 +2252,19 @@ async def on_member_update(before: discord.Member, after: discord.Member) -> Non
                 f"**{after.mention}** wurde **aus dem Timeout entfernt**.{moderator_info}",
                 COLOR_SUCCESS, user=after, module="moderation"
             )
+
+            # DM an den User
+            dm_embed = create_embed(
+                f"{E.UNMUTE} Timeout aufgehoben",
+                (
+                    f"Dein Timeout auf **{guild.name}** wurde aufgehoben.\n"
+                    f"{moderator_info.replace(chr(10)+'Durch: ', chr(10)+'**Durch:** ') if moderator_info else 'Das Timeout ist abgelaufen.'}"
+                ),
+                COLOR_SUCCESS,
+                thumbnail=guild.icon.url if guild.icon else None
+            )
+            dm_embed.set_footer(text=f"{guild.name} · ModForge", icon_url=FOOTER_ICON)
+            await safe_dm(after, dm_embed, cooldown_key=f"timeout_remove:{guild.id}:{after.id}")
 
 # ANTI-NUKE EVENTS
 # ═══════════════════════════════════════════════════════════════
@@ -6520,4 +6666,40 @@ async def prefix_report_setup(ctx, channel: discord.TextChannel = None):
     cfg["report_channel"] = channel.id
     await bot.db.set_config(ctx.guild.id, cfg)
     await ctx.send(embed=create_embed(f"{E.OK}", f"Report-Kanal: {channel.mention}", COLOR_SUCCESS))
+
+
+
+# ═══════════════════════════════════════════════════════════════════
+# AUTO BAN-APPEAL SYSTEM
+# ═══════════════════════════════════════════════════════════════════
+@bot.tree.command(name="autobanappeal", description="Aktiviert/deaktiviert automatische Ban-Appeal DMs")
+@app_commands.describe(enabled="An oder Aus")
+@app_commands.default_permissions(administrator=True)
+async def slash_autobanappeal(interaction: discord.Interaction, enabled: bool) -> None:
+    cfg = bot.db.get_config(interaction.guild.id)
+    cfg["auto_ban_appeal"] = {"enabled": enabled}
+    await bot.db.set_config(interaction.guild.id, cfg)
+    if enabled:
+        desc = (
+            "**Automatische Ban-Appeals aktiviert** ✅\n\n"
+            "Gebannte User erhalten eine DM mit:\n"
+            "> • Grund des Bans\n"
+            "> • Servername\n"
+            "> • Möglichkeit einen Appeal zu starten\n\n"
+            "Der Appeal-Kanal muss mit `/logban #channel` gesetzt sein."
+        )
+    else:
+        desc = "Automatische Ban-Appeals **deaktiviert** ❌"
+    await interaction.response.send_message(embed=create_embed(f"{E.OK} Auto-Ban-Appeal", desc, COLOR_SUCCESS if enabled else COLOR_WARNING))
+
+@bot.command(name="autobanappeal")
+@commands.has_permissions(administrator=True)
+async def prefix_autobanappeal(ctx, enabled: bool = None):
+    cfg = bot.db.get_config(ctx.guild.id)
+    if enabled is None:
+        enabled = not cfg.get("auto_ban_appeal", {}).get("enabled", False)
+    cfg["auto_ban_appeal"] = {"enabled": enabled}
+    await bot.db.set_config(ctx.guild.id, cfg)
+    status = "aktiviert ✅" if enabled else "deaktiviert ❌"
+    await ctx.send(embed=create_embed(f"{E.OK}", f"Auto-Ban-Appeal {status}", COLOR_SUCCESS if enabled else COLOR_WARNING))
 
