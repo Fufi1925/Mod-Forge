@@ -3124,51 +3124,6 @@ async def slash_tempmute(interaction: discord.Interaction, member: discord.Membe
                          user=member, module="moderation")
 
 
-@bot.tree.command(name="tempkick", description="Kickt einen Nutzer (verhindert Rejoin per Tempban kurzzeitig)")
-@app_commands.describe(member="Nutzer", duration="Sperrdauer (z.B. 1h, 1d)", reason="Grund")
-@app_commands.default_permissions(kick_members=True, ban_members=True)
-async def slash_tempkick(interaction: discord.Interaction, member: discord.Member,
-                         duration: str, reason: str = "Kein Grund") -> None:
-    ok, why = can_moderate(interaction.user, member, interaction.guild.me)
-    if not ok:
-        await interaction.response.send_message(
-            embed=create_embed(f"{E.FAIL} Aktion blockiert", why, COLOR_DANGER), ephemeral=True)
-        return
-    seconds = parse_duration(duration)
-    if not seconds or seconds < 60:
-        await interaction.response.send_message(
-            embed=create_embed(f"{E.FAIL} Ungültige Dauer",
-                               "Format: `30m`, `2h`, `7d` (mind. 60s)", COLOR_DANGER),
-            ephemeral=True)
-        return
-    end = datetime.datetime.utcnow() + datetime.timedelta(seconds=seconds)
-    try:
-        await member.ban(reason=f"Tempkick {duration} – {interaction.user}: {reason}",
-                         delete_message_seconds=0)
-    except discord.Forbidden:
-        await interaction.response.send_message(
-            embed=create_embed(f"{E.FAIL} Forbidden", "Ich darf das nicht.", COLOR_DANGER), ephemeral=True)
-        return
-    await bot.db.aadd_tempaction("tempban", interaction.guild.id, member.id, end, reason, interaction.user.id)
-    case_id = await bot.create_mod_case(
-        interaction.guild, member, interaction.user, "tempkick", reason, duration=seconds,
-    )
-    embed = create_embed(f"{E.KICK} Tempkick – Case #{case_id}",
-                         f"{member.mention} ist für **{duration}** ausgesperrt.",
-                         COLOR_WARNING,
-                         [("Grund", reason, False),
-                          ("Wieder erlaubt", f"<t:{int(end.timestamp())}:R>", True),
-                          ("Case-ID", f"`{case_id}`", True)])
-    await interaction.response.send_message(embed=embed)
-    await bot.log_action(interaction.guild, f"{E.KICK} Tempkick – Case #{case_id}",
-                         f"{member.mention} – {duration}", COLOR_WARNING,
-                         [("Grund", reason, False),
-                          ("Endet", f"<t:{int(end.timestamp())}:R>", True),
-                          ("Moderator", interaction.user.mention, True),
-                          ("Case-ID", f"`{case_id}` – `/case {case_id}`", True)],
-                         user=member, module="moderation")
-
-
 @bot.tree.command(name="kick", description="Kickt einen Nutzer vom Server")
 @app_commands.describe(member="Der zu kickende Nutzer", reason="Grund")
 @app_commands.default_permissions(kick_members=True)
@@ -5684,35 +5639,6 @@ async def slash_massban(interaction: discord.Interaction, user_ids: str, reason:
 
 
 # ═══════════════════════════════════════════════════════════════════
-# 9) VOTE / TOP.GG SYSTEM
-# ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="vote", description="VOTE für ModForge auf top.gg und erhalte Belohnungen!")
-async def slash_vote(interaction: discord.Interaction) -> None:
-    embed = create_embed("⬆️ Vote für ModForge!", "Supporte ModForge indem du auf top.gg votest!\n\n**Deine Vorteile:**\n> 🏆 Extra Backup-Slots\n> ⚡ Prioritäts-Support\n> 🎨 Exklusive Commands\n> 🛡️ Erweiterte Security-Funktionen", COLOR_PRIMARY,
-        [("[🔗 Auf top.gg voten](https://top.gg/bot/VOTE_HERE/vote)", "Klicke hier zum Voten!", False),
-         ("💡 Tipp", "Nach dem Vote erhältst du automatisch deine Belohnungen!", False)])
-    await interaction.response.send_message(embed=embed, ephemeral=True)
-
-@bot.tree.command(name="vote_setup", description="Setzt die Vote-Belohnungsrolle")
-@app_commands.describe(role="Die Vote-Belohnungsrolle")
-@app_commands.default_permissions(administrator=True)
-async def slash_vote_setup(interaction: discord.Interaction, role: discord.Role) -> None:
-    cfg = bot.db.get_config(interaction.guild.id)
-    cfg["vote_reward_role"] = role.id
-    await bot.db.set_config(interaction.guild.id, cfg)
-    await interaction.response.send_message(embed=create_embed(f"{E.OK} Vote-Belohnung gesetzt", f"{role.mention} wird nach dem Vote gegeben (24h gültig).", COLOR_SUCCESS))
-
-@bot.tree.command(name="vote_status", description="Zeigt dein Vote-Status")
-async def slash_vote_status(interaction: discord.Interaction) -> None:
-    cfg = bot.db.get_config(interaction.guild.id)
-    reward_role_id = cfg.get("vote_reward_role")
-    embed = create_embed("⬆️ Vote-Status", f"Hallo {interaction.user.mention}!\n\nVoten unterstützt die Entwicklung von ModForge.", COLOR_INFO,
-        [("[🔗 Jetzt voten](https://top.gg/bot/VOTE_HERE/vote)", "Jeder Vote zählt!", False),
-         ("Belohnungsrolle", f"<@&{reward_role_id}>" if reward_role_id else "Nicht konfiguriert", True)])
-    await interaction.response.send_message(embed=embed, ephemeral=True)
-
-
-# ═══════════════════════════════════════════════════════════════════
 # 10) REACTION ROLES
 # ═══════════════════════════════════════════════════════════════════
 class ReactionRoleDropdown(discord.ui.Select):
@@ -6280,26 +6206,44 @@ async def extra_on_message(message: discord.Message):
                 break  # Only first match
 
     # ── No-Prefix Mode ──
-    if cfg.get("no_prefix"):
+    # Nur für User die in der no_prefix_users Whitelist stehen
+    # ODER wenn no_prefix=True UND User manage_messages hat
+    np_cfg = cfg.get("no_prefix")
+    if np_cfg:
         content = message.content.strip()
-        if not content or content.startswith(("!", "/", ".")):
+        if not content or content.startswith(("!", "/", ".", "?", "-")):
             return
-        # Try to parse as a command: "ban @user reason"
+
         parts = content.split(None, 1)
         cmd_name = parts[0].lower()
-        # Map of no-prefix commands
+
+        # Erlaubte No-Prefix Commands
         noprefix_cmds = {
             "ban", "kick", "warn", "mute", "unmute", "clear", "lock", "unlock",
-            "nick", "softban", "lockall", "unlockall", "slowmode",
-            "userinfo", "serverinfo", "modstats", "invites", "report",
+            "nick", "softban", "lockall", "unlockall", "slowmode", "tempban",
+            "tempmute", "unban", "userinfo", "serverinfo", "modstats",
+            "invites", "report", "cases", "case", "status", "stats",
+            "help", "panic", "unlockdown", "massban", "autorole",
+            "warnings", "clearwarnings",
         }
-        if cmd_name in noprefix_cmds:
-            # Only for users with manage_messages permission
-            if message.author.guild_permissions.manage_messages:
-                # Prepend prefix and re-process
-                prefix = cfg.get("prefix", "!")
-                message.content = f"{prefix}{content}"
-                await bot.process_commands(message)
+
+        if cmd_name not in noprefix_cmds:
+            return
+
+        # Whitelist check: Entweder in der User-Liste ODER manage_messages
+        np_users = cfg.get("no_prefix_users", [])
+        allowed = False
+        if np_users:
+            # Whitelist-Modus: nur gelistete User
+            allowed = str(message.author.id) in [str(u) for u in np_users]
+        else:
+            # Kein Whitelist → alle mit manage_messages
+            allowed = message.author.guild_permissions.manage_messages
+
+        if allowed:
+            prefix = cfg.get("prefix", "!")
+            message.content = f"{prefix}{content}"
+            await bot.process_commands(message)
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -6312,20 +6256,268 @@ async def slash_noprefix(interaction: discord.Interaction, enabled: bool) -> Non
     cfg = bot.db.get_config(interaction.guild.id)
     cfg["no_prefix"] = enabled
     await bot.db.set_config(interaction.guild.id, cfg)
+    np_users = cfg.get("no_prefix_users", [])
     status = "**aktiviert** ✅" if enabled else "**deaktiviert** ❌"
     desc = f"No-Prefix-Modus {status}\n"
     if enabled:
-        desc += "\nBerechtigte Mods können jetzt ohne Prefix/Slash moderieren:\n`ban @user Spam` statt `!ban @user Spam`"
+        if np_users:
+            user_list = ", ".join(f"<@{u}>" for u in np_users[:10])
+            desc += f"\n**Whitelist:** {user_list}"
+            desc += f"\n\nNur diese User können `ban @user` ohne Prefix nutzen."
+            desc += f"\n`/noprefix_add @User` zum Hinzufügen."
+        else:
+            desc += f"\nAlle Mods (Manage Messages) können ohne Prefix moderieren."
+            desc += f"\n`/noprefix_add @User` für eine Whitelist."
     await interaction.response.send_message(embed=create_embed(f"{E.OK} No-Prefix", desc, COLOR_SUCCESS if enabled else COLOR_WARNING))
+
+@bot.tree.command(name="noprefix_add", description="Fügt einen User zur No-Prefix-Whitelist hinzu")
+@app_commands.describe(member="User der No-Prefix nutzen darf")
+@app_commands.default_permissions(administrator=True)
+async def slash_noprefix_add(interaction: discord.Interaction, member: discord.Member) -> None:
+    cfg = bot.db.get_config(interaction.guild.id)
+    np_users = cfg.get("no_prefix_users", [])
+    uid = str(member.id)
+    if uid not in [str(u) for u in np_users]:
+        np_users.append(member.id)
+    cfg["no_prefix_users"] = np_users
+    cfg["no_prefix"] = True
+    await bot.db.set_config(interaction.guild.id, cfg)
+    await interaction.response.send_message(embed=create_embed(f"{E.OK}", f"{member.mention} kann jetzt No-Prefix nutzen.", COLOR_SUCCESS))
+
+@bot.tree.command(name="noprefix_remove", description="Entfernt einen User von der No-Prefix-Whitelist")
+@app_commands.describe(member="User entfernen")
+@app_commands.default_permissions(administrator=True)
+async def slash_noprefix_remove(interaction: discord.Interaction, member: discord.Member) -> None:
+    cfg = bot.db.get_config(interaction.guild.id)
+    np_users = cfg.get("no_prefix_users", [])
+    np_users = [u for u in np_users if str(u) != str(member.id)]
+    cfg["no_prefix_users"] = np_users
+    await bot.db.set_config(interaction.guild.id, cfg)
+    await interaction.response.send_message(embed=create_embed(f"{E.OK}", f"{member.mention} von No-Prefix entfernt.", COLOR_WARNING))
+
+@bot.tree.command(name="noprefix_list", description="Zeigt die No-Prefix-Whitelist")
+@app_commands.default_permissions(administrator=True)
+async def slash_noprefix_list(interaction: discord.Interaction) -> None:
+    cfg = bot.db.get_config(interaction.guild.id)
+    np_users = cfg.get("no_prefix_users", [])
+    enabled = cfg.get("no_prefix", False)
+    if not enabled:
+        return await interaction.response.send_message(embed=create_embed("⚙️ No-Prefix", "No-Prefix ist **deaktiviert**. `/noprefix true` zum Aktivieren.", COLOR_WARNING))
+    if not np_users:
+        desc = "**Modus:** Alle mit `Manage Messages`\n\nNutze `/noprefix_add @User` für eine Whitelist."
+    else:
+        user_list = "\n".join(f"• <@{u}>" for u in np_users)
+        desc = f"**Modus:** Whitelist ({len(np_users)} User)\n\n{user_list}"
+    await interaction.response.send_message(embed=create_embed("⚙️ No-Prefix Whitelist", desc, COLOR_INFO))
 
 @bot.command(name="noprefix")
 @commands.has_permissions(administrator=True)
-async def prefix_noprefix(ctx, enabled: bool = None):
+async def prefix_noprefix(ctx, action: str = None, member: discord.Member = None):
     cfg = bot.db.get_config(ctx.guild.id)
-    if enabled is None:
+    if action in ("add",) and member:
+        np_users = cfg.get("no_prefix_users", [])
+        if member.id not in np_users:
+            np_users.append(member.id)
+        cfg["no_prefix_users"] = np_users
+        cfg["no_prefix"] = True
+        await bot.db.set_config(ctx.guild.id, cfg)
+        return await ctx.send(embed=create_embed(f"{E.OK}", f"{member.mention} zu No-Prefix hinzugefügt.", COLOR_SUCCESS))
+    elif action in ("remove", "del") and member:
+        np_users = cfg.get("no_prefix_users", [])
+        np_users = [u for u in np_users if u != member.id]
+        cfg["no_prefix_users"] = np_users
+        await bot.db.set_config(ctx.guild.id, cfg)
+        return await ctx.send(embed=create_embed(f"{E.OK}", f"{member.mention} entfernt.", COLOR_WARNING))
+    elif action == "list":
+        np_users = cfg.get("no_prefix_users", [])
+        if np_users:
+            desc = "\n".join(f"• <@{u}>" for u in np_users)
+        else:
+            desc = "Keine Whitelist → alle Mods"
+        return await ctx.send(embed=create_embed("⚙️ No-Prefix", desc, COLOR_INFO))
+    else:
         enabled = not cfg.get("no_prefix", False)
-    cfg["no_prefix"] = enabled
+        cfg["no_prefix"] = enabled
+        await bot.db.set_config(ctx.guild.id, cfg)
+        status = "aktiviert ✅" if enabled else "deaktiviert ❌"
+        await ctx.send(embed=create_embed(f"{E.OK}", f"No-Prefix {status}\n`!noprefix add @User` · `!noprefix list`", COLOR_SUCCESS if enabled else COLOR_WARNING))
+
+
+
+# ═══════════════════════════════════════════════════════════════════
+# PREFIX MIRRORS — Fehlende Prefix-Pendants für wichtige Commands
+# ═══════════════════════════════════════════════════════════════════
+
+@bot.command(name="tempban", aliases=["tb"])
+@commands.has_permissions(ban_members=True)
+async def prefix_tempban(ctx, member: discord.Member = None, duration: str = "1d", *, reason="Temporärer Ban"):
+    if not member:
+        return await ctx.send(embed=create_embed(f"{E.FAIL}", "`!tempban @User 7d Grund`", COLOR_DANGER))
+    dur_seconds = parse_duration(duration)
+    if not dur_seconds:
+        return await ctx.send(embed=create_embed(f"{E.FAIL}", "Ungültige Dauer. z.B. `1h`, `7d`, `30m`", COLOR_DANGER))
+    if not can_moderate(ctx.author, member):
+        return await ctx.send(embed=create_embed(f"{E.FAIL}", "Keine Berechtigung.", COLOR_DANGER))
+    try:
+        await member.ban(reason=f"Tempban ({duration}): {reason} (durch {ctx.author})", delete_message_seconds=86400)
+        case_id = await bot.db.acreate_case(ctx.guild.id, member.id, ctx.author.id, "tempban", reason, duration=dur_seconds)
+        await bot.log_action(ctx.guild, f"{E.BAN} Tempban", f"{member.mention} für {duration}\nGrund: {reason}\nVon: {ctx.author.mention}", COLOR_DANGER, user=member, module="moderation")
+        await ctx.send(embed=create_embed(f"{E.OK} Tempban", f"{member.mention} für {duration} gebannt. Case #{case_id}", COLOR_SUCCESS))
+    except discord.Forbidden:
+        await ctx.send(embed=create_embed(f"{E.FAIL}", "Keine Berechtigung.", COLOR_DANGER))
+
+@bot.command(name="tempmute", aliases=["tm"])
+@commands.has_permissions(moderate_members=True)
+async def prefix_tempmute(ctx, member: discord.Member = None, duration: str = "1h", *, reason="Timeout"):
+    if not member:
+        return await ctx.send(embed=create_embed(f"{E.FAIL}", "`!tempmute @User 2h Grund`", COLOR_DANGER))
+    dur_seconds = parse_duration(duration)
+    if not dur_seconds:
+        return await ctx.send(embed=create_embed(f"{E.FAIL}", "Ungültige Dauer.", COLOR_DANGER))
+    try:
+        until = discord.utils.utcnow() + datetime.timedelta(seconds=dur_seconds)
+        await member.timeout(until, reason=f"{reason} (durch {ctx.author})")
+        case_id = await bot.db.acreate_case(ctx.guild.id, member.id, ctx.author.id, "tempmute", reason, duration=dur_seconds)
+        await bot.log_action(ctx.guild, f"{E.MUTE} Tempmute", f"{member.mention} für {duration}\nGrund: {reason}", COLOR_WARNING, user=member, module="moderation")
+        await ctx.send(embed=create_embed(f"{E.OK} Tempmute", f"{member.mention} für {duration} gemutet. Case #{case_id}", COLOR_SUCCESS))
+    except discord.Forbidden:
+        await ctx.send(embed=create_embed(f"{E.FAIL}", "Keine Berechtigung.", COLOR_DANGER))
+
+@bot.command(name="case")
+@commands.has_permissions(manage_messages=True)
+async def prefix_case(ctx, case_id: int = None):
+    if not case_id:
+        return await ctx.send(embed=create_embed(f"{E.FAIL}", "`!case <ID>`", COLOR_DANGER))
+    try:
+        case = await bot.db.cases.find_one({"guild_id": str(ctx.guild.id), "case_id": case_id})
+        if not case:
+            return await ctx.send(embed=create_embed(f"{E.FAIL}", f"Case #{case_id} nicht gefunden.", COLOR_DANGER))
+        embed = create_embed(f"📋 Case #{case_id}", f"**Aktion:** {case.get('action','?')}\n**User:** <@{case.get('user_id','?')}>\n**Mod:** <@{case.get('moderator_id','?')}>\n**Grund:** {case.get('reason','Kein Grund')}", COLOR_INFO)
+        await ctx.send(embed=embed)
+    except Exception as e:
+        await ctx.send(embed=create_embed(f"{E.FAIL}", f"Fehler: {e}", COLOR_DANGER))
+
+@bot.command(name="cases")
+@commands.has_permissions(manage_messages=True)
+async def prefix_cases(ctx, member: discord.Member = None):
+    query = {"guild_id": str(ctx.guild.id)}
+    if member:
+        query["user_id"] = str(member.id)
+    try:
+        raw = await bot.db.cases.find(query).sort("case_id", -1).to_list(15) or []
+        if not raw:
+            return await ctx.send(embed=create_embed("📋 Cases", "Keine Cases gefunden.", COLOR_INFO))
+        lines = []
+        for c in raw:
+            lines.append(f"**#{c.get('case_id','?')}** {c.get('action','?')} — <@{c.get('user_id','?')}> — {c.get('reason','—')[:40]}")
+        await ctx.send(embed=create_embed(f"📋 Cases ({len(raw)})", "\n".join(lines), COLOR_INFO))
+    except Exception as e:
+        await ctx.send(embed=create_embed(f"{E.FAIL}", f"Fehler: {e}", COLOR_DANGER))
+
+@bot.command(name="status")
+async def prefix_status(ctx):
+    gc, mc, up, lat = len(bot.guilds), sum(g.member_count or 0 for g in bot.guilds), 0, 0
+    try:
+        from bot.config import get_uptime, BOT_START_TIME
+        up = get_uptime(bot.start_time)
+        lat = round(bot.latency * 1000)
+    except Exception:
+        pass
+    embed = create_embed(f"{E.BOT} Bot Status", f"**Server:** {gc}\n**Mitglieder:** {mc:,}\n**Latenz:** {lat}ms\n**Uptime:** {up}s", COLOR_PRIMARY)
+    await ctx.send(embed=embed)
+
+@bot.command(name="stats")
+async def prefix_stats(ctx):
+    g = ctx.guild
+    bots = sum(1 for m in g.members if m.bot)
+    humans = g.member_count - bots
+    embed = create_embed(f"{E.SERVER} {g.name}", f"**Mitglieder:** {humans:,} Humans + {bots} Bots\n**Kanäle:** {len(g.channels)}\n**Rollen:** {len(g.roles)}\n**Boosts:** {g.premium_subscription_count or 0}", COLOR_PRIMARY)
+    await ctx.send(embed=embed)
+
+@bot.command(name="help")
+async def prefix_help(ctx):
+    from bot.config import HELP_DATA
+    embed = create_embed(f"{E.HELP} ModForge – Hilfe", "Nutze die Buttons oder `/help` für die interaktive Hilfe.\n\n**Kategorien:**", COLOR_PRIMARY)
+    for key, (title, cmds) in HELP_DATA.items():
+        cmd_list = " · ".join(c[0].split(" ")[0] for c in cmds[:6])
+        embed.add_field(name=title, value=f"{cmd_list} …", inline=False)
+    embed.set_footer(text="Nutze /help für die volle interaktive Hilfe mit Dropdown")
+    await ctx.send(embed=embed)
+
+@bot.command(name="panic")
+@commands.has_permissions(administrator=True)
+async def prefix_panic(ctx):
+    cfg = bot.db.get_config(ctx.guild.id)
+    cfg["security_level"] = 3
     await bot.db.set_config(ctx.guild.id, cfg)
-    status = "aktiviert ✅" if enabled else "deaktiviert ❌"
-    await ctx.send(embed=create_embed(f"{E.OK}", f"No-Prefix-Modus {status}", COLOR_SUCCESS if enabled else COLOR_WARNING))
+    locked = 0
+    for ch in ctx.guild.text_channels:
+        try:
+            await ch.set_permissions(ctx.guild.default_role, send_messages=False, reason="PANIC LOCKDOWN")
+            locked += 1
+        except Exception:
+            pass
+        await asyncio.sleep(0.2)
+    await bot.log_action(ctx.guild, f"🚨 PANIC LOCKDOWN", f"{ctx.author.mention} hat Lockdown aktiviert. {locked} Kanäle gesperrt.", COLOR_DANGER, user=ctx.author, module="moderation")
+    await ctx.send(embed=create_embed("🚨 LOCKDOWN AKTIV", f"{locked} Kanäle gesperrt. Security Level: 3\n`!unlockdown` zum Aufheben.", COLOR_DANGER))
+
+@bot.command(name="unlockdown")
+@commands.has_permissions(administrator=True)
+async def prefix_unlockdown(ctx):
+    cfg = bot.db.get_config(ctx.guild.id)
+    cfg["security_level"] = 0
+    await bot.db.set_config(ctx.guild.id, cfg)
+    unlocked = 0
+    for ch in ctx.guild.text_channels:
+        try:
+            await ch.set_permissions(ctx.guild.default_role, send_messages=None, reason="Lockdown aufgehoben")
+            unlocked += 1
+        except Exception:
+            pass
+        await asyncio.sleep(0.2)
+    await ctx.send(embed=create_embed(f"{E.OK} Lockdown aufgehoben", f"{unlocked} Kanäle entsperrt.", COLOR_SUCCESS))
+
+@bot.command(name="autorole")
+@commands.has_permissions(administrator=True)
+async def prefix_autorole(ctx, role: discord.Role = None):
+    if not role:
+        return await ctx.send(embed=create_embed(f"{E.FAIL}", "`!autorole @Rolle`", COLOR_DANGER))
+    cfg = bot.db.get_config(ctx.guild.id)
+    ar = cfg.get("auto_role", {"enabled": True, "roles": []})
+    if role.id not in ar.get("roles", []):
+        ar.setdefault("roles", []).append(role.id)
+        ar["enabled"] = True
+    cfg["auto_role"] = ar
+    await bot.db.set_config(ctx.guild.id, cfg)
+    await ctx.send(embed=create_embed(f"{E.OK}", f"Auto-Role {role.mention} hinzugefügt.", COLOR_SUCCESS))
+
+@bot.command(name="massban")
+@commands.has_permissions(ban_members=True)
+async def prefix_massban(ctx, *, user_ids: str = ""):
+    if not user_ids:
+        return await ctx.send(embed=create_embed(f"{E.FAIL}", "`!massban 123,456,789 [Grund]`", COLOR_DANGER))
+    parts = re.split(r'[,;\s]+', user_ids.strip())
+    ids = [int(p) for p in parts if p.isdigit()]
+    if not ids:
+        return await ctx.send(embed=create_embed(f"{E.FAIL}", "Keine gültigen IDs.", COLOR_DANGER))
+    banned = 0
+    for uid in ids[:50]:
+        try:
+            await ctx.guild.ban(discord.Object(uid), reason=f"Massban durch {ctx.author}")
+            banned += 1
+        except Exception:
+            pass
+        await asyncio.sleep(0.5)
+    await ctx.send(embed=create_embed(f"{E.BAN} Massban", f"**{banned}/{len(ids)}** gebannt.", COLOR_DANGER))
+    await bot.log_action(ctx.guild, f"{E.BAN} Massban", f"{ctx.author.mention} hat {banned} User gebannt.", COLOR_DANGER, user=ctx.author, module="moderation")
+
+@bot.command(name="report_setup")
+@commands.has_permissions(administrator=True)
+async def prefix_report_setup(ctx, channel: discord.TextChannel = None):
+    if not channel:
+        return await ctx.send(embed=create_embed(f"{E.FAIL}", "`!report_setup #channel`", COLOR_DANGER))
+    cfg = bot.db.get_config(ctx.guild.id)
+    cfg["report_channel"] = channel.id
+    await bot.db.set_config(ctx.guild.id, cfg)
+    await ctx.send(embed=create_embed(f"{E.OK}", f"Report-Kanal: {channel.mention}", COLOR_SUCCESS))
 
