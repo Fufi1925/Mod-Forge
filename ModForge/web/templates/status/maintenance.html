@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Wartung – ModForge Status{% endblock %}
+{% block content %}
+<div class="container" style="max-width:900px;padding-top:40px;padding-bottom:80px">
+  <div style="margin-bottom:20px"><a href="/status" style="color:var(--vl);font-size:.85rem">← Zurück zum Status</a></div>
+  <div class="sec-head reveal" style="text-align:left;margin-bottom:40px">
+    <div class="sec-badge" style="margin-bottom:12px">🔧 Wartung</div>
+    <h1 style="font-size:clamp(1.6rem,3.5vw,2.4rem);font-weight:800;margin-bottom:12px">Geplante Wartungen</h1>
+    <p style="color:var(--muted)">Übersicht über geplante Wartungsfenster.</p>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:16px">
+    <div class="glass-card reveal" style="padding:24px;border-radius:var(--radius);background:var(--glass2);border:1px solid rgba(34,211,238,0.2)">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <div style="width:10px;height:10px;border-radius:50%;background:var(--cl)"></div>
+        <span style="font-size:.82rem;font-weight:700;color:var(--cl)">Geplant</span>
+        <span style="font-size:.75rem;color:var(--muted);margin-left:auto">1. Juni 2026, 03:00-04:00 UTC</span>
+      </div>
+      <h3 style="font-size:1rem;font-weight:700;margin-bottom:6px">Datenbank-Migration</h3>
+      <p style="color:var(--muted);font-size:.85rem;line-height:1.6">Optimierung der Datenbank-Indizes für schnellere Abfragen. Kurze Unterbrechung des Dashboards möglich.</p>
+    </div>
+  </div>
+
+  <div class="reveal" style="margin-top:32px;padding:20px;border-radius:var(--radius);background:var(--glass);border:1px solid var(--border);text-align:center">
+    <p style="color:var(--muted);font-size:.85rem">Wartungen finden typischerweise zwischen 03:00-05:00 UTC statt, um minimale Auswirkungen zu gewährleisten.</p>
+  </div>
+</div>
+{% endblock %}

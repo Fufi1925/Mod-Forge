@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Downloads – ModForge{% endblock %}
+{% block content %}
+<div class="container" style="max-width:900px;padding-top:40px;padding-bottom:80px">
+  <div class="sec-head reveal" style="text-align:center;margin-bottom:50px">
+    <div class="sec-badge" style="margin-bottom:12px">📥 Downloads</div>
+    <h1 style="font-size:clamp(1.8rem,4vw,2.8rem);font-weight:800;margin-bottom:12px">Downloads & Ressourcen</h1>
+    <p style="color:var(--muted);max-width:620px;margin:0 auto">Lade nützliche Ressourcen, Configs und Tools herunter.</p>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:20px">
+    <div class="glass-card reveal" style="padding:28px;border-radius:var(--radius);background:var(--glass2);border:1px solid var(--border);display:flex;align-items:center;gap:20px">
+      <div style="width:56px;height:56px;border-radius:14px;background:rgba(124,58,237,0.15);display:flex;align-items:center;justify-content:center;font-size:1.8rem;flex-shrink:0">📋</div>
+      <div style="flex:1">
+        <h3 style="font-size:1.05rem;font-weight:700;margin-bottom:4px">Beispiel-Konfiguration</h3>
+        <p style="color:var(--muted);font-size:.85rem">Optimierte Default-Config für verschiedene Server-Größen.</p>
+      </div>
+      <div style="padding:6px 14px;border-radius:999px;background:var(--glass3);font-size:.75rem;color:var(--muted);flex-shrink:0">JSON</div>
+    </div>
+    <div class="glass-card reveal" style="padding:28px;border-radius:var(--radius);background:var(--glass2);border:1px solid var(--border);display:flex;align-items:center;gap:20px">
+      <div style="width:56px;height:56px;border-radius:14px;background:rgba(34,211,238,0.15);display:flex;align-items:center;justify-content:center;font-size:1.8rem;flex-shrink:0">🎨</div>
+      <div style="flex:1">
+        <h3 style="font-size:1.05rem;font-weight:700;margin-bottom:4px">Brand Assets Pack</h3>
+        <p style="color:var(--muted);font-size:.85rem">Logos, Icons und Banner in verschiedenen Formaten.</p>
+      </div>
+      <div style="padding:6px 14px;border-radius:999px;background:var(--glass3);font-size:.75rem;color:var(--muted);flex-shrink:0">ZIP</div>
+    </div>
+    <div class="glass-card reveal" style="padding:28px;border-radius:var(--radius);background:var(--glass2);border:1px solid var(--border);display:flex;align-items:center;gap:20px">
+      <div style="width:56px;height:56px;border-radius:14px;background:rgba(245,158,11,0.15);display:flex;align-items:center;justify-content:center;font-size:1.8rem;flex-shrink:0">📖</div>
+      <div style="flex:1">
+        <h3 style="font-size:1.05rem;font-weight:700;margin-bottom:4px">Moderator-Handbuch</h3>
+        <p style="color:var(--muted);font-size:.85rem">Komplettes Handbuch für Server-Moderatoren (PDF).</p>
+      </div>
+      <div style="padding:6px 14px;border-radius:999px;background:var(--glass3);font-size:.75rem;color:var(--muted);flex-shrink:0">PDF</div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -19,15 +19,13 @@ REDIRECT_URI = f"{DASHBOARD_BASE_URL}/dashboard/auth/callback"
 DISCORD_API = "https://discord.com/api/v10"
 SESSION_COOKIE = "modforge_session"
 
-# In‑Memory Session Store
+# In-Memory Session Store
 sessions = {}
 
 auth_bp = Blueprint("auth", __name__, template_folder="templates")
 
-
 def _make_session_id():
     return secrets.token_hex(32)
-
 
 def _api_request(url, method="GET", data=None, headers=None):
     """HTTP-Request mit der Standardbibliothek (keine externen Abhängigkeiten)."""
@@ -47,12 +45,11 @@ def _api_request(url, method="GET", data=None, headers=None):
     except URLError as e:
         raise Exception(f"URL error: {e.reason}")
 
-
 @auth_bp.route("/dashboard/login")
 def login():
     """Leitet zu Discord OAuth2 weiter."""
     if not DISCORD_CLIENT_ID or not DISCORD_CLIENT_SECRET:
-        return "Dashboard auth not configured.", 503
+        return "Dashboard auth not configured. Set DISCORD_CLIENT_ID and DISCORD_CLIENT_SECRET env vars.", 503
 
     state = secrets.token_urlsafe(16)
     flask_session["oauth_state"] = state
@@ -67,15 +64,19 @@ def login():
     auth_url = f"https://discord.com/oauth2/authorize?{urlencode(params)}"
     return redirect(auth_url, code=302)
 
-
 @auth_bp.route("/dashboard/auth/callback")
 def callback():
     """Verarbeitet den OAuth2-Callback von Discord."""
     code = request.args.get("code")
     state = request.args.get("state")
+    error = request.args.get("error")
     session_state = flask_session.pop("oauth_state", None)
 
-    # Bei ungültigem State oder fehlendem Code zurück zur Login-Seite mit Fehler
+    # User hat abgelehnt oder Fehler von Discord
+    if error:
+        return redirect(f"/login?error=Discord%20Login%20abgebrochen:%20{error}")
+
+    # Bei ungültigem State oder fehlendem Code zurück zur Login-Seite
     if not code or state != session_state:
         return redirect("/login?error=Ungültige%20Autorisierung.%20Bitte%20erneut%20versuchen.")
 
@@ -92,7 +93,10 @@ def callback():
                 "redirect_uri": REDIRECT_URI,
             },
         )
-        access_token = token_data["access_token"]
+
+        access_token = token_data.get("access_token")
+        if not access_token:
+            raise Exception(f"Kein access_token erhalten: {token_data}")
 
         # Benutzerprofil laden
         user = _api_request(
@@ -106,7 +110,9 @@ def callback():
             headers={"Authorization": f"Bearer {access_token}"},
         )
     except Exception as e:
-        return redirect(f"/login?error=API-Fehler:%20{str(e)[:200]}")
+        import logging
+        logging.getLogger("ModForge.Auth").error(f"OAuth2 Callback Error: {e}")
+        return redirect(f"/login?error=API-Fehler.%20Bitte%20erneut%20versuchen.")
 
     # Avatar-URL zusammenbauen
     avatar_hash = user.get("avatar")
@@ -127,7 +133,7 @@ def callback():
             "global_name": user.get("global_name"),
             "avatar_url": avatar_url,
         },
-        "guilds": guilds,
+        "guilds": guilds if isinstance(guilds, list) else [],
     }
 
     # Cookie setzen und zum Dashboard weiterleiten
@@ -138,11 +144,10 @@ def callback():
         httponly=True,
         samesite="lax",
         path="/",
-        secure=False,
+        secure=request.is_secure,
         max_age=7 * 24 * 3600,
     )
     return resp
-
 
 @auth_bp.route("/dashboard/logout")
 def logout():
@@ -153,7 +158,6 @@ def logout():
     resp = make_response(redirect("/"))
     resp.delete_cookie(SESSION_COOKIE, path="/")
     return resp
-
 
 def get_session():
     """Aktuelle Session aus dem Cookie auslesen."""
@@ -166,7 +170,6 @@ def get_session():
             del sessions[sid]
         return None
     return session
-
 
 def require_auth(f):
     """Decorator, der nicht eingeloggte Benutzer zum Discord-Login weiterleitet."""

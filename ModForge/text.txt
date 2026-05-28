@@ -1,0 +1,1295 @@
+# ─────────────────────────────────────────────────────────────────
+# WEB-FRONTEND  (Landing Page · Terms · Privacy · Admin Dashboard)
+# ─────────────────────────────────────────────────────────────────ì
+app = Flask("modforge_web")
+app.secret_key = os.getenv("SESSION_SECRET") or secrets_mod.token_hex(32)
+app.config["PERMANENT_SESSION_LIFETIME"] = 60 * 60 * 4  # 4h Auto-Logout
+
+# Admin-Passwort (env). Wenn nicht gesetzt → Dashboard sicher gesperrt.
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "").strip()
+ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin").strip() or "admin"
+
+# Brute-Force-Schutz (sliding window)
+_LOGIN_ATTEMPTS: Dict[str, deque] = defaultdict(deque)
+_LOGIN_LOCK = threading.Lock()
+LOGIN_WINDOW = 300        # 5 min
+LOGIN_MAX_TRIES = 7
+
+
+def _client_ip() -> str:
+    return (request.headers.get("X-Forwarded-For", request.remote_addr or "?")
+            .split(",")[0].strip())
+
+
+def _rate_limited(ip: str) -> bool:
+    now = time.time()
+    with _LOGIN_LOCK:
+        dq = _LOGIN_ATTEMPTS[ip]
+        while dq and now - dq[0] > LOGIN_WINDOW:
+            dq.popleft()
+        return len(dq) >= LOGIN_MAX_TRIES
+
+
+def _record_attempt(ip: str) -> None:
+    with _LOGIN_LOCK:
+        _LOGIN_ATTEMPTS[ip].append(time.time())
+
+
+def _run_async(coro, timeout: float = 5.0):
+    """Führt eine Coroutine sicher aus dem Flask-Thread auf dem Bot-Loop aus."""
+    if BOT_REF is None or not BOT_REF.loop or not BOT_REF.loop.is_running():
+        return None
+    try:
+        fut = asyncio.run_coroutine_threadsafe(coro, BOT_REF.loop)
+        return fut.result(timeout=timeout)
+    except Exception as ex:
+        log.debug(f"_run_async Fehler: {ex}")
+        return None
+
+
+def admin_required(fn: Callable) -> Callable:
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        if not session.get("admin"):
+            return redirect(url_for("admin_login"))
+        return fn(*args, **kwargs)
+    return wrapper
+
+
+# ── HTML-TEMPLATES (Ultra‑Trust · Status‑Page · Echte Metriken · Mobil optimiert) ──
+_BASE_CSS = """
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+:root {
+    --bg: #020308;
+    --surface: rgba(10, 14, 26, 0.55);
+    --border: rgba(255,255,255,0.06);
+    --accent: #5b6eff;
+    --accent2: #b47fff;
+    --ok: #2dd4bf;
+    --warn: #facc15;
+    --err: #f87171;
+    --text: #ecf0ff;
+    --muted: #8b93b5;
+    --glow: 0 0 60px -10px rgba(91,110,255,0.3);
+    --radius: 22px;
+    --radius-sm: 12px;
+    --t: 0.35s cubic-bezier(0.25, 0.8, 0.25, 1.2);
+}
+
+* { box-sizing:border-box; margin:0; padding:0; }
+html { font-size:16px; scroll-behavior:smooth; }
+body {
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+    line-height:1.7;
+    overflow-x:hidden;
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+}
+
+/* 🔮 Hintergrund */
+body::before {
+    content:''; position:fixed; top:0; left:0;
+    width:100%; height:100%;
+    background:
+        radial-gradient(ellipse at 20% 30%, rgba(91,110,255,0.12) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 70%, rgba(180,127,255,0.1) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 50%, rgba(45,212,191,0.06) 0%, transparent 70%);
+    z-index:-2;
+    animation: bgShift 20s infinite alternate;
+}
+@keyframes bgShift {
+    0% { transform:scale(1) rotate(0deg); opacity:0.8; }
+    100% { transform:scale(1.1) rotate(3deg); opacity:1; }
+}
+
+body::after {
+    content:''; position:fixed; top:0; left:0;
+    width:100%; height:100%;
+    background-image:
+        radial-gradient(2px 2px at 10% 20%, rgba(255,255,255,0.2), transparent),
+        radial-gradient(2px 2px at 30% 70%, rgba(255,255,255,0.15), transparent),
+        radial-gradient(1px 1px at 60% 40%, rgba(255,255,255,0.18), transparent),
+        radial-gradient(2px 2px at 80% 15%, rgba(255,255,255,0.1), transparent),
+        radial-gradient(1px 1px at 45% 85%, rgba(255,255,255,0.12), transparent),
+        radial-gradient(2px 2px at 90% 60%, rgba(255,255,255,0.08), transparent);
+    background-size:180px 180px;
+    z-index:-1;
+    animation: floatParticles 28s linear infinite;
+}
+@keyframes floatParticles {
+    0% { transform:translateY(0) rotate(0deg); opacity:0.6; }
+    50% { transform:translateY(-30px) rotate(2deg); opacity:1; }
+    100% { transform:translateY(0) rotate(0deg); opacity:0.6; }
+}
+
+.container { max-width:1300px; margin:0 auto; padding:20px clamp(16px,5vw,40px); animation:fadeUp 0.8s ease-out; }
+@keyframes fadeUp { from { opacity:0; transform:translateY(40px); } to { opacity:1; transform:translateY(0); } }
+
+a { color:var(--accent); text-decoration:none; transition:all 0.3s; }
+a:hover { color:var(--accent2); text-shadow:0 0 12px rgba(91,110,255,0.4); }
+
+h2.section-title {
+    font-size:clamp(1.6rem, 5vw, 2.4rem); font-weight:900; text-align:center;
+    margin:60px 0 25px;
+    background:linear-gradient(135deg, #fff, var(--accent2));
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+    animation: titleGlow 3s infinite alternate;
+}
+@keyframes titleGlow {
+    from { filter:drop-shadow(0 0 10px rgba(91,110,255,0.3)); }
+    to { filter:drop-shadow(0 0 25px rgba(180,127,255,0.7)); }
+}
+
+/* Navigation – clean, keine Emojis */
+.nav {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:10px clamp(16px,5vw,40px);
+    background:rgba(2,3,8,0.65);
+    backdrop-filter:blur(30px); -webkit-backdrop-filter:blur(30px);
+    border-bottom:1px solid var(--border);
+    position:sticky; top:0; z-index:1000;
+    animation: slideDown 0.6s ease-out; flex-wrap:wrap; gap:10px;
+}
+@keyframes slideDown { from { transform:translateY(-100%); opacity:0; } to { transform:translateY(0); opacity:1; } }
+.nav .brand {
+    font-weight:900; font-size:1.6rem;
+    background:linear-gradient(135deg, var(--accent), var(--accent2), #fff);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+    animation:brandPulse 3s infinite alternate; white-space:nowrap;
+}
+@keyframes brandPulse { from { filter:drop-shadow(0 0 6px rgba(91,110,255,0.4)); } to { filter:drop-shadow(0 0 18px rgba(180,127,255,0.8)); } }
+.nav .links { display:flex; gap:clamp(14px, 3vw, 26px); flex-wrap:wrap; align-items:center; }
+.nav .links a {
+    color:var(--muted); font-weight:600; font-size:0.9rem;
+    position:relative; transition:color 0.3s; white-space:nowrap;
+}
+.nav .links a::after {
+    content:''; position:absolute; bottom:-4px; left:0;
+    width:0; height:2px; background:var(--accent);
+    transition:width 0.3s; border-radius:2px;
+}
+.nav .links a:hover { color:#fff; }
+.nav .links a:hover::after { width:100%; }
+/* Active indicator */
+.nav .links a.active { color:#fff; }
+.nav .links a.active::after { width:100%; }
+
+/* Buttons */
+.btn {
+    display:inline-flex; align-items:center; gap:8px;
+    padding:clamp(10px, 2vw, 14px) clamp(20px, 4vw, 32px);
+    border-radius:50px;
+    background:linear-gradient(135deg, var(--accent), var(--accent2));
+    color:#fff; font-weight:700; font-size:clamp(0.85rem, 2vw, 1rem);
+    border:none; cursor:pointer; transition:all var(--t);
+    box-shadow:0 10px 30px rgba(91,110,255,0.4);
+    position:relative; overflow:hidden;
+}
+.btn::before {
+    content:''; position:absolute; top:0; left:-100%;
+    width:100%; height:100%;
+    background:linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition:left 0.5s;
+}
+.btn:hover::before { left:100%; }
+.btn:hover {
+    transform:translateY(-4px);
+    box-shadow:0 16px 40px rgba(91,110,255,0.6);
+}
+.btn.ghost {
+    background:transparent; border:1.5px solid var(--border);
+    color:var(--text); box-shadow:none;
+}
+.btn.ghost:hover {
+    background:var(--surface); box-shadow:var(--glow);
+}
+.btn.small { padding:8px 18px; font-size:0.8rem; }
+
+/* Hero */
+.hero {
+    padding:clamp(60px, 12vw, 120px) 16px;
+    text-align:center; position:relative;
+    animation:heroReveal 1s ease-out; overflow:hidden;
+}
+@keyframes heroReveal { from { opacity:0; transform:scale(0.92); } to { opacity:1; transform:scale(1); } }
+.hero h1 {
+    font-size:clamp(2.5rem, 9vw, 4.5rem); font-weight:900; line-height:1.1;
+    background:linear-gradient(135deg, #ffffff 0%, #d1d8ff 40%, var(--accent2) 100%);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+    margin-bottom:20px; animation:textShine 4s infinite alternate;
+}
+@keyframes textShine {
+    from { filter:drop-shadow(0 0 15px rgba(91,110,255,0.4)); }
+    to { filter:drop-shadow(0 0 45px rgba(180,127,255,0.9)); }
+}
+.hero p {
+    font-size:clamp(0.95rem, 2vw, 1.1rem); color:var(--muted);
+    max-width:750px; margin:0 auto 36px; animation:fadeUp 0.8s 0.2s both;
+}
+
+/* Stats Bar */
+.stats-bar {
+    display:flex; justify-content:center; gap:clamp(20px, 5vw, 56px);
+    margin:40px auto; flex-wrap:wrap; text-align:center;
+    animation:fadeUp 0.8s 0.4s both;
+}
+.stat-item { display:flex; flex-direction:column; align-items:center; gap:4px; }
+.stat-emoji { font-size:2rem; animation: bounce 2s infinite; }
+.stat-item:nth-child(2) .stat-emoji { animation-delay:0.2s; }
+.stat-item:nth-child(3) .stat-emoji { animation-delay:0.4s; }
+.stat-item:nth-child(4) .stat-emoji { animation-delay:0.6s; }
+.stat-item:nth-child(5) .stat-emoji { animation-delay:0.8s; }
+@keyframes bounce {
+    0%,100% { transform:translateY(0); }
+    50% { transform:translateY(-10px); }
+}
+.stat-item .num {
+    font-size:2.5rem; font-weight:900;
+    background:linear-gradient(135deg, #fff, var(--accent));
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+}
+.stat-item .lbl { font-size:0.8rem; color:var(--muted); }
+
+/* Grid & Cards */
+.grid { display:grid; gap:22px; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); margin-top:25px; }
+.card {
+    background:var(--surface);
+    backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
+    border:1px solid var(--border); border-radius:var(--radius);
+    padding:clamp(18px, 4vw, 26px);
+    transition:all var(--t);
+    animation:cardPop 0.5s ease-out both;
+    position:relative; overflow:hidden;
+}
+.card:hover { transform:translateY(-8px); border-color:rgba(255,255,255,0.15); box-shadow:var(--glow); }
+@keyframes cardPop { from { opacity:0; transform:scale(0.9) translateY(20px); } to { opacity:1; transform:scale(1) translateY(0); } }
+.card .icon { font-size:2.2rem; margin-bottom:12px; }
+.card h3 { font-size:1.1rem; margin-bottom:8px; font-weight:700; }
+.card p { color:var(--muted); font-size:0.85rem; line-height:1.6; }
+.card .badge { display:inline-block; padding:3px 10px; border-radius:16px; background:rgba(255,255,255,0.05); font-size:0.7rem; margin-top:10px; color:var(--accent); font-weight:600; }
+
+/* Highlight Box */
+.highlight {
+    background:linear-gradient(135deg, rgba(91,110,255,0.1), rgba(180,127,255,0.08));
+    border:1px solid rgba(91,110,255,0.3);
+    border-radius:var(--radius); padding:clamp(24px, 5vw, 38px);
+    text-align:center; margin:45px 0; position:relative; overflow:hidden;
+    animation:fadeUp 0.8s both;
+}
+.highlight::before {
+    content:''; position:absolute; top:-50%; left:-50%;
+    width:200%; height:200%;
+    background:conic-gradient(from 0deg, transparent, rgba(91,110,255,0.07), transparent, rgba(180,127,255,0.07), transparent);
+    animation:spin 10s linear infinite;
+}
+@keyframes spin { 100% { transform:rotate(360deg); } }
+.highlight > * { position:relative; z-index:1; }
+
+/* Warum Wir */
+.reasons-grid { display:grid; gap:18px; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); margin-top:25px; }
+.reason-card {
+    background:rgba(20,24,40,0.7); backdrop-filter:blur(16px);
+    border:1px solid var(--border); border-radius:var(--radius-sm);
+    padding:22px; text-align:center; transition:all 0.3s; animation:cardPop 0.5s both;
+}
+.reason-card:hover { transform:translateY(-5px); box-shadow:var(--glow); }
+.reason-emoji { font-size:2.4rem; margin-bottom:8px; animation:wiggle 3s infinite; }
+@keyframes wiggle { 0%,100% { transform:rotate(0); } 25% { transform:rotate(-4deg); } 75% { transform:rotate(4deg); } }
+.reason-card h4 { font-size:0.95rem; margin-bottom:5px; font-weight:700; }
+.reason-card p { font-size:0.78rem; color:var(--muted); }
+
+/* Status Page */
+.status-grid { display:grid; gap:20px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin:30px 0; }
+.status-card {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--radius-sm); padding:22px; text-align:center;
+    transition:all 0.3s;
+}
+.status-card:hover { border-color:var(--accent); box-shadow:var(--glow); }
+.status-dot { display:inline-block; width:12px; height:12px; border-radius:50%; margin-right:6px; }
+.status-dot.green { background:#22c55e; box-shadow:0 0 12px rgba(34,197,94,0.6); animation:pulse 2s infinite; }
+@keyframes pulse { 0%,100% { box-shadow:0 0 6px rgba(34,197,94,0.4); } 50% { box-shadow:0 0 20px rgba(34,197,94,0.9); } }
+.metric-big { font-size:3rem; font-weight:900; background:linear-gradient(135deg, #fff, var(--ok)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+
+/* Legal */
+.legal { max-width:900px; margin:40px auto; padding:20px; }
+.legal h1 { font-size:clamp(1.8rem, 5vw, 2.2rem); font-weight:900; margin-bottom:8px; }
+.legal .date { color:var(--muted); margin-bottom:35px; }
+.legal h2 { font-size:1.4rem; margin:28px 0 12px; color:var(--accent); }
+.legal p, .legal li { margin-bottom:9px; color:var(--muted); line-height:1.75; }
+.legal ul { margin-left:20px; margin-bottom:18px; }
+.legal strong { color:var(--text); }
+
+details {
+    background:var(--surface); backdrop-filter:blur(14px);
+    border:1px solid var(--border); border-radius:var(--radius-sm);
+    margin-bottom:14px; transition:0.2s;
+}
+details[open] { box-shadow:var(--glow); }
+summary {
+    padding:14px 18px; font-weight:700; cursor:pointer;
+    list-style:none; display:flex; justify-content:space-between;
+    align-items:center; font-size:0.95rem; color:var(--text);
+}
+summary::-webkit-details-marker { display:none; }
+summary::after { content:'>'; font-size:1rem; transition:transform 0.3s; color:var(--accent); font-weight:bold; }
+details[open] summary::after { transform:rotate(90deg); }
+details .content { padding:0 18px 18px; color:var(--muted); font-size:0.9rem; }
+
+/* Footer */
+.foot {
+    padding:35px 18px; margin-top:70px;
+    border-top:1px solid var(--border);
+    background:rgba(0,0,0,0.3); backdrop-filter:blur(16px);
+    text-align:center; color:var(--muted); font-size:0.82rem;
+}
+.foot .footer-grid { display:flex; justify-content:center; gap:clamp(20px, 10vw, 70px); flex-wrap:wrap; margin-bottom:16px; }
+.foot .footer-grid > div { min-width:130px; }
+.foot h4 { font-size:0.95rem; margin-bottom:8px; color:var(--accent); }
+.foot a { color:var(--muted); margin:0 8px; transition:color 0.2s; }
+.foot a:hover { color:#fff; }
+
+/* Login */
+.login { max-width:400px; margin:80px auto; padding:32px; background:var(--surface); backdrop-filter:blur(24px); border:1px solid var(--border); border-radius:var(--radius); box-shadow:0 20px 50px rgba(0,0,0,0.5); }
+.login h1 { font-size:1.5rem; margin-bottom:6px; }
+.login .lead { color:var(--muted); margin-bottom:28px; }
+.input { width:100%; padding:11px 15px; border-radius:var(--radius-sm); background:rgba(255,255,255,0.04); border:1px solid var(--border); color:var(--text); font-size:1rem; transition:0.2s; }
+.input:focus { border-color:var(--accent); outline:none; box-shadow:0 0 0 3px rgba(91,110,255,0.15); }
+.alert.err { background:rgba(248,113,113,0.15); color:#fca5a5; border:1px solid rgba(248,113,113,0.3); padding:11px; border-radius:var(--radius-sm); margin-bottom:18px; }
+
+/* Tables */
+table { width:100%; border-collapse:collapse; }
+th, td { padding:10px 14px; border-bottom:1px solid var(--border); text-align:left; font-size:0.85rem; }
+th { color:var(--muted); font-weight:700; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.5px; }
+.tag { display:inline-block; padding:3px 8px; border-radius:6px; background:rgba(255,255,255,0.05); font-size:0.7rem; }
+.tag.ok { color:#86efac; } .tag.warn { color:#fcd34d; } .tag.err { color:#fca5a5; }
+.kpi { display:flex; align-items:baseline; gap:6px; }
+.kpi .num { font-size:2rem; font-weight:900; background:linear-gradient(135deg, #fff, var(--accent)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+.kpi .lbl { color:var(--muted); font-size:0.85rem; }
+
+/* Scrollable */
+.scroll { max-height:450px; overflow-y:auto; border:1px solid var(--border); border-radius:var(--radius-sm); background:var(--surface); }
+.evt { padding:10px 14px; border-bottom:1px solid var(--border); font-size:0.8rem; }
+.evt:hover { background:rgba(255,255,255,0.02); }
+.evt .ts { color:var(--muted); font-size:0.7rem; }
+.evt .kind { display:inline-block; padding:2px 7px; border-radius:4px; background:rgba(255,255,255,0.06); font-size:0.65rem; margin-right:6px; text-transform:uppercase; letter-spacing:0.5px; color:var(--accent); font-weight:700; }
+.evt .kind.guild_join,.evt .kind.guild_leave { color:#86efac; }
+
+/* Mobile Verbesserungen */
+@media (max-width:768px) {
+    .nav { justify-content:center; text-align:center; }
+    .nav .links { justify-content:center; gap:12px; }
+    .nav .links a { font-size:0.78rem; }
+    .hero h1 { font-size:2rem; }
+    .hero p { font-size:0.9rem; }
+    .stats-bar { gap:16px; }
+    .stat-item .num { font-size:1.8rem; }
+    .grid { grid-template-columns:1fr; gap:14px; }
+    .reasons-grid { grid-template-columns:1fr 1fr; gap:12px; }
+    .status-grid { grid-template-columns:1fr 1fr; }
+    .footer-grid { gap:30px; }
+}
+@media (max-width:480px) {
+    .nav .brand { font-size:1.3rem; }
+    .nav .links a { font-size:0.7rem; gap:8px; }
+    .reasons-grid { grid-template-columns:1fr; }
+    .status-grid { grid-template-columns:1fr; }
+    .hero h1 { font-size:1.6rem; }
+    .btn { padding:10px 20px; font-size:0.8rem; }
+    .card { padding:14px; }
+}
+"""
+
+_NAV_HTML = """
+<nav class="nav">
+    <div class="brand">ModForge</div>
+    <div class="links">
+        <a href="/">Home</a>
+        <a href="/#features">Features</a>
+        <a href="/#why">Warum wir</a>
+        <a href="/status">Status</a>
+        <a href="/terms">Terms</a>
+        <a href="/privacy">Privacy</a>
+        <a href="/imprint">Impressum</a>
+    </div>
+</nav>
+"""
+
+_FOOTER_HTML = """
+<footer class="foot">
+    <div class="footer-grid">
+        <div>
+            <h4>ModForge</h4>
+            <p style="font-size:0.8rem;">Advanced Discord Security</p>
+        </div>
+        <div>
+            <h4>Rechtliches</h4>
+            <a href="/terms">Terms</a><br>
+            <a href="/privacy">Privacy</a><br>
+            <a href="/imprint">Impressum</a>
+        </div>
+        <div>
+            <h4>Info</h4>
+            <a href="/status">Status</a><br>
+            <a href="/metrics">Metrics</a>
+        </div>
+    </div>
+    <p style="font-size:0.75rem; opacity:0.7;">&copy; 2026 ModForge &middot; Alle Rechte vorbehalten &middot; Gemacht mit Leidenschaft fur sichere Communities</p>
+</footer>
+"""
+
+LANDING_HTML = """<!doctype html>
+<html lang="de"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ModForge Security &mdash; Discord Moderation Bot</title>
+<meta name="description" content="ModForge schutzt deinen Discord-Server mit Anti-Nuke, Anti-Raid, AutoMod, Cases, 48h-Archiv & mehr.">
+<style>""" + _BASE_CSS + """</style>
+</head><body>
+""" + _NAV_HTML + """
+<section class="hero">
+    <h1>Dein Server.<br>Absolut geschutzt.</h1>
+    <p>ModForge ist die fortschrittlichste Sicherheits-Plattform fur Discord &mdash; mit <strong>Anti-Nuke</strong>, <strong>Anti-Raid</strong>, <strong>AutoMod</strong>, <strong>Case-System</strong> und einem extrem leistungsstarken Regelwerk. Alles per Slash-Command &mdash; keine Vorkenntnisse notig.</p>
+    <a class="btn" href="https://discord.com/oauth2/authorize?client_id={{client_id}}&scope=bot+applications.commands&permissions=8">
+        Jetzt zu Discord hinzufugen
+    </a>
+</section>
+
+<div class="container">
+    <!-- Live-Statistiken -->
+    <div class="stats-bar">
+        <div class="stat-item">
+            <span class="stat-emoji">&#127760;</span>
+            <span class="num">{{guild_count}}</span>
+            <span class="lbl">Aktive Server</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-emoji">&#128101;</span>
+            <span class="num">{{member_total}}</span>
+            <span class="lbl">Geschutzte Mitglieder</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-emoji">&#9201;</span>
+            <span class="num" id="uptime-display">{{uptime_s}}</span>
+            <span class="lbl">Uptime</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-emoji">&#128225;</span>
+            <span class="num">{{latency_ms}}ms</span>
+            <span class="lbl">Latenz</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-emoji">&#128274;</span>
+            <span class="num">0</span>
+            <span class="lbl">Datenlecks</span>
+        </div>
+    </div>
+
+    <!-- Features -->
+    <h2 class="section-title" id="features">Alles, was dein Server braucht</h2>
+    <p style="text-align:center; color:var(--muted); max-width:600px; margin:-10px auto 25px;">ModForge vereint alle essenziellen Sicherheits- und Moderations-Tools in einem Bot &mdash; konfigurierbar, transparent und hochperformant.</p>
+    <div class="grid">
+        <div class="card">
+            <div class="icon">&#128737;</div>
+            <h3>Anti-Nuke</h3>
+            <p>Stoppt Massen-Bans, Kicks, Channel-/Rollen-Wipes in Echtzeit.</p>
+            <span class="badge">Echtzeitschutz</span>
+        </div>
+        <div class="card">
+            <div class="icon">&#128695;</div>
+            <h3>Anti-Raid</h3>
+            <p>Erkennt Raid-Wellen, Account-Alter &amp; verdachtige Cluster.</p>
+            <span class="badge">KI-gestutzt</span>
+        </div>
+        <div class="card">
+            <div class="icon">&#129302;</div>
+            <h3>AutoMod</h3>
+            <p>BadWords, Regex, Invite-/Link-Filter, Zalgo, Phishing.</p>
+            <span class="badge">Konfigurierbar</span>
+        </div>
+        <div class="card">
+            <div class="icon">&#128203;</div>
+            <h3>Case-System</h3>
+            <p>Jede Aktion mit ID, Beweisen, Grund-Historie &amp; 48h-Archiv.</p>
+            <span class="badge">Beweissicher</span>
+        </div>
+        <div class="card">
+            <div class="icon">&#128269;</div>
+            <h3>Permissions-Auditor</h3>
+            <p>Findet gefahrliche Rollen, Admins &amp; Hierarchie-Probleme.</p>
+            <span class="badge">Sicherheitsanalyse</span>
+        </div>
+        <div class="card">
+            <div class="icon">&#128232;</div>
+            <h3>Tickets &amp; Verify</h3>
+            <p>Captcha-Verifikation + Ticket-System mit Protokollierung.</p>
+            <span class="badge">Community</span>
+        </div>
+        <div class="card">
+            <div class="icon">&#9878;</div>
+            <h3>Warn-Schwellen</h3>
+            <p>Flexible Eskalation: 3 &rarr; Timeout, 5 &rarr; Kick, 7 &rarr; Ban.</p>
+            <span class="badge">Automatisiert</span>
+        </div>
+        <div class="card">
+            <div class="icon">&#128220;</div>
+            <h3>Granulare Logs</h3>
+            <p>Pro Modul eigener Log-Kanal &mdash; Moderation, Voice, Members, &hellip;</p>
+            <span class="badge">Transparent</span>
+        </div>
+    </div>
+
+    <!-- Warum Wir -->
+    <h2 class="section-title" id="why">Warum ModForge?</h2>
+    <div class="reasons-grid">
+        <div class="reason-card">
+            <div class="reason-emoji">&#128274;</div>
+            <h4>Ende-zu-Ende verschlusselt</h4>
+            <p>TLS 1.3 fur alle Verbindungen &mdash; deine Daten sind sicher.</p>
+        </div>
+        <div class="reason-card">
+            <div class="reason-emoji">&#127466;&#127482;</div>
+            <h4>100% DSGVO-konform</h4>
+            <p>EU-Hosting, minimale Datenspeicherung, Recht auf Loschung.</p>
+        </div>
+        <div class="reason-card">
+            <div class="reason-emoji">&#9889;</div>
+            <h4>Hochstperformant</h4>
+            <p>Async MongoDB, Caching &amp; Rate-Limiter fur riesige Server.</p>
+        </div>
+        <div class="reason-card">
+            <div class="reason-emoji">&#128260;</div>
+            <h4>Standige Updates</h4>
+            <p>Regelmassige Verbesserungen &amp; sofortige Sicherheits-Patches.</p>
+        </div>
+        <div class="reason-card">
+            <div class="reason-emoji">&#127919;</div>
+            <h4>Prazise &amp; Fair</h4>
+            <p>Hierarchie-Checks &amp; Whitelist-System &mdash; keine Willkur.</p>
+        </div>
+        <div class="reason-card">
+            <div class="reason-emoji">&#128142;</div>
+            <h4>Zero-Log Philosophie</h4>
+            <p>Keine unnotige Datenspeicherung &mdash; nur, was du aktivierst.</p>
+        </div>
+        <div class="reason-card">
+            <div class="reason-emoji">&#128737;</div>
+            <h4>Proaktiver Schutz</h4>
+            <p>Erkennt Angriffe, bevor sie Schaden anrichten.</p>
+        </div>
+        <div class="reason-card">
+            <div class="reason-emoji">&#129309;</div>
+            <h4>Community-getrieben</h4>
+            <p>Deine Wunsche fliessen in die Entwicklung ein.</p>
+        </div>
+        <div class="reason-card">
+            <div class="reason-emoji">&#129521;</div>
+            <h4>Modular &amp; flexibel</h4>
+            <p>Jedes Schutzmodul einzeln aktivierbar &amp; konfigurierbar.</p>
+        </div>
+        <div class="reason-card">
+            <div class="reason-emoji">&#128225;</div>
+            <h4>24/7 Monitoring</h4>
+            <p>Der Bot lauft rund um die Uhr und reagiert sofort.</p>
+        </div>
+    </div>
+
+    <!-- Final CTA -->
+    <div class="highlight" style="margin-top:50px;">
+        <h3 style="font-size:1.5rem;">Bereit fur echten Schutz?</h3>
+        <p>Fuge ModForge jetzt zu deinem Server hinzu &mdash; in weniger als einer Minute eingerichtet.</p>
+        <a class="btn" href="https://discord.com/oauth2/authorize?client_id={{client_id}}&scope=bot+applications.commands&permissions=8">Jetzt installieren</a>
+    </div>
+</div>
+""" + _FOOTER_HTML + """
+<script>
+(function() {
+    var ua = navigator.userAgent;
+    var device = 'desktop';
+    if (/Mobi|Android|iPhone|iPad|iPod/i.test(ua)) device = 'mobile';
+    document.documentElement.setAttribute('data-device', device);
+
+    // Uptime formatieren
+    var uptimeEl = document.getElementById('uptime-display');
+    if (uptimeEl) {
+        var totalSec = parseInt(uptimeEl.textContent) || 0;
+        var d = Math.floor(totalSec / 86400);
+        var h = Math.floor((totalSec % 86400) / 3600);
+        var m = Math.floor((totalSec % 3600) / 60);
+        uptimeEl.textContent = (d ? d + 'd ' : '') + h + 'h ' + m + 'm';
+    }
+
+    // Intersection Observer fur Animationen
+    var observer = new IntersectionObserver(function(entries) {
+        entries.forEach(function(entry) {
+            if (entry.isIntersecting) {
+                entry.target.style.animationPlayState = 'running';
+                entry.target.style.opacity = '1';
+            }
+        });
+    }, { threshold: 0.15 });
+
+    document.querySelectorAll('.card, .reason-card, .highlight').forEach(function(el) {
+        el.style.animationPlayState = 'paused';
+        el.style.opacity = '0';
+        observer.observe(el);
+    });
+
+    setTimeout(function() {
+        document.querySelectorAll('.card, .reason-card, .highlight').forEach(function(el) {
+            var r = el.getBoundingClientRect();
+            if (r.top < window.innerHeight) {
+                el.style.animationPlayState = 'running';
+                el.style.opacity = '1';
+            }
+        });
+    }, 400);
+
+    // Smooth Scroll
+    document.querySelectorAll('a[href^="/#"]').forEach(function(link) {
+        link.addEventListener('click', function(e) {
+            var id = link.getAttribute('href').substring(2);
+            var target = document.getElementById(id);
+            if (target) {
+                e.preventDefault();
+                target.scrollIntoView({ behavior: 'smooth' });
+            }
+        });
+    });
+
+    // Active Nav Highlight
+    var currentPath = window.location.pathname;
+    document.querySelectorAll('.nav .links a').forEach(function(link) {
+        if (link.getAttribute('href') === currentPath) {
+            link.classList.add('active');
+        }
+    });
+})();
+</script>
+</body></html>
+"""
+
+STATUS_HTML = """<!doctype html>
+<html lang="de"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Status &mdash; ModForge</title>
+<meta name="description" content="Echtzeit-Status von ModForge &mdash; Uptime, Latenz, Server, Mitglieder.">
+<style>""" + _BASE_CSS + """</style>
+</head><body>
+""" + _NAV_HTML + """
+<div class="container" style="max-width:900px;">
+    <h1 style="font-size:2rem;font-weight:900;margin-bottom:5px;">System Status</h1>
+    <p style="color:var(--muted);margin-bottom:30px;">Echtzeit-Metriken &mdash; direkt vom Bot</p>
+
+    <div class="status-grid">
+        <div class="status-card">
+            <h4 style="margin-bottom:10px;"><span class="status-dot green"></span> Bot Online</h4>
+            <div class="metric-big" id="st-uptime">{{uptime_s}}</div>
+            <p style="color:var(--muted);font-size:0.8rem;">Uptime</p>
+        </div>
+        <div class="status-card">
+            <h4 style="margin-bottom:10px;">&#128225; Latenz</h4>
+            <div class="metric-big">{{latency_ms}}ms</div>
+            <p style="color:var(--muted);font-size:0.8rem;">Discord Gateway</p>
+        </div>
+        <div class="status-card">
+            <h4 style="margin-bottom:10px;">&#127760; Server</h4>
+            <div class="metric-big">{{guild_count}}</div>
+            <p style="color:var(--muted);font-size:0.8rem;">Aktive Guilds</p>
+        </div>
+        <div class="status-card">
+            <h4 style="margin-bottom:10px;">&#128101; Mitglieder</h4>
+            <div class="metric-big">{{member_total}}</div>
+            <p style="color:var(--muted);font-size:0.8rem;">Gesamt</p>
+        </div>
+    </div>
+
+    <div class="highlight" style="margin-top:40px;">
+        <h3>Offene Metriken</h3>
+        <p>ModForge stellt einen <strong>Open Metrics / Prometheus</strong>-Endpoint bereit:</p>
+        <code style="display:block;background:rgba(0,0,0,0.3);padding:12px;border-radius:8px;margin-top:12px;word-break:break-all;font-size:0.9rem;">GET /metrics</code>
+    </div>
+</div>
+""" + _FOOTER_HTML + """
+<script>
+(function() {
+    var uptimeEl = document.getElementById('st-uptime');
+    if (uptimeEl) {
+        var totalSec = parseInt(uptimeEl.textContent) || 0;
+        var d = Math.floor(totalSec / 86400);
+        var h = Math.floor((totalSec % 86400) / 3600);
+        var m = Math.floor((totalSec % 3600) / 60);
+        uptimeEl.textContent = (d ? d + 'd ' : '') + h + 'h ' + m + 'm';
+    }
+    var currentPath = window.location.pathname;
+    document.querySelectorAll('.nav .links a').forEach(function(link) {
+        if (link.getAttribute('href') === currentPath) link.classList.add('active');
+    });
+})();
+</script>
+</body></html>
+"""
+
+TERMS_HTML = """<!doctype html><html lang="de"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Terms of Service &mdash; ModForge</title>
+<style>""" + _BASE_CSS + """</style></head><body>
+""" + _NAV_HTML + """
+<div class="legal">
+    <h1>Terms of Service</h1>
+    <p class="date">Stand: {{today}} &middot; Version 2.6</p>
+
+    <details open>
+        <summary>1. Geltungsbereich &amp; Vertragspartner</summary>
+        <div class="content">
+            <p>Diese Nutzungsbedingungen (&bdquo;Terms&rdquo;) regeln die Nutzung des Discord-Bots <strong>ModForge</strong> (nachfolgend &bdquo;Bot&rdquo;) durch dich als Server-Administrator oder Nutzer mit Zugriff auf die Bot-Befehle. Betreiber des Bots ist das ModForge-Entwicklerteam, erreichbar uber den offiziellen Support-Server.</p>
+            <p>Mit dem Hinzufugen des Bots zu deinem Discord-Server (&bdquo;Guild&rdquo;) oder der Nutzung eines beliebigen Bot-Befehls erklarst du dich rechtsverbindlich mit diesen Terms einverstanden. Solltest du nicht einverstanden sein, entferne den Bot umgehend.</p>
+        </div>
+    </details>
+
+    <details>
+        <summary>2. Leistungsumfang &amp; Funktionsweise</summary>
+        <div class="content">
+            <p>ModForge bietet eine Vielzahl automatisierter Moderations- und Sicherheitsfunktionen, darunter:</p>
+            <ul>
+                <li><strong>Anti-Nuke:</strong> Verhindert Massen-Banns, -Kicks, Channel-/Rollen-Loschungen und Webhook-Missbrauch.</li>
+                <li><strong>Anti-Raid:</strong> Erkennt ungewohnliche Join-Muster und Account-Alter zur Abwehr von Raids.</li>
+                <li><strong>AutoMod:</strong> Filtert verbotene Worter, Links, Einladungen, Zalgo-Text und Phishing-Versuche.</li>
+                <li><strong>Case-System:</strong> Dokumentiert jede Moderationsaktion mit eindeutiger ID, Begrundung und Beweisen.</li>
+                <li><strong>Permissions-Auditor:</strong> Analysiert Rollen-Berechtigungen auf Sicherheitsrisiken.</li>
+                <li><strong>Weitere Module:</strong> Ticket-System, Verifikation, Warn-Eskalation, Logging.</li>
+            </ul>
+            <p>Der Betreiber behalt sich das Recht vor, einzelne Funktionen zu andern, zu erweitern oder einzustellen. Es besteht kein Anspruch auf dauerhafte Verfugbarkeit bestimmter Features.</p>
+        </div>
+    </details>
+
+    <details>
+        <summary>3. Pflichten des Nutzers / Server-Admins</summary>
+        <div class="content">
+            <p>Du verpflichtest dich, den Bot ausschliesslich im Einklang mit den <a href="https://discord.com/terms" target="_blank" rel="noopener">Discord-Terms of Service</a> und den <a href="https://discord.com/guidelines" target="_blank" rel="noopener">Community-Richtlinien</a> einzusetzen. Insbesondere ist es untersagt:</p>
+            <ul>
+                <li>Den Bot fur rechtswidrige Handlungen, Belastigung, Stalking oder Doxxing zu nutzen.</li>
+                <li>Sicherheits- oder Schutzmechanismen des Bots zu umgehen, zu deaktivieren oder zu manipulieren.</li>
+                <li>Massen-Direktnachrichten oder Spam uber Bot-Funktionen zu versenden.</li>
+                <li>Den Bot zur Verbreitung von Malware, Phishing-Links oder schadlicher Software einzusetzen.</li>
+                <li>Die durch den Bot gespeicherten Daten unbefugt auszulesen oder an Dritte weiterzugeben.</li>
+            </ul>
+            <p>Du tragst die alleinige Verantwortung fur die Konfiguration der automatisierten Aktionen und die Einhaltung der Gesetze auf deinem Server.</p>
+        </div>
+    </details>
+
+    <details>
+        <summary>4. Haftungsbeschrankung</summary>
+        <div class="content">
+            <p>Der Bot wird im Ist-Zustand (&bdquo;as is&rdquo;) und nach Verfugbarkeit (&bdquo;as available&rdquo;) bereitgestellt. Eine Gewahrleistung fur unterbrechungsfreie Nutzung oder Fehlerfreiheit wird nicht ubernommen. Der Betreiber haftet, soweit gesetzlich zulassig, nur fur Vorsatz und grobe Fahrlassigkeit.</p>
+            <p>Fur Schaden, die durch fehlerhafte Konfiguration, Missbrauch, technische Storungen, Datenverlust oder ausgesprochene automatische Sanktionen entstehen, ist die Haftung ausgeschlossen, sofern kein vorsatzliches oder grob fahrlassiges Handeln vorliegt.</p>
+        </div>
+    </details>
+
+    <details>
+        <summary>5. Datenschutz &amp; Datenverarbeitung</summary>
+        <div class="content">
+            <p>Die Erhebung und Verarbeitung personenbezogener Daten erfolgt gemass unserer <a href="/privacy">Privacy Policy</a>. Du erklarst dich mit der dort beschriebenen Verarbeitung einverstanden.</p>
+        </div>
+    </details>
+
+    <details>
+        <summary>6. Ausschluss von der Nutzung</summary>
+        <div class="content">
+            <p>Bei Verstoss gegen diese Bedingungen behalt sich der Betreiber das Recht vor, den Zugang zum Bot fur einzelne Server oder Nutzer ohne Vorankundigung zu sperren. Gesperrte Server haben keinen Anspruch auf Wiederherstellung der Konfiguration oder Daten.</p>
+        </div>
+    </details>
+
+    <details>
+        <summary>7. Anderungen der Nutzungsbedingungen</summary>
+        <div class="content">
+            <p>Wir behalten uns vor, diese Terms jederzeit zu andern. Wesentliche Anderungen werden &mdash; soweit moglich &mdash; auf dieser Seite, im Support-Server oder per Bot-Benachrichtigung bekannt gegeben. Die fortgesetzte Nutzung nach Anderungen gilt als Zustimmung.</p>
+        </div>
+    </details>
+
+    <details>
+        <summary>8. Salvatorische Klausel &amp; Kontakt</summary>
+        <div class="content">
+            <p>Sollte eine Bestimmung dieser Bedingungen unwirksam sein, bleibt die Wirksamkeit der ubrigen Bestimmungen unberuhrt. Es gilt das Recht der Bundesrepublik Deutschland.</p>
+            <p>Fur Fragen, Widerspruche oder Loschbegehren kontaktiere bitte den <strong>ModForge Support-Server</strong> oder schreibe eine Direktnachricht an den Bot-Owner.</p>
+        </div>
+    </details>
+</div>
+""" + _FOOTER_HTML + """
+</body></html>"""
+
+PRIVACY_HTML = """<!doctype html><html lang="de"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Privacy Policy &mdash; ModForge</title>
+<style>""" + _BASE_CSS + """</style></head><body>
+""" + _NAV_HTML + """
+<div class="legal">
+    <h1>Privacy Policy</h1>
+    <p class="date">Stand: {{today}} &middot; Version 2.6</p>
+
+    <details open>
+        <summary>1. Verantwortlicher &amp; Kontakt</summary>
+        <div class="content">
+            <p>Verantwortlich fur die Datenverarbeitung im Sinne der Datenschutz-Grundverordnung (DSGVO) ist der Betreiber des Discord-Bots &bdquo;ModForge&rdquo;. Anfragen zum Datenschutz richten Sie bitte an den offiziellen Support-Server oder per Direktnachricht an den Bot-Owner.</p>
+        </div>
+    </details>
+
+    <details>
+        <summary>2. Allgemeine Ubersicht der Datenverarbeitung</summary>
+        <div class="content">
+            <p>ModForge verarbeitet ausschliesslich Daten, die fur die Bereitstellung der Bot-Funktionen (Moderation, Sicherheits-Auditing, Case-Tracking) notwendig sind. Eine Verarbeitung zu Werbezwecken oder ein Verkauf von Daten findet nicht statt. Die Verarbeitung erfolgt auf Grundlage von Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse) sowie &mdash; im Falle der Nachrichtenarchivierung &mdash; auf Grundlage einer Einwilligung des Server-Administrators (Art. 6 Abs. 1 lit. a DSGVO).</p>
+        </div>
+    </details>
+
+    <details>
+        <summary>3. Kategorien personenbezogener Daten</summary>
+        <div class="content">
+            <p><strong>a) Server-Konfiguration:</strong> Discord-Server-ID, Modul-Einstellungen, Schwellwerte, Rollen- und Kanal-IDs.</p>
+            <p><strong>b) Moderationsdaten:</strong> User-ID, Moderator-ID, Zeitstempel, Begrundungen, zugewiesene Case-IDs, verhangte Sanktionen (Warnungen, Timeouts, Kicks, Bans).</p>
+            <p><strong>c) Optionales Nachrichten-Archiv (nur bei expliziter Aktivierung):</strong> Nachrichteninhalte, Anhang-URLs, Message-ID, Kanal-ID, Zeitstempel. Diese Daten werden fur maximal 48 Stunden in einer MongoDB mit TTL-Index gespeichert und danach automatisch geloscht.</p>
+            <p><strong>d) Guild-Events:</strong> Bot-Beitritt und -Verlassen von Servern (Guild-ID, Name, ungefahre Mitgliederzahl, Zeitstempel).</p>
+            <p><strong>Nicht gespeichert werden:</strong> IP-Adressen, private Direktnachrichten (ausserhalb des Appeal-Systems), Standortdaten, Gerateinformationen.</p>
+        </div>
+    </details>
+
+    <details>
+        <summary>4. Zwecke der Verarbeitung</summary>
+        <div class="content">
+            <ul>
+                <li><strong>Moderation:</strong> Automatische Erkennung und Sanktionierung von Regelverstossen.</li>
+                <li><strong>Sicherheit:</strong> Abwehr von Nuke-, Raid- und Spam-Angriffen.</li>
+                <li><strong>Beweissicherung:</strong> Nachvollziehbarkeit von Moderationshandlungen (Case-System).</li>
+                <li><strong>Konfiguration:</strong> Speicherung der Servereinstellungen fur den dauerhaften Betrieb.</li>
+                <li><strong>Statistik:</strong> Anonyme Auswertung der Bot-Verbreitung (Guild-Events).</li>
+            </ul>
+        </div>
+    </details>
+
+    <details>
+        <summary>5. Rechtsgrundlage</summary>
+        <div class="content">
+            <p>Die Verarbeitung der unter 3.a, 3.b und 3.d genannten Daten erfolgt auf Grundlage von Art. 6 Abs. 1 lit. f DSGVO (Wahrung berechtigter Interessen). Das berechtigte Interesse besteht in der Gewahrleistung der Sicherheit und Funktionalitat der mit dem Bot geschutzten Discord-Server.</p>
+            <p>Die optionale Nachrichten-Archivierung (3.c) erfolgt auf Grundlage einer Einwilligung des Server-Administrators gemass Art. 6 Abs. 1 lit. a DSGVO. Diese Einwilligung kann jederzeit durch Deaktivieren der Funktion (<code>/setarchive off</code>) widerrufen werden.</p>
+        </div>
+    </details>
+
+    <details>
+        <summary>6. Speicherdauer &amp; Loschung</summary>
+        <div class="content">
+            <ul>
+                <li><strong>Server-Konfiguration &amp; Moderationsdaten:</strong> Bis zur manuellen Loschung durch den Admin oder bis zum Verlassen des Bots vom Server. Spatestens 30 Tage nach Bot-Entfernung werden alle serverbezogenen Daten automatisch geloscht.</li>
+                <li><strong>Nachrichten-Archiv:</strong> Maximale Lebensdauer 48 Stunden dank TTL-Index.</li>
+                <li><strong>Cases mit eingebetteten Nachrichten:</strong> Die Nachrichtenschnappschusse innerhalb eines Cases bleiben als Teil der Case-Daten gespeichert. Sie konnen durch Loschen des Cases oder auf gesonderten Antrag entfernt werden.</li>
+            </ul>
+        </div>
+    </details>
+
+    <details>
+        <summary>7. Weitergabe an Dritte &amp; Hosting</summary>
+        <div class="content">
+            <p>Es findet <strong>keine</strong> Weitergabe personenbezogener Daten an Dritte statt. Alle Daten werden auf Servern von MongoDB Atlas (Region: EU-West) gespeichert. Die Ubertragung erfolgt verschlusselt via TLS 1.3. MongoDB Atlas ist ISO 27001-zertifiziert.</p>
+        </div>
+    </details>
+
+    <details>
+        <summary>8. Rechte der betroffenen Personen</summary>
+        <div class="content">
+            <p>Ihnen stehen jederzeit folgende Rechte zu:</p>
+            <ul>
+                <li><strong>Auskunft</strong> uber die zu Ihrer Person gespeicherten Daten.</li>
+                <li><strong>Berichtigung</strong> unrichtiger Daten.</li>
+                <li><strong>Loschung</strong> Ihrer Daten, soweit keine gesetzlichen Aufbewahrungspflichten entgegenstehen.</li>
+                <li><strong>Einschrankung der Verarbeitung</strong> unter bestimmten Voraussetzungen.</li>
+                <li><strong>Datenubertragbarkeit</strong> in einem maschinenlesbaren Format.</li>
+                <li><strong>Widerspruch</strong> gegen die Verarbeitung aus berechtigtem Interesse.</li>
+            </ul>
+            <p>Zur Ausubung dieser Rechte genugt eine Nachricht an den Betreiber (Support-Server). Wir werden Ihre Anfrage innerhalb von 30 Tagen beantworten.</p>
+        </div>
+    </details>
+
+    <details>
+        <summary>9. Datensicherheit &amp; technische Massnahmen</summary>
+        <div class="content">
+            <p>Wir setzen umfassende technische und organisatorische Massnahmen zum Schutz Ihrer Daten ein:</p>
+            <ul>
+                <li>Verschlusselung aller Datenubertragungen (TLS 1.3).</li>
+                <li>Passwortgeschutztes Admin-Dashboard mit Brute-Force-Schutz und konstantem-Zeit-Vergleich.</li>
+                <li>Automatische Session-Invalidierung nach 4 Stunden Inaktivitat.</li>
+                <li>Regelmassige Updates der eingesetzten Bibliotheken.</li>
+                <li>Minimalprinzip: Es werden nur die fur die Funktionalitat unbedingt notwendigen Daten gespeichert.</li>
+            </ul>
+        </div>
+    </details>
+
+    <details>
+        <summary>10. Anderungen dieser Datenschutzerklarung</summary>
+        <div class="content">
+            <p>Wir behalten uns vor, diese Datenschutzerklarung bei Bedarf anzupassen. Die jeweils aktuelle Version ist stets auf dieser Seite abrufbar. Bei wesentlichen Anderungen informieren wir &mdash; soweit moglich &mdash; uber den Support-Server.</p>
+        </div>
+    </details>
+</div>
+""" + _FOOTER_HTML + """
+</body></html>"""
+
+IMPRINT_HTML = """<!doctype html><html lang="de"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Impressum &mdash; ModForge</title>
+<style>""" + _BASE_CSS + """</style></head><body>
+""" + _NAV_HTML + """
+<div class="legal">
+    <h1>Impressum</h1>
+    <p class="date">Angaben gemass &sect; 5 TMG / &sect; 18 MStV</p>
+
+    <h2>Diensteanbieter</h2>
+    <p>
+        <strong>ModForge Security</strong><br>
+        c/o Bot-Betreiber<br>
+        Fufi<br>
+        BotForge<br>
+        Deutschland
+    </p>
+
+    <h2>Kontakt</h2>
+    <p>
+        E-Mail: <a href="mailto:botforge@gmail.com">contact@modforge.dev</a><br>
+        Discord: <a href="https://discord.gg/gwryX3dbkt" target="_blank" rel="noopener">ModForge Support-Server</a>
+    </p>
+
+    <h2>Verantwortlich fur den Inhalt nach &sect; 18 Abs. 2 MStV</h2>
+    <p>
+        Fufi<br>
+        BotForge<br>
+    </p>
+
+    <h2>Haftungshinweis</h2>
+    <p>
+        Trotz sorgfaltiger inhaltlicher Kontrolle ubernehmen wir keine Haftung fur die Inhalte externer Links.
+        Fur den Inhalt der verlinkten Seiten sind ausschliesslich deren Betreiber verantwortlich.
+    </p>
+
+    <h2>Streitschlichtung</h2>
+    <p>
+        Die Europaische Kommission stellt eine Plattform zur Online-Streitbeilegung (OS) bereit:
+        <a href="https://ec.europa.eu/consumers/odr/" target="_blank" rel="noopener">https://ec.europa.eu/consumers/odr/</a>.
+        Wir sind nicht verpflichtet, an Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle teilzunehmen.
+    </p>
+</div>
+""" + _FOOTER_HTML + """
+</body></html>"""
+
+LOGIN_HTML = """<!doctype html><html lang="de"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin Login &mdash; ModForge</title>
+<style>""" + _BASE_CSS + """</style></head><body>
+""" + _NAV_HTML + """
+<div class="login">
+    <h1>Admin Login</h1>
+    <p class="lead">Nur fur Bot-Owner. Geschutzt mit Brute-Force-Limit.</p>
+    {% if error %}<div class="alert err">{{error}}</div>{% endif %}
+    <form method="post">
+        <label style="margin-bottom:5px;display:block;">Benutzername</label>
+        <input class="input" type="text" name="username" autocomplete="username" required>
+        <label style="margin-bottom:5px;display:block;">Passwort</label>
+        <input class="input" type="password" name="password" autocomplete="current-password" required>
+        <button class="btn" type="submit" style="width:100%;margin-top:22px;">Einloggen</button>
+    </form>
+    <p style="text-align:center;margin-top:18px;font-size:0.78rem;color:var(--muted);">Sicher durch konstanten-Zeit-Vergleich &amp; Rate-Limiting.</p>
+</div>
+""" + _FOOTER_HTML + """
+</body></html>"""
+
+DASHBOARD_HTML = """<!doctype html><html lang="de"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin Dashboard &mdash; ModForge</title>
+<style>""" + _BASE_CSS + """</style></head><body>
+""" + _NAV_HTML + """
+<div class="container">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+        <h1 style="margin:0;font-size:1.8rem;">Admin Dashboard</h1>
+        <a class="btn ghost" href="/admin/logout">Logout</a>
+    </div>
+    <p style="color:var(--muted);margin-top:4px;">Live-Ubersicht &middot; Aktualisiert alle 5 Sekunden</p>
+
+    <div class="grid" style="margin-top:25px;">
+        <div class="card"><div class="kpi"><div class="num" id="k-guilds">&ndash;</div><div class="lbl">Server</div></div></div>
+        <div class="card"><div class="kpi"><div class="num" id="k-members">&ndash;</div><div class="lbl">Members</div></div></div>
+        <div class="card"><div class="kpi"><div class="num" id="k-uptime">&ndash;</div><div class="lbl">Uptime</div></div></div>
+        <div class="card"><div class="kpi"><div class="num" id="k-latency">&ndash;</div><div class="lbl">Latency (ms)</div></div></div>
+        <div class="card"><div class="kpi"><div class="num" id="k-cases">&ndash;</div><div class="lbl">Cases</div></div></div>
+        <div class="card"><div class="kpi"><div class="num" id="k-archive">&ndash;</div><div class="lbl">Archiv</div></div></div>
+    </div>
+
+    <h2 class="section-title" style="text-align:left;font-size:1.4rem;">Server</h2>
+    <div class="card" style="padding:0;overflow-x:auto;">
+        <table id="t-guilds"><thead><tr><th>Name</th><th>ID</th><th>Member</th><th>Owner</th><th>Erstellt</th></tr></thead><tbody></tbody></table>
+    </div>
+
+    <div class="grid" style="grid-template-columns:1fr 1fr;margin-top:25px;">
+        <div><h2 class="section-title" style="text-align:left;font-size:1.2rem;">Joins / Leaves</h2><div class="scroll" id="ev-guilds"></div></div>
+        <div><h2 class="section-title" style="text-align:left;font-size:1.2rem;">Activity</h2><div class="scroll" id="ev-activity"></div></div>
+    </div>
+
+    <h2 class="section-title" style="text-align:left;font-size:1.4rem;">Letzte Nachrichten</h2>
+    <div class="card" style="padding:0;overflow-x:auto;"><table id="t-msgs"><thead><tr><th>Zeit</th><th>Server</th><th>User</th><th>Kanal</th><th>Inhalt</th></tr></thead><tbody></tbody></table></div>
+
+    <h2 class="section-title" style="text-align:left;font-size:1.4rem;">Letzte Cases</h2>
+    <div class="card" style="padding:0;overflow-x:auto;"><table id="t-cases"><thead><tr><th>Case</th><th>Server</th><th>User</th><th>Aktion</th><th>Grund</th><th>Erstellt</th></tr></thead><tbody></tbody></table></div>
+</div>
+""" + _FOOTER_HTML + """
+<script>
+function fmtUptime(s){
+    s = Math.floor(s);
+    var d = Math.floor(s/86400); s %= 86400;
+    var h = Math.floor(s/3600);  s %= 3600;
+    var m = Math.floor(s/60);
+    return (d?d+'d ':'') + (h?h+'h ':'') + m+'m';
+}
+function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+
+async function tick(){
+    try {
+        var r = await fetch('/admin/api/state');
+        if (!r.ok) return;
+        var d = await r.json();
+        document.getElementById('k-guilds').textContent = d.stats.guild_count;
+        document.getElementById('k-members').textContent = d.stats.member_total.toLocaleString('de-DE');
+        document.getElementById('k-uptime').textContent = fmtUptime(d.stats.uptime_s);
+        document.getElementById('k-latency').textContent = d.stats.latency_ms;
+        document.getElementById('k-cases').textContent = d.stats.cases_total;
+        document.getElementById('k-archive').textContent = d.stats.archive_total;
+
+        var tg = document.querySelector('#t-guilds tbody');
+        tg.innerHTML = d.guilds.map(function(g){ return '<tr><td>'+escapeHtml(g.name)+'</td><td><span class="tag">'+g.id+'</span></td><td>'+(g.member_count||0).toLocaleString('de-DE')+'</td><td>'+escapeHtml(g.owner||'?')+'</td><td class="muted">'+(g.created||'')+'</td></tr>'; }).join('') || '<tr><td colspan="5" class="muted">Keine Server.</td></tr>';
+
+        var eg = document.getElementById('ev-guilds');
+        eg.innerHTML = d.guild_events.map(function(e){ return '<div class="evt"><span class="kind '+(e.event==='join'?'guild_join':'guild_leave')+'">'+e.event+'</span><b>'+escapeHtml(e.guild_name)+'</b> &ndash; '+(e.member_count||'?')+' Member<div class="ts">'+e.timestamp+'</div></div>'; }).join('') || '<div class="evt muted">Keine Events.</div>';
+
+        var ea = document.getElementById('ev-activity');
+        ea.innerHTML = d.activity.map(function(a){ return '<div class="evt"><span class="kind '+escapeHtml(a.kind)+'">'+escapeHtml(a.kind)+'</span>'+escapeHtml(a.text)+'<div class="ts">'+a.ts+'</div></div>'; }).join('') || '<div class="evt muted">Stream leer.</div>';
+
+        var tm = document.querySelector('#t-msgs tbody');
+        tm.innerHTML = d.recent_messages.map(function(m){ return '<tr><td class="muted">'+m.timestamp+'</td><td><span class="tag">'+m.guild_id+'</span></td><td><span class="tag">'+m.user_id+'</span></td><td><span class="tag">'+m.channel_id+'</span></td><td>'+escapeHtml((m.content||'').slice(0,200))+' '+(m.deleted?'<span class="tag err">deleted</span>':'')+'</td></tr>'; }).join('') || '<tr><td colspan="5" class="muted">Archiv leer.</td></tr>';
+
+        var tc = document.querySelector('#t-cases tbody');
+        tc.innerHTML = d.recent_cases.map(function(c){ return '<tr><td><b>#'+c.case_id+'</b></td><td><span class="tag">'+c.guild_id+'</span></td><td><span class="tag">'+c.user_id+'</span></td><td><span class="tag '+(c.action==='ban'?'err':c.action==='kick'?'warn':'ok')+'">'+c.action+'</span></td><td>'+escapeHtml((c.reason||'').slice(0,160))+'</td><td class="muted">'+c.created_at+'</td></tr>'; }).join('') || '<tr><td colspan="6" class="muted">Keine Cases.</td></tr>';
+    } catch(e) { console.error(e); }
+}
+tick(); setInterval(tick, 5000);
+</script>
+</body></html>"""
+
+
+# ─────────────────────────────────────────────────────────────────
+# ── ROUTES (Unveränderte Logik) ──
+# ─────────────────────────────────────────────────────────────────
+@app.route("/")
+def home_page() -> str:
+    client_id = ""
+    guild_count = 0
+    member_total = 0
+    uptime_s = 0
+    latency_ms = 0
+    try:
+        if BOT_REF and BOT_REF.user:
+            client_id = str(BOT_REF.user.id)
+        if BOT_REF:
+            guild_count = len(BOT_REF.guilds)
+            member_total = sum(g.member_count or 0 for g in BOT_REF.guilds)
+            uptime_s = get_uptime(BOT_REF.start_time)
+            latency_ms = round(BOT_REF.latency * 1000, 1)
+    except Exception:
+        pass
+    return render_template_string(
+        LANDING_HTML,
+        client_id=client_id,
+        guild_count=guild_count,
+        member_total=member_total,
+        uptime_s=uptime_s,
+        latency_ms=latency_ms,
+    )
+
+@app.route("/status")
+def status_page() -> str:
+    uptime_s = 0
+    latency_ms = 0
+    guild_count = 0
+    member_total = 0
+    try:
+        if BOT_REF:
+            uptime_s = get_uptime(BOT_REF.start_time)
+            latency_ms = round(BOT_REF.latency * 1000, 1)
+            guild_count = len(BOT_REF.guilds)
+            member_total = sum(g.member_count or 0 for g in BOT_REF.guilds)
+    except Exception:
+        pass
+    return render_template_string(
+        STATUS_HTML,
+        uptime_s=uptime_s,
+        latency_ms=latency_ms,
+        guild_count=guild_count,
+        member_total=member_total,
+    )
+
+@app.route("/imprint")
+def imprint_page() -> str:
+    return render_template_string(IMPRINT_HTML)
+
+@app.route("/metrics")
+def metrics_endpoint():
+    """Open Metrics / Prometheus Endpoint"""
+    uptime_s = 0
+    latency_ms = 0
+    guild_count = 0
+    member_total = 0
+    cases_total = 0
+    archive_total = 0
+    try:
+        if BOT_REF:
+            uptime_s = get_uptime(BOT_REF.start_time)
+            latency_ms = round(BOT_REF.latency * 1000, 1)
+            guild_count = len(BOT_REF.guilds)
+            member_total = sum(g.member_count or 0 for g in BOT_REF.guilds)
+        cases_total = _run_async(BOT_REF.db.cases.count_documents({})) or 0
+        archive_total = _run_async(BOT_REF.db.message_archive.count_documents({})) or 0
+    except Exception:
+        pass
+
+    metrics = f"""# HELP modforge_uptime_seconds Bot uptime in seconds
+# TYPE modforge_uptime_seconds gauge
+modforge_uptime_seconds {uptime_s}
+# HELP modforge_latency_ms Discord gateway latency in ms
+# TYPE modforge_latency_ms gauge
+modforge_latency_ms {latency_ms}
+# HELP modforge_guilds Number of guilds
+# TYPE modforge_guilds gauge
+modforge_guilds {guild_count}
+# HELP modforge_members Total members across guilds
+# TYPE modforge_members gauge
+modforge_members {member_total}
+# HELP modforge_cases Total moderation cases
+# TYPE modforge_cases gauge
+modforge_cases {cases_total}
+# HELP modforge_archive_messages Total archived messages
+# TYPE modforge_archive_messages gauge
+modforge_archive_messages {archive_total}
+"""
+    return Response(metrics, mimetype="text/plain; charset=utf-8")
+  
+@app.route("/terms")
+def terms_page() -> str:
+    return render_template_string(TERMS_HTML, today=datetime.date.today().isoformat())
+
+@app.route("/privacy")
+def privacy_page() -> str:
+    return render_template_string(PRIVACY_HTML, today=datetime.date.today().isoformat())
+
+@app.route("/healthz")
+def healthz() -> Any:
+    return jsonify({
+        "ok": True,
+        "bot_ready": bool(BOT_REF and BOT_REF.is_ready()),
+        "ts": datetime.datetime.utcnow().isoformat() + "Z",
+    })
+
+@app.route("/admin/login", methods=["GET", "POST"])
+def admin_login() -> Any:
+    if not ADMIN_PASSWORD:
+        return render_template_string(LOGIN_HTML, error="Admin-Login deaktiviert: Setze ADMIN_PASSWORD.")
+    error = None
+    ip = _client_ip()
+    if request.method == "POST":
+        if _rate_limited(ip):
+            error = "Zu viele Versuche."
+        else:
+            user = (request.form.get("username") or "").strip()
+            pw = (request.form.get("password") or "")
+            if secrets_mod.compare_digest(user, ADMIN_USERNAME) and secrets_mod.compare_digest(pw, ADMIN_PASSWORD):
+                session.permanent = True
+                session["admin"] = True
+                session["admin_since"] = time.time()
+                ACTIVITY.push("admin_login", f"Admin-Login erfolgreich von {ip}.")
+                return redirect(url_for("admin_dashboard"))
+            else:
+                _record_attempt(ip)
+                ACTIVITY.push("admin_login_fail", f"Fehlgeschlagener Login von {ip}.")
+                error = "Falsche Zugangsdaten."
+    return render_template_string(LOGIN_HTML, error=error)
+
+@app.route("/admin/logout")
+def admin_logout() -> Any:
+    session.pop("admin", None)
+    return redirect(url_for("admin_login"))
+
+@app.route("/admin/dashboard")
+@admin_required
+def admin_dashboard() -> str:
+    return render_template_string(DASHBOARD_HTML)
+
+@app.route("/admin/api/state")
+@admin_required
+def admin_api_state() -> Any:
+    if BOT_REF is None:
+        return jsonify({"stats": {}, "guilds": [], "guild_events": [], "activity": [], "recent_messages": [], "recent_cases": []})
+
+    guilds_payload = []
+    member_total = 0
+    for g in list(BOT_REF.guilds):
+        member_total += g.member_count or 0
+        guilds_payload.append({
+            "id": g.id, "name": g.name, "member_count": g.member_count or 0,
+            "owner": str(g.owner) if g.owner else str(g.owner_id),
+            "created": g.created_at.strftime("%Y-%m-%d") if g.created_at else "",
+        })
+    guilds_payload.sort(key=lambda x: x["member_count"], reverse=True)
+
+    latency_ms = int((BOT_REF.latency or 0) * 1000)
+    uptime_s = get_uptime(BOT_REF.start_time)
+    cases_total = _run_async(BOT_REF.db.cases.count_documents({})) or 0
+    archive_total = _run_async(BOT_REF.db.message_archive.count_documents({})) or 0
+
+    recent_cases_raw = _run_async(BOT_REF.db.cases.find({}).sort("created_at", -1).limit(20).to_list(20)) or []
+    recent_cases = [{
+        "case_id": c.get("case_id"), "guild_id": c.get("guild_id"), "user_id": c.get("user_id"),
+        "action": c.get("action"), "reason": c.get("reason", "")[:160],
+        "created_at": c["created_at"].strftime("%Y-%m-%d %H:%M:%S") if c.get("created_at") else "",
+    } for c in recent_cases_raw]
+
+    recent_msgs_raw = _run_async(BOT_REF.db.message_archive.find({}).sort("timestamp", -1).limit(25).to_list(25)) or []
+    recent_messages = [{
+        "guild_id": m.get("guild_id"), "channel_id": m.get("channel_id"), "user_id": m.get("user_id"),
+        "content": m.get("content", ""), "deleted": bool(m.get("deleted")),
+        "timestamp": m["timestamp"].strftime("%Y-%m-%d %H:%M:%S") if m.get("timestamp") else "",
+    } for m in recent_msgs_raw]
+
+    guild_events_raw = _run_async(BOT_REF.db.aget_recent_guild_events(limit=30)) or []
+    guild_events = [{
+        "guild_name": e.get("guild_name", "?"), "event": e.get("event"),
+        "timestamp": e["timestamp"].strftime("%Y-%m-%d %H:%M:%S") if e.get("timestamp") else "",
+    } for e in guild_events_raw]
+
+    return jsonify({
+        "stats": {"guild_count": len(guilds_payload), "member_total": member_total, "uptime_s": uptime_s, "latency_ms": latency_ms, "cases_total": cases_total, "archive_total": archive_total},
+        "guilds": guilds_payload[:50], "guild_events": guild_events, "activity": ACTIVITY.snapshot(limit=80),
+        "recent_messages": recent_messages, "recent_cases": recent_cases,
+    })
+
+def run() -> None:
+    port = int(os.getenv("PORT", "7860"))
+    app.run(host="0.0.0.0", port=port, debug=False, threaded=True)
+
+def keep_alive() -> None:
+    threading.Thread(target=run, daemon=True).start()
+
+
+
+# ─────────────────────────────────────────────────────────────────
+# START
+# ─────────────────────────────────────────────────────────────────
+if __name__ == "__main__":
+    keep_alive()
+    if BOT_TOKEN == "DEIN_BOT_TOKEN_HIER":
+        print("❌ BITTE TOKEN EINTRAGEN!")
+    else:
+        bot.run(BOT_TOKEN)

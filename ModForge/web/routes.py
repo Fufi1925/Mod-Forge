@@ -894,6 +894,10 @@ def admin_stats():
 # GUILD-DASHBOARD (Auth User)
 # =========================================================
 
+# =========================================================
+# GUILD-DASHBOARD (Auth User)
+# =========================================================
+
 @flask_app.route("/dashboard/<guild_id>")
 @require_auth
 def guild_dashboard(guild_id):
@@ -908,7 +912,8 @@ def guild_dashboard(guild_id):
     if not g:
         abort(404)
 
-    overview = _build_overview(guild_id)
+    cfg = _get_guild_config(guild_id)
+    overview = _build_overview(cfg, guild_id)
     return render_template(
         "dashboard/overview.html",
         guild=g,
@@ -931,10 +936,14 @@ def guild_modules(guild_id):
     if not g:
         abort(404)
 
+    cfg = _get_guild_config(guild_id)
+    section = request.args.get("section", "antispam")
+    form = _build_module_form(section, cfg, guild_id)
+
     return render_template(
         "dashboard/modules.html",
         guild=g,
-        form=_build_module_form(guild_id),
+        form=form,
         user=user_session["user"],
     )
 
@@ -953,15 +962,16 @@ def guild_welcome(guild_id):
     if not g:
         abort(404)
 
+    cfg = _get_guild_config(guild_id)
+    content = _build_welcome_content(cfg, guild_id)
+
     return render_template(
         "dashboard/welcome.html",
         guild=g,
-        content=_build_welcome_content(guild_id),
+        content=content,
         user=user_session["user"],
     )
 
-
-# =========================================================
 # 404 / 403 / 500 HANDLER
 # =========================================================
 

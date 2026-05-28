@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}FAQ – ModForge{% endblock %}
+{% block content %}
+<div class="container" style="max-width:900px;padding-top:40px;padding-bottom:80px">
+  <div class="sec-head reveal" style="text-align:center;margin-bottom:50px">
+    <div class="sec-badge" style="margin-bottom:12px">❓ FAQ</div>
+    <h1 style="font-size:clamp(1.8rem,4vw,2.8rem);font-weight:800;margin-bottom:12px">Häufige Fragen</h1>
+    <p style="color:var(--muted);max-width:620px;margin:0 auto">Antworten auf die häufigsten Fragen zu ModForge.</p>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:12px">
+    <details class="reveal" style="padding:20px 24px;border-radius:var(--radius);background:var(--glass2);border:1px solid var(--border);cursor:pointer">
+      <summary style="font-size:1rem;font-weight:700;list-style:none;display:flex;align-items:center;justify-content:space-between">
+        Ist ModForge kostenlos?
+        <span style="color:var(--vl);font-size:1.2rem;transition:transform .2s">+</span>
+      </summary>
+      <p style="color:var(--muted);font-size:.88rem;line-height:1.7;margin-top:14px">Ja! ModForge ist vollständig kostenlos nutzbar. Premium bietet optionale Zusatzfeatures, aber alle Kern-Sicherheitsfunktionen sind kostenlos.</p>
+    </details>
+    <details class="reveal" style="padding:20px 24px;border-radius:var(--radius);background:var(--glass2);border:1px solid var(--border);cursor:pointer">
+      <summary style="font-size:1rem;font-weight:700;list-style:none;display:flex;align-items:center;justify-content:space-between">
+        Welche Berechtigungen braucht der Bot?
+        <span style="color:var(--vl);font-size:1.2rem">+</span>
+      </summary>
+      <p style="color:var(--muted);font-size:.88rem;line-height:1.7;margin-top:14px">Für volle Funktionalität benötigt ModForge Administrator-Rechte. Der Bot nutzt nur die Berechtigungen, die für die aktivierten Module nötig sind.</p>
+    </details>
+    <details class="reveal" style="padding:20px 24px;border-radius:var(--radius);background:var(--glass2);border:1px solid var(--border);cursor:pointer">
+      <summary style="font-size:1rem;font-weight:700;list-style:none;display:flex;align-items:center;justify-content:space-between">
+        Wie schützt ModForge meinen Server?
+        <span style="color:var(--vl);font-size:1.2rem">+</span>
+      </summary>
+      <p style="color:var(--muted);font-size:.88rem;line-height:1.7;margin-top:14px">ModForge bietet mehrstufigen Schutz: Anti-Nuke gegen Massenaktionen, Anti-Raid gegen Massenjoins, Anti-Spam, Anti-Scam und AutoMod für automatisierte Moderation.</p>
+    </details>
+    <details class="reveal" style="padding:20px 24px;border-radius:var(--radius);background:var(--glass2);border:1px solid var(--border);cursor:pointer">
+      <summary style="font-size:1rem;font-weight:700;list-style:none;display:flex;align-items:center;justify-content:space-between">
+        Werden meine Daten gespeichert?
+        <span style="color:var(--vl);font-size:1.2rem">+</span>
+      </summary>
+      <p style="color:var(--muted);font-size:.88rem;line-height:1.7;margin-top:14px">Wir speichern nur die nötigen Konfigurationsdaten und Moderation-Cases. Keine Nachrichten-Inhalte. Siehe unsere <a href="/privacy" style="color:var(--vl)">Datenschutzerklärung</a> für Details.</p>
+    </details>
+    <details class="reveal" style="padding:20px 24px;border-radius:var(--radius);background:var(--glass2);border:1px solid var(--border);cursor:pointer">
+      <summary style="font-size:1rem;font-weight:700;list-style:none;display:flex;align-items:center;justify-content:space-between">
+        Wie kann ich den Bot konfigurieren?
+        <span style="color:var(--vl);font-size:1.2rem">+</span>
+      </summary>
+      <p style="color:var(--muted);font-size:.88rem;line-height:1.7;margin-top:14px">Über das Web-Dashboard unter <a href="/login" style="color:var(--vl)">/login</a> oder direkt in Discord mit Slash-Commands wie <code style="color:var(--cl)">/setup</code>.</p>
+    </details>
+    <details class="reveal" style="padding:20px 24px;border-radius:var(--radius);background:var(--glass2);border:1px solid var(--border);cursor:pointer">
+      <summary style="font-size:1rem;font-weight:700;list-style:none;display:flex;align-items:center;justify-content:space-between">
+        Wo bekomme ich Support?
+        <span style="color:var(--vl);font-size:1.2rem">+</span>
+      </summary>
+      <p style="color:var(--muted);font-size:.88rem;line-height:1.7;margin-top:14px">Tritt unserem <a href="https://discord.gg/modforge" style="color:var(--vl)">Discord-Server</a> bei oder nutze die <a href="/support" style="color:var(--vl)">Support-Seite</a>.</p>
+    </details>
+  </div>
+</div>
+{% endblock %}

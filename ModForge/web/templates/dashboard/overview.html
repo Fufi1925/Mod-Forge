@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{{ guild.name }} – Dashboard – ModForge</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    .dash-nav { position:fixed;top:0;left:0;right:0;z-index:9999;height:60px;background:rgba(6,6,16,0.95);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 24px;gap:20px }
+    .dash-nav a { color:var(--muted);font-size:.82rem;font-weight:600;transition:color var(--r) }
+    .dash-nav a:hover,.dash-nav a.active { color:var(--fg) }
+    .dash-body { padding-top:80px;max-width:1100px;margin:0 auto;padding-left:24px;padding-right:24px;padding-bottom:60px }
+  </style>
+</head>
+<body class="page-bg">
+  <nav class="dash-nav">
+    <a href="/dashboard" style="font-weight:800;font-size:1rem;color:var(--vl);margin-right:auto;display:flex;align-items:center;gap:6px">🛡️ ModForge</a>
+    <a href="/dashboard/{{ guild.id }}" class="active">Übersicht</a>
+    <a href="/dashboard/{{ guild.id }}/modules">Module</a>
+    <a href="/dashboard/{{ guild.id }}/welcome">Welcome</a>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+      <img src="{{ user.avatar_url }}" style="width:28px;height:28px;border-radius:50%">
+      <span style="font-size:.82rem">{{ user.username }}</span>
+      <a href="/logout" style="color:var(--redl);font-size:.78rem;margin-left:8px">Logout</a>
+    </div>
+  </nav>
+
+  <div class="dash-body">
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:28px">
+      {% if guild.icon %}
+      <img src="{{ guild.icon.url }}" style="width:52px;height:52px;border-radius:50%;object-fit:cover">
+      {% else %}
+      <div style="width:52px;height:52px;border-radius:50%;background:rgba(124,58,237,0.2);display:flex;align-items:center;justify-content:center;font-weight:900;color:var(--vl);font-size:1.3rem">{{ guild.name[0] }}</div>
+      {% endif %}
+      <div>
+        <h1 style="font-size:1.4rem;font-weight:800">{{ guild.name }}</h1>
+        <p style="color:var(--muted);font-size:.78rem">{{ guild.member_count }} Mitglieder</p>
+      </div>
+    </div>
+
+    {{ overview|safe }}
+  </div>
+</body>
+</html>

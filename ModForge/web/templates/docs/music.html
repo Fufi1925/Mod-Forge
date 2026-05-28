@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Music – ModForge Docs{% endblock %}
+{% block content %}
+<div class="container" style="max-width:900px;padding-top:40px;padding-bottom:80px">
+  <div style="margin-bottom:20px"><a href="/docs" style="color:var(--vl);font-size:.85rem">← Zurück zur Dokumentation</a></div>
+  <div class="sec-head reveal" style="text-align:left;margin-bottom:40px">
+    <div class="sec-badge" style="margin-bottom:12px">🎵 Music</div>
+    <h1 style="font-size:clamp(1.6rem,3.5vw,2.4rem);font-weight:800;margin-bottom:12px">Music Player</h1>
+    <p style="color:var(--muted)">Hochqualitativer Musik-Player mit Playlist-Support.</p>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:16px">
+    <div class="glass-card reveal" style="padding:20px;border-radius:var(--radius);background:var(--glass2);border:1px solid var(--border);display:flex;align-items:center;gap:14px">
+      <code style="background:var(--glass3);padding:6px 14px;border-radius:8px;font-size:.82rem;color:var(--cl);white-space:nowrap;min-width:120px">/play</code>
+      <span style="color:var(--muted);font-size:.85rem">Spielt einen Song ab (URL oder Suche)</span>
+    </div>
+    <div class="glass-card reveal" style="padding:20px;border-radius:var(--radius);background:var(--glass2);border:1px solid var(--border);display:flex;align-items:center;gap:14px">
+      <code style="background:var(--glass3);padding:6px 14px;border-radius:8px;font-size:.82rem;color:var(--cl);white-space:nowrap;min-width:120px">/skip</code>
+      <span style="color:var(--muted);font-size:.85rem">Überspringt den aktuellen Song</span>
+    </div>
+    <div class="glass-card reveal" style="padding:20px;border-radius:var(--radius);background:var(--glass2);border:1px solid var(--border);display:flex;align-items:center;gap:14px">
+      <code style="background:var(--glass3);padding:6px 14px;border-radius:8px;font-size:.82rem;color:var(--cl);white-space:nowrap;min-width:120px">/queue</code>
+      <span style="color:var(--muted);font-size:.85rem">Zeigt die aktuelle Warteschlange</span>
+    </div>
+    <div class="glass-card reveal" style="padding:20px;border-radius:var(--radius);background:var(--glass2);border:1px solid var(--border);display:flex;align-items:center;gap:14px">
+      <code style="background:var(--glass3);padding:6px 14px;border-radius:8px;font-size:.82rem;color:var(--cl);white-space:nowrap;min-width:120px">/pause</code>
+      <span style="color:var(--muted);font-size:.85rem">Pausiert die Wiedergabe</span>
+    </div>
+    <div class="glass-card reveal" style="padding:20px;border-radius:var(--radius);background:var(--glass2);border:1px solid var(--border);display:flex;align-items:center;gap:14px">
+      <code style="background:var(--glass3);padding:6px 14px;border-radius:8px;font-size:.82rem;color:var(--cl);white-space:nowrap;min-width:120px">/volume</code>
+      <span style="color:var(--muted);font-size:.85rem">Lautstärke anpassen (1-100)</span>
+    </div>
+    <div class="glass-card reveal" style="padding:20px;border-radius:var(--radius);background:var(--glass2);border:1px solid var(--border);display:flex;align-items:center;gap:14px">
+      <code style="background:var(--glass3);padding:6px 14px;border-radius:8px;font-size:.82rem;color:var(--cl);white-space:nowrap;min-width:120px">/stop</code>
+      <span style="color:var(--muted);font-size:.85rem">Stoppt die Wiedergabe und leert die Queue</span>
+    </div>
+  </div>
+</div>
+{% endblock %}

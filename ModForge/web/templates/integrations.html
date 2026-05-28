@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Integrationen – ModForge{% endblock %}
+{% block content %}
+<div class="container" style="max-width:1000px;padding-top:40px;padding-bottom:80px">
+  <div class="sec-head reveal" style="text-align:center;margin-bottom:50px">
+    <div class="sec-badge" style="margin-bottom:12px">🔗 Integrationen</div>
+    <h1 style="font-size:clamp(1.8rem,4vw,2.8rem);font-weight:800;margin-bottom:12px">Verbinde deine Tools</h1>
+    <p style="color:var(--muted);max-width:620px;margin:0 auto">ModForge integriert sich nahtlos mit deinen bestehenden Workflows und Tools.</p>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:24px">
+    <div class="glass-card reveal" style="padding:28px;border-radius:var(--radius);background:var(--glass2);border:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+        <div style="width:42px;height:42px;border-radius:12px;background:rgba(88,101,242,0.2);display:flex;align-items:center;justify-content:center;font-size:1.4rem">🎮</div>
+        <h3 style="font-size:1.05rem;font-weight:700">Discord</h3>
+      </div>
+      <p style="color:var(--muted);font-size:.85rem;line-height:1.6">Volle Discord-API-Integration mit Slash-Commands und Events.</p>
+      <div style="margin-top:12px;padding:4px 12px;border-radius:999px;background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.25);font-size:.7rem;color:var(--green);display:inline-block">Aktiv</div>
+    </div>
+    <div class="glass-card reveal" style="padding:28px;border-radius:var(--radius);background:var(--glass2);border:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+        <div style="width:42px;height:42px;border-radius:12px;background:rgba(74,222,128,0.15);display:flex;align-items:center;justify-content:center;font-size:1.4rem">🍃</div>
+        <h3 style="font-size:1.05rem;font-weight:700">MongoDB</h3>
+      </div>
+      <p style="color:var(--muted);font-size:.85rem;line-height:1.6">Hochperformante NoSQL-Datenbank für alle Konfigurationen und Logs.</p>
+      <div style="margin-top:12px;padding:4px 12px;border-radius:999px;background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.25);font-size:.7rem;color:var(--green);display:inline-block">Aktiv</div>
+    </div>
+    <div class="glass-card reveal" style="padding:28px;border-radius:var(--radius);background:var(--glass2);border:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+        <div style="width:42px;height:42px;border-radius:12px;background:rgba(124,58,237,0.15);display:flex;align-items:center;justify-content:center;font-size:1.4rem">🔌</div>
+        <h3 style="font-size:1.05rem;font-weight:700">Webhooks</h3>
+      </div>
+      <p style="color:var(--muted);font-size:.85rem;line-height:1.6">Sende Logs und Alerts an externe Services per Webhook.</p>
+      <div style="margin-top:12px;padding:4px 12px;border-radius:999px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.25);font-size:.7rem;color:var(--amberl);display:inline-block">Beta</div>
+    </div>
+    <div class="glass-card reveal" style="padding:28px;border-radius:var(--radius);background:var(--glass2);border:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+        <div style="width:42px;height:42px;border-radius:12px;background:rgba(34,211,238,0.15);display:flex;align-items:center;justify-content:center;font-size:1.4rem">📊</div>
+        <h3 style="font-size:1.05rem;font-weight:700">REST API</h3>
+      </div>
+      <p style="color:var(--muted);font-size:.85rem;line-height:1.6">Eigene API-Endpunkte für Custom-Integrationen und Automatisierungen.</p>
+      <div style="margin-top:12px;padding:4px 12px;border-radius:999px;background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.25);font-size:.7rem;color:var(--cl);display:inline-block">Verfügbar</div>
+    </div>
+  </div>
+</div>
+{% endblock %}

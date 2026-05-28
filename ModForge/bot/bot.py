@@ -1771,6 +1771,7 @@ async def on_message_edit(before: discord.Message, after: discord.Message) -> No
 # ═══════════════════════════════════════════════════════════════
 # EVENT: ON_VOICE_STATE_UPDATE
 # ═══════════════════════════════════════════════════════════════
+
 @bot.event
 async def on_voice_state_update(member: discord.Member, before: discord.VoiceState,
                                 after: discord.VoiceState) -> None:
@@ -1783,7 +1784,6 @@ async def on_voice_state_update(member: discord.Member, before: discord.VoiceSta
             tv = cfg_tv.get("temp_voice", {})
             if tv.get("enabled") and tv.get("channel_id"):
                 if after.channel and after.channel.id == tv["channel_id"]:
-                    # User joined the join-to-create channel -> create temp channel
                     cat = guild.get_channel(tv.get("category_id")) if tv.get("category_id") else None
                     overwrites = {
                         guild.default_role: discord.PermissionOverwrite(read_messages=True, connect=True),
@@ -1795,10 +1795,9 @@ async def on_voice_state_update(member: discord.Member, before: discord.VoiceSta
                         reason=f"Temp-Voice von {member}"
                     )
                     await member.move_to(temp_ch, reason="Temp-Voice erstellt")
-                    await bot.log_action(guild, f"🎤 Temp-Voice erstellt", f"{member.mention} hat {temp_ch.mention} erstellt.", COLOR_SUCCESS, user=member, module="moderation")
+                    await bot.log_action(guild, f"🎤 Temp-Voice erstellt", f"{member.mention} hat {temp_ch.mention} erstellt.", COLOR_SUCCESS, user=member, module="voice")
                     return
 
-                # Temp channel empty -> auto delete
                 if before.channel and before.channel != after.channel:
                     ch_name = before.channel.name
                     if ch_name.startswith("🔊 ") and before.channel.members == []:
@@ -1809,25 +1808,203 @@ async def on_voice_state_update(member: discord.Member, before: discord.VoiceSta
         except Exception as ex:
             log.debug(f"Temp-Voice Fehler: {ex}")
 
-    if before.channel == after.channel:
-        return
-    if not before.channel:
-        await bot.log_action(guild, f"{E.VOICE_IN} Voice Join",
-                             f"{member.mention} ist {after.channel.mention} beigetreten.",
-                             COLOR_SUCCESS, user=member, module="voice")
-    elif not after.channel:
-        await bot.log_action(guild, f"{E.VOICE_OUT} Voice Leave",
-                             f"{member.mention} hat {before.channel.mention} verlassen.",
-                             COLOR_DANGER, user=member, module="voice")
-    else:
-        await bot.log_action(guild, f"{E.VOICE_SW} Voice Wechsel",
-                             f"{member.mention} ist von {before.channel.mention} zu {after.channel.mention} gewechselt.",
-                             COLOR_INFO, user=member, module="voice")
+    # ── Channel Join / Leave / Switch ──
+    if before.channel != after.channel:
+        if not before.channel and after.channel:
+            await bot.log_action(guild, f"{E.VOICE_IN} Voice Join",
+                                 f"{member.mention} ist {after.channel.mention} beigetreten.",
+                                 COLOR_SUCCESS, user=member, module="voice")
+        elif before.channel and not after.channel:
+            await bot.log_action(guild, f"{E.VOICE_OUT} Voice Leave",
+                                 f"{member.mention} hat {before.channel.mention} verlassen.",
+                                 COLOR_DANGER, user=member, module="voice")
+        elif before.channel and after.channel:
+            await bot.log_action(guild, f"{E.VOICE_SW} Voice Wechsel",
+                                 f"{member.mention} ist von {before.channel.mention} zu {after.channel.mention} gewechselt.",
+                                 COLOR_INFO, user=member, module="voice")
+
+    # ── Voice Disconnect (Kicked from Voice by Moderator) ──
+    # Wenn jemand aus dem Channel entfernt wird (nicht selbst gegangen)
+    if before.channel and not after.channel and member.bot is False:
+        try:
+            async for entry in guild.audit_logs(limit=5, action=discord.AuditLogAction.member_disconnect):
+                if (discord.utils.utcnow() - entry.created_at).total_seconds() < 5:
+                    if entry.target and entry.target.id == member.id:
+                        await bot.log_action(
+                            guild, f"📤 Voice Disconnect",
+                            f"**{member.mention}** wurde aus dem Voice-Channel entfernt von **{entry.user.mention}**.\n"
+                            f"Kanal: {before.channel.mention}",
+                            COLOR_WARNING, user=member, module="voice"
+                        )
+                        break
+        except (discord.Forbidden, discord.HTTPException):
+            pass
+
+    # ── Voice Move (moved to another channel by moderator) ──
+    if before.channel and after.channel and before.channel != after.channel and not member.bot:
+        try:
+            async for entry in guild.audit_logs(limit=5, action=discord.AuditLogAction.member_move):
+                if (discord.utils.utcnow() - entry.created_at).total_seconds() < 5:
+                    await bot.log_action(
+                        guild, f"↔️ Voice Verschoben",
+                        f"**{member.mention}** wurde verschoben von **{entry.user.mention}**.\n"
+                        f"{before.channel.mention} → {after.channel.mention}",
+                        COLOR_INFO, user=member, module="voice"
+                    )
+                    break
+        except (discord.Forbidden, discord.HTTPException):
+            pass
+
+    # ── Server Mute / Unmute ──
+    if before.mute != after.mute:
+        if after.mute:
+            moderator_info = ""
+            try:
+                async for entry in guild.audit_logs(limit=5, action=discord.AuditLogAction.member_update):
+                    if entry.target and entry.target.id == member.id and (discord.utils.utcnow() - entry.created_at).total_seconds() < 5:
+                        moderator_info = f"\nDurch: **{entry.user.mention}**"
+                        if entry.reason:
+                            moderator_info += f"\nGrund: {entry.reason}"
+                        break
+            except (discord.Forbidden, discord.HTTPException):
+                pass
+            await bot.log_action(
+                guild, f"{E.MUTE} Server Mute",
+                f"**{member.mention}** wurde **Server-stummgeschaltet** (Mikrofon).{moderator_info}\n"
+                f"Kanal: {after.channel.mention if after.channel else 'N/A'}",
+                COLOR_WARNING, user=member, module="voice"
+            )
+        else:
+            moderator_info = ""
+            try:
+                async for entry in guild.audit_logs(limit=5, action=discord.AuditLogAction.member_update):
+                    if entry.target and entry.target.id == member.id and (discord.utils.utcnow() - entry.created_at).total_seconds() < 5:
+                        moderator_info = f"\nDurch: **{entry.user.mention}**"
+                        break
+            except (discord.Forbidden, discord.HTTPException):
+                pass
+            await bot.log_action(
+                guild, f"{E.UNMUTE} Server Unmute",
+                f"**{member.mention}** wurde **Server-entstummgeschaltet** (Mikrofon).{moderator_info}\n"
+                f"Kanal: {after.channel.mention if after.channel else 'N/A'}",
+                COLOR_SUCCESS, user=member, module="voice"
+            )
+
+    # ── Server Deafen / Undeafen ──
+    if before.deaf != after.deaf:
+        if after.deaf:
+            moderator_info = ""
+            try:
+                async for entry in guild.audit_logs(limit=5, action=discord.AuditLogAction.member_update):
+                    if entry.target and entry.target.id == member.id and (discord.utils.utcnow() - entry.created_at).total_seconds() < 5:
+                        moderator_info = f"\nDurch: **{entry.user.mention}**"
+                        if entry.reason:
+                            moderator_info += f"\nGrund: {entry.reason}"
+                        break
+            except (discord.Forbidden, discord.HTTPException):
+                pass
+            await bot.log_action(
+                guild, f"🔇 Server Deafen",
+                f"**{member.mention}** wurde **Server-taubgeschaltet** (Audio).{moderator_info}\n"
+                f"Kanal: {after.channel.mention if after.channel else 'N/A'}",
+                COLOR_WARNING, user=member, module="voice"
+            )
+        else:
+            moderator_info = ""
+            try:
+                async for entry in guild.audit_logs(limit=5, action=discord.AuditLogAction.member_update):
+                    if entry.target and entry.target.id == member.id and (discord.utils.utcnow() - entry.created_at).total_seconds() < 5:
+                        moderator_info = f"\nDurch: **{entry.user.mention}**"
+                        break
+            except (discord.Forbidden, discord.HTTPException):
+                pass
+            await bot.log_action(
+                guild, f"🔊 Server Undeafen",
+                f"**{member.mention}** wurde **Server-Taub aufgehoben** (Audio).{moderator_info}\n"
+                f"Kanal: {after.channel.mention if after.channel else 'N/A'}",
+                COLOR_SUCCESS, user=member, module="voice"
+            )
+
+    # ── Self Mute / Unmute ──
+    if before.self_mute != after.self_mute:
+        if after.self_mute:
+            await bot.log_action(
+                guild, f"🔇 Self Mute",
+                f"**{member.mention}** hat sich selbst **stummgeschaltet**.\n"
+                f"Kanal: {after.channel.mention if after.channel else 'N/A'}",
+                COLOR_INFO, user=member, module="voice"
+            )
+        else:
+            await bot.log_action(
+                guild, f"🔊 Self Unmute",
+                f"**{member.mention}** hat sich selbst **entstummgeschaltet**.\n"
+                f"Kanal: {after.channel.mention if after.channel else 'N/A'}",
+                COLOR_INFO, user=member, module="voice"
+            )
+
+    # ── Self Deafen / Undeafen ──
+    if before.self_deaf != after.self_deaf:
+        if after.self_deaf:
+            await bot.log_action(
+                guild, f"🔇 Self Deafen",
+                f"**{member.mention}** hat sich selbst **taubgeschaltet**.\n"
+                f"Kanal: {after.channel.mention if after.channel else 'N/A'}",
+                COLOR_INFO, user=member, module="voice"
+            )
+        else:
+            await bot.log_action(
+                guild, f"🔊 Self Undeafen",
+                f"**{member.mention}** hat sich selbst **Taub aufgehoben**.\n"
+                f"Kanal: {after.channel.mention if after.channel else 'N/A'}",
+                COLOR_INFO, user=member, module="voice"
+            )
+
+    # ── Stream Start / Stop ──
+    if before.self_stream != after.self_stream:
+        if after.self_stream:
+            await bot.log_action(
+                guild, f"📺 Stream gestartet",
+                f"**{member.mention}** streamt jetzt in {after.channel.mention if after.channel else 'Voice'}.",
+                COLOR_PRIMARY, user=member, module="voice"
+            )
+        else:
+            await bot.log_action(
+                guild, f"📺 Stream beendet",
+                f"**{member.mention}** hat den Stream beendet.",
+                COLOR_INFO, user=member, module="voice"
+            )
+
+    # ── Camera / Video On / Off ──
+    if before.self_video != after.self_video:
+        if after.self_video:
+            await bot.log_action(
+                guild, f"📹 Kamera an",
+                f"**{member.mention}** hat die Kamera eingeschaltet in {after.channel.mention if after.channel else 'Voice'}.",
+                COLOR_PRIMARY, user=member, module="voice"
+            )
+        else:
+            await bot.log_action(
+                guild, f"📹 Kamera aus",
+                f"**{member.mention}** hat die Kamera ausgeschaltet.",
+                COLOR_INFO, user=member, module="voice"
+            )
+
+    # ── Suppress (Stage Channel Speaker/Audience) ──
+    if before.suppress != after.suppress:
+        if after.suppress:
+            await bot.log_action(
+                guild, f"🎙️ Zum Zuhörer gemacht",
+                f"**{member.mention}** wurde in {after.channel.mention if after.channel else 'Stage'} zum **Zuhörer** gemacht.",
+                COLOR_WARNING, user=member, module="voice"
+            )
+        else:
+            await bot.log_action(
+                guild, f"🎙️ Zum Sprecher gemacht",
+                f"**{member.mention}** darf jetzt in {after.channel.mention if after.channel else 'Stage'} **sprechen**.",
+                COLOR_SUCCESS, user=member, module="voice"
+            )
 
 
-# ═══════════════════════════════════════════════════════════════
-# EVENT: ON_MEMBER_UPDATE
-# ═══════════════════════════════════════════════════════════════
 @bot.event
 async def on_member_update(before: discord.Member, after: discord.Member) -> None:
     guild = after.guild
@@ -1881,6 +2058,68 @@ async def on_member_update(before: discord.Member, after: discord.Member) -> Non
 
 
 # ═══════════════════════════════════════════════════════════════
+
+    # ── Timeout (Server-Timeout) ───────────────────────────────
+    before_timeout = getattr(before, 'timed_out_until', None)
+    after_timeout = getattr(after, 'timed_out_until', None)
+
+    if before_timeout != after_timeout:
+        if after_timeout and (not before_timeout or after_timeout > before_timeout):
+            # Timeout wurde gesetzt oder verlängert
+            moderator_info = ""
+            reason_info = ""
+            try:
+                async for entry in guild.audit_logs(limit=3, action=discord.AuditLogAction.member_update):
+                    if entry.target and entry.target.id == after.id and (discord.utils.utcnow() - entry.created_at).total_seconds() < 10:
+                        moderator_info = f"\nDurch: **{entry.user.mention}**"
+                        if entry.reason:
+                            reason_info = f"\nGrund: {entry.reason}"
+                        break
+            except (discord.Forbidden, discord.HTTPException):
+                pass
+
+            # Dauer berechnen
+            remaining = ""
+            try:
+                delta = after_timeout - discord.utils.utcnow()
+                total_seconds = int(delta.total_seconds())
+                if total_seconds > 86400:
+                    remaining = f"{total_seconds // 86400}d {(total_seconds % 86400) // 3600}h"
+                elif total_seconds > 3600:
+                    remaining = f"{total_seconds // 3600}h {(total_seconds % 3600) // 60}m"
+                elif total_seconds > 60:
+                    remaining = f"{total_seconds // 60}m {total_seconds % 60}s"
+                else:
+                    remaining = f"{total_seconds}s"
+            except Exception:
+                remaining = "Unbekannt"
+
+            await bot.log_action(
+                guild, f"{E.MUTE} Timeout gesetzt",
+                f"**{after.mention}** wurde **getimeoutet**.{moderator_info}{reason_info}\n"
+                f"Dauer: **{remaining}**\n"
+                f"Endet: <t:{int(after_timeout.timestamp())}:R>",
+                COLOR_DANGER, user=after, module="moderation"
+            )
+
+        elif before_timeout and (not after_timeout or after_timeout <= discord.utils.utcnow()):
+            # Timeout wurde aufgehoben
+            moderator_info = ""
+            try:
+                async for entry in guild.audit_logs(limit=3, action=discord.AuditLogAction.member_update):
+                    if entry.target and entry.target.id == after.id and (discord.utils.utcnow() - entry.created_at).total_seconds() < 10:
+                        if entry.user.id != after.id:
+                            moderator_info = f"\nDurch: **{entry.user.mention}**"
+                        break
+            except (discord.Forbidden, discord.HTTPException):
+                pass
+
+            await bot.log_action(
+                guild, f"{E.UNMUTE} Timeout aufgehoben",
+                f"**{after.mention}** wurde **aus dem Timeout entfernt**.{moderator_info}",
+                COLOR_SUCCESS, user=after, module="moderation"
+            )
+
 # ANTI-NUKE EVENTS
 # ═══════════════════════════════════════════════════════════════
 

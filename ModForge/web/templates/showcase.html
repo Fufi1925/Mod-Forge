@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Showcase – ModForge{% endblock %}
+{% block content %}
+<div class="container" style="max-width:1000px;padding-top:40px;padding-bottom:80px">
+  <div class="sec-head reveal" style="text-align:center;margin-bottom:50px">
+    <div class="sec-badge" style="margin-bottom:12px">🌟 Showcase</div>
+    <h1 style="font-size:clamp(1.8rem,4vw,2.8rem);font-weight:800;margin-bottom:12px">Community Showcase</h1>
+    <p style="color:var(--muted);max-width:620px;margin:0 auto">Entdecke Server, die ModForge nutzen und von der Community empfohlen werden.</p>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:24px">
+    <div class="glass-card reveal" style="padding:28px;border-radius:var(--radius);background:var(--glass2);border:1px solid var(--border);text-align:center">
+      <div style="width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,rgba(124,58,237,0.3),rgba(34,211,238,0.2));display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:2rem">🎮</div>
+      <h3 style="font-size:1.05rem;font-weight:700;margin-bottom:4px">Gaming Hub DE</h3>
+      <p style="color:var(--muted);font-size:.82rem;margin-bottom:12px">5,200+ Mitglieder · Gaming Community</p>
+      <div style="padding:4px 12px;border-radius:999px;background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.25);font-size:.7rem;color:var(--green);display:inline-block">Verifiziert ✓</div>
+    </div>
+    <div class="glass-card reveal" style="padding:28px;border-radius:var(--radius);background:var(--glass2);border:1px solid var(--border);text-align:center">
+      <div style="width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,rgba(245,158,11,0.3),rgba(239,68,68,0.2));display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:2rem">🎵</div>
+      <h3 style="font-size:1.05rem;font-weight:700;margin-bottom:4px">Music Vibes</h3>
+      <p style="color:var(--muted);font-size:.82rem;margin-bottom:12px">3,800+ Mitglieder · Musik Community</p>
+      <div style="padding:4px 12px;border-radius:999px;background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.25);font-size:.7rem;color:var(--green);display:inline-block">Verifiziert ✓</div>
+    </div>
+    <div class="glass-card reveal" style="padding:28px;border-radius:var(--radius);background:var(--glass2);border:1px solid var(--border);text-align:center">
+      <div style="width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,rgba(74,222,128,0.3),rgba(34,211,238,0.2));display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:2rem">💻</div>
+      <h3 style="font-size:1.05rem;font-weight:700;margin-bottom:4px">Dev Community</h3>
+      <p style="color:var(--muted);font-size:.82rem;margin-bottom:12px">2,100+ Mitglieder · Entwickler</p>
+      <div style="padding:4px 12px;border-radius:999px;background:rgba(124,58,237,0.1);border:1px solid rgba(124,58,237,0.25);font-size:.7rem;color:var(--vl);display:inline-block">Partner</div>
+    </div>
+  </div>
+
+  <div class="reveal" style="margin-top:40px;text-align:center">
+    <p style="color:var(--muted);font-size:.88rem">Möchtest du deinen Server hier sehen? <a href="/contact" style="color:var(--vl)">Bewirb dich →</a></p>
+  </div>
+</div>
+{% endblock %}

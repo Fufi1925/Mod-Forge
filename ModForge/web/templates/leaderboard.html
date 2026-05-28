@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Leaderboard – ModForge{% endblock %}
+{% block content %}
+<div class="container" style="max-width:900px;padding-top:40px;padding-bottom:80px">
+  <div class="sec-head reveal" style="text-align:center;margin-bottom:50px">
+    <div class="sec-badge" style="margin-bottom:12px">🏆 Leaderboard</div>
+    <h1 style="font-size:clamp(1.8rem,4vw,2.8rem);font-weight:800;margin-bottom:12px">Top Server</h1>
+    <p style="color:var(--muted);max-width:620px;margin:0 auto">Die aktivsten und sichersten Server im ModForge-Netzwerk.</p>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:12px">
+    <div class="glass-card reveal" style="padding:20px 24px;border-radius:var(--radius);background:linear-gradient(135deg,rgba(245,158,11,0.1),rgba(245,158,11,0.02));border:1px solid rgba(245,158,11,0.2);display:flex;align-items:center;gap:16px">
+      <div style="font-size:1.6rem;font-weight:900;color:var(--amberl);min-width:32px;text-align:center">1</div>
+      <div style="width:42px;height:42px;border-radius:50%;background:rgba(245,158,11,0.2);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0">🎮</div>
+      <div style="flex:1"><div style="font-weight:700;font-size:.95rem">Gaming Hub DE</div><div style="color:var(--muted);font-size:.78rem">Security Score: 98/100</div></div>
+      <div style="font-size:.82rem;color:var(--amberl);font-weight:700">5,200 Members</div>
+    </div>
+    <div class="glass-card reveal" style="padding:20px 24px;border-radius:var(--radius);background:linear-gradient(135deg,rgba(148,163,184,0.08),rgba(148,163,184,0.02));border:1px solid rgba(148,163,184,0.15);display:flex;align-items:center;gap:16px">
+      <div style="font-size:1.6rem;font-weight:900;color:var(--muted);min-width:32px;text-align:center">2</div>
+      <div style="width:42px;height:42px;border-radius:50%;background:rgba(148,163,184,0.15);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0">🎵</div>
+      <div style="flex:1"><div style="font-weight:700;font-size:.95rem">Music Vibes</div><div style="color:var(--muted);font-size:.78rem">Security Score: 95/100</div></div>
+      <div style="font-size:.82rem;color:var(--muted);font-weight:700">3,800 Members</div>
+    </div>
+    <div class="glass-card reveal" style="padding:20px 24px;border-radius:var(--radius);background:linear-gradient(135deg,rgba(180,127,255,0.06),rgba(180,127,255,0.01));border:1px solid rgba(180,127,255,0.15);display:flex;align-items:center;gap:16px">
+      <div style="font-size:1.6rem;font-weight:900;color:var(--p2);min-width:32px;text-align:center">3</div>
+      <div style="width:42px;height:42px;border-radius:50%;background:rgba(180,127,255,0.15);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0">💻</div>
+      <div style="flex:1"><div style="font-weight:700;font-size:.95rem">Dev Community</div><div style="color:var(--muted);font-size:.78rem">Security Score: 93/100</div></div>
+      <div style="font-size:.82rem;color:var(--p2);font-weight:700">2,100 Members</div>
+    </div>
+  </div>
+
+  <div class="reveal" style="margin-top:32px;text-align:center;padding:20px;border-radius:var(--radius);background:var(--glass);border:1px solid var(--border)">
+    <p style="color:var(--muted);font-size:.85rem">Melde dich an um deinen Server im Leaderboard zu sehen. <a href="/login" style="color:var(--vl)">Dashboard öffnen →</a></p>
+  </div>
+</div>
+{% endblock %}

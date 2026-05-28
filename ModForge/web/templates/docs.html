@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Dokumentation – ModForge{% endblock %}
+{% block content %}
+<div class="container" style="max-width:1000px;padding-top:40px;padding-bottom:80px">
+  <div class="sec-head reveal" style="text-align:center;margin-bottom:50px">
+    <div class="sec-badge" style="margin-bottom:12px">📖 Docs</div>
+    <h1 style="font-size:clamp(1.8rem,4vw,2.8rem);font-weight:800;margin-bottom:12px">Dokumentation</h1>
+    <p style="color:var(--muted);max-width:620px;margin:0 auto">Alles was du brauchst, um ModForge optimal zu nutzen.</p>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:24px">
+    <a href="/docs/setup" class="glass-card reveal" style="padding:28px;border-radius:var(--radius);background:var(--glass2);border:1px solid var(--border);text-decoration:none;transition:all var(--r)" onmouseenter="this.style.borderColor='var(--bdrv)'" onmouseleave="this.style.borderColor='var(--border)'">
+      <div style="font-size:2rem;margin-bottom:12px">🚀</div>
+      <h3 style="font-size:1.05rem;font-weight:700;margin-bottom:8px;color:var(--fg)">Setup Guide</h3>
+      <p style="color:var(--muted);font-size:.85rem;line-height:1.6">Bot einladen, konfigurieren und alle Module aktivieren.</p>
+    </a>
+    <a href="/docs/automod" class="glass-card reveal" style="padding:28px;border-radius:var(--radius);background:var(--glass2);border:1px solid var(--border);text-decoration:none;transition:all var(--r)" onmouseenter="this.style.borderColor='var(--bdrv)'" onmouseleave="this.style.borderColor='var(--border)'">
+      <div style="font-size:2rem;margin-bottom:12px">🤖</div>
+      <h3 style="font-size:1.05rem;font-weight:700;margin-bottom:8px;color:var(--fg)">AutoMod</h3>
+      <p style="color:var(--muted);font-size:.85rem;line-height:1.6">AutoMod-Regeln, Filter und Aktionen konfigurieren.</p>
+    </a>
+    <a href="/docs/moderation" class="glass-card reveal" style="padding:28px;border-radius:var(--radius);background:var(--glass2);border:1px solid var(--border);text-decoration:none;transition:all var(--r)" onmouseenter="this.style.borderColor='var(--bdrv)'" onmouseleave="this.style.borderColor='var(--border)'">
+      <div style="font-size:2rem;margin-bottom:12px">🛡️</div>
+      <h3 style="font-size:1.05rem;font-weight:700;margin-bottom:8px;color:var(--fg)">Moderation</h3>
+      <p style="color:var(--muted);font-size:.85rem;line-height:1.6">Cases, Warns, Bans, Mutes und Moderationstools.</p>
+    </a>
+    <a href="/docs/tickets" class="glass-card reveal" style="padding:28px;border-radius:var(--radius);background:var(--glass2);border:1px solid var(--border);text-decoration:none;transition:all var(--r)" onmouseenter="this.style.borderColor='var(--bdrv)'" onmouseleave="this.style.borderColor='var(--border)'">
+      <div style="font-size:2rem;margin-bottom:12px">🎫</div>
+      <h3 style="font-size:1.05rem;font-weight:700;margin-bottom:8px;color:var(--fg)">Tickets</h3>
+      <p style="color:var(--muted);font-size:.85rem;line-height:1.6">Ticket-System einrichten und verwalten.</p>
+    </a>
+    <a href="/docs/music" class="glass-card reveal" style="padding:28px;border-radius:var(--radius);background:var(--glass2);border:1px solid var(--border);text-decoration:none;transition:all var(--r)" onmouseenter="this.style.borderColor='var(--bdrv)'" onmouseleave="this.style.borderColor='var(--border)'">
+      <div style="font-size:2rem;margin-bottom:12px">🎵</div>
+      <h3 style="font-size:1.05rem;font-weight:700;margin-bottom:8px;color:var(--fg)">Music</h3>
+      <p style="color:var(--muted);font-size:.85rem;line-height:1.6">Musik-Player, Playlists und Queue-Management.</p>
+    </a>
+    <a href="/api-docs" class="glass-card reveal" style="padding:28px;border-radius:var(--radius);background:var(--glass2);border:1px solid var(--border);text-decoration:none;transition:all var(--r)" onmouseenter="this.style.borderColor='var(--bdrv)'" onmouseleave="this.style.borderColor='var(--border)'">
+      <div style="font-size:2rem;margin-bottom:12px">📡</div>
+      <h3 style="font-size:1.05rem;font-weight:700;margin-bottom:8px;color:var(--fg)">API Reference</h3>
+      <p style="color:var(--muted);font-size:.85rem;line-height:1.6">REST API Endpunkte und Authentifizierung.</p>
+    </a>
+  </div>
+</div>
+{% endblock %}

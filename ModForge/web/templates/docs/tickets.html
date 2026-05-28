@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Tickets – ModForge Docs{% endblock %}
+{% block content %}
+<div class="container" style="max-width:900px;padding-top:40px;padding-bottom:80px">
+  <div style="margin-bottom:20px"><a href="/docs" style="color:var(--vl);font-size:.85rem">← Zurück zur Dokumentation</a></div>
+  <div class="sec-head reveal" style="text-align:left;margin-bottom:40px">
+    <div class="sec-badge" style="margin-bottom:12px">🎫 Tickets</div>
+    <h1 style="font-size:clamp(1.6rem,3.5vw,2.4rem);font-weight:800;margin-bottom:12px">Ticket-System</h1>
+    <p style="color:var(--muted)">Vollständiges Support-Ticket-System mit Kategorien und Transkripten.</p>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:20px">
+    <div class="glass-card reveal" style="padding:24px;border-radius:var(--radius);background:var(--glass2);border:1px solid var(--border)">
+      <h3 style="font-size:1rem;font-weight:700;margin-bottom:10px">📋 Einrichtung</h3>
+      <p style="color:var(--muted);font-size:.88rem;line-height:1.7">Nutze <code style="background:var(--glass3);padding:2px 8px;border-radius:4px;color:var(--cl)">/ticket setup</code> um das Ticket-System zu konfigurieren. Wähle einen Kanal für das Ticket-Panel und definiere Kategorien.</p>
+    </div>
+    <div class="glass-card reveal" style="padding:24px;border-radius:var(--radius);background:var(--glass2);border:1px solid var(--border)">
+      <h3 style="font-size:1rem;font-weight:700;margin-bottom:10px">🏷️ Kategorien</h3>
+      <p style="color:var(--muted);font-size:.88rem;line-height:1.7">Erstelle verschiedene Ticket-Kategorien wie Support, Bug-Report, Bewerbung etc. Jede Kategorie kann eigene Berechtigungen und Formulare haben.</p>
+    </div>
+    <div class="glass-card reveal" style="padding:24px;border-radius:var(--radius);background:var(--glass2);border:1px solid var(--border)">
+      <h3 style="font-size:1rem;font-weight:700;margin-bottom:10px">📝 Transkripte</h3>
+      <p style="color:var(--muted);font-size:.88rem;line-height:1.7">Beim Schließen eines Tickets wird automatisch ein HTML-Transkript erstellt und in einem Log-Channel gespeichert.</p>
+    </div>
+    <div class="glass-card reveal" style="padding:24px;border-radius:var(--radius);background:var(--glass2);border:1px solid var(--border)">
+      <h3 style="font-size:1rem;font-weight:700;margin-bottom:10px">⚙️ Commands</h3>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">
+        <div style="display:flex;align-items:center;gap:10px"><code style="color:var(--cl);font-size:.82rem">/ticket open</code><span style="color:var(--muted);font-size:.82rem">– Neues Ticket erstellen</span></div>
+        <div style="display:flex;align-items:center;gap:10px"><code style="color:var(--cl);font-size:.82rem">/ticket close</code><span style="color:var(--muted);font-size:.82rem">– Ticket schließen</span></div>
+        <div style="display:flex;align-items:center;gap:10px"><code style="color:var(--cl);font-size:.82rem">/ticket add</code><span style="color:var(--muted);font-size:.82rem">– User zum Ticket hinzufügen</span></div>
+        <div style="display:flex;align-items:center;gap:10px"><code style="color:var(--cl);font-size:.82rem">/ticket remove</code><span style="color:var(--muted);font-size:.82rem">– User entfernen</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

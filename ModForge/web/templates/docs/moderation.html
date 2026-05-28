@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Moderation – ModForge Docs{% endblock %}
+{% block content %}
+<div class="container" style="max-width:900px;padding-top:40px;padding-bottom:80px">
+  <div style="margin-bottom:20px"><a href="/docs" style="color:var(--vl);font-size:.85rem">← Zurück zur Dokumentation</a></div>
+  <div class="sec-head reveal" style="text-align:left;margin-bottom:40px">
+    <div class="sec-badge" style="margin-bottom:12px">🛡️ Moderation</div>
+    <h1 style="font-size:clamp(1.6rem,3.5vw,2.4rem);font-weight:800;margin-bottom:12px">Moderation Commands</h1>
+    <p style="color:var(--muted)">Alle Tools für die manuelle und automatische Moderation.</p>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:16px">
+    <div class="glass-card reveal" style="padding:20px;border-radius:var(--radius);background:var(--glass2);border:1px solid var(--border);display:flex;align-items:center;gap:14px">
+      <code style="background:var(--glass3);padding:6px 14px;border-radius:8px;font-size:.82rem;color:var(--cl);white-space:nowrap;min-width:120px">/warn</code>
+      <span style="color:var(--muted);font-size:.85rem">Verwarnt einen User mit Grund und Case-ID</span>
+    </div>
+    <div class="glass-card reveal" style="padding:20px;border-radius:var(--radius);background:var(--glass2);border:1px solid var(--border);display:flex;align-items:center;gap:14px">
+      <code style="background:var(--glass3);padding:6px 14px;border-radius:8px;font-size:.82rem;color:var(--cl);white-space:nowrap;min-width:120px">/mute</code>
+      <span style="color:var(--muted);font-size:.85rem">Stummschaltung mit optionaler Dauer</span>
+    </div>
+    <div class="glass-card reveal" style="padding:20px;border-radius:var(--radius);background:var(--glass2);border:1px solid var(--border);display:flex;align-items:center;gap:14px">
+      <code style="background:var(--glass3);padding:6px 14px;border-radius:8px;font-size:.82rem;color:var(--cl);white-space:nowrap;min-width:120px">/kick</code>
+      <span style="color:var(--muted);font-size:.85rem">Kickt einen User vom Server</span>
+    </div>
+    <div class="glass-card reveal" style="padding:20px;border-radius:var(--radius);background:var(--glass2);border:1px solid var(--border);display:flex;align-items:center;gap:14px">
+      <code style="background:var(--glass3);padding:6px 14px;border-radius:8px;font-size:.82rem;color:var(--cl);white-space:nowrap;min-width:120px">/ban</code>
+      <span style="color:var(--muted);font-size:.85rem">Bannt einen User permanent oder temporär</span>
+    </div>
+    <div class="glass-card reveal" style="padding:20px;border-radius:var(--radius);background:var(--glass2);border:1px solid var(--border);display:flex;align-items:center;gap:14px">
+      <code style="background:var(--glass3);padding:6px 14px;border-radius:8px;font-size:.82rem;color:var(--cl);white-space:nowrap;min-width:120px">/case</code>
+      <span style="color:var(--muted);font-size:.85rem">Zeigt Details eines Moderation-Cases</span>
+    </div>
+    <div class="glass-card reveal" style="padding:20px;border-radius:var(--radius);background:var(--glass2);border:1px solid var(--border);display:flex;align-items:center;gap:14px">
+      <code style="background:var(--glass3);padding:6px 14px;border-radius:8px;font-size:.82rem;color:var(--cl);white-space:nowrap;min-width:120px">/purge</code>
+      <span style="color:var(--muted);font-size:.85rem">Löscht mehrere Nachrichten auf einmal</span>
+    </div>
+    <div class="glass-card reveal" style="padding:20px;border-radius:var(--radius);background:var(--glass2);border:1px solid var(--border);display:flex;align-items:center;gap:14px">
+      <code style="background:var(--glass3);padding:6px 14px;border-radius:8px;font-size:.82rem;color:var(--cl);white-space:nowrap;min-width:120px">/lockdown</code>
+      <span style="color:var(--muted);font-size:.85rem">Sperrt einen Channel oder den gesamten Server</span>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Pricing – ModForge{% endblock %}
+{% block content %}
+<div class="container" style="max-width:1100px;padding-top:40px;padding-bottom:80px">
+  <div class="sec-head reveal" style="text-align:center;margin-bottom:50px">
+    <div class="sec-badge" style="margin-bottom:12px">💎 Pricing</div>
+    <h1 style="font-size:clamp(1.8rem,4vw,2.8rem);font-weight:800;margin-bottom:12px">Wähle deinen Plan</h1>
+    <p style="color:var(--muted);max-width:600px;margin:0 auto">ModForge ist kostenlos. Premium schaltet zusätzliche Power-Features frei.</p>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:28px;max-width:960px;margin:0 auto">
+    <!-- Free -->
+    <div class="glass-card reveal" style="padding:36px;border-radius:var(--radius);background:var(--glass2);border:1px solid var(--border)">
+      <div style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">Free</div>
+      <div style="font-size:2.4rem;font-weight:900;margin-bottom:4px">€0</div>
+      <div style="color:var(--muted);font-size:.82rem;margin-bottom:24px">Für immer kostenlos</div>
+      <ul style="list-style:none;padding:0;margin:0 0 28px;display:flex;flex-direction:column;gap:10px;font-size:.88rem">
+        <li style="display:flex;align-items:center;gap:8px"><span style="color:var(--green)">✓</span> Anti-Nuke & Anti-Raid</li>
+        <li style="display:flex;align-items:center;gap:8px"><span style="color:var(--green)">✓</span> AutoMod 2.0</li>
+        <li style="display:flex;align-items:center;gap:8px"><span style="color:var(--green)">✓</span> Web-Dashboard</li>
+        <li style="display:flex;align-items:center;gap:8px"><span style="color:var(--green)">✓</span> Logging & Cases</li>
+        <li style="display:flex;align-items:center;gap:8px"><span style="color:var(--green)">✓</span> 1 Server</li>
+      </ul>
+      <a href="/login" class="btn-glass btn-glass-ghost" style="width:100%;justify-content:center">Kostenlos starten</a>
+    </div>
+
+    <!-- Premium -->
+    <div class="glass-card reveal" style="padding:36px;border-radius:var(--radius);background:linear-gradient(135deg,rgba(124,58,237,0.12),rgba(34,211,238,0.06));border:1px solid rgba(124,58,237,0.35);position:relative;overflow:hidden">
+      <div style="position:absolute;top:16px;right:16px;padding:4px 12px;border-radius:999px;background:rgba(124,58,237,0.3);border:1px solid rgba(124,58,237,0.5);font-size:.65rem;font-weight:700;color:var(--vl);text-transform:uppercase;letter-spacing:.1em">Beliebt</div>
+      <div style="font-size:.72rem;font-weight:700;color:var(--vl);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">Premium</div>
+      <div style="font-size:2.4rem;font-weight:900;margin-bottom:4px">€4.99<span style="font-size:.9rem;color:var(--muted);font-weight:500">/mo</span></div>
+      <div style="color:var(--muted);font-size:.82rem;margin-bottom:24px">Pro Server · monatlich kündbar</div>
+      <ul style="list-style:none;padding:0;margin:0 0 28px;display:flex;flex-direction:column;gap:10px;font-size:.88rem">
+        <li style="display:flex;align-items:center;gap:8px"><span style="color:var(--vl)">✓</span> Alles aus Free</li>
+        <li style="display:flex;align-items:center;gap:8px"><span style="color:var(--vl)">✓</span> KI-Moderation</li>
+        <li style="display:flex;align-items:center;gap:8px"><span style="color:var(--vl)">✓</span> Custom Branding</li>
+        <li style="display:flex;align-items:center;gap:8px"><span style="color:var(--vl)">✓</span> Priority Support</li>
+        <li style="display:flex;align-items:center;gap:8px"><span style="color:var(--vl)">✓</span> Erweiterte Logs</li>
+        <li style="display:flex;align-items:center;gap:8px"><span style="color:var(--vl)">✓</span> Unbegrenzte Server</li>
+      </ul>
+      <a href="/premium" class="btn-glass btn-glass-primary" style="width:100%;justify-content:center">Upgrade auf Premium</a>
+    </div>
+
+    <!-- Enterprise -->
+    <div class="glass-card reveal" style="padding:36px;border-radius:var(--radius);background:var(--glass2);border:1px solid var(--border)">
+      <div style="font-size:.72rem;font-weight:700;color:var(--cl);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">Enterprise</div>
+      <div style="font-size:2.4rem;font-weight:900;margin-bottom:4px">Custom</div>
+      <div style="color:var(--muted);font-size:.82rem;margin-bottom:24px">Individuelle Lösung</div>
+      <ul style="list-style:none;padding:0;margin:0 0 28px;display:flex;flex-direction:column;gap:10px;font-size:.88rem">
+        <li style="display:flex;align-items:center;gap:8px"><span style="color:var(--cl)">✓</span> Alles aus Premium</li>
+        <li style="display:flex;align-items:center;gap:8px"><span style="color:var(--cl)">✓</span> Dedicated Instance</li>
+        <li style="display:flex;align-items:center;gap:8px"><span style="color:var(--cl)">✓</span> Custom Development</li>
+        <li style="display:flex;align-items:center;gap:8px"><span style="color:var(--cl)">✓</span> SLA Garantie</li>
+        <li style="display:flex;align-items:center;gap:8px"><span style="color:var(--cl)">✓</span> Dedizierter Support</li>
+      </ul>
+      <a href="/contact" class="btn-glass btn-glass-cyan" style="width:100%;justify-content:center">Kontakt aufnehmen</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

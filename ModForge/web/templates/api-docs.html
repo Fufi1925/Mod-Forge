@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}API Docs – ModForge{% endblock %}
+{% block content %}
+<div class="container" style="max-width:1000px;padding-top:40px;padding-bottom:80px">
+  <div class="sec-head reveal" style="text-align:center;margin-bottom:50px">
+    <div class="sec-badge" style="margin-bottom:12px">📡 API</div>
+    <h1 style="font-size:clamp(1.8rem,4vw,2.8rem);font-weight:800;margin-bottom:12px">API Documentation</h1>
+    <p style="color:var(--muted);max-width:620px;margin:0 auto">Integriere ModForge in deine eigenen Anwendungen mit unserer REST API.</p>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:20px">
+    <!-- Endpoint: Health -->
+    <div class="glass-card reveal" style="padding:24px;border-radius:var(--radius);background:var(--glass2);border:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+        <span style="padding:4px 10px;border-radius:6px;background:rgba(74,222,128,0.15);color:var(--green);font-size:.72rem;font-weight:700;font-family:'Geist Mono',monospace">GET</span>
+        <code style="font-size:.88rem;color:var(--cl);font-family:'Geist Mono',monospace">/healthz</code>
+      </div>
+      <p style="color:var(--muted);font-size:.85rem;margin-bottom:12px">Gibt den aktuellen Health-Status des Bots zurück.</p>
+      <div style="padding:14px;background:var(--glass3);border-radius:8px;font-family:'Geist Mono',monospace;font-size:.78rem;color:var(--fg)">
+        <span style="color:var(--muted)">Response:</span> {"ok": true, "bot_ready": true, "latency": 42}
+      </div>
+    </div>
+
+    <!-- Endpoint: Metrics -->
+    <div class="glass-card reveal" style="padding:24px;border-radius:var(--radius);background:var(--glass2);border:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+        <span style="padding:4px 10px;border-radius:6px;background:rgba(74,222,128,0.15);color:var(--green);font-size:.72rem;font-weight:700;font-family:'Geist Mono',monospace">GET</span>
+        <code style="font-size:.88rem;color:var(--cl);font-family:'Geist Mono',monospace">/metrics</code>
+      </div>
+      <p style="color:var(--muted);font-size:.85rem;margin-bottom:12px">Prometheus-kompatible Metriken im Text-Format.</p>
+      <div style="padding:14px;background:var(--glass3);border-radius:8px;font-family:'Geist Mono',monospace;font-size:.78rem;color:var(--fg)">
+        modforge_guilds 142<br>modforge_members 48291<br>modforge_latency_ms 38
+      </div>
+    </div>
+
+    <!-- Endpoint: Live Activity -->
+    <div class="glass-card reveal" style="padding:24px;border-radius:var(--radius);background:var(--glass2);border:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+        <span style="padding:4px 10px;border-radius:6px;background:rgba(74,222,128,0.15);color:var(--green);font-size:.72rem;font-weight:700;font-family:'Geist Mono',monospace">GET</span>
+        <code style="font-size:.88rem;color:var(--cl);font-family:'Geist Mono',monospace">/live/api/activity</code>
+      </div>
+      <p style="color:var(--muted);font-size:.85rem;margin-bottom:12px">Gibt die letzten 50 Bot-Aktivitäten als JSON-Array zurück.</p>
+      <div style="padding:14px;background:var(--glass3);border-radius:8px;font-family:'Geist Mono',monospace;font-size:.78rem;color:var(--fg)">
+        <span style="color:var(--muted)">Response:</span> [{"kind": "spam", "text": "...", "ts": "..."}]
+      </div>
+    </div>
+
+    <!-- Auth Endpoints -->
+    <div class="glass-card reveal" style="padding:24px;border-radius:var(--radius);background:var(--glass2);border:1px solid var(--border)">
+      <h3 style="font-size:1rem;font-weight:700;margin-bottom:14px;color:var(--vl)">🔐 Authentifizierung</h3>
+      <p style="color:var(--muted);font-size:.85rem;line-height:1.8">
+        Die API nutzt Discord OAuth2 für Benutzer-Authentifizierung.<br>
+        Dashboard-Sessions werden über ein HTTP-Only Cookie (<code style="color:var(--cl)">modforge_session</code>) verwaltet.<br>
+        Admin-Endpoints benötigen eine separate Admin-Session.
+      </p>
+    </div>
+  </div>
+</div>
+{% endblock %}

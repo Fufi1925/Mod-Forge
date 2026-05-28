@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Admin Dashboard – ModForge</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    .admin-nav { position:fixed;top:0;left:0;right:0;z-index:9999;height:60px;background:rgba(6,6,16,0.95);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 24px;gap:20px }
+    .admin-nav a { color:var(--muted);font-size:.82rem;font-weight:600;transition:color var(--r) }
+    .admin-nav a:hover,.admin-nav a.active { color:var(--fg) }
+    .admin-body { padding-top:80px;max-width:1200px;margin:0 auto;padding-left:24px;padding-right:24px;padding-bottom:60px }
+    .stat-card { padding:24px;border-radius:var(--radius);background:var(--glass2);border:1px solid var(--border);text-align:center }
+    .stat-value { font-size:1.8rem;font-weight:900;margin-bottom:4px }
+    .stat-label { font-size:.75rem;color:var(--muted) }
+  </style>
+</head>
+<body class="page-bg">
+  <nav class="admin-nav">
+    <span style="font-weight:800;font-size:1rem;color:var(--vl);margin-right:auto">🔐 Admin</span>
+    <a href="/admin/dashboard" class="active">Dashboard</a>
+    <a href="/admin/guilds">Guilds</a>
+    <a href="/admin/stats">Stats</a>
+    <a href="/admin/logout" style="color:var(--redl)">Logout</a>
+  </nav>
+
+  <div class="admin-body">
+    <h1 style="font-size:1.6rem;font-weight:800;margin-bottom:8px">Admin Dashboard</h1>
+    <p style="color:var(--muted);font-size:.88rem;margin-bottom:32px">
+      Bot Status:
+      {% if bot_ready %}
+        <span style="color:var(--green)">● Online</span>
+        {% if bot_user %}({{ bot_user.name }}){% endif %}
+      {% else %}
+        <span style="color:var(--red)">● Offline</span>
+      {% endif %}
+    </p>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;margin-bottom:32px">
+      <div class="stat-card">
+        <div class="stat-value" style="color:var(--vl)">{{ gc }}</div>
+        <div class="stat-label">Server</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" style="color:var(--cl)">{{ mc }}</div>
+        <div class="stat-label">Mitglieder</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" style="color:var(--green)">{{ lat }}ms</div>
+        <div class="stat-label">Latenz</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" style="color:var(--amberl)">{{ shard_count }}</div>
+        <div class="stat-label">Shards</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" style="color:var(--p2)">{{ cases_count }}</div>
+        <div class="stat-label">Cases</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" style="color:var(--orange)">{{ archive_count }}</div>
+        <div class="stat-label">Archiviert</div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px">
+      <a href="/admin/guilds" class="glass-card" style="padding:24px;border-radius:var(--radius);background:var(--glass2);border:1px solid var(--border);text-decoration:none;transition:all var(--r)" onmouseenter="this.style.borderColor='var(--bdrv)'" onmouseleave="this.style.borderColor='var(--border)'">
+        <div style="font-size:1.5rem;margin-bottom:8px">🏠</div>
+        <h3 style="font-size:1rem;font-weight:700;color:var(--fg);margin-bottom:4px">Guild-Verwaltung</h3>
+        <p style="color:var(--muted);font-size:.82rem">Alle verbundenen Server verwalten</p>
+      </a>
+      <a href="/admin/stats" class="glass-card" style="padding:24px;border-radius:var(--radius);background:var(--glass2);border:1px solid var(--border);text-decoration:none;transition:all var(--r)" onmouseenter="this.style.borderColor='var(--bdrv)'" onmouseleave="this.style.borderColor='var(--border)'">
+        <div style="font-size:1.5rem;margin-bottom:8px">📊</div>
+        <h3 style="font-size:1rem;font-weight:700;color:var(--fg);margin-bottom:4px">Statistiken</h3>
+        <p style="color:var(--muted);font-size:.82rem">Detaillierte System-Statistiken</p>
+      </a>
+      <a href="/live" class="glass-card" style="padding:24px;border-radius:var(--radius);background:var(--glass2);border:1px solid var(--border);text-decoration:none;transition:all var(--r)" onmouseenter="this.style.borderColor='var(--bdrv)'" onmouseleave="this.style.borderColor='var(--border)'">
+        <div style="font-size:1.5rem;margin-bottom:8px">⚡</div>
+        <h3 style="font-size:1rem;font-weight:700;color:var(--fg);margin-bottom:4px">Live Activity</h3>
+        <p style="color:var(--muted);font-size:.82rem">Echtzeit-Bot-Aktivität</p>
+      </a>
+    </div>
+  </div>
+</body>
+</html>

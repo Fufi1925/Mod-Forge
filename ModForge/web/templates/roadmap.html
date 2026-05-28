@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Roadmap – ModForge{% endblock %}
+{% block content %}
+<div class="container" style="max-width:900px;padding-top:40px;padding-bottom:80px">
+  <div class="sec-head reveal" style="text-align:center;margin-bottom:50px">
+    <div class="sec-badge" style="margin-bottom:12px">🗺️ Roadmap</div>
+    <h1 style="font-size:clamp(1.8rem,4vw,2.8rem);font-weight:800;margin-bottom:12px">Roadmap</h1>
+    <p style="color:var(--muted);max-width:620px;margin:0 auto">Was als Nächstes kommt – unsere geplanten Features und Verbesserungen.</p>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:24px">
+    <!-- Done -->
+    <div class="reveal">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+        <div style="padding:4px 12px;border-radius:999px;background:rgba(74,222,128,0.12);border:1px solid rgba(74,222,128,0.25);font-size:.7rem;font-weight:700;color:var(--green)">✓ Fertig</div>
+        <span style="font-size:.82rem;color:var(--muted)">Q1 2026</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;padding-left:20px;border-left:2px solid rgba(74,222,128,0.3)">
+        <div style="padding:14px 18px;background:var(--glass2);border-radius:var(--radius);border:1px solid var(--border);font-size:.88rem">🛡️ Anti-Nuke & Anti-Raid System</div>
+        <div style="padding:14px 18px;background:var(--glass2);border-radius:var(--radius);border:1px solid var(--border);font-size:.88rem">🤖 AutoMod 2.0 mit KI</div>
+        <div style="padding:14px 18px;background:var(--glass2);border-radius:var(--radius);border:1px solid var(--border);font-size:.88rem">📊 Web-Dashboard</div>
+      </div>
+    </div>
+
+    <!-- In Progress -->
+    <div class="reveal">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+        <div style="padding:4px 12px;border-radius:999px;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.25);font-size:.7rem;font-weight:700;color:var(--amberl)">🔄 In Arbeit</div>
+        <span style="font-size:.82rem;color:var(--muted)">Q2 2026</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;padding-left:20px;border-left:2px solid rgba(245,158,11,0.3)">
+        <div style="padding:14px 18px;background:var(--glass2);border-radius:var(--radius);border:1px solid var(--border);font-size:.88rem">💰 Economy System</div>
+        <div style="padding:14px 18px;background:var(--glass2);border-radius:var(--radius);border:1px solid var(--border);font-size:.88rem">🎵 Musik-Player Upgrade</div>
+        <div style="padding:14px 18px;background:var(--glass2);border-radius:var(--radius);border:1px solid var(--border);font-size:.88rem">🏅 Badge-System</div>
+      </div>
+    </div>
+
+    <!-- Planned -->
+    <div class="reveal">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+        <div style="padding:4px 12px;border-radius:999px;background:rgba(124,58,237,0.12);border:1px solid rgba(124,58,237,0.25);font-size:.7rem;font-weight:700;color:var(--vl)">📋 Geplant</div>
+        <span style="font-size:.82rem;color:var(--muted)">Q3-Q4 2026</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;padding-left:20px;border-left:2px solid rgba(124,58,237,0.3)">
+        <div style="padding:14px 18px;background:var(--glass2);border-radius:var(--radius);border:1px solid var(--border);font-size:.88rem">🧩 Plugin-System</div>
+        <div style="padding:14px 18px;background:var(--glass2);border-radius:var(--radius);border:1px solid var(--border);font-size:.88rem">📱 Mobile App</div>
+        <div style="padding:14px 18px;background:var(--glass2);border-radius:var(--radius);border:1px solid var(--border);font-size:.88rem">🌐 Multi-Bot Management</div>
+        <div style="padding:14px 18px;background:var(--glass2);border-radius:var(--radius);border:1px solid var(--border);font-size:.88rem">🔗 Erweiterte Webhook-Integrationen</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="reveal" style="margin-top:40px;text-align:center">
+    <p style="color:var(--muted);font-size:.88rem">Hast du einen Feature-Wunsch? <a href="/suggest" style="color:var(--vl)">Schlage es vor →</a></p>
+  </div>
+</div>
+{% endblock %}
