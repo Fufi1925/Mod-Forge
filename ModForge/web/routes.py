@@ -972,6 +972,45 @@ def guild_welcome(guild_id):
         user=user_session["user"],
     )
 
+
+# =========================================================
+# DASHBOARD API (Settings Toggle)
+# =========================================================
+
+@flask_app.route("/api/guild/<guild_id>/noprefix", methods=["POST"])
+@require_auth
+def api_noprefix(guild_id):
+    user_session = get_session()
+    if not user_session or not _user_can_manage_guild_in_session(user_session, guild_id):
+        return jsonify({"error": "forbidden"}), 403
+    from .helpers import _get_guild_config
+    from bot.utils import _run_async
+    cfg = _get_guild_config(guild_id)
+    enabled = request.json.get("enabled", False)
+    cfg["no_prefix"] = bool(enabled)
+    try:
+        _run_async(bot.db.set_config(int(guild_id), cfg))
+    except Exception as e:
+        log.error(f"[NOPREFIX API ERROR] {e}")
+        return jsonify({"error": str(e)}), 500
+    return jsonify({"ok": True, "no_prefix": cfg["no_prefix"]})
+
+@flask_app.route("/api/guild/<guild_id>/settings", methods=["GET"])
+@require_auth
+def api_guild_settings(guild_id):
+    user_session = get_session()
+    if not user_session or not _user_can_manage_guild_in_session(user_session, guild_id):
+        return jsonify({"error": "forbidden"}), 403
+    from .helpers import _get_guild_config
+    cfg = _get_guild_config(guild_id)
+    return jsonify({
+        "no_prefix": cfg.get("no_prefix", False),
+        "report_channel": cfg.get("report_channel"),
+        "auto_responses": cfg.get("auto_responses", []),
+        "warn_decay": cfg.get("warn_decay", {}),
+        "invite_tracking": cfg.get("invite_tracking", {}),
+    })
+
 # 404 / 403 / 500 HANDLER
 # =========================================================
 

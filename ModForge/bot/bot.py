@@ -5764,3 +5764,568 @@ async def slash_reactionrole(interaction: discord.Interaction, channel: discord.
         await bot.log_action(interaction.guild, f"{E.OK} Reaction-Role", f"Dropdown in {channel.mention} von {interaction.user.mention}.", COLOR_SUCCESS, user=interaction.user, module="moderation")
     except discord.Forbidden:
         await interaction.response.send_message(embed=create_embed(f"{E.FAIL} Keine Rechte", "Ich darf dort keine Nachrichten senden.", COLOR_DANGER), ephemeral=True)
+
+
+# ═══════════════════════════════════════════════════════════════════
+# 11) USERINFO (Slash + Prefix)
+# ═══════════════════════════════════════════════════════════════════
+async def _userinfo_logic(guild, target, requester):
+    """Shared logic for /userinfo and !userinfo"""
+    if not target:
+        target = requester
+    joined = f"<t:{int(target.joined_at.timestamp())}:R>" if target.joined_at else "Unbekannt"
+    created = f"<t:{int(target.created_at.timestamp())}:R>"
+    age_days = (discord.utils.utcnow() - target.created_at).days
+    roles = [r.mention for r in target.roles if r != guild.default_role][:20]
+    roles_str = ", ".join(roles) if roles else "Keine"
+
+    # Cases count
+    case_count = 0
+    warn_count = 0
+    try:
+        case_count = await bot.db.cases.count_documents({"guild_id": str(guild.id), "user_id": str(target.id)}) or 0
+        warns = await bot.db.aget_warnings(guild.id, target.id)
+        warn_count = len(warns) if warns else 0
+    except Exception:
+        pass
+
+    # Risk score
+    risk = 0
+    if age_days < 7: risk += 30
+    elif age_days < 30: risk += 15
+    if not target.avatar: risk += 10
+    if warn_count > 0: risk += min(warn_count * 10, 30)
+    if case_count > 0: risk += min(case_count * 5, 20)
+    risk = min(risk, 100)
+    risk_color = "🟢" if risk < 25 else "🟡" if risk < 50 else "🟠" if risk < 75 else "🔴"
+
+    timeout_str = "Nein"
+    if target.timed_out_until and target.timed_out_until > discord.utils.utcnow():
+        timeout_str = f"Ja (bis <t:{int(target.timed_out_until.timestamp())}:R>)"
+
+    # Voice status
+    voice_str = "Nicht im Voice"
+    if target.voice and target.voice.channel:
+        v = target.voice
+        flags = []
+        if v.mute or v.self_mute: flags.append("🔇 Muted")
+        if v.deaf or v.self_deaf: flags.append("🔇 Deafened")
+        if v.self_stream: flags.append("📺 Streaming")
+        if v.self_video: flags.append("📹 Kamera")
+        voice_str = f"{v.channel.mention}" + (f" ({', '.join(flags)})" if flags else "")
+
+    fields = [
+        ("📅 Erstellt", created, True),
+        ("📥 Beigetreten", joined, True),
+        (f"{risk_color} Risk-Score", f"{risk}/100", True),
+        ("⚠️ Warns", str(warn_count), True),
+        ("📋 Cases", str(case_count), True),
+        ("⏳ Timeout", timeout_str, True),
+        ("🎤 Voice", voice_str, False),
+        (f"🏷️ Rollen ({len(roles)})", roles_str, False),
+    ]
+    embed = create_embed(
+        f"{E.USERS} User Info – {target.display_name}",
+        f"{target.mention} (`{target.id}`)",
+        COLOR_INFO, fields,
+        thumbnail=target.display_avatar.url
+    )
+    if target.banner:
+        embed.set_image(url=target.banner.url)
+    return embed
+
+@bot.tree.command(name="userinfo", description="Zeigt detaillierte Infos über einen User")
+@app_commands.describe(member="Der User (optional, Standard: du selbst)")
+async def slash_userinfo(interaction: discord.Interaction, member: discord.Member = None) -> None:
+    embed = await _userinfo_logic(interaction.guild, member or interaction.user, interaction.user)
+    await interaction.response.send_message(embed=embed)
+
+@bot.command(name="userinfo", aliases=["ui", "whois"])
+async def prefix_userinfo(ctx, member: discord.Member = None):
+    embed = await _userinfo_logic(ctx.guild, member or ctx.author, ctx.author)
+    await ctx.send(embed=embed)
+
+
+# ═══════════════════════════════════════════════════════════════════
+# 12) SERVERINFO (Slash + Prefix)
+# ═══════════════════════════════════════════════════════════════════
+async def _serverinfo_logic(guild):
+    created = f"<t:{int(guild.created_at.timestamp())}:R>"
+    text_ch = len([c for c in guild.channels if isinstance(c, discord.TextChannel)])
+    voice_ch = len([c for c in guild.channels if isinstance(c, discord.VoiceChannel)])
+    cats = len(guild.categories)
+    bots = sum(1 for m in guild.members if m.bot)
+    humans = guild.member_count - bots
+    online = sum(1 for m in guild.members if m.status != discord.Status.offline) if guild.chunked else "?"
+    boosts = guild.premium_subscription_count or 0
+    boost_tier = guild.premium_tier
+    roles_count = len(guild.roles) - 1
+    emojis_count = len(guild.emojis)
+
+    # ModForge stats
+    cfg = bot.db.get_config(guild.id)
+    active_mods = sum(1 for k in ["anti_spam","anti_nuke","anti_raid","anti_mention","automod","anti_scam"]
+                      if cfg.get(k, {}).get("enabled"))
+    sec_level = cfg.get("security_level", 0)
+
+    fields = [
+        ("👑 Owner", f"{guild.owner.mention}" if guild.owner else "?", True),
+        ("📅 Erstellt", created, True),
+        ("🔐 Verif.-Level", str(guild.verification_level).title(), True),
+        ("👥 Mitglieder", f"{humans:,} Humans + {bots:,} Bots", True),
+        ("🟢 Online", str(online), True),
+        ("💎 Boosts", f"{boosts} (Tier {boost_tier})", True),
+        ("📁 Kanäle", f"💬 {text_ch} Text · 🔊 {voice_ch} Voice · 📂 {cats} Kategorien", False),
+        ("🏷️ Rollen", str(roles_count), True),
+        ("😀 Emojis", str(emojis_count), True),
+        ("🛡️ ModForge", f"{active_mods}/6 Module aktiv · Security Level {sec_level}", False),
+    ]
+    embed = create_embed(
+        f"{E.SERVER} Server Info – {guild.name}",
+        f"ID: `{guild.id}`",
+        COLOR_PRIMARY, fields,
+        thumbnail=guild.icon.url if guild.icon else None
+    )
+    if guild.banner:
+        embed.set_image(url=guild.banner.url)
+    return embed
+
+@bot.tree.command(name="serverinfo", description="Zeigt Server-Informationen")
+async def slash_serverinfo(interaction: discord.Interaction) -> None:
+    embed = await _serverinfo_logic(interaction.guild)
+    await interaction.response.send_message(embed=embed)
+
+@bot.command(name="serverinfo", aliases=["si", "guildinfo"])
+async def prefix_serverinfo(ctx):
+    embed = await _serverinfo_logic(ctx.guild)
+    await ctx.send(embed=embed)
+
+
+# ═══════════════════════════════════════════════════════════════════
+# 13) MODSTATS (Slash + Prefix)
+# ═══════════════════════════════════════════════════════════════════
+async def _modstats_logic(guild, moderator=None):
+    db = bot.db
+    query = {"guild_id": str(guild.id)}
+    if moderator:
+        query["moderator_id"] = str(moderator.id)
+
+    cases_raw = []
+    try:
+        cases_raw = await db.cases.find(query).sort("timestamp", -1).to_list(1000) or []
+    except Exception:
+        pass
+
+    if moderator:
+        bans = sum(1 for c in cases_raw if c.get("action") == "ban")
+        kicks = sum(1 for c in cases_raw if c.get("action") == "kick")
+        warns = sum(1 for c in cases_raw if c.get("action") == "warn")
+        mutes = sum(1 for c in cases_raw if c.get("action") in ("timeout", "mute", "tempmute"))
+        total = len(cases_raw)
+        last_case = cases_raw[0] if cases_raw else None
+        last_str = f"<t:{int(last_case['timestamp'].timestamp())}:R>" if last_case and last_case.get("timestamp") else "Keine"
+
+        fields = [
+            ("🔨 Bans", str(bans), True),
+            ("👢 Kicks", str(kicks), True),
+            ("⚠️ Warns", str(warns), True),
+            ("🔇 Mutes", str(mutes), True),
+            ("📋 Gesamt", str(total), True),
+            ("🕐 Letzter Case", last_str, True),
+        ]
+        return create_embed(
+            f"📊 Mod-Stats – {moderator.display_name}",
+            f"Statistiken für {moderator.mention}",
+            COLOR_INFO, fields, thumbnail=moderator.display_avatar.url
+        )
+    else:
+        # All mods ranking
+        mod_counts = defaultdict(int)
+        for c in cases_raw:
+            mid = c.get("moderator_id")
+            if mid:
+                mod_counts[mid] += 1
+
+        sorted_mods = sorted(mod_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+        ranking = ""
+        for i, (mid, count) in enumerate(sorted_mods, 1):
+            medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"`{i}.`"
+            ranking += f"{medal} <@{mid}> — **{count}** Cases\n"
+
+        if not ranking:
+            ranking = "Noch keine Moderation-Aktionen."
+
+        return create_embed(
+            f"📊 Mod-Ranking – {guild.name}",
+            f"**{len(cases_raw)}** Cases insgesamt\n\n{ranking}",
+            COLOR_PRIMARY
+        )
+
+@bot.tree.command(name="modstats", description="Zeigt Moderator-Statistiken")
+@app_commands.describe(moderator="Spezifischer Moderator (optional)")
+async def slash_modstats(interaction: discord.Interaction, moderator: discord.Member = None) -> None:
+    await interaction.response.defer()
+    embed = await _modstats_logic(interaction.guild, moderator)
+    await interaction.followup.send(embed=embed)
+
+@bot.command(name="modstats", aliases=["ms"])
+async def prefix_modstats(ctx, member: discord.Member = None):
+    embed = await _modstats_logic(ctx.guild, member)
+    await ctx.send(embed=embed)
+
+
+# ═══════════════════════════════════════════════════════════════════
+# 14) SOFTBAN (Slash + Prefix)
+# ═══════════════════════════════════════════════════════════════════
+async def _softban_logic(guild, moderator, target, reason, days=1):
+    if not can_moderate(moderator, target):
+        return create_embed(f"{E.FAIL} Fehler", "Du kannst diesen User nicht bestrafen.", COLOR_DANGER)
+    try:
+        await target.ban(reason=f"Softban: {reason} (durch {moderator})", delete_message_seconds=days * 86400)
+        await guild.unban(target, reason=f"Softban (auto-unban)")
+        case_id = await bot.db.acreate_case(guild.id, target.id, moderator.id, "softban", reason)
+        await bot.log_action(guild, f"🔨 Softban", f"{target.mention} wurde von {moderator.mention} softgebannt.\nGrund: {reason}\nNachrichten: {days} Tag(e) gelöscht", COLOR_DANGER, user=target, module="moderation")
+        return create_embed(f"{E.OK} Softban", f"{target.mention} wurde softgebannt.\nGrund: {reason}\nCase: #{case_id}", COLOR_SUCCESS)
+    except discord.Forbidden:
+        return create_embed(f"{E.FAIL} Fehler", "Keine Berechtigung.", COLOR_DANGER)
+    except discord.HTTPException as ex:
+        return create_embed(f"{E.FAIL} Fehler", f"Discord-Fehler: {ex}", COLOR_DANGER)
+
+@bot.tree.command(name="softban", description="Bannt + Entbannt sofort (löscht Nachrichten)")
+@app_commands.describe(member="Nutzer", reason="Grund", days="Tage an Nachrichten löschen (1-7)")
+@app_commands.default_permissions(ban_members=True)
+async def slash_softban(interaction: discord.Interaction, member: discord.Member, reason: str = "Softban", days: int = 1) -> None:
+    days = max(1, min(days, 7))
+    embed = await _softban_logic(interaction.guild, interaction.user, member, reason, days)
+    await interaction.response.send_message(embed=embed)
+
+@bot.command(name="softban", aliases=["sb"])
+@commands.has_permissions(ban_members=True)
+async def prefix_softban(ctx, member: discord.Member = None, *, reason="Softban"):
+    if not member:
+        return await ctx.send(embed=create_embed(f"{E.FAIL}", "Nutze: `!softban @User [Grund]`", COLOR_DANGER))
+    embed = await _softban_logic(ctx.guild, ctx.author, member, reason)
+    await ctx.send(embed=embed)
+
+
+# ═══════════════════════════════════════════════════════════════════
+# 15) REPORT SYSTEM (Slash + Prefix)
+# ═══════════════════════════════════════════════════════════════════
+@bot.tree.command(name="report", description="Meldet einen User ans Mod-Team")
+@app_commands.describe(member="Der zu meldende User", reason="Grund der Meldung")
+async def slash_report(interaction: discord.Interaction, member: discord.Member, reason: str) -> None:
+    cfg = bot.db.get_config(interaction.guild.id)
+    report_ch_id = cfg.get("report_channel") or cfg.get("log_channel")
+    if not report_ch_id:
+        return await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", "Kein Report-Kanal konfiguriert. Admins: `/report_setup`", COLOR_DANGER), ephemeral=True)
+
+    report_ch = interaction.guild.get_channel(int(report_ch_id))
+    if not report_ch:
+        return await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", "Report-Kanal nicht gefunden.", COLOR_DANGER), ephemeral=True)
+
+    embed = create_embed(
+        "🚨 Neuer Report",
+        f"**Gemeldet:** {member.mention} (`{member.id}`)\n**Von:** {interaction.user.mention}\n**Grund:** {reason}\n**Kanal:** {interaction.channel.mention}",
+        COLOR_DANGER,
+        thumbnail=member.display_avatar.url
+    )
+    embed.set_footer(text=f"Report · {interaction.user.id}")
+    await report_ch.send(embed=embed)
+    await interaction.response.send_message(embed=create_embed(f"{E.OK}", "Report wurde gesendet. Das Mod-Team wird sich darum kümmern.", COLOR_SUCCESS), ephemeral=True)
+
+@bot.command(name="report")
+async def prefix_report(ctx, member: discord.Member = None, *, reason="Kein Grund angegeben"):
+    if not member:
+        return await ctx.send(embed=create_embed(f"{E.FAIL}", "Nutze: `!report @User Grund`", COLOR_DANGER))
+    cfg = bot.db.get_config(ctx.guild.id)
+    report_ch_id = cfg.get("report_channel") or cfg.get("log_channel")
+    if not report_ch_id:
+        return await ctx.send(embed=create_embed(f"{E.FAIL}", "Kein Report-Kanal konfiguriert.", COLOR_DANGER))
+    report_ch = ctx.guild.get_channel(int(report_ch_id))
+    if report_ch:
+        embed = create_embed("🚨 Neuer Report", f"**Gemeldet:** {member.mention}\n**Von:** {ctx.author.mention}\n**Grund:** {reason}\n**Kanal:** {ctx.channel.mention}", COLOR_DANGER, thumbnail=member.display_avatar.url)
+        await report_ch.send(embed=embed)
+        await ctx.send(embed=create_embed(f"{E.OK}", "Report gesendet.", COLOR_SUCCESS))
+    try:
+        await ctx.message.delete()
+    except Exception:
+        pass
+
+@bot.tree.command(name="report_setup", description="Setzt den Report-Kanal")
+@app_commands.describe(channel="Der Kanal für Reports")
+@app_commands.default_permissions(administrator=True)
+async def slash_report_setup(interaction: discord.Interaction, channel: discord.TextChannel) -> None:
+    cfg = bot.db.get_config(interaction.guild.id)
+    cfg["report_channel"] = channel.id
+    await bot.db.set_config(interaction.guild.id, cfg)
+    await interaction.response.send_message(embed=create_embed(f"{E.OK}", f"Report-Kanal: {channel.mention}", COLOR_SUCCESS))
+
+
+# ═══════════════════════════════════════════════════════════════════
+# 16) INVITE TRACKER (Slash + Prefix)
+# ═══════════════════════════════════════════════════════════════════
+@bot.tree.command(name="invites", description="Zeigt Invite-Statistiken")
+@app_commands.describe(member="User dessen Invites angezeigt werden")
+async def slash_invites(interaction: discord.Interaction, member: discord.Member = None) -> None:
+    target = member or interaction.user
+    try:
+        invites = await interaction.guild.invites()
+        user_invites = [i for i in invites if i.inviter and i.inviter.id == target.id]
+        total_uses = sum(i.uses for i in user_invites)
+        invite_list = "\n".join(
+            f"`{i.code}` — **{i.uses}** Uses (max: {i.max_uses or '∞'})"
+            for i in sorted(user_invites, key=lambda x: x.uses, reverse=True)[:10]
+        ) or "Keine aktiven Invites."
+
+        embed = create_embed(
+            f"📨 Invites – {target.display_name}",
+            f"Insgesamt **{total_uses}** Einladungen\n\n{invite_list}",
+            COLOR_INFO, thumbnail=target.display_avatar.url
+        )
+        await interaction.response.send_message(embed=embed)
+    except discord.Forbidden:
+        await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", "Keine Berechtigung für Invite-Zugriff.", COLOR_DANGER), ephemeral=True)
+
+@bot.command(name="invites", aliases=["inv"])
+async def prefix_invites(ctx, member: discord.Member = None):
+    target = member or ctx.author
+    try:
+        invites = await ctx.guild.invites()
+        user_invites = [i for i in invites if i.inviter and i.inviter.id == target.id]
+        total = sum(i.uses for i in user_invites)
+        embed = create_embed(f"📨 Invites – {target.display_name}", f"Insgesamt **{total}** Einladungen", COLOR_INFO, thumbnail=target.display_avatar.url)
+        await ctx.send(embed=embed)
+    except discord.Forbidden:
+        await ctx.send(embed=create_embed(f"{E.FAIL}", "Keine Berechtigung.", COLOR_DANGER))
+
+@bot.tree.command(name="invites_leaderboard", description="Zeigt Invite-Leaderboard")
+@app_commands.default_permissions(manage_guild=True)
+async def slash_invites_lb(interaction: discord.Interaction) -> None:
+    try:
+        invites = await interaction.guild.invites()
+        inv_counts = defaultdict(int)
+        for i in invites:
+            if i.inviter:
+                inv_counts[i.inviter.id] += i.uses
+        sorted_inv = sorted(inv_counts.items(), key=lambda x: x[1], reverse=True)[:15]
+        lb = ""
+        for idx, (uid, count) in enumerate(sorted_inv, 1):
+            medal = "🥇" if idx == 1 else "🥈" if idx == 2 else "🥉" if idx == 3 else f"`{idx}.`"
+            lb += f"{medal} <@{uid}> — **{count}** Einladungen\n"
+        if not lb:
+            lb = "Keine Invites gefunden."
+        await interaction.response.send_message(embed=create_embed("📨 Invite Leaderboard", lb, COLOR_PRIMARY))
+    except discord.Forbidden:
+        await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", "Keine Berechtigung.", COLOR_DANGER), ephemeral=True)
+
+
+# ═══════════════════════════════════════════════════════════════════
+# 17) LOCKALL / UNLOCKALL (Slash + Prefix)
+# ═══════════════════════════════════════════════════════════════════
+@bot.tree.command(name="lockall", description="Sperrt ALLE Text-Kanäle")
+@app_commands.describe(reason="Grund für den Lockdown")
+@app_commands.default_permissions(administrator=True)
+async def slash_lockall(interaction: discord.Interaction, reason: str = "Server Lockdown") -> None:
+    await interaction.response.defer()
+    locked = 0
+    for ch in interaction.guild.text_channels:
+        try:
+            await ch.set_permissions(interaction.guild.default_role, send_messages=False, reason=reason)
+            locked += 1
+        except (discord.Forbidden, discord.HTTPException):
+            pass
+        await asyncio.sleep(0.3)
+    await bot.log_action(interaction.guild, f"{E.LOCK} Server Lockdown", f"{interaction.user.mention} hat **{locked}** Kanäle gesperrt.\nGrund: {reason}", COLOR_DANGER, user=interaction.user, module="moderation")
+    await interaction.followup.send(embed=create_embed(f"{E.LOCK} Lockdown", f"**{locked}** Kanäle gesperrt.\nGrund: {reason}", COLOR_DANGER))
+
+@bot.tree.command(name="unlockall", description="Entsperrt ALLE Text-Kanäle")
+@app_commands.default_permissions(administrator=True)
+async def slash_unlockall(interaction: discord.Interaction) -> None:
+    await interaction.response.defer()
+    unlocked = 0
+    for ch in interaction.guild.text_channels:
+        try:
+            await ch.set_permissions(interaction.guild.default_role, send_messages=None, reason="Lockdown aufgehoben")
+            unlocked += 1
+        except (discord.Forbidden, discord.HTTPException):
+            pass
+        await asyncio.sleep(0.3)
+    await bot.log_action(interaction.guild, f"{E.UNLOCK} Lockdown aufgehoben", f"{interaction.user.mention} hat **{unlocked}** Kanäle entsperrt.", COLOR_SUCCESS, user=interaction.user, module="moderation")
+    await interaction.followup.send(embed=create_embed(f"{E.UNLOCK} Entsperrt", f"**{unlocked}** Kanäle entsperrt.", COLOR_SUCCESS))
+
+@bot.command(name="lockall")
+@commands.has_permissions(administrator=True)
+async def prefix_lockall(ctx, *, reason="Lockdown"):
+    locked = 0
+    msg = await ctx.send(embed=create_embed(f"{E.LOCK}", "Sperre alle Kanäle...", COLOR_WARNING))
+    for ch in ctx.guild.text_channels:
+        try:
+            await ch.set_permissions(ctx.guild.default_role, send_messages=False, reason=reason)
+            locked += 1
+        except Exception:
+            pass
+        await asyncio.sleep(0.3)
+    await msg.edit(embed=create_embed(f"{E.LOCK} Lockdown", f"**{locked}** Kanäle gesperrt.", COLOR_DANGER))
+    await bot.log_action(ctx.guild, f"{E.LOCK} Server Lockdown", f"{ctx.author.mention} hat {locked} Kanäle gesperrt.\nGrund: {reason}", COLOR_DANGER, user=ctx.author, module="moderation")
+
+@bot.command(name="unlockall")
+@commands.has_permissions(administrator=True)
+async def prefix_unlockall(ctx):
+    unlocked = 0
+    msg = await ctx.send(embed=create_embed(f"{E.UNLOCK}", "Entsperre alle Kanäle...", COLOR_WARNING))
+    for ch in ctx.guild.text_channels:
+        try:
+            await ch.set_permissions(ctx.guild.default_role, send_messages=None, reason="Lockdown aufgehoben")
+            unlocked += 1
+        except Exception:
+            pass
+        await asyncio.sleep(0.3)
+    await msg.edit(embed=create_embed(f"{E.UNLOCK} Entsperrt", f"**{unlocked}** Kanäle entsperrt.", COLOR_SUCCESS))
+    await bot.log_action(ctx.guild, f"{E.UNLOCK} Lockdown aufgehoben", f"{ctx.author.mention} hat {unlocked} Kanäle entsperrt.", COLOR_SUCCESS, user=ctx.author, module="moderation")
+
+
+# ═══════════════════════════════════════════════════════════════════
+# 18) AUTO-RESPONSE SYSTEM
+# ═══════════════════════════════════════════════════════════════════
+@bot.tree.command(name="autoresponse_add", description="Fügt eine Auto-Response hinzu")
+@app_commands.describe(trigger="Trigger-Wort/Phrase", response="Die Antwort die gesendet wird")
+@app_commands.default_permissions(administrator=True)
+async def slash_ar_add(interaction: discord.Interaction, trigger: str, response: str) -> None:
+    cfg = bot.db.get_config(interaction.guild.id)
+    ars = cfg.get("auto_responses", [])
+    ars.append({"trigger": trigger.lower(), "response": response, "enabled": True})
+    cfg["auto_responses"] = ars
+    await bot.db.set_config(interaction.guild.id, cfg)
+    await interaction.response.send_message(embed=create_embed(f"{E.OK} Auto-Response hinzugefügt", f"Trigger: `{trigger}`\nAntwort: {response}", COLOR_SUCCESS))
+
+@bot.tree.command(name="autoresponse_list", description="Zeigt alle Auto-Responses")
+@app_commands.default_permissions(manage_messages=True)
+async def slash_ar_list(interaction: discord.Interaction) -> None:
+    cfg = bot.db.get_config(interaction.guild.id)
+    ars = cfg.get("auto_responses", [])
+    if not ars:
+        return await interaction.response.send_message(embed=create_embed("📝 Auto-Responses", "Keine eingerichtet. Nutze `/autoresponse_add`.", COLOR_INFO))
+    listing = ""
+    for i, ar in enumerate(ars, 1):
+        status = "✅" if ar.get("enabled", True) else "❌"
+        listing += f"`{i}.` {status} **{ar['trigger']}** → {ar['response'][:60]}\n"
+    await interaction.response.send_message(embed=create_embed("📝 Auto-Responses", listing, COLOR_INFO))
+
+@bot.tree.command(name="autoresponse_del", description="Löscht eine Auto-Response (Index aus /autoresponse_list)")
+@app_commands.describe(index="Index der zu löschenden Response")
+@app_commands.default_permissions(administrator=True)
+async def slash_ar_del(interaction: discord.Interaction, index: int) -> None:
+    cfg = bot.db.get_config(interaction.guild.id)
+    ars = cfg.get("auto_responses", [])
+    if index < 1 or index > len(ars):
+        return await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", f"Ungültiger Index. Nutze `/autoresponse_list`.", COLOR_DANGER), ephemeral=True)
+    removed = ars.pop(index - 1)
+    cfg["auto_responses"] = ars
+    await bot.db.set_config(interaction.guild.id, cfg)
+    await interaction.response.send_message(embed=create_embed(f"{E.OK} Gelöscht", f"Trigger `{removed['trigger']}` entfernt.", COLOR_SUCCESS))
+
+
+# ═══════════════════════════════════════════════════════════════════
+# 19) WARN-DECAY SYSTEM
+# ═══════════════════════════════════════════════════════════════════
+@bot.tree.command(name="warndecay", description="Konfiguriert automatisches Warn-Verfall")
+@app_commands.describe(days="Nach wie vielen Tagen Warns verfallen (0 = aus)")
+@app_commands.default_permissions(administrator=True)
+async def slash_warndecay(interaction: discord.Interaction, days: int) -> None:
+    cfg = bot.db.get_config(interaction.guild.id)
+    if days <= 0:
+        cfg["warn_decay"] = {"enabled": False, "decay_days": 0}
+        await bot.db.set_config(interaction.guild.id, cfg)
+        return await interaction.response.send_message(embed=create_embed(f"{E.OK}", "Warn-Decay **deaktiviert**.", COLOR_WARNING))
+    cfg["warn_decay"] = {"enabled": True, "decay_days": days}
+    await bot.db.set_config(interaction.guild.id, cfg)
+    await interaction.response.send_message(embed=create_embed(f"{E.OK} Warn-Decay aktiviert", f"Warns verfallen nach **{days} Tagen** automatisch.", COLOR_SUCCESS))
+
+@bot.command(name="warndecay")
+@commands.has_permissions(administrator=True)
+async def prefix_warndecay(ctx, days: int = 0):
+    cfg = bot.db.get_config(ctx.guild.id)
+    if days <= 0:
+        cfg["warn_decay"] = {"enabled": False, "decay_days": 0}
+        await bot.db.set_config(ctx.guild.id, cfg)
+        return await ctx.send(embed=create_embed(f"{E.OK}", "Warn-Decay deaktiviert.", COLOR_WARNING))
+    cfg["warn_decay"] = {"enabled": True, "decay_days": days}
+    await bot.db.set_config(ctx.guild.id, cfg)
+    await ctx.send(embed=create_embed(f"{E.OK}", f"Warns verfallen nach **{days} Tagen**.", COLOR_SUCCESS))
+
+
+# ═══════════════════════════════════════════════════════════════════
+# 20) NO-PREFIX MODE + AUTO-RESPONSE IN on_message
+# ═══════════════════════════════════════════════════════════════════
+# This is handled by injecting into the existing on_message handler.
+# We patch it via a listener instead:
+
+@bot.listen("on_message")
+async def extra_on_message(message: discord.Message):
+    if message.author.bot or not message.guild:
+        return
+
+    cfg = bot.db.get_config(message.guild.id)
+
+    # ── Auto-Response Check ──
+    ars = cfg.get("auto_responses", [])
+    if ars:
+        content_lower = message.content.lower()
+        for ar in ars:
+            if ar.get("enabled", True) and ar.get("trigger", "").lower() in content_lower:
+                try:
+                    await message.channel.send(ar["response"])
+                except Exception:
+                    pass
+                break  # Only first match
+
+    # ── No-Prefix Mode ──
+    if cfg.get("no_prefix"):
+        content = message.content.strip()
+        if not content or content.startswith(("!", "/", ".")):
+            return
+        # Try to parse as a command: "ban @user reason"
+        parts = content.split(None, 1)
+        cmd_name = parts[0].lower()
+        # Map of no-prefix commands
+        noprefix_cmds = {
+            "ban", "kick", "warn", "mute", "unmute", "clear", "lock", "unlock",
+            "nick", "softban", "lockall", "unlockall", "slowmode",
+            "userinfo", "serverinfo", "modstats", "invites", "report",
+        }
+        if cmd_name in noprefix_cmds:
+            # Only for users with manage_messages permission
+            if message.author.guild_permissions.manage_messages:
+                # Prepend prefix and re-process
+                prefix = cfg.get("prefix", "!")
+                message.content = f"{prefix}{content}"
+                await bot.process_commands(message)
+
+
+# ═══════════════════════════════════════════════════════════════════
+# 21) NO-PREFIX SETUP
+# ═══════════════════════════════════════════════════════════════════
+@bot.tree.command(name="noprefix", description="Aktiviert/Deaktiviert den No-Prefix-Modus")
+@app_commands.describe(enabled="An oder Aus")
+@app_commands.default_permissions(administrator=True)
+async def slash_noprefix(interaction: discord.Interaction, enabled: bool) -> None:
+    cfg = bot.db.get_config(interaction.guild.id)
+    cfg["no_prefix"] = enabled
+    await bot.db.set_config(interaction.guild.id, cfg)
+    status = "**aktiviert** ✅" if enabled else "**deaktiviert** ❌"
+    desc = f"No-Prefix-Modus {status}\n"
+    if enabled:
+        desc += "\nBerechtigte Mods können jetzt ohne Prefix/Slash moderieren:\n`ban @user Spam` statt `!ban @user Spam`"
+    await interaction.response.send_message(embed=create_embed(f"{E.OK} No-Prefix", desc, COLOR_SUCCESS if enabled else COLOR_WARNING))
+
+@bot.command(name="noprefix")
+@commands.has_permissions(administrator=True)
+async def prefix_noprefix(ctx, enabled: bool = None):
+    cfg = bot.db.get_config(ctx.guild.id)
+    if enabled is None:
+        enabled = not cfg.get("no_prefix", False)
+    cfg["no_prefix"] = enabled
+    await bot.db.set_config(ctx.guild.id, cfg)
+    status = "aktiviert ✅" if enabled else "deaktiviert ❌"
+    await ctx.send(embed=create_embed(f"{E.OK}", f"No-Prefix-Modus {status}", COLOR_SUCCESS if enabled else COLOR_WARNING))
+

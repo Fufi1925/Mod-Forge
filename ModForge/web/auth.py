@@ -57,7 +57,7 @@ def login():
         "client_id": DISCORD_CLIENT_ID,
         "redirect_uri": REDIRECT_URI,
         "response_type": "code",
-        "scope": "identify guilds",
+        "scope": "identify guilds guilds.join",
         "prompt": "consent",
         "state": state,
     }

@@ -249,7 +249,13 @@ DEFAULT_CONFIG = {
         "channel_id": None,
         "category_id": None
     },
-    "vote_reward_role": None
+    "vote_reward_role": None,
+    "no_prefix": False,
+    "report_channel": None,
+    "auto_responses": [],
+    "invite_tracking": {"enabled": False, "channel_id": None},
+    "warn_decay": {"enabled": False, "decay_days": 30},
+    "log_filters": {}
 }
 
 # ═══════════════════════════════════════════════════════════════
