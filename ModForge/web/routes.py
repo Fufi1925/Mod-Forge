@@ -763,9 +763,13 @@ def admin_login():
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
 
-        if username == ADMIN_USERNAME and check_password_hash(
-            generate_password_hash(ADMIN_PASSWORD), password
-        ):
+        if not ADMIN_PASSWORD:
+            return render_template(
+                "admin/login.html",
+                error="Admin-Passwort nicht konfiguriert. Setze ADMIN_PASSWORD in den Umgebungsvariablen.",
+            ), 503
+
+        if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
             session["admin"] = True
             session.permanent = True
             log.info(f"[ADMIN LOGIN] {ip}")
@@ -1159,6 +1163,16 @@ def guild_embed(guild_id):
     return render_template("dashboard/embed.html", guild=g, cfg=cfg, user=us["user"], channels=channels, active="embed")
 
 # PUBLIC PAGES (new)
+
+@flask_app.route("/demo")
+def demo():
+    return render_template("demo.html")
+
+@flask_app.route("/server-check")
+def server_check():
+    return render_template("server_check.html")
+
+
 # =========================================================
 
 @flask_app.route("/compare")

@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Demo – ModForge{% endblock %}
+{% block content %}
+<div class="container" style="max-width:900px;padding-top:40px;padding-bottom:80px">
+  <div class="sec-head reveal" style="text-align:center;margin-bottom:40px">
+    <div class="sec-badge" style="margin-bottom:12px">🎮 Live Demo</div>
+    <h1 style="font-size:clamp(1.8rem,4vw,2.8rem);font-weight:800;margin-bottom:12px">Teste ModForge live</h1>
+    <p style="color:var(--muted);max-width:600px;margin:0 auto">Sieh wie der Bot in Echtzeit auf Spam, Raids und Angriffe reagiert.</p>
+  </div>
+
+  <!-- DEMO CHAT -->
+  <div class="reveal" style="background:#36393f;border-radius:16px;overflow:hidden;border:1px solid var(--border);margin-bottom:32px">
+    <div style="padding:12px 16px;background:#2f3136;font-size:.82rem;font-weight:700;color:#fff;display:flex;align-items:center;gap:8px"># demo-channel</div>
+    <div id="demoChat" style="padding:16px;min-height:300px;max-height:400px;overflow-y:auto;display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;gap:10px"><div style="width:36px;height:36px;border-radius:50%;background:#7c3aed;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.8rem">🛡️</div><div><div style="display:flex;align-items:center;gap:6px"><span style="font-weight:700;color:#fff;font-size:.85rem">ModForge</span><span style="padding:1px 5px;border-radius:3px;background:#5865f2;color:#fff;font-size:.55rem;font-weight:700">BOT</span></div><div style="color:#dcddde;font-size:.82rem;margin-top:2px">👋 Willkommen in der Demo! Klicke die Buttons unten um Angriffe zu simulieren.</div></div></div>
+    </div>
+    <div style="padding:12px 16px;background:#2f3136;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn-glass btn-glass-danger btn-sm" onclick="simSpam()">💬 Spam simulieren</button>
+      <button class="btn-glass btn-glass-amber btn-sm" onclick="simRaid()">🚨 Raid simulieren</button>
+      <button class="btn-glass btn-glass-primary btn-sm" onclick="simScam()">🎣 Scam-Link testen</button>
+      <button class="btn-glass btn-glass-ghost btn-sm" onclick="simNuke()">💥 Nuke-Versuch</button>
+    </div>
+  </div>
+
+  <div class="reveal" style="text-align:center">
+    <a href="/login" class="btn-glass btn-glass-primary btn-lg">Überzeugt? Bot einladen →</a>
+  </div>
+</div>
+
+<script>
+const chat=document.getElementById('demoChat');
+function addMsg(name,color,text,isBot){
+  const d=document.createElement('div');d.style.cssText='display:flex;gap:10px;animation:fadeUp .3s ease';
+  d.innerHTML=`<div style="width:36px;height:36px;border-radius:50%;background:${color};flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.8rem">${isBot?'🛡️':name[0]}</div><div><div style="display:flex;align-items:center;gap:6px"><span style="font-weight:700;color:#fff;font-size:.85rem">${name}</span>${isBot?'<span style="padding:1px 5px;border-radius:3px;background:#5865f2;color:#fff;font-size:.55rem;font-weight:700">BOT</span>':''}</div><div style="color:${isBot?'#dcddde':'#ef4444'};font-size:.82rem;margin-top:2px">${text}</div></div>`;
+  chat.appendChild(d);chat.scrollTop=chat.scrollHeight;
+}
+function addDel(text){
+  const d=document.createElement('div');d.style.cssText='padding:6px 12px;background:rgba(239,68,68,0.08);border-left:3px solid #ef4444;border-radius:4px;font-size:.75rem;color:#fca5a5;animation:fadeUp .3s ease';
+  d.textContent=text;chat.appendChild(d);chat.scrollTop=chat.scrollHeight;
+}
+async function simSpam(){
+  for(let i=0;i<5;i++){addMsg('SpamUser','#e74c3c','BUY CHEAP NITRO!!! FREE!!!');await new Promise(r=>setTimeout(r,400))}
+  await new Promise(r=>setTimeout(r,300));
+  addDel('⚡ Anti-Spam: 5 Nachrichten von SpamUser gelöscht');
+  await new Promise(r=>setTimeout(r,200));
+  addMsg('ModForge','#7c3aed','🔇 **SpamUser** wurde getimeoutet (30s) — Spam erkannt.',true);
+}
+async function simRaid(){
+  for(let i=1;i<=8;i++){addMsg(`RaidBot${i}`,'#e74c3c',`Account erstellt vor ${i} Minuten`);await new Promise(r=>setTimeout(r,200))}
+  await new Promise(r=>setTimeout(r,400));
+  addMsg('ModForge','#7c3aed','🚨 **RAID ERKANNT** — 8 verdächtige Joins in 10s!\n🔒 Server-Lockdown aktiviert. 8 Accounts gekickt.',true);
+}
+async function simScam(){
+  addMsg('ScamUser','#e74c3c','Hey check out this free nitro! https://discord-nitro-free.xyz/gift/abc123');
+  await new Promise(r=>setTimeout(r,600));
+  addDel('🎣 Anti-Scam: Phishing-Link erkannt und gelöscht');
+  addMsg('ModForge','#7c3aed','🔨 **ScamUser** wurde gebannt — Phishing-Link (discord-nitro-free.xyz)',true);
+}
+async function simNuke(){
+  addMsg('NukeUser','#e74c3c','*Versucht 10 Channels zu löschen...*');
+  await new Promise(r=>setTimeout(r,500));
+  addMsg('ModForge','#7c3aed','💥 **ANTI-NUKE AUSGELÖST**\n🚫 Alle Rollen von NukeUser entfernt\n🔨 NukeUser wurde gebannt\n🔒 Lockdown aktiviert (10 Min)\n📬 Owner wurde per DM informiert',true);
+}
+</script>
+{% endblock %}

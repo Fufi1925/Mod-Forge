@@ -6666,3 +6666,398 @@ async def prefix_autobanappeal(ctx, enabled: bool = None):
     status = "aktiviert ✅" if enabled else "deaktiviert ❌"
     await ctx.send(embed=create_embed(f"{E.OK}", f"Auto-Ban-Appeal {status}", COLOR_SUCCESS if enabled else COLOR_WARNING))
 
+
+
+# ═══════════════════════════════════════════════════════════════════
+# NEW: /note — Interne Moderator-Notizen
+# ═══════════════════════════════════════════════════════════════════
+@bot.tree.command(name="note", description="Speichert eine interne Notiz zu einem User")
+@app_commands.describe(member="User", text="Notiz-Text")
+@app_commands.default_permissions(manage_messages=True)
+async def slash_note(interaction: discord.Interaction, member: discord.Member, text: str) -> None:
+    try:
+        await bot.db.notes.insert_one({
+            "guild_id": str(interaction.guild.id),
+            "user_id": str(member.id),
+            "mod_id": str(interaction.user.id),
+            "text": text,
+            "timestamp": datetime.datetime.utcnow(),
+        })
+        count = await bot.db.notes.count_documents({"guild_id": str(interaction.guild.id), "user_id": str(member.id)})
+        await interaction.response.send_message(embed=create_embed(
+            f"{E.OK} Notiz gespeichert",
+            f"Notiz für {member.mention} ({count} gesamt):\n> {text}",
+            COLOR_SUCCESS), ephemeral=True)
+    except Exception as e:
+        await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", f"Fehler: {e}", COLOR_DANGER), ephemeral=True)
+
+@bot.tree.command(name="notes", description="Zeigt alle Notizen zu einem User")
+@app_commands.describe(member="User")
+@app_commands.default_permissions(manage_messages=True)
+async def slash_notes(interaction: discord.Interaction, member: discord.Member) -> None:
+    try:
+        notes = await bot.db.notes.find({"guild_id": str(interaction.guild.id), "user_id": str(member.id)}).sort("timestamp", -1).to_list(20)
+        if not notes:
+            return await interaction.response.send_message(embed=create_embed("📝 Notizen", f"Keine Notizen für {member.mention}.", COLOR_INFO), ephemeral=True)
+        lines = []
+        for i, n in enumerate(notes, 1):
+            ts = f"<t:{int(n['timestamp'].timestamp())}:R>" if n.get('timestamp') else "?"
+            lines.append(f"`{i}.` {n['text'][:80]} — <@{n['mod_id']}> {ts}")
+        await interaction.response.send_message(embed=create_embed(
+            f"📝 Notizen – {member.display_name} ({len(notes)})",
+            "\n".join(lines), COLOR_INFO, thumbnail=member.display_avatar.url), ephemeral=True)
+    except Exception as e:
+        await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", f"Fehler: {e}", COLOR_DANGER), ephemeral=True)
+
+@bot.tree.command(name="delnote", description="Löscht eine Notiz (Index aus /notes)")
+@app_commands.describe(member="User", index="Notiz-Nummer")
+@app_commands.default_permissions(manage_messages=True)
+async def slash_delnote(interaction: discord.Interaction, member: discord.Member, index: int) -> None:
+    try:
+        notes = await bot.db.notes.find({"guild_id": str(interaction.guild.id), "user_id": str(member.id)}).sort("timestamp", -1).to_list(50)
+        if index < 1 or index > len(notes):
+            return await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", "Ungültiger Index.", COLOR_DANGER), ephemeral=True)
+        await bot.db.notes.delete_one({"_id": notes[index - 1]["_id"]})
+        await interaction.response.send_message(embed=create_embed(f"{E.OK}", f"Notiz #{index} gelöscht.", COLOR_SUCCESS), ephemeral=True)
+    except Exception as e:
+        await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", f"Fehler: {e}", COLOR_DANGER), ephemeral=True)
+
+@bot.command(name="note")
+@commands.has_permissions(manage_messages=True)
+async def prefix_note(ctx, member: discord.Member = None, *, text: str = ""):
+    if not member or not text:
+        return await ctx.send(embed=create_embed(f"{E.FAIL}", "`!note @User Text`", COLOR_DANGER))
+    try:
+        await bot.db.notes.insert_one({"guild_id": str(ctx.guild.id), "user_id": str(member.id), "mod_id": str(ctx.author.id), "text": text, "timestamp": datetime.datetime.utcnow()})
+        await ctx.send(embed=create_embed(f"{E.OK}", f"Notiz für {member.mention} gespeichert.", COLOR_SUCCESS))
+    except Exception as e:
+        await ctx.send(embed=create_embed(f"{E.FAIL}", str(e), COLOR_DANGER))
+
+@bot.command(name="notes")
+@commands.has_permissions(manage_messages=True)
+async def prefix_notes(ctx, member: discord.Member = None):
+    if not member:
+        return await ctx.send(embed=create_embed(f"{E.FAIL}", "`!notes @User`", COLOR_DANGER))
+    try:
+        notes = await bot.db.notes.find({"guild_id": str(ctx.guild.id), "user_id": str(member.id)}).sort("timestamp", -1).to_list(10)
+        if not notes:
+            return await ctx.send(embed=create_embed("📝", f"Keine Notizen für {member.mention}.", COLOR_INFO))
+        lines = [f"`{i}.` {n['text'][:80]} — <@{n['mod_id']}>" for i, n in enumerate(notes, 1)]
+        await ctx.send(embed=create_embed(f"📝 Notizen ({len(notes)})", "\n".join(lines), COLOR_INFO))
+    except Exception as e:
+        await ctx.send(embed=create_embed(f"{E.FAIL}", str(e), COLOR_DANGER))
+
+
+# ═══════════════════════════════════════════════════════════════════
+# NEW: /snipe & /editsnipe
+# ═══════════════════════════════════════════════════════════════════
+_snipe_cache = {}  # guild_id -> {channel_id: (message, timestamp)}
+_editsnipe_cache = {}
+
+@bot.listen("on_message_delete")
+async def snipe_on_delete(message: discord.Message):
+    if message.author.bot or not message.guild:
+        return
+    _snipe_cache.setdefault(message.guild.id, {})[message.channel.id] = {
+        "content": message.content[:1500],
+        "author": message.author,
+        "timestamp": time.time(),
+        "attachments": [a.url for a in message.attachments][:3],
+    }
+
+@bot.listen("on_message_edit")
+async def snipe_on_edit(before: discord.Message, after: discord.Message):
+    if before.author.bot or not before.guild or before.content == after.content:
+        return
+    _editsnipe_cache.setdefault(before.guild.id, {})[before.channel.id] = {
+        "before": before.content[:1000],
+        "after": after.content[:1000],
+        "author": before.author,
+        "timestamp": time.time(),
+    }
+
+@bot.tree.command(name="snipe", description="Zeigt die letzte gelöschte Nachricht")
+@app_commands.default_permissions(manage_messages=True)
+async def slash_snipe(interaction: discord.Interaction) -> None:
+    data = _snipe_cache.get(interaction.guild.id, {}).get(interaction.channel.id)
+    if not data or time.time() - data["timestamp"] > 300:
+        return await interaction.response.send_message(embed=create_embed("🔍 Snipe", "Keine gelöschte Nachricht in den letzten 5 Minuten.", COLOR_INFO), ephemeral=True)
+    embed = create_embed(
+        "🔍 Snipe – Gelöschte Nachricht",
+        data["content"] or "*Kein Text*",
+        COLOR_WARNING, thumbnail=data["author"].display_avatar.url
+    )
+    embed.set_author(name=str(data["author"]), icon_url=data["author"].display_avatar.url)
+    embed.set_footer(text=f"Gelöscht vor {int(time.time() - data['timestamp'])}s")
+    if data.get("attachments"):
+        embed.add_field(name="📎 Anhänge", value="\n".join(data["attachments"]), inline=False)
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+@bot.tree.command(name="editsnipe", description="Zeigt die letzte bearbeitete Nachricht")
+@app_commands.default_permissions(manage_messages=True)
+async def slash_editsnipe(interaction: discord.Interaction) -> None:
+    data = _editsnipe_cache.get(interaction.guild.id, {}).get(interaction.channel.id)
+    if not data or time.time() - data["timestamp"] > 300:
+        return await interaction.response.send_message(embed=create_embed("✏️ Editsnipe", "Keine bearbeitete Nachricht in den letzten 5 Minuten.", COLOR_INFO), ephemeral=True)
+    embed = create_embed("✏️ Editsnipe", "", COLOR_INFO)
+    embed.set_author(name=str(data["author"]), icon_url=data["author"].display_avatar.url)
+    embed.add_field(name="Vorher", value=data["before"][:1000] or "*Leer*", inline=False)
+    embed.add_field(name="Nachher", value=data["after"][:1000] or "*Leer*", inline=False)
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+@bot.command(name="snipe")
+@commands.has_permissions(manage_messages=True)
+async def prefix_snipe(ctx):
+    data = _snipe_cache.get(ctx.guild.id, {}).get(ctx.channel.id)
+    if not data or time.time() - data["timestamp"] > 300:
+        return await ctx.send(embed=create_embed("🔍", "Nichts zu snipen.", COLOR_INFO))
+    embed = create_embed("🔍 Snipe", data["content"] or "*Kein Text*", COLOR_WARNING)
+    embed.set_author(name=str(data["author"]), icon_url=data["author"].display_avatar.url)
+    await ctx.send(embed=embed)
+
+@bot.command(name="editsnipe", aliases=["esnipe"])
+@commands.has_permissions(manage_messages=True)
+async def prefix_editsnipe(ctx):
+    data = _editsnipe_cache.get(ctx.guild.id, {}).get(ctx.channel.id)
+    if not data or time.time() - data["timestamp"] > 300:
+        return await ctx.send(embed=create_embed("✏️", "Nichts zu snipen.", COLOR_INFO))
+    embed = create_embed("✏️ Editsnipe", "", COLOR_INFO)
+    embed.set_author(name=str(data["author"]), icon_url=data["author"].display_avatar.url)
+    embed.add_field(name="Vorher", value=data["before"][:1000], inline=False)
+    embed.add_field(name="Nachher", value=data["after"][:1000], inline=False)
+    await ctx.send(embed=embed)
+
+
+# ═══════════════════════════════════════════════════════════════════
+# NEW: /poll — Abstimmung
+# ═══════════════════════════════════════════════════════════════════
+@bot.tree.command(name="poll", description="Erstellt eine Abstimmung")
+@app_commands.describe(frage="Die Frage", opt1="Option 1", opt2="Option 2", opt3="Option 3 (optional)", opt4="Option 4 (optional)")
+async def slash_poll(interaction: discord.Interaction, frage: str, opt1: str, opt2: str, opt3: str = None, opt4: str = None) -> None:
+    options = [opt1, opt2]
+    if opt3: options.append(opt3)
+    if opt4: options.append(opt4)
+    emojis = ["1️⃣", "2️⃣", "3️⃣", "4️⃣"]
+    desc = "\n".join(f"{emojis[i]} {opt}" for i, opt in enumerate(options))
+    embed = create_embed(f"📊 {frage}", desc, COLOR_PRIMARY)
+    embed.set_footer(text=f"Abstimmung von {interaction.user.display_name}")
+    await interaction.response.send_message(embed=embed)
+    msg = await interaction.original_response()
+    for i in range(len(options)):
+        await msg.add_reaction(emojis[i])
+
+@bot.command(name="poll")
+async def prefix_poll(ctx, *, args: str = ""):
+    parts = [p.strip() for p in args.split("|") if p.strip()]
+    if len(parts) < 3:
+        return await ctx.send(embed=create_embed(f"{E.FAIL}", "`!poll Frage | Option 1 | Option 2 | ...`", COLOR_DANGER))
+    frage = parts[0]
+    options = parts[1:5]
+    emojis = ["1️⃣", "2️⃣", "3️⃣", "4️⃣"]
+    desc = "\n".join(f"{emojis[i]} {opt}" for i, opt in enumerate(options))
+    embed = create_embed(f"📊 {frage}", desc, COLOR_PRIMARY)
+    msg = await ctx.send(embed=embed)
+    for i in range(len(options)):
+        await msg.add_reaction(emojis[i])
+
+
+# ═══════════════════════════════════════════════════════════════════
+# NEW: /raidmode — Manueller Raid-Modus
+# ═══════════════════════════════════════════════════════════════════
+@bot.tree.command(name="raidmode", description="Aktiviert/Deaktiviert den Raid-Modus")
+@app_commands.describe(enabled="An oder Aus", dauer="Dauer in Minuten (0=manuell)")
+@app_commands.default_permissions(administrator=True)
+async def slash_raidmode(interaction: discord.Interaction, enabled: bool, dauer: int = 0) -> None:
+    cfg = bot.db.get_config(interaction.guild.id)
+    if enabled:
+        cfg["raidmode_active"] = True
+        await bot.db.set_config(interaction.guild.id, cfg)
+        # Lock server
+        locked = 0
+        for ch in interaction.guild.text_channels:
+            try:
+                await ch.set_permissions(interaction.guild.default_role, send_messages=False, reason="Raid-Modus aktiviert")
+                locked += 1
+            except Exception:
+                pass
+        await bot.log_action(interaction.guild, "🚨 RAID-MODUS AKTIVIERT",
+                             f"{interaction.user.mention} hat den Raid-Modus aktiviert.\n{locked} Kanäle gesperrt." +
+                             (f"\nDauer: {dauer} Minuten" if dauer > 0 else "\nManuell deaktivieren: `/raidmode false`"),
+                             COLOR_DANGER, user=interaction.user, module="antiraid")
+        await interaction.response.send_message(embed=create_embed(
+            "🚨 Raid-Modus AKTIV",
+            f"**{locked}** Kanäle gesperrt.\nNeue Member erhalten eine DM.\n" +
+            (f"Automatische Deaktivierung in {dauer}m." if dauer > 0 else "`/raidmode false` zum Deaktivieren."),
+            COLOR_DANGER))
+        if dauer > 0:
+            await asyncio.sleep(dauer * 60)
+            cfg = bot.db.get_config(interaction.guild.id)
+            if cfg.get("raidmode_active"):
+                cfg["raidmode_active"] = False
+                await bot.db.set_config(interaction.guild.id, cfg)
+                for ch in interaction.guild.text_channels:
+                    try:
+                        await ch.set_permissions(interaction.guild.default_role, send_messages=None, reason="Raid-Modus abgelaufen")
+                    except Exception:
+                        pass
+                await bot.log_action(interaction.guild, "✅ Raid-Modus beendet", "Automatisch nach Ablauf deaktiviert.", COLOR_SUCCESS, module="antiraid")
+    else:
+        cfg["raidmode_active"] = False
+        await bot.db.set_config(interaction.guild.id, cfg)
+        for ch in interaction.guild.text_channels:
+            try:
+                await ch.set_permissions(interaction.guild.default_role, send_messages=None, reason="Raid-Modus deaktiviert")
+            except Exception:
+                pass
+        await interaction.response.send_message(embed=create_embed("✅ Raid-Modus deaktiviert", "Alle Kanäle entsperrt.", COLOR_SUCCESS))
+        await bot.log_action(interaction.guild, "✅ Raid-Modus beendet", f"{interaction.user.mention} hat den Raid-Modus deaktiviert.", COLOR_SUCCESS, module="antiraid")
+
+@bot.command(name="raidmode")
+@commands.has_permissions(administrator=True)
+async def prefix_raidmode(ctx, enabled: str = ""):
+    if enabled.lower() in ("on", "true", "1", "an"):
+        cfg = bot.db.get_config(ctx.guild.id)
+        cfg["raidmode_active"] = True
+        await bot.db.set_config(ctx.guild.id, cfg)
+        locked = 0
+        for ch in ctx.guild.text_channels:
+            try:
+                await ch.set_permissions(ctx.guild.default_role, send_messages=False, reason="Raid-Modus")
+                locked += 1
+            except Exception:
+                pass
+        await ctx.send(embed=create_embed("🚨 RAID-MODUS", f"{locked} Kanäle gesperrt. `!raidmode off` zum Deaktivieren.", COLOR_DANGER))
+    elif enabled.lower() in ("off", "false", "0", "aus"):
+        cfg = bot.db.get_config(ctx.guild.id)
+        cfg["raidmode_active"] = False
+        await bot.db.set_config(ctx.guild.id, cfg)
+        for ch in ctx.guild.text_channels:
+            try:
+                await ch.set_permissions(ctx.guild.default_role, send_messages=None, reason="Raid-Modus aus")
+            except Exception:
+                pass
+        await ctx.send(embed=create_embed("✅ Raid-Modus aus", "Kanäle entsperrt.", COLOR_SUCCESS))
+    else:
+        cfg = bot.db.get_config(ctx.guild.id)
+        active = cfg.get("raidmode_active", False)
+        await ctx.send(embed=create_embed("🚨 Raid-Modus", f"Status: **{'AKTIV 🔴' if active else 'Inaktiv 🟢'}**\n`!raidmode on` / `!raidmode off`", COLOR_DANGER if active else COLOR_SUCCESS))
+
+
+# ═══════════════════════════════════════════════════════════════════
+# NEW: Erweiterte /purge Varianten
+# ═══════════════════════════════════════════════════════════════════
+@bot.tree.command(name="purge_user", description="Löscht Nachrichten eines bestimmten Users")
+@app_commands.describe(member="User", amount="Anzahl zu prüfender Nachrichten")
+@app_commands.default_permissions(manage_messages=True)
+async def slash_purge_user(interaction: discord.Interaction, member: discord.Member, amount: int = 100) -> None:
+    await interaction.response.defer(ephemeral=True)
+    amount = min(amount, 500)
+    deleted = await interaction.channel.purge(limit=amount, check=lambda m: m.author.id == member.id)
+    await interaction.followup.send(embed=create_embed(f"{E.DELETE}", f"**{len(deleted)}** Nachrichten von {member.mention} gelöscht.", COLOR_SUCCESS))
+    await bot.log_action(interaction.guild, f"{E.DELETE} Purge User", f"{interaction.user.mention} hat {len(deleted)} Nachrichten von {member.mention} gelöscht.", COLOR_WARNING, user=interaction.user, module="moderation")
+
+@bot.tree.command(name="purge_bots", description="Löscht nur Bot-Nachrichten")
+@app_commands.describe(amount="Anzahl")
+@app_commands.default_permissions(manage_messages=True)
+async def slash_purge_bots(interaction: discord.Interaction, amount: int = 100) -> None:
+    await interaction.response.defer(ephemeral=True)
+    deleted = await interaction.channel.purge(limit=min(amount, 500), check=lambda m: m.author.bot)
+    await interaction.followup.send(embed=create_embed(f"{E.DELETE}", f"**{len(deleted)}** Bot-Nachrichten gelöscht.", COLOR_SUCCESS))
+
+@bot.tree.command(name="purge_links", description="Löscht nur Nachrichten mit Links")
+@app_commands.describe(amount="Anzahl")
+@app_commands.default_permissions(manage_messages=True)
+async def slash_purge_links(interaction: discord.Interaction, amount: int = 100) -> None:
+    await interaction.response.defer(ephemeral=True)
+    deleted = await interaction.channel.purge(limit=min(amount, 500), check=lambda m: "http" in m.content.lower())
+    await interaction.followup.send(embed=create_embed(f"{E.DELETE}", f"**{len(deleted)}** Link-Nachrichten gelöscht.", COLOR_SUCCESS))
+
+@bot.tree.command(name="purge_images", description="Löscht nur Nachrichten mit Bildern/Dateien")
+@app_commands.describe(amount="Anzahl")
+@app_commands.default_permissions(manage_messages=True)
+async def slash_purge_images(interaction: discord.Interaction, amount: int = 100) -> None:
+    await interaction.response.defer(ephemeral=True)
+    deleted = await interaction.channel.purge(limit=min(amount, 500), check=lambda m: len(m.attachments) > 0)
+    await interaction.followup.send(embed=create_embed(f"{E.DELETE}", f"**{len(deleted)}** Bild/Datei-Nachrichten gelöscht.", COLOR_SUCCESS))
+
+@bot.command(name="purge")
+@commands.has_permissions(manage_messages=True)
+async def prefix_purge(ctx, target: str = None, amount: int = 50):
+    """!purge [user @User|bots|links|images|amount] [amount]"""
+    if target and target.isdigit():
+        amount = int(target)
+        target = None
+    amount = min(max(amount, 1), 500)
+    check_fn = None
+    label = "Nachrichten"
+    if target == "bots":
+        check_fn = lambda m: m.author.bot
+        label = "Bot-Nachrichten"
+    elif target == "links":
+        check_fn = lambda m: "http" in m.content.lower()
+        label = "Link-Nachrichten"
+    elif target == "images":
+        check_fn = lambda m: len(m.attachments) > 0
+        label = "Bild-Nachrichten"
+    elif target and target.startswith("<@"):
+        uid = int(target.strip("<@!>"))
+        check_fn = lambda m: m.author.id == uid
+        label = f"Nachrichten von <@{uid}>"
+    try:
+        await ctx.message.delete()
+    except Exception:
+        pass
+    deleted = await ctx.channel.purge(limit=amount, check=check_fn)
+    msg = await ctx.send(embed=create_embed(f"{E.DELETE}", f"**{len(deleted)}** {label} gelöscht.", COLOR_SUCCESS))
+    await asyncio.sleep(5)
+    try:
+        await msg.delete()
+    except Exception:
+        pass
+
+
+# ═══════════════════════════════════════════════════════════════════
+# NEW: /afk — AFK System
+# ═══════════════════════════════════════════════════════════════════
+_afk_users = {}  # guild_id -> {user_id: {"reason": str, "since": float}}
+
+@bot.tree.command(name="afk", description="Setzt deinen AFK-Status")
+@app_commands.describe(grund="Grund (optional)")
+async def slash_afk(interaction: discord.Interaction, grund: str = "AFK") -> None:
+    _afk_users.setdefault(interaction.guild.id, {})[interaction.user.id] = {
+        "reason": grund, "since": time.time()
+    }
+    await interaction.response.send_message(embed=create_embed(
+        "💤 AFK gesetzt", f"{interaction.user.mention} ist jetzt AFK: {grund}", COLOR_INFO))
+
+@bot.command(name="afk")
+async def prefix_afk(ctx, *, grund="AFK"):
+    _afk_users.setdefault(ctx.guild.id, {})[ctx.author.id] = {"reason": grund, "since": time.time()}
+    await ctx.send(embed=create_embed("💤 AFK", f"{ctx.author.mention} ist AFK: {grund}", COLOR_INFO))
+
+@bot.listen("on_message")
+async def afk_listener(message: discord.Message):
+    if message.author.bot or not message.guild:
+        return
+    guild_afk = _afk_users.get(message.guild.id, {})
+    # Unafk when they send a message
+    if message.author.id in guild_afk:
+        afk_data = guild_afk.pop(message.author.id)
+        duration = int(time.time() - afk_data["since"])
+        mins = duration // 60
+        try:
+            await message.channel.send(f"👋 **{message.author.display_name}** ist zurück! (War {mins}m AFK)", delete_after=8)
+        except Exception:
+            pass
+        return
+    # Notify when mentioned AFK user
+    for mention in message.mentions:
+        if mention.id in guild_afk:
+            data = guild_afk[mention.id]
+            mins = int((time.time() - data["since"]) / 60)
+            try:
+                await message.channel.send(
+                    f"💤 **{mention.display_name}** ist AFK: {data['reason']} (seit {mins}m)", delete_after=10)
+            except Exception:
+                pass
+
