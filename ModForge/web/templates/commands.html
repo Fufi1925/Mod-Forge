@@ -5,7 +5,7 @@
   <div class="sec-head reveal" style="text-align:center;margin-bottom:50px">
     <div class="sec-badge" style="margin-bottom:12px">📋 Commands</div>
     <h1 style="font-size:clamp(1.8rem,4vw,2.8rem);font-weight:800;margin-bottom:12px">Alle Befehle</h1>
-    <p style="color:var(--muted);max-width:600px;margin:0 auto">Übersicht aller verfügbaren Slash-Commands und deren Beschreibung.</p>
+    <p style="color:var(--muted);max-width:600px;margin:0 auto">Übersicht aller verfügbaren Slash-Commands.</p>
   </div>
 
   <div style="margin-bottom:24px;display:flex;justify-content:center">
@@ -16,19 +16,14 @@
       onfocus="this.style.borderColor='var(--vl)'" onblur="this.style.borderColor='var(--border)'">
   </div>
 
-  <div id="cmd-list" style="display:flex;flex-direction:column;gap:12px">
-    {% for cat, cmds_list in cmds.items() %}
-    <div class="reveal" style="margin-bottom:20px">
-      <h2 style="font-size:1.15rem;font-weight:700;margin-bottom:14px;color:var(--vl)">{{ cat }}</h2>
-      {% for c in cmds_list %}
-      <div class="cmd-item" style="padding:16px 20px;background:var(--glass2);border:1px solid var(--border);
-           border-radius:var(--radius);margin-bottom:8px;display:flex;align-items:center;gap:14px;transition:all var(--r)"
-           onmouseenter="this.style.borderColor='var(--bdrv)'" onmouseleave="this.style.borderColor='var(--border)'">
-        <code style="background:var(--glass3);padding:4px 12px;border-radius:8px;font-size:.82rem;
-              font-family:'Geist Mono',monospace;color:var(--cl);white-space:nowrap">/{{ c.name }}</code>
-        <span style="color:var(--muted);font-size:.85rem">{{ c.desc }}</span>
-      </div>
-      {% endfor %}
+  <div id="cmd-list" style="display:flex;flex-direction:column;gap:8px">
+    {% for c in cmds %}
+    <div class="cmd-item" style="padding:14px 20px;background:var(--glass2);border:1px solid var(--border);
+         border-radius:var(--radius);display:flex;align-items:center;gap:14px;transition:all var(--r)"
+         onmouseenter="this.style.borderColor='var(--bdrv)'" onmouseleave="this.style.borderColor='var(--border)'">
+      <code style="background:var(--glass3);padding:4px 12px;border-radius:8px;font-size:.82rem;
+            font-family:'Geist Mono',monospace;color:var(--cl);white-space:nowrap">{{ c.cmd }}</code>
+      <span style="color:var(--muted);font-size:.85rem">{{ c.desc }}</span>
     </div>
     {% endfor %}
   </div>

@@ -252,7 +252,7 @@ def home():
         gc_raw=gc,
         mc_raw=mc,
         up=up,
-        lat=round(lat),
+        lat=round(lat or 0),
         features=FEATURES,
         log_mods=LOG_MODS,
         cmds_preview=CMDS_PREVIEW,
@@ -288,11 +288,11 @@ def status_page():
         cases_count=cases_count,
         archive_count=archive_count,
         up_s=uptime_seconds,
-        lat=round(lat),
+        lat=round(lat or 0),
         uptime_pct=f"{uptime_pct:.3f}",
-        api_latency=round(lat),
+        api_latency=round(lat or 0),
         guild_count=gc,
-        shard_count=getattr(bot, "shard_count", 1),
+        shard_count=getattr(bot, "shard_count", None) or 1,
     )
 
 
@@ -325,7 +325,7 @@ def live_activity():
     return render_template(
         "live.html",
         uptime_pct=f"{uptime_pct:.3f}",
-        api_latency=round(lat),
+        api_latency=round(lat or 0),
         guild_count=gc,
         member_count=mc,
         shard_count=shard_count,
@@ -569,7 +569,7 @@ def uptime():
         "uptime.html",
         uptime_pct=f"{uptime_pct:.3f}",
         up_s=uptime_seconds,
-        api_latency=round(lat),
+        api_latency=round(lat or 0),
         guild_count=gc,
         member_count=mc,
     )
@@ -808,11 +808,11 @@ def admin_dashboard():
         gc=gc,
         mc=mc,
         up_s=up,
-        lat=round(lat),
+        lat=round(lat or 0),
         cases_count=cases_count,
         archive_count=archive_count,
         bot_ready=bot_ready(),
-        shard_count=getattr(bot, "shard_count", 1),
+        shard_count=getattr(bot, "shard_count", None) or 1,
         bot_user=get_bot_user(),
     )
 
@@ -892,11 +892,11 @@ def admin_stats():
         gc=gc,
         mc=mc,
         up_s=up,
-        lat=round(lat),
+        lat=round(lat or 0),
         uptime_pct=f"{uptime_pct:.3f}",
         cases_count=cases_count,
         archive_count=archive_count,
-        shard_count=getattr(bot, "shard_count", 1),
+        shard_count=getattr(bot, "shard_count", None) or 1,
     )
 
 
@@ -1173,7 +1173,7 @@ def public_stats():
     cases_count = 0
     if bot_ready() and db:
         cases_count = safe_collection_count(getattr(db, "cases", None))
-    return render_template("public_stats.html", gc=gc, mc=mc, lat=round(lat),
+    return render_template("public_stats.html", gc=gc, mc=mc, lat=round(lat or 0),
                            uptime_pct=f"{uptime_pct:.3f}", cases=cases_count,
                            shards=getattr(bot, "shard_count", 1))
 

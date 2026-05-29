@@ -20,7 +20,7 @@
 
   <div class="nav-links" style="gap:14px">
     <span style="font-size:.8rem;color:var(--muted)">
-      👤 {{ user.username }}
+      👤 {{ user.username if user else "Gast" }}
     </span>
 
     <a href="/pricing" class="btn btn-ghost btn-sm">
