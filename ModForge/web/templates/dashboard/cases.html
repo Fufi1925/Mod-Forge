@@ -1,0 +1,43 @@
+{% extends "dashboard/_base.html" %}
+{% set active = 'cases' %}
+{% block title %}Cases{% endblock %}
+{% block page_title %}📋 Case-Explorer{% endblock %}
+{% block content %}
+<div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+  <input type="text" id="caseSearch" class="cfg-input" placeholder="🔍 User-ID oder Grund suchen…" style="max-width:300px">
+  <select class="cfg-select" id="caseFilter"><option value="">Alle Aktionen</option><option>ban</option><option>kick</option><option>warn</option><option>timeout</option><option>softban</option><option>tempmute</option><option>tempban</option></select>
+</div>
+<div class="dash-section">
+  <table style="width:100%">
+    <thead><tr><th>#</th><th>Aktion</th><th>User</th><th>Moderator</th><th>Grund</th><th>Datum</th></tr></thead>
+    <tbody id="caseTable">
+      {% for c in cases %}
+      <tr class="case-row" data-action="{{ c.action }}" data-search="{{ c.user_id }} {{ c.reason|default('',true)|lower }}">
+        <td style="color:var(--vl);font-weight:700">{{ c.case_id }}</td>
+        <td><span class="badge {% if c.action=='ban' %}badge-red{% elif c.action=='warn' %}badge-amber{% elif c.action=='kick' %}badge-purple{% else %}badge-cyan{% endif %}">{{ c.action }}</span></td>
+        <td style="font-family:'Geist Mono',monospace;font-size:.78rem">{{ c.user_id }}</td>
+        <td style="font-family:'Geist Mono',monospace;font-size:.78rem">{{ c.moderator_id }}</td>
+        <td style="max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.82rem">{{ c.reason|default('—',true) }}</td>
+        <td style="font-size:.75rem;color:var(--muted)">{{ c.timestamp|default('—',true) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% if not cases %}<p style="text-align:center;color:var(--muted);padding:40px 0">Keine Cases gefunden.</p>{% endif %}
+</div>
+{% block scripts %}
+<script>
+const search=document.getElementById('caseSearch'),filter=document.getElementById('caseFilter');
+function applyFilter(){
+  const q=search.value.toLowerCase(),f=filter.value;
+  document.querySelectorAll('.case-row').forEach(r=>{
+    const matchQ=!q||r.dataset.search.includes(q);
+    const matchF=!f||r.dataset.action===f;
+    r.style.display=matchQ&&matchF?'':'none';
+  });
+}
+search.addEventListener('input',applyFilter);
+filter.addEventListener('change',applyFilter);
+</script>
+{% endblock %}
+{% endblock %}

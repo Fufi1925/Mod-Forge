@@ -1,0 +1,30 @@
+{% extends "dashboard/_base.html" %}
+{% set active = 'roles' %}
+{% block title %}Rollen{% endblock %}
+{% block page_title %}🏷️ Rollen-Manager{% endblock %}
+{% block content %}
+<div class="dash-section">
+  <h2>🤖 Auto-Roles</h2>
+  <p style="color:var(--muted);font-size:.82rem;margin-bottom:12px">Rollen die neue Mitglieder automatisch erhalten</p>
+  <div class="tag-list">{% for rid in auto_roles %}<div class="tag"><@&{{ rid }}> <span class="tag-del" onclick="delAutoRole('{{ rid }}')">×</span></div>{% endfor %}</div>
+  <div style="display:flex;gap:8px;margin-top:10px"><select class="cfg-select" id="newAutoRole" style="min-width:200px"><option value="">Rolle wählen…</option>{% for r in guild_roles %}<option value="{{ r.id }}">{{ r.name }}</option>{% endfor %}</select><button class="btn-glass btn-sm btn-glass-primary" onclick="addAutoRole()">Hinzufügen</button></div>
+</div>
+<div class="dash-section">
+  <h2>📌 Sticky-Roles</h2>
+  <p style="color:var(--muted);font-size:.82rem;margin-bottom:12px">Rollen die nach Leave+Rejoin zurückgegeben werden</p>
+  <div class="tag-list">{% for rid in sticky_roles %}<div class="tag"><@&{{ rid }}> <span class="tag-del" onclick="delStickyRole('{{ rid }}')">×</span></div>{% endfor %}</div>
+  <div style="display:flex;gap:8px;margin-top:10px"><select class="cfg-select" id="newStickyRole" style="min-width:200px"><option value="">Rolle wählen…</option>{% for r in guild_roles %}<option value="{{ r.id }}">{{ r.name }}</option>{% endfor %}</select><button class="btn-glass btn-sm btn-glass-primary" onclick="addStickyRole()">Hinzufügen</button></div>
+</div>
+<div class="dash-section">
+  <h2>✅ Verify-Rollen</h2>
+  <div class="cfg-row"><div><span class="cfg-label">Modus</span></div><select class="cfg-select" id="verifyMode" style="min-width:160px"><option value="one_click" {% if cfg.get('verify_system',{}).get('mode')=='one_click' %}selected{% endif %}>One-Click</option><option value="captcha" {% if cfg.get('verify_system',{}).get('mode')=='captcha' %}selected{% endif %}>Captcha</option></select></div>
+  <div class="cfg-row"><div><span class="cfg-label">Verifizierung aktiv</span></div><label class="toggle"><input type="checkbox" id="verifyOn" {% if cfg.get('verify_system',{}).get('enabled') %}checked{% endif %}><span class="slider"></span></label></div>
+</div>
+{% block scripts %}<script>
+const gid='{{ guild.id }}',api=(d)=>fetch('/api/guild/'+gid+'/roles',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});
+function addAutoRole(){const v=document.getElementById('newAutoRole').value;if(v)api({action:'add_auto',role_id:v}).then(()=>location.reload())}
+function delAutoRole(id){api({action:'del_auto',role_id:id}).then(()=>location.reload())}
+function addStickyRole(){const v=document.getElementById('newStickyRole').value;if(v)api({action:'add_sticky',role_id:v}).then(()=>location.reload())}
+function delStickyRole(id){api({action:'del_sticky',role_id:id}).then(()=>location.reload())}
+</script>{% endblock %}
+{% endblock %}

@@ -1892,6 +1892,7 @@ async def on_message_edit(before: discord.Message, after: discord.Message) -> No
 @bot.event
 async def on_voice_state_update(member: discord.Member, before: discord.VoiceState,
                                 after: discord.VoiceState) -> None:
+    """Vollständiges Voice-Logging – loggt JEDEN Voice-State-Change zuverlässig."""
     guild = member.guild
 
     # ── Temp-Voice: Join-to-Create ──
@@ -1912,12 +1913,17 @@ async def on_voice_state_update(member: discord.Member, before: discord.VoiceSta
                         reason=f"Temp-Voice von {member}"
                     )
                     await member.move_to(temp_ch, reason="Temp-Voice erstellt")
-                    await bot.log_action(guild, f"🎤 Temp-Voice erstellt", f"{member.mention} hat {temp_ch.mention} erstellt.", COLOR_SUCCESS, user=member, module="voice")
-                    return
+                    try:
+                        await bot.log_action(guild, "🎤 Temp-Voice erstellt",
+                                             f"{member.mention} hat {temp_ch.mention} erstellt.",
+                                             COLOR_SUCCESS, user=member, module="voice")
+                    except Exception:
+                        pass
+                    # KEIN return hier – Voice Join soll trotzdem geloggt werden
 
+                # Temp channel empty -> auto delete
                 if before.channel and before.channel != after.channel:
-                    ch_name = before.channel.name
-                    if ch_name.startswith("🔊 ") and before.channel.members == []:
+                    if before.channel.name.startswith("🔊 ") and len(before.channel.members) == 0:
                         try:
                             await before.channel.delete(reason="Temp-Voice: Kanal leer")
                         except (discord.Forbidden, discord.NotFound):
@@ -1925,202 +1931,159 @@ async def on_voice_state_update(member: discord.Member, before: discord.VoiceSta
         except Exception as ex:
             log.debug(f"Temp-Voice Fehler: {ex}")
 
+    # ══════════════════════════════════════════════════════════════
+    # AB HIER: LOGGING — alles in try/except damit nie was abbricht
+    # ══════════════════════════════════════════════════════════════
+
     # ── Channel Join / Leave / Switch ──
     if before.channel != after.channel:
-        if not before.channel and after.channel:
-            await bot.log_action(guild, f"{E.VOICE_IN} Voice Join",
-                                 f"{member.mention} ist {after.channel.mention} beigetreten.",
-                                 COLOR_SUCCESS, user=member, module="voice")
-        elif before.channel and not after.channel:
-            await bot.log_action(guild, f"{E.VOICE_OUT} Voice Leave",
-                                 f"{member.mention} hat {before.channel.mention} verlassen.",
-                                 COLOR_DANGER, user=member, module="voice")
-        elif before.channel and after.channel:
-            await bot.log_action(guild, f"{E.VOICE_SW} Voice Wechsel",
-                                 f"{member.mention} ist von {before.channel.mention} zu {after.channel.mention} gewechselt.",
-                                 COLOR_INFO, user=member, module="voice")
-
-    # ── Voice Disconnect (Kicked from Voice by Moderator) ──
-    # Wenn jemand aus dem Channel entfernt wird (nicht selbst gegangen)
-    if before.channel and not after.channel and member.bot is False:
         try:
-            async for entry in guild.audit_logs(limit=5, action=discord.AuditLogAction.member_disconnect):
+            if not before.channel and after.channel:
+                await bot.log_action(guild, f"{E.VOICE_IN} Voice Join",
+                                     f"{member.mention} ist **{after.channel.mention}** beigetreten.",
+                                     COLOR_SUCCESS, user=member, module="voice")
+            elif before.channel and not after.channel:
+                await bot.log_action(guild, f"{E.VOICE_OUT} Voice Leave",
+                                     f"{member.mention} hat **{before.channel.mention}** verlassen.",
+                                     COLOR_DANGER, user=member, module="voice")
+            elif before.channel and after.channel:
+                await bot.log_action(guild, f"{E.VOICE_SW} Voice Wechsel",
+                                     f"{member.mention}: {before.channel.mention} → {after.channel.mention}",
+                                     COLOR_INFO, user=member, module="voice")
+        except Exception as ex:
+            log.debug(f"Voice Join/Leave Log Fehler: {ex}")
+
+    # ── Voice Disconnect / Move (durch Moderator, via Audit-Log) ──
+    if before.channel and not after.channel and not member.bot:
+        try:
+            async for entry in guild.audit_logs(limit=3, action=discord.AuditLogAction.member_disconnect):
                 if (discord.utils.utcnow() - entry.created_at).total_seconds() < 5:
                     if entry.target and entry.target.id == member.id:
-                        await bot.log_action(
-                            guild, f"📤 Voice Disconnect",
-                            f"**{member.mention}** wurde aus dem Voice-Channel entfernt von **{entry.user.mention}**.\n"
-                            f"Kanal: {before.channel.mention}",
-                            COLOR_WARNING, user=member, module="voice"
-                        )
+                        await bot.log_action(guild, "📤 Voice Disconnect (durch Mod)",
+                                             f"**{member.mention}** wurde aus **{before.channel.mention}** entfernt von **{entry.user.mention}**.",
+                                             COLOR_WARNING, user=member, module="voice")
                         break
         except (discord.Forbidden, discord.HTTPException):
             pass
 
-    # ── Voice Move (moved to another channel by moderator) ──
     if before.channel and after.channel and before.channel != after.channel and not member.bot:
         try:
-            async for entry in guild.audit_logs(limit=5, action=discord.AuditLogAction.member_move):
+            async for entry in guild.audit_logs(limit=3, action=discord.AuditLogAction.member_move):
                 if (discord.utils.utcnow() - entry.created_at).total_seconds() < 5:
-                    await bot.log_action(
-                        guild, f"↔️ Voice Verschoben",
-                        f"**{member.mention}** wurde verschoben von **{entry.user.mention}**.\n"
-                        f"{before.channel.mention} → {after.channel.mention}",
-                        COLOR_INFO, user=member, module="voice"
-                    )
+                    await bot.log_action(guild, "↔️ Voice Verschoben (durch Mod)",
+                                         f"**{member.mention}** verschoben von **{entry.user.mention}**: {before.channel.mention} → {after.channel.mention}",
+                                         COLOR_INFO, user=member, module="voice")
                     break
         except (discord.Forbidden, discord.HTTPException):
             pass
 
     # ── Server Mute / Unmute ──
     if before.mute != after.mute:
-        if after.mute:
-            moderator_info = ""
+        try:
+            mod_info = ""
             try:
-                async for entry in guild.audit_logs(limit=5, action=discord.AuditLogAction.member_update):
+                async for entry in guild.audit_logs(limit=3, action=discord.AuditLogAction.member_update):
                     if entry.target and entry.target.id == member.id and (discord.utils.utcnow() - entry.created_at).total_seconds() < 5:
-                        moderator_info = f"\nDurch: **{entry.user.mention}**"
+                        mod_info = f"\nDurch: **{entry.user.mention}**"
                         if entry.reason:
-                            moderator_info += f"\nGrund: {entry.reason}"
+                            mod_info += f"\nGrund: {entry.reason}"
                         break
             except (discord.Forbidden, discord.HTTPException):
                 pass
-            await bot.log_action(
-                guild, f"{E.MUTE} Server Mute",
-                f"**{member.mention}** wurde **Server-stummgeschaltet** (Mikrofon).{moderator_info}\n"
-                f"Kanal: {after.channel.mention if after.channel else 'N/A'}",
-                COLOR_WARNING, user=member, module="voice"
-            )
-        else:
-            moderator_info = ""
-            try:
-                async for entry in guild.audit_logs(limit=5, action=discord.AuditLogAction.member_update):
-                    if entry.target and entry.target.id == member.id and (discord.utils.utcnow() - entry.created_at).total_seconds() < 5:
-                        moderator_info = f"\nDurch: **{entry.user.mention}**"
-                        break
-            except (discord.Forbidden, discord.HTTPException):
-                pass
-            await bot.log_action(
-                guild, f"{E.UNMUTE} Server Unmute",
-                f"**{member.mention}** wurde **Server-entstummgeschaltet** (Mikrofon).{moderator_info}\n"
-                f"Kanal: {after.channel.mention if after.channel else 'N/A'}",
-                COLOR_SUCCESS, user=member, module="voice"
-            )
+            if after.mute:
+                await bot.log_action(guild, f"{E.MUTE} Server Mute",
+                                     f"**{member.mention}** wurde **Server-stummgeschaltet** 🔇{mod_info}\nKanal: {after.channel.mention if after.channel else '—'}",
+                                     COLOR_WARNING, user=member, module="voice")
+            else:
+                await bot.log_action(guild, f"{E.UNMUTE} Server Unmute",
+                                     f"**{member.mention}** wurde **Server-entstummgeschaltet** 🔊{mod_info}\nKanal: {after.channel.mention if after.channel else '—'}",
+                                     COLOR_SUCCESS, user=member, module="voice")
+        except Exception as ex:
+            log.debug(f"Server Mute Log Fehler: {ex}")
 
     # ── Server Deafen / Undeafen ──
     if before.deaf != after.deaf:
-        if after.deaf:
-            moderator_info = ""
+        try:
+            mod_info = ""
             try:
-                async for entry in guild.audit_logs(limit=5, action=discord.AuditLogAction.member_update):
+                async for entry in guild.audit_logs(limit=3, action=discord.AuditLogAction.member_update):
                     if entry.target and entry.target.id == member.id and (discord.utils.utcnow() - entry.created_at).total_seconds() < 5:
-                        moderator_info = f"\nDurch: **{entry.user.mention}**"
-                        if entry.reason:
-                            moderator_info += f"\nGrund: {entry.reason}"
+                        mod_info = f"\nDurch: **{entry.user.mention}**"
                         break
             except (discord.Forbidden, discord.HTTPException):
                 pass
-            await bot.log_action(
-                guild, f"🔇 Server Deafen",
-                f"**{member.mention}** wurde **Server-taubgeschaltet** (Audio).{moderator_info}\n"
-                f"Kanal: {after.channel.mention if after.channel else 'N/A'}",
-                COLOR_WARNING, user=member, module="voice"
-            )
-        else:
-            moderator_info = ""
-            try:
-                async for entry in guild.audit_logs(limit=5, action=discord.AuditLogAction.member_update):
-                    if entry.target and entry.target.id == member.id and (discord.utils.utcnow() - entry.created_at).total_seconds() < 5:
-                        moderator_info = f"\nDurch: **{entry.user.mention}**"
-                        break
-            except (discord.Forbidden, discord.HTTPException):
-                pass
-            await bot.log_action(
-                guild, f"🔊 Server Undeafen",
-                f"**{member.mention}** wurde **Server-Taub aufgehoben** (Audio).{moderator_info}\n"
-                f"Kanal: {after.channel.mention if after.channel else 'N/A'}",
-                COLOR_SUCCESS, user=member, module="voice"
-            )
+            if after.deaf:
+                await bot.log_action(guild, "🔇 Server Deafen",
+                                     f"**{member.mention}** wurde **Server-taubgeschaltet**{mod_info}\nKanal: {after.channel.mention if after.channel else '—'}",
+                                     COLOR_WARNING, user=member, module="voice")
+            else:
+                await bot.log_action(guild, "🔊 Server Undeafen",
+                                     f"**{member.mention}** — Server-Taub **aufgehoben**{mod_info}\nKanal: {after.channel.mention if after.channel else '—'}",
+                                     COLOR_SUCCESS, user=member, module="voice")
+        except Exception as ex:
+            log.debug(f"Server Deaf Log Fehler: {ex}")
 
-    # ── Self Mute / Unmute ──
+    # ── Self Mute ──
     if before.self_mute != after.self_mute:
-        if after.self_mute:
-            await bot.log_action(
-                guild, f"🔇 Self Mute",
-                f"**{member.mention}** hat sich selbst **stummgeschaltet**.\n"
-                f"Kanal: {after.channel.mention if after.channel else 'N/A'}",
-                COLOR_INFO, user=member, module="voice"
-            )
-        else:
-            await bot.log_action(
-                guild, f"🔊 Self Unmute",
-                f"**{member.mention}** hat sich selbst **entstummgeschaltet**.\n"
-                f"Kanal: {after.channel.mention if after.channel else 'N/A'}",
-                COLOR_INFO, user=member, module="voice"
-            )
+        try:
+            ch = after.channel or before.channel
+            if after.self_mute:
+                await bot.log_action(guild, "🔇 Self Mute", f"**{member.mention}** hat sich **stummgeschaltet**\nKanal: {ch.mention if ch else '—'}",
+                                     COLOR_INFO, user=member, module="voice")
+            else:
+                await bot.log_action(guild, "🔊 Self Unmute", f"**{member.mention}** hat sich **entstummgeschaltet**\nKanal: {ch.mention if ch else '—'}",
+                                     COLOR_INFO, user=member, module="voice")
+        except Exception:
+            pass
 
-    # ── Self Deafen / Undeafen ──
+    # ── Self Deafen ──
     if before.self_deaf != after.self_deaf:
-        if after.self_deaf:
-            await bot.log_action(
-                guild, f"🔇 Self Deafen",
-                f"**{member.mention}** hat sich selbst **taubgeschaltet**.\n"
-                f"Kanal: {after.channel.mention if after.channel else 'N/A'}",
-                COLOR_INFO, user=member, module="voice"
-            )
-        else:
-            await bot.log_action(
-                guild, f"🔊 Self Undeafen",
-                f"**{member.mention}** hat sich selbst **Taub aufgehoben**.\n"
-                f"Kanal: {after.channel.mention if after.channel else 'N/A'}",
-                COLOR_INFO, user=member, module="voice"
-            )
+        try:
+            ch = after.channel or before.channel
+            if after.self_deaf:
+                await bot.log_action(guild, "🔇 Self Deafen", f"**{member.mention}** hat sich **taubgeschaltet**\nKanal: {ch.mention if ch else '—'}",
+                                     COLOR_INFO, user=member, module="voice")
+            else:
+                await bot.log_action(guild, "🔊 Self Undeafen", f"**{member.mention}** — Self-Taub **aufgehoben**\nKanal: {ch.mention if ch else '—'}",
+                                     COLOR_INFO, user=member, module="voice")
+        except Exception:
+            pass
 
-    # ── Stream Start / Stop ──
+    # ── Stream Start/Stop ──
     if before.self_stream != after.self_stream:
-        if after.self_stream:
-            await bot.log_action(
-                guild, f"📺 Stream gestartet",
-                f"**{member.mention}** streamt jetzt in {after.channel.mention if after.channel else 'Voice'}.",
-                COLOR_PRIMARY, user=member, module="voice"
-            )
-        else:
-            await bot.log_action(
-                guild, f"📺 Stream beendet",
-                f"**{member.mention}** hat den Stream beendet.",
-                COLOR_INFO, user=member, module="voice"
-            )
+        try:
+            if after.self_stream:
+                await bot.log_action(guild, "📺 Stream gestartet", f"**{member.mention}** streamt in {after.channel.mention if after.channel else 'Voice'}",
+                                     COLOR_PRIMARY, user=member, module="voice")
+            else:
+                await bot.log_action(guild, "📺 Stream beendet", f"**{member.mention}** hat den Stream beendet.",
+                                     COLOR_INFO, user=member, module="voice")
+        except Exception:
+            pass
 
-    # ── Camera / Video On / Off ──
+    # ── Camera On/Off ──
     if before.self_video != after.self_video:
-        if after.self_video:
-            await bot.log_action(
-                guild, f"📹 Kamera an",
-                f"**{member.mention}** hat die Kamera eingeschaltet in {after.channel.mention if after.channel else 'Voice'}.",
-                COLOR_PRIMARY, user=member, module="voice"
-            )
-        else:
-            await bot.log_action(
-                guild, f"📹 Kamera aus",
-                f"**{member.mention}** hat die Kamera ausgeschaltet.",
-                COLOR_INFO, user=member, module="voice"
-            )
+        try:
+            if after.self_video:
+                await bot.log_action(guild, "📹 Kamera an", f"**{member.mention}** — Kamera eingeschaltet in {after.channel.mention if after.channel else 'Voice'}",
+                                     COLOR_PRIMARY, user=member, module="voice")
+            else:
+                await bot.log_action(guild, "📹 Kamera aus", f"**{member.mention}** — Kamera ausgeschaltet",
+                                     COLOR_INFO, user=member, module="voice")
+        except Exception:
+            pass
 
-    # ── Suppress (Stage Channel Speaker/Audience) ──
+    # ── Stage Suppress ──
     if before.suppress != after.suppress:
-        if after.suppress:
-            await bot.log_action(
-                guild, f"🎙️ Zum Zuhörer gemacht",
-                f"**{member.mention}** wurde in {after.channel.mention if after.channel else 'Stage'} zum **Zuhörer** gemacht.",
-                COLOR_WARNING, user=member, module="voice"
-            )
-        else:
-            await bot.log_action(
-                guild, f"🎙️ Zum Sprecher gemacht",
-                f"**{member.mention}** darf jetzt in {after.channel.mention if after.channel else 'Stage'} **sprechen**.",
-                COLOR_SUCCESS, user=member, module="voice"
-            )
-
+        try:
+            if after.suppress:
+                await bot.log_action(guild, "🎙️ Zum Zuhörer", f"**{member.mention}** → **Zuhörer** in {after.channel.mention if after.channel else 'Stage'}",
+                                     COLOR_WARNING, user=member, module="voice")
+            else:
+                await bot.log_action(guild, "🎙️ Zum Sprecher", f"**{member.mention}** → darf jetzt **sprechen** in {after.channel.mention if after.channel else 'Stage'}",
+                                     COLOR_SUCCESS, user=member, module="voice")
+        except Exception:
+            pass
 
 @bot.event
 async def on_member_update(before: discord.Member, after: discord.Member) -> None:

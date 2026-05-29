@@ -1,0 +1,59 @@
+{% extends "dashboard/_base.html" %}
+{% set active = 'security' %}
+{% block title %}Security{% endblock %}
+{% block page_title %}🛡️ Security Center{% endblock %}
+{% block content %}
+<div class="dash-grid" style="margin-bottom:24px">
+  <div class="stat-card"><div class="stat-value" style="color:var(--vl)">{{ cfg.get('security_level',0) }}</div><div class="stat-label">Security Level (0-3)</div></div>
+  <div class="stat-card"><div class="stat-value" style="color:var(--green)">{{ active_count }}/6</div><div class="stat-label">Module aktiv</div></div>
+  <div class="stat-card"><div class="stat-value" style="color:var(--cl)">{{ wl_count }}</div><div class="stat-label">Whitelist-Einträge</div></div>
+</div>
+{% for mod in modules %}
+<div class="cfg-row" style="flex-direction:column;align-items:stretch;gap:12px;padding:20px">
+  <div style="display:flex;align-items:center;justify-content:space-between">
+    <div><span style="font-size:1.2rem;margin-right:8px">{{ mod.icon }}</span><span class="cfg-label">{{ mod.label }}</span><div class="cfg-desc">{{ mod.desc }}</div></div>
+    <label class="toggle"><input type="checkbox" data-mod="{{ mod.key }}" data-field="enabled" {% if mod.enabled %}checked{% endif %}><span class="slider"></span></label>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px">
+    {% for p in mod.params %}
+    <div>
+      <label style="font-size:.7rem;color:var(--muted)">{{ p.label }}</label>
+      {% if p.type == 'select' %}
+      <select class="cfg-select" data-mod="{{ mod.key }}" data-field="{{ p.key }}" style="width:100%">
+        {% for o in p.options %}<option value="{{ o }}" {% if p.value == o %}selected{% endif %}>{{ o }}</option>{% endfor %}
+      </select>
+      {% else %}
+      <input type="{{ p.type }}" class="cfg-input" data-mod="{{ mod.key }}" data-field="{{ p.key }}" value="{{ p.value }}" {% if p.type == 'number' %}min="{{ p.min|default(0) }}" max="{{ p.max|default(9999) }}"{% endif %}>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endfor %}
+<div class="dash-section" style="margin-top:24px">
+  <h2>🔐 Security Level</h2>
+  <div style="display:flex;gap:12px">
+    {% for lvl in [0,1,2,3] %}
+    <button class="btn-glass {% if cfg.get('security_level',0)==lvl %}btn-glass-primary{% else %}btn-glass-ghost{% endif %} btn-sm" onclick="setLevel({{ lvl }})">Level {{ lvl }}</button>
+    {% endfor %}
+  </div>
+</div>
+{% block scripts %}
+<script>
+async function saveConfig(){
+  const data={};
+  document.querySelectorAll('[data-mod]').forEach(el=>{
+    const m=el.dataset.mod,f=el.dataset.field;
+    if(!data[m])data[m]={};
+    data[m][f]=el.type==='checkbox'?el.checked:el.type==='number'?Number(el.value):el.value;
+  });
+  const r=await fetch('/api/guild/{{ guild.id }}/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+  if(r.ok){document.getElementById('saveBar').classList.remove('visible');location.reload();}
+}
+async function setLevel(l){
+  await fetch('/api/guild/{{ guild.id }}/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({_security_level:l})});
+  location.reload();
+}
+</script>
+{% endblock %}
+{% endblock %}

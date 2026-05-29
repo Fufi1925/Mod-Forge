@@ -1,0 +1,27 @@
+{% extends "dashboard/_base.html" %}
+{% set active = 'backup' %}
+{% block title %}Backup{% endblock %}
+{% block page_title %}💾 Backup-Manager{% endblock %}
+{% block content %}
+<div class="dash-grid" style="margin-bottom:24px">
+  <div class="stat-card"><div class="stat-value" style="color:var(--vl)">{{ backups|length }}</div><div class="stat-label">Backups</div></div>
+  <div class="stat-card"><div class="stat-value" style="color:{% if cfg.get('backup_system',{}).get('auto_enabled') %}var(--green){% else %}var(--muted){% endif %}">{% if cfg.get('backup_system',{}).get('auto_enabled') %}An{% else %}Aus{% endif %}</div><div class="stat-label">Auto-Backup</div></div>
+  <div class="stat-card"><div class="stat-value" style="color:var(--cl)">{{ cfg.get('backup_system',{}).get('auto_interval_hours',24) }}h</div><div class="stat-label">Intervall</div></div>
+</div>
+<div class="dash-section">
+  <h2>📦 Gespeicherte Backups</h2>
+  {% if backups %}
+  {% for b in backups %}
+  <div class="cfg-row"><div style="flex:1"><span class="cfg-label">{{ b.get('label','Backup') }}</span><div class="cfg-desc">ID: {{ b.get('backup_id','?') }} · {{ b.get('created_at','?') }}</div></div><span style="font-size:.75rem;color:var(--muted)">{{ b.get('channels',0) }} Ch · {{ b.get('roles',0) }} Rollen</span></div>
+  {% endfor %}
+  {% else %}
+  <p style="color:var(--muted);text-align:center;padding:30px 0">Keine Backups vorhanden. Erstelle eines mit <code>/backup_create</code></p>
+  {% endif %}
+</div>
+<div class="dash-section">
+  <h2>⚙️ Auto-Backup</h2>
+  <div class="cfg-row"><div><span class="cfg-label">Auto-Backup aktiv</span><div class="cfg-desc">Erstellt regelmäßig automatische Backups</div></div><label class="toggle"><input type="checkbox" id="autoBackup" {% if cfg.get('backup_system',{}).get('auto_enabled') %}checked{% endif %}><span class="slider"></span></label></div>
+  <div class="cfg-row"><div><span class="cfg-label">Intervall (Stunden)</span></div><input type="number" class="cfg-input" id="autoInterval" value="{{ cfg.get('backup_system',{}).get('auto_interval_hours',24) }}" min="1" max="168" style="max-width:120px"></div>
+  <div class="cfg-row"><div><span class="cfg-label">Max. Backups</span></div><input type="number" class="cfg-input" id="autoMax" value="{{ cfg.get('backup_system',{}).get('auto_max_backups',5) }}" min="1" max="20" style="max-width:120px"></div>
+</div>
+{% endblock %}

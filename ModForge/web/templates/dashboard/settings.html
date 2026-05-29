@@ -1,0 +1,46 @@
+{% extends "dashboard/_base.html" %}
+{% set active = 'settings' %}
+{% block title %}Einstellungen{% endblock %}
+{% block page_title %}⚙️ Server-Einstellungen{% endblock %}
+{% block content %}
+<div class="dash-section">
+  <h2>🔧 Allgemein</h2>
+  <div class="cfg-row"><div><span class="cfg-label">Prefix</span><div class="cfg-desc">Prefix für Text-Commands (z.B. !ban)</div></div><input type="text" class="cfg-input" id="prefix" value="{{ cfg.get('prefix','!') }}" style="max-width:80px"></div>
+  <div class="cfg-row"><div><span class="cfg-label">No-Prefix Modus</span><div class="cfg-desc">Mods können Commands ohne Prefix nutzen (z.B. "ban @user")</div></div><label class="toggle"><input type="checkbox" id="noPrefix" {% if cfg.get('no_prefix') %}checked{% endif %}><span class="slider"></span></label></div>
+</div>
+<div class="dash-section">
+  <h2>👤 No-Prefix Whitelist</h2>
+  <p style="color:var(--muted);font-size:.82rem;margin-bottom:12px">Nur diese User dürfen No-Prefix nutzen. Leer = alle Mods.</p>
+  <div class="tag-list" id="npList">{% for uid in cfg.get('no_prefix_users',[]) %}<div class="tag">{{ uid }} <span class="tag-del" onclick="delNP('{{ uid }}')">×</span></div>{% endfor %}</div>
+  <div style="display:flex;gap:8px;margin-top:10px"><input type="text" id="npUserId" class="cfg-input" placeholder="User-ID" style="max-width:200px"><button class="btn-glass btn-sm btn-glass-primary" onclick="addNP()">Hinzufügen</button></div>
+</div>
+<div class="dash-section">
+  <h2>📬 Kanäle</h2>
+  <div class="cfg-row"><div><span class="cfg-label">Report-Kanal</span><div class="cfg-desc">Wohin /report Meldungen gehen</div></div>
+    <select class="cfg-select" id="reportCh" style="min-width:180px"><option value="">— Nicht gesetzt —</option>{% for ch in channels %}<option value="{{ ch.id }}" {% if ch.id==cfg.get('report_channel') %}selected{% endif %}>#{{ ch.name }}</option>{% endfor %}</select>
+  </div>
+  <div class="cfg-row"><div><span class="cfg-label">Appeal-Kanal</span><div class="cfg-desc">Wohin Ban-Appeals gesendet werden</div></div>
+    <select class="cfg-select" id="appealCh" style="min-width:180px"><option value="">— Nicht gesetzt —</option>{% for ch in channels %}<option value="{{ ch.id }}" {% if ch.id==cfg.get('appeal_log_channel') %}selected{% endif %}>#{{ ch.name }}</option>{% endfor %}</select>
+  </div>
+</div>
+<div class="dash-section">
+  <h2>🤖 Automatisierung</h2>
+  <div class="cfg-row"><div><span class="cfg-label">Auto Ban-Appeal</span><div class="cfg-desc">Gebannte User erhalten automatisch DM mit Appeal-Möglichkeit</div></div><label class="toggle"><input type="checkbox" id="autoAppeal" {% if cfg.get('auto_ban_appeal',{}).get('enabled') %}checked{% endif %}><span class="slider"></span></label></div>
+  <div class="cfg-row"><div><span class="cfg-label">Invite-Tracking</span><div class="cfg-desc">Wer hat wen eingeladen?</div></div><label class="toggle"><input type="checkbox" id="invTrack" {% if cfg.get('invite_tracking',{}).get('enabled') %}checked{% endif %}><span class="slider"></span></label></div>
+  <div class="cfg-row"><div><span class="cfg-label">Nachrichtenarchiv</span><div class="cfg-desc">Nachrichten archivieren für Case-Beweise</div></div><label class="toggle"><input type="checkbox" id="msgArchive" {% if cfg.get('message_archive',{}).get('enabled') %}checked{% endif %}><span class="slider"></span></label></div>
+</div>
+<div class="dash-section">
+  <h2 style="color:var(--red)">⚠️ Gefahrenzone</h2>
+  <div class="cfg-row" style="border-color:rgba(239,68,68,0.2)"><div><span class="cfg-label">Config zurücksetzen</span><div class="cfg-desc">Setzt ALLE Einstellungen auf Standard zurück</div></div><button class="btn-glass btn-glass-danger btn-sm" onclick="if(confirm('Wirklich ALLES zurücksetzen?'))resetConfig()">Zurücksetzen</button></div>
+</div>
+{% block scripts %}<script>
+async function saveConfig(){
+  const d={_prefix:document.getElementById('prefix').value,_no_prefix:document.getElementById('noPrefix').checked,_report_channel:document.getElementById('reportCh').value||null,_appeal_log_channel:document.getElementById('appealCh').value||null,_auto_ban_appeal:{enabled:document.getElementById('autoAppeal').checked},_invite_tracking:{enabled:document.getElementById('invTrack').checked},_message_archive:{enabled:document.getElementById('msgArchive').checked}};
+  await fetch('/api/guild/{{ guild.id }}/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});
+  document.getElementById('saveBar').classList.remove('visible');location.reload();
+}
+function addNP(){const v=document.getElementById('npUserId').value.trim();if(v)fetch('/api/guild/{{ guild.id }}/noprefix',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'add',user_id:v})}).then(()=>location.reload())}
+function delNP(id){fetch('/api/guild/{{ guild.id }}/noprefix',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'del',user_id:id})}).then(()=>location.reload())}
+function resetConfig(){fetch('/api/guild/{{ guild.id }}/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({_reset:true})}).then(()=>location.reload())}
+</script>{% endblock %}
+{% endblock %}

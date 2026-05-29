@@ -1,0 +1,52 @@
+{% extends "dashboard/_base.html" %}
+{% set active = 'automod' %}
+{% block title %}AutoMod{% endblock %}
+{% block page_title %}🤖 AutoMod Konfiguration{% endblock %}
+{% block content %}
+<div class="dash-section">
+  <h2>🔗 Filter</h2>
+  <div class="cfg-row"><div><span class="cfg-label">Invite-Filter</span><div class="cfg-desc">Discord-Invites automatisch löschen</div></div><label class="toggle"><input type="checkbox" id="inv_f" {% if cfg.get('automod',{}).get('invite_filter') %}checked{% endif %}><span class="slider"></span></label></div>
+  <div class="cfg-row"><div><span class="cfg-label">Link-Filter</span><div class="cfg-desc">Unbekannte Links blockieren</div></div><label class="toggle"><input type="checkbox" id="link_f" {% if cfg.get('automod',{}).get('link_filter') %}checked{% endif %}><span class="slider"></span></label></div>
+  <div class="cfg-row"><div><span class="cfg-label">Zalgo-Filter</span><div class="cfg-desc">Zalgo-Text entfernen</div></div><label class="toggle"><input type="checkbox" id="zalgo_f" {% if cfg.get('automod',{}).get('zalgo_filter') %}checked{% endif %}><span class="slider"></span></label></div>
+  <div class="cfg-row"><div><span class="cfg-label">Phishing-Check</span><div class="cfg-desc">Bekannte Scam-URLs prüfen</div></div><label class="toggle"><input type="checkbox" id="phish_f" {% if cfg.get('automod',{}).get('phishing_check') %}checked{% endif %}><span class="slider"></span></label></div>
+</div>
+<div class="dash-section">
+  <h2>🚫 Verbotene Wörter</h2>
+  <div style="display:flex;gap:8px;margin-bottom:12px"><input type="text" id="newWord" class="cfg-input" placeholder="Neues Wort…" style="max-width:300px"><button class="btn-glass btn-sm btn-glass-primary" onclick="addWord()">Hinzufügen</button></div>
+  <div class="tag-list" id="wordList">
+    {% for w in cfg.get('automod',{}).get('bad_words',[]) %}<div class="tag">{{ w }} <span class="tag-del" onclick="delWord('{{ w }}')">×</span></div>{% endfor %}
+  </div>
+</div>
+<div class="dash-section">
+  <h2>📏 Regex-Regeln</h2>
+  <div style="display:flex;gap:8px;margin-bottom:12px"><input type="text" id="newRegex" class="cfg-input" placeholder="(?i)gewinn.*gratis" style="max-width:400px"><button class="btn-glass btn-sm btn-glass-primary" onclick="addRegex()">Hinzufügen</button></div>
+  <div id="regexList">
+    {% for r in cfg.get('automod',{}).get('regex_rules',[]) %}<div class="cfg-row"><code style="color:var(--cl);font-size:.82rem">{{ r }}</code><span class="tag-del" onclick="delRegex({{ loop.index0 }})" style="cursor:pointer;color:var(--redl)">🗑️</span></div>{% endfor %}
+  </div>
+</div>
+<div class="dash-section">
+  <h2>✅ Erlaubte Domains</h2>
+  <div style="display:flex;gap:8px;margin-bottom:12px"><input type="text" id="newDomain" class="cfg-input" placeholder="youtube.com" style="max-width:300px"><button class="btn-glass btn-sm btn-glass-primary" onclick="addDomain()">Hinzufügen</button></div>
+  <div class="tag-list" id="domainList">
+    {% for d in cfg.get('automod',{}).get('allowed_domains',[]) %}<div class="tag">{{ d }} <span class="tag-del" onclick="delDomain('{{ d }}')">×</span></div>{% endfor %}
+  </div>
+</div>
+<div class="dash-section">
+  <h2>⚖️ Bestrafung</h2>
+  <select class="cfg-select" id="am_pun" style="width:200px">
+    {% for p in ['warn','timeout','kick','ban'] %}<option {% if cfg.get('automod',{}).get('punishment')==p %}selected{% endif %}>{{ p }}</option>{% endfor %}
+  </select>
+</div>
+{% block scripts %}
+<script>
+const gid='{{ guild.id }}';
+async function apiPost(d){return fetch('/api/guild/'+gid+'/automod',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)})}
+function addWord(){const w=document.getElementById('newWord').value.trim();if(w)apiPost({action:'add_word',value:w}).then(()=>location.reload())}
+function delWord(w){apiPost({action:'del_word',value:w}).then(()=>location.reload())}
+function addRegex(){const r=document.getElementById('newRegex').value.trim();if(r)apiPost({action:'add_regex',value:r}).then(()=>location.reload())}
+function delRegex(i){apiPost({action:'del_regex',index:i}).then(()=>location.reload())}
+function addDomain(){const d=document.getElementById('newDomain').value.trim();if(d)apiPost({action:'add_domain',value:d}).then(()=>location.reload())}
+function delDomain(d){apiPost({action:'del_domain',value:d}).then(()=>location.reload())}
+</script>
+{% endblock %}
+{% endblock %}

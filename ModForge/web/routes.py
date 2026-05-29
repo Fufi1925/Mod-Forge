@@ -856,11 +856,21 @@ def admin_guild_detail(guild_id):
         except Exception as e:
             log.error(f"[ADMIN GUILD DETAIL ERROR] {e}")
 
+    cfg = _get_guild_config(guild_id)
+    active_modules = sum(1 for k in ["anti_spam","anti_nuke","anti_raid","anti_mention","anti_scam","automod"]
+                         if cfg.get(k, {}).get("enabled"))
+    import json as _json
+    try:
+        config_json = _json.dumps(cfg, indent=2, default=str, ensure_ascii=False)
+    except Exception:
+        config_json = "{}"
     return render_template(
         "admin/guild_detail.html",
         guild=g,
         cases=cases,
-        config=_get_guild_config(guild_id),
+        config=cfg,
+        config_json=config_json,
+        active_modules=active_modules,
     )
 
 
@@ -975,41 +985,439 @@ def guild_welcome(guild_id):
 
 # =========================================================
 # DASHBOARD API (Settings Toggle)
+
+# =========================================================
+# DASHBOARD: ALL SUB-PAGES
 # =========================================================
 
-@flask_app.route("/api/guild/<guild_id>/noprefix", methods=["POST"])
+def _dash_guard(guild_id):
+    """Shared guard for all dashboard pages."""
+    user_session = get_session()
+    if not user_session:
+        return None, None, None, redirect(url_for("discord_login_page"))
+    if not _user_can_manage_guild_in_session(user_session, guild_id):
+        return None, None, None, abort(403)
+    g = get_guild(guild_id)
+    if not g:
+        return None, None, None, abort(404)
+    cfg = _get_guild_config(guild_id)
+    return user_session, g, cfg, None
+
+@flask_app.route("/dashboard/<guild_id>/security")
 @require_auth
-def api_noprefix(guild_id):
+def guild_security(guild_id):
+    us, g, cfg, err = _dash_guard(guild_id)
+    if err: return err
+    modules = []
+    mod_defs = [
+        ("anti_spam", "⚡", "Anti-Spam", "Spam, CAPS, Duplikate erkennen", [
+            {"key":"msg_limit","label":"Nachrichten-Limit","type":"number","min":2,"max":30},
+            {"key":"msg_window","label":"Zeitfenster (s)","type":"number","min":3,"max":60},
+            {"key":"caps_pct","label":"CAPS-Schwelle (%)","type":"number","min":50,"max":100},
+            {"key":"emoji_max","label":"Max Emojis","type":"number","min":3,"max":50},
+            {"key":"punishment","label":"Bestrafung","type":"select","options":["warn","timeout","kick","ban"]},
+        ]),
+        ("anti_nuke", "💥", "Anti-Nuke", "Massenaktionen erkennen und stoppen", [
+            {"key":"threshold","label":"Schwelle","type":"number","min":2,"max":20},
+            {"key":"window","label":"Zeitfenster (s)","type":"number","min":5,"max":120},
+            {"key":"punishment","label":"Bestrafung","type":"select","options":["warn","timeout","kick","ban"]},
+        ]),
+        ("anti_raid", "🚨", "Anti-Raid", "Massenjoins erkennen", [
+            {"key":"join_threshold","label":"Join-Schwelle","type":"number","min":3,"max":50},
+            {"key":"window","label":"Zeitfenster (s)","type":"number","min":5,"max":120},
+            {"key":"min_account_age","label":"Min Account-Alter (Tage)","type":"number","min":0,"max":90},
+        ]),
+        ("anti_mention", "🔔", "Anti-Mention", "Mass-Mentions blockieren", [
+            {"key":"mention_limit","label":"Max Mentions","type":"number","min":2,"max":30},
+            {"key":"window","label":"Zeitfenster (s)","type":"number","min":3,"max":60},
+            {"key":"punishment","label":"Bestrafung","type":"select","options":["warn","timeout","kick","ban"]},
+        ]),
+        ("anti_scam", "🎣", "Anti-Scam", "KI-Phishing-Erkennung", [
+            {"key":"punishment","label":"Bestrafung","type":"select","options":["warn","timeout","kick","ban"]},
+        ]),
+        ("automod", "🤖", "AutoMod", "Automatische Moderation", [
+            {"key":"punishment","label":"Bestrafung","type":"select","options":["warn","timeout","kick","ban"]},
+        ]),
+    ]
+    for key, icon, label, desc, params in mod_defs:
+        mcfg = cfg.get(key, {})
+        for p in params:
+            p["value"] = mcfg.get(p["key"], "")
+        modules.append({"key":key,"icon":icon,"label":label,"desc":desc,"enabled":mcfg.get("enabled",False),"params":params})
+    wl = bot.db.get_whitelist(int(guild_id)) if bot_ready() else {}
+    wl_count = sum(len(v) for v in wl.values() if isinstance(v, list))
+    active_count = sum(1 for m in modules if m["enabled"])
+    return render_template("dashboard/security.html", guild=g, cfg=cfg, user=us["user"],
+                           modules=modules, active_count=active_count, wl_count=wl_count, active="security")
+
+@flask_app.route("/dashboard/<guild_id>/automod")
+@require_auth
+def guild_automod(guild_id):
+    us, g, cfg, err = _dash_guard(guild_id)
+    if err: return err
+    return render_template("dashboard/automod.html", guild=g, cfg=cfg, user=us["user"], active="automod")
+
+@flask_app.route("/dashboard/<guild_id>/logs")
+@require_auth
+def guild_logs(guild_id):
+    us, g, cfg, err = _dash_guard(guild_id)
+    if err: return err
+    channels = [{"id":str(ch.id),"name":ch.name} for ch in g.text_channels] if g else []
+    log_channels = cfg.get("log_channels", {})
+    from bot.config import LOG_MODULES, LOG_MODULES_EXTRA
+    log_module_defs = []
+    icons = {"default":"📌","moderation":"🛡️","antispam":"⚡","antinuke":"💥","antiraid":"🚨","antimention":"🔔","automod":"🤖","antiscam":"🎣","voice":"🎤","members":"👥","nicknames":"📝","channels":"📁","roles":"🏷️","webhooks":"🔌","tickets":"🎫","verify":"✅","warns":"⚠️","cases":"📋","backup":"💾","welcome":"👋","messages":"💬","leave":"👋","errors":"❌","audit":"🔍","appeal":"📬","permissions":"🔐"}
+    all_mods = list(LOG_MODULES) + list(LOG_MODULES_EXTRA)
+    for m in all_mods:
+        log_module_defs.append({"key":m,"icon":icons.get(m,"⚙️"),"label":m.replace("_"," ").title()})
+    return render_template("dashboard/logs.html", guild=g, cfg=cfg, user=us["user"],
+                           channels=channels, log_channels=log_channels, log_modules=log_module_defs, active="logs")
+
+@flask_app.route("/dashboard/<guild_id>/cases")
+@require_auth
+def guild_cases(guild_id):
+    us, g, cfg, err = _dash_guard(guild_id)
+    if err: return err
+    cases = []
+    db = get_db()
+    if db:
+        try:
+            raw = safe_async(db.cases.find({"guild_id":str(guild_id)}).sort("case_id",-1).to_list(200), []) or []
+            for c in raw:
+                c["timestamp"] = str(c.get("timestamp",""))[:19]
+            cases = raw
+        except Exception as e:
+            log.error(f"[CASES PAGE] {e}")
+    return render_template("dashboard/cases.html", guild=g, cfg=cfg, user=us["user"], cases=cases, active="cases")
+
+@flask_app.route("/dashboard/<guild_id>/warns")
+@require_auth
+def guild_warns(guild_id):
+    us, g, cfg, err = _dash_guard(guild_id)
+    if err: return err
+    return render_template("dashboard/warns.html", guild=g, cfg=cfg, user=us["user"], active="warns")
+
+@flask_app.route("/dashboard/<guild_id>/tickets")
+@require_auth
+def guild_tickets(guild_id):
+    us, g, cfg, err = _dash_guard(guild_id)
+    if err: return err
+    channels = [{"id":str(ch.id),"name":ch.name} for ch in g.text_channels] if g else []
+    categories = [{"id":str(c.id),"name":c.name} for c in g.categories] if g else []
+    return render_template("dashboard/tickets.html", guild=g, cfg=cfg, user=us["user"],
+                           channels=channels, categories=categories, active="tickets")
+
+@flask_app.route("/dashboard/<guild_id>/autoresponse")
+@require_auth
+def guild_autoresponse(guild_id):
+    us, g, cfg, err = _dash_guard(guild_id)
+    if err: return err
+    return render_template("dashboard/autoresponse.html", guild=g, cfg=cfg, user=us["user"],
+                           auto_responses=cfg.get("auto_responses",[]), active="autoresponse")
+
+@flask_app.route("/dashboard/<guild_id>/roles")
+@require_auth
+def guild_roles(guild_id):
+    us, g, cfg, err = _dash_guard(guild_id)
+    if err: return err
+    guild_roles = [{"id":str(r.id),"name":r.name} for r in g.roles if not r.is_default() and not r.managed] if g else []
+    ar = cfg.get("auto_role",{}).get("roles",[])
+    sr = cfg.get("sticky_roles",[])
+    return render_template("dashboard/roles.html", guild=g, cfg=cfg, user=us["user"],
+                           guild_roles=guild_roles, auto_roles=ar, sticky_roles=sr, active="roles")
+
+@flask_app.route("/dashboard/<guild_id>/backup")
+@require_auth
+def guild_backup(guild_id):
+    us, g, cfg, err = _dash_guard(guild_id)
+    if err: return err
+    backups = []
+    db = get_db()
+    if db:
+        try:
+            backups = safe_async(db.backups.find({"guild_id":str(guild_id)}).sort("created_at",-1).to_list(20),[]) or []
+        except Exception:
+            pass
+    return render_template("dashboard/backup.html", guild=g, cfg=cfg, user=us["user"], backups=backups, active="backup")
+
+@flask_app.route("/dashboard/<guild_id>/settings")
+@require_auth
+def guild_settings(guild_id):
+    us, g, cfg, err = _dash_guard(guild_id)
+    if err: return err
+    channels = [{"id":str(ch.id),"name":ch.name} for ch in g.text_channels] if g else []
+    return render_template("dashboard/settings.html", guild=g, cfg=cfg, user=us["user"], channels=channels, active="settings")
+
+# =========================================================
+
+@flask_app.route("/dashboard/<guild_id>/embed")
+@require_auth
+def guild_embed(guild_id):
+    us, g, cfg, err = _dash_guard(guild_id)
+    if err: return err
+    channels = [{"id":str(ch.id),"name":ch.name} for ch in g.text_channels] if g else []
+    return render_template("dashboard/embed.html", guild=g, cfg=cfg, user=us["user"], channels=channels, active="embed")
+
+# PUBLIC PAGES (new)
+# =========================================================
+
+@flask_app.route("/compare")
+def compare():
+    return render_template("compare.html")
+
+@flask_app.route("/public-stats")
+def public_stats():
+    gc, mc, up, lat = _base_stats()
+    uptime_pct = _uptime_pct()
+    db = get_db()
+    cases_count = 0
+    if bot_ready() and db:
+        cases_count = safe_collection_count(getattr(db, "cases", None))
+    return render_template("public_stats.html", gc=gc, mc=mc, lat=round(lat),
+                           uptime_pct=f"{uptime_pct:.3f}", cases=cases_count,
+                           shards=getattr(bot, "shard_count", 1))
+
+# =========================================================
+# ADMIN PAGES (new)
+# =========================================================
+
+@flask_app.route("/admin/logs")
+@admin_required
+def admin_logs():
+    import logging
+    entries = []
+    # Gather recent log entries from the root logger handler buffers
+    try:
+        for handler in logging.getLogger().handlers:
+            if hasattr(handler, 'buffer'):
+                for record in handler.buffer[-200:]:
+                    entries.append({
+                        "timestamp": datetime.datetime.fromtimestamp(record.created).strftime("%Y-%m-%d %H:%M:%S"),
+                        "level": record.levelname,
+                        "message": record.getMessage()[:500],
+                    })
+    except Exception:
+        pass
+    return render_template("admin/logs.html", log_entries=entries[-200:])
+
+# =========================================================
+# DASHBOARD API — Universal Config Endpoint
+# =========================================================
+
+@flask_app.route("/api/guild/<guild_id>/config", methods=["POST"])
+@require_auth
+def api_guild_config(guild_id):
     user_session = get_session()
     if not user_session or not _user_can_manage_guild_in_session(user_session, guild_id):
         return jsonify({"error": "forbidden"}), 403
-    from .helpers import _get_guild_config
-    from bot.utils import _run_async
+    data = request.json or {}
     cfg = _get_guild_config(guild_id)
-    enabled = request.json.get("enabled", False)
-    cfg["no_prefix"] = bool(enabled)
+    from bot.utils import _run_async
+
+    # Handle special keys with _ prefix
+    if "_reset" in data:
+        from bot.config import DEFAULT_CONFIG
+        import copy
+        cfg = copy.deepcopy(DEFAULT_CONFIG)
+    if "_security_level" in data:
+        cfg["security_level"] = int(data["_security_level"])
+    if "_log_channel" in data:
+        cfg["log_channel"] = int(data["_log_channel"]) if data["_log_channel"] else None
+    if "_log_channels" in data:
+        cfg["log_channels"] = {k:int(v) for k,v in data["_log_channels"].items()}
+    if "_prefix" in data:
+        cfg["prefix"] = str(data["_prefix"])[:5] or "!"
+    if "_no_prefix" in data:
+        cfg["no_prefix"] = bool(data["_no_prefix"])
+    if "_report_channel" in data:
+        cfg["report_channel"] = int(data["_report_channel"]) if data["_report_channel"] else None
+    if "_appeal_log_channel" in data:
+        cfg["appeal_log_channel"] = int(data["_appeal_log_channel"]) if data["_appeal_log_channel"] else None
+    if "_auto_ban_appeal" in data:
+        cfg["auto_ban_appeal"] = data["_auto_ban_appeal"]
+    if "_invite_tracking" in data:
+        cfg["invite_tracking"] = data["_invite_tracking"]
+    if "_message_archive" in data:
+        ma = cfg.get("message_archive",{})
+        ma["enabled"] = data["_message_archive"].get("enabled", False)
+        cfg["message_archive"] = ma
+    if "_warn_thresholds" in data:
+        ws = cfg.get("warn_system",{})
+        ws["thresholds"] = data["_warn_thresholds"]
+        cfg["warn_system"] = ws
+    if "_warn_thresholds_add" in data:
+        ws = cfg.get("warn_system",{})
+        th = ws.get("thresholds",{})
+        th.update(data["_warn_thresholds_add"])
+        ws["thresholds"] = th
+        cfg["warn_system"] = ws
+    if "_warn_decay" in data:
+        cfg["warn_decay"] = data["_warn_decay"]
+    if "_ticket_system" in data:
+        ts = cfg.get("ticket_system",{})
+        ts.update(data["_ticket_system"])
+        cfg["ticket_system"] = ts
+
+    # Raw config override (admin only)
+    if "_raw" in data and isinstance(data["_raw"], dict):
+        cfg = data["_raw"]
+
+    # Handle module configs (anti_spam, anti_nuke, etc.)
+    for key in ["anti_spam","anti_nuke","anti_raid","anti_mention","anti_scam","automod"]:
+        if key in data:
+            mod = cfg.get(key, {})
+            mod.update(data[key])
+            cfg[key] = mod
+
     try:
         _run_async(bot.db.set_config(int(guild_id), cfg))
     except Exception as e:
-        log.error(f"[NOPREFIX API ERROR] {e}")
+        log.error(f"[CONFIG API ERROR] {e}")
         return jsonify({"error": str(e)}), 500
-    return jsonify({"ok": True, "no_prefix": cfg["no_prefix"]})
+    return jsonify({"ok": True})
 
-@flask_app.route("/api/guild/<guild_id>/settings", methods=["GET"])
+@flask_app.route("/api/guild/<guild_id>/automod", methods=["POST"])
 @require_auth
-def api_guild_settings(guild_id):
+def api_guild_automod(guild_id):
     user_session = get_session()
     if not user_session or not _user_can_manage_guild_in_session(user_session, guild_id):
         return jsonify({"error": "forbidden"}), 403
-    from .helpers import _get_guild_config
+    data = request.json or {}
     cfg = _get_guild_config(guild_id)
-    return jsonify({
-        "no_prefix": cfg.get("no_prefix", False),
-        "report_channel": cfg.get("report_channel"),
-        "auto_responses": cfg.get("auto_responses", []),
-        "warn_decay": cfg.get("warn_decay", {}),
-        "invite_tracking": cfg.get("invite_tracking", {}),
-    })
+    from bot.utils import _run_async
+    am = cfg.get("automod", {})
+    action = data.get("action")
+    if action == "add_word":
+        words = am.get("bad_words", [])
+        if data["value"] not in words: words.append(data["value"])
+        am["bad_words"] = words
+    elif action == "del_word":
+        am["bad_words"] = [w for w in am.get("bad_words",[]) if w != data["value"]]
+    elif action == "add_regex":
+        rules = am.get("regex_rules", [])
+        rules.append(data["value"])
+        am["regex_rules"] = rules
+    elif action == "del_regex":
+        rules = am.get("regex_rules", [])
+        idx = int(data.get("index", -1))
+        if 0 <= idx < len(rules): rules.pop(idx)
+        am["regex_rules"] = rules
+    elif action == "add_domain":
+        domains = am.get("allowed_domains", [])
+        if data["value"] not in domains: domains.append(data["value"])
+        am["allowed_domains"] = domains
+    elif action == "del_domain":
+        am["allowed_domains"] = [d for d in am.get("allowed_domains",[]) if d != data["value"]]
+    cfg["automod"] = am
+    try:
+        _run_async(bot.db.set_config(int(guild_id), cfg))
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    return jsonify({"ok": True})
+
+@flask_app.route("/api/guild/<guild_id>/autoresponse", methods=["POST"])
+@require_auth
+def api_guild_autoresponse(guild_id):
+    user_session = get_session()
+    if not user_session or not _user_can_manage_guild_in_session(user_session, guild_id):
+        return jsonify({"error": "forbidden"}), 403
+    data = request.json or {}
+    cfg = _get_guild_config(guild_id)
+    from bot.utils import _run_async
+    ars = cfg.get("auto_responses", [])
+    action = data.get("action")
+    if action == "add":
+        ars.append({"trigger": data["trigger"], "response": data["response"], "enabled": True})
+    elif action == "del":
+        idx = int(data.get("index", -1))
+        if 0 <= idx < len(ars): ars.pop(idx)
+    elif action == "toggle":
+        idx = int(data.get("index", -1))
+        if 0 <= idx < len(ars): ars[idx]["enabled"] = data.get("enabled", True)
+    cfg["auto_responses"] = ars
+    try:
+        _run_async(bot.db.set_config(int(guild_id), cfg))
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    return jsonify({"ok": True})
+
+@flask_app.route("/api/guild/<guild_id>/roles", methods=["POST"])
+@require_auth
+def api_guild_roles(guild_id):
+    user_session = get_session()
+    if not user_session or not _user_can_manage_guild_in_session(user_session, guild_id):
+        return jsonify({"error": "forbidden"}), 403
+    data = request.json or {}
+    cfg = _get_guild_config(guild_id)
+    from bot.utils import _run_async
+    action = data.get("action")
+    rid = int(data.get("role_id", 0))
+    if action == "add_auto":
+        ar = cfg.get("auto_role", {"enabled": True, "roles": []})
+        if rid not in ar.get("roles",[]): ar.setdefault("roles",[]).append(rid)
+        ar["enabled"] = True
+        cfg["auto_role"] = ar
+    elif action == "del_auto":
+        ar = cfg.get("auto_role", {"roles":[]})
+        ar["roles"] = [r for r in ar.get("roles",[]) if r != rid]
+        cfg["auto_role"] = ar
+    elif action == "add_sticky":
+        sr = cfg.get("sticky_roles", [])
+        if rid not in sr: sr.append(rid)
+        cfg["sticky_roles"] = sr
+    elif action == "del_sticky":
+        cfg["sticky_roles"] = [r for r in cfg.get("sticky_roles",[]) if r != rid]
+    try:
+        _run_async(bot.db.set_config(int(guild_id), cfg))
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    return jsonify({"ok": True})
+
+
+@flask_app.route("/api/guild/<guild_id>/embed", methods=["POST"])
+@require_auth
+def api_guild_embed(guild_id):
+    user_session = get_session()
+    if not user_session or not _user_can_manage_guild_in_session(user_session, guild_id):
+        return jsonify({"error": "forbidden"}), 403
+    data = request.json or {}
+    channel_id = data.get("channel_id")
+    embed_data = data.get("embed", {})
+    if not channel_id or not embed_data:
+        return jsonify({"error": "missing channel_id or embed"}), 400
+    g = get_guild(guild_id)
+    if not g:
+        return jsonify({"error": "guild not found"}), 404
+    ch = g.get_channel(int(channel_id))
+    if not ch:
+        return jsonify({"error": "channel not found"}), 404
+    import discord
+    from bot.utils import _run_async
+    try:
+        color = embed_data.pop("color", 0x7c3aed)
+        emb = discord.Embed(
+            title=embed_data.get("title"),
+            description=embed_data.get("description"),
+            url=embed_data.get("url"),
+            color=color,
+        )
+        if embed_data.get("author"):
+            emb.set_author(name=embed_data["author"].get("name",""), icon_url=embed_data["author"].get("icon_url"))
+        if embed_data.get("thumbnail"):
+            emb.set_thumbnail(url=embed_data["thumbnail"]["url"])
+        if embed_data.get("image"):
+            emb.set_image(url=embed_data["image"]["url"])
+        if embed_data.get("footer"):
+            emb.set_footer(text=embed_data["footer"].get("text",""), icon_url=embed_data["footer"].get("icon_url"))
+        if embed_data.get("timestamp"):
+            emb.timestamp = datetime.datetime.utcnow()
+        for field in embed_data.get("fields", []):
+            emb.add_field(name=field["name"], value=field["value"], inline=field.get("inline", False))
+        _run_async(ch.send(embed=emb))
+        return jsonify({"ok": True})
+    except Exception as e:
+        log.error(f"[EMBED API ERROR] {e}")
+        return jsonify({"error": str(e)}), 500
 
 # 404 / 403 / 500 HANDLER
 # =========================================================

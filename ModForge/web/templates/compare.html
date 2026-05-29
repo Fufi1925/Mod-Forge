@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Bot-Vergleich – ModForge{% endblock %}
+{% block content %}
+<div class="container" style="max-width:1100px;padding-top:40px;padding-bottom:80px">
+  <div class="sec-head reveal" style="text-align:center;margin-bottom:50px">
+    <div class="sec-badge" style="margin-bottom:12px">⚔️ Vergleich</div>
+    <h1 style="font-size:clamp(1.8rem,4vw,2.8rem);font-weight:800;margin-bottom:12px">ModForge vs. Andere Bots</h1>
+    <p style="color:var(--muted);max-width:620px;margin:0 auto">Feature-Vergleich der beliebtesten Discord-Moderation-Bots.</p>
+  </div>
+  <div style="overflow-x:auto">
+    <table style="min-width:700px">
+      <thead><tr><th style="width:30%">Feature</th><th style="text-align:center">🛡️ ModForge</th><th style="text-align:center">MEE6</th><th style="text-align:center">Carl-bot</th><th style="text-align:center">Dyno</th></tr></thead>
+      <tbody>
+        {% for row in [
+          ('Anti-Nuke','✅','❌','❌','❌'),('Anti-Raid','✅','❌','⚠️','⚠️'),('KI-Scam-Erkennung','✅','❌','❌','❌'),
+          ('Web-Dashboard','✅','✅','✅','✅'),('AutoMod 2.0','✅','⚠️','✅','⚠️'),('Case-System','✅','❌','⚠️','❌'),
+          ('Backup-System','✅','❌','❌','❌'),('Temp-Voice','✅','❌','❌','✅'),('Ticket-System','✅','❌','❌','❌'),
+          ('Verifizierung (Captcha)','✅','❌','❌','⚠️'),('Warn-Decay','✅','❌','❌','❌'),('No-Prefix Mode','✅','❌','❌','❌'),
+          ('Auto Ban-Appeal','✅','❌','❌','❌'),('Invite-Tracker','✅','⚠️','✅','⚠️'),('Server-Lockdown','✅','❌','⚠️','⚠️'),
+          ('Preis','Kostenlos','$11.99/mo','Kostenlos','$4.49/mo')
+        ] %}
+        <tr><td style="font-weight:600">{{ row[0] }}</td><td style="text-align:center;color:{% if row[1]=='✅' %}var(--green){% elif row[1]=='⚠️' %}var(--amber){% elif row[1]=='❌' %}var(--red){% else %}var(--vl){% endif %}">{{ row[1] }}</td><td style="text-align:center;color:{% if row[2]=='✅' %}var(--green){% elif row[2]=='⚠️' %}var(--amber){% else %}var(--red){% endif %}">{{ row[2] }}</td><td style="text-align:center;color:{% if row[3]=='✅' %}var(--green){% elif row[3]=='⚠️' %}var(--amber){% else %}var(--red){% endif %}">{{ row[3] }}</td><td style="text-align:center;color:{% if row[4]=='✅' %}var(--green){% elif row[4]=='⚠️' %}var(--amber){% else %}var(--red){% endif %}">{{ row[4] }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div style="text-align:center;margin-top:40px" class="reveal"><p style="color:var(--muted);margin-bottom:16px">✅ = Vollständig · ⚠️ = Eingeschränkt/Premium · ❌ = Nicht verfügbar</p><a href="/login" class="btn-glass btn-glass-primary btn-lg">Jetzt kostenlos starten →</a></div>
+</div>
+{% endblock %}

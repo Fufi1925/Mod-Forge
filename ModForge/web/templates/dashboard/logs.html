@@ -1,0 +1,37 @@
+{% extends "dashboard/_base.html" %}
+{% set active = 'logs' %}
+{% block title %}Logs{% endblock %}
+{% block page_title %}📢 Log-Konfiguration{% endblock %}
+{% block content %}
+<p style="color:var(--muted);font-size:.85rem;margin-bottom:24px">Weise jedem Modul einen Log-Kanal zu. Module ohne Kanal nutzen den Standard-Log.</p>
+<div class="cfg-row" style="background:rgba(124,58,237,0.06);border-color:rgba(124,58,237,0.2)">
+  <div><span class="cfg-label">📌 Standard-Log-Kanal</span><div class="cfg-desc">Fallback für alle Module ohne eigenen Kanal</div></div>
+  <select class="cfg-select" id="default_log" style="min-width:180px">
+    <option value="">— Nicht gesetzt —</option>
+    {% for ch in channels %}<option value="{{ ch.id }}" {% if ch.id == cfg.get('log_channel') %}selected{% endif %}>#{{ ch.name }}</option>{% endfor %}
+  </select>
+</div>
+<div class="dash-section" style="margin-top:20px">
+  <h2>📋 Module</h2>
+  {% for mod in log_modules %}
+  <div class="cfg-row">
+    <div><span class="cfg-label">{{ mod.icon }} {{ mod.label }}</span></div>
+    <select class="cfg-select log-ch" data-mod="{{ mod.key }}" style="min-width:180px">
+      <option value="">Standard</option>
+      {% for ch in channels %}<option value="{{ ch.id }}" {% if ch.id|string == log_channels.get(mod.key,'')|string %}selected{% endif %}>#{{ ch.name }}</option>{% endfor %}
+    </select>
+  </div>
+  {% endfor %}
+</div>
+{% block scripts %}
+<script>
+async function saveConfig(){
+  const channels={};
+  document.querySelectorAll('.log-ch').forEach(el=>{if(el.value)channels[el.dataset.mod]=el.value});
+  const def=document.getElementById('default_log').value;
+  await fetch('/api/guild/{{ guild.id }}/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({_log_channel:def||null,_log_channels:channels})});
+  document.getElementById('saveBar').classList.remove('visible');location.reload();
+}
+</script>
+{% endblock %}
+{% endblock %}
