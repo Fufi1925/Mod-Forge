@@ -256,7 +256,9 @@ DEFAULT_CONFIG = {
     "invite_tracking": {"enabled": False, "channel_id": None},
     "warn_decay": {"enabled": False, "decay_days": 30},
     "log_filters": {},
-    "auto_ban_appeal": {"enabled": False}
+    "auto_ban_appeal": {"enabled": False},
+    "anti_vpn": {"enabled": False, "action": "kick", "whitelist_ids": []},
+    "dashboard_theme": "purple"
 }
 
 # ═══════════════════════════════════════════════════════════════

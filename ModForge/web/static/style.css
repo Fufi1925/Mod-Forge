@@ -2173,3 +2173,106 @@ details.reveal summary::after {
   .login-card { padding: 28px 20px; }
   .admin-nav a, .dash-nav a { font-size: .72rem; }
 }
+
+
+/* ═══════════════════════════════════════════════════
+   DASHBOARD THEMES
+═══════════════════════════════════════════════════ */
+
+/* Theme: Purple (Default) — no changes needed, uses :root vars */
+
+/* Theme: Blue */
+[data-theme="blue"] {
+  --v: #2563eb;
+  --vl: #60a5fa;
+  --vd: #1e3a8a;
+  --p: #3b82f6;
+  --p2: #93c5fd;
+  --bdrv: rgba(59,130,246,0.3);
+}
+[data-theme="blue"] .db-brand-icon {
+  background: linear-gradient(135deg, #2563eb, #06b6d4) !important;
+  box-shadow: 0 4px 14px rgba(37,99,235,0.4) !important;
+}
+[data-theme="blue"] .db-nav a.active {
+  color: #60a5fa !important;
+  border-left-color: #2563eb !important;
+  background: rgba(37,99,235,0.06) !important;
+}
+[data-theme="blue"] .toggle input:checked+.slider {
+  background: rgba(37,99,235,0.35) !important;
+  border-color: rgba(37,99,235,0.5) !important;
+}
+[data-theme="blue"] .toggle input:checked+.slider::before {
+  background: #60a5fa !important;
+  box-shadow: 0 0 8px rgba(37,99,235,0.5) !important;
+}
+
+/* Theme: AMOLED */
+[data-theme="amoled"] {
+  --bg: #000000;
+  --bg2: #000000;
+  --surface: #0a0a0a;
+  --card: #0a0a0a;
+  --card2: #0f0f0f;
+  --border: rgba(255,255,255,0.05);
+  --glass: rgba(255,255,255,0.02);
+  --glass2: rgba(255,255,255,0.03);
+  --glass3: rgba(255,255,255,0.05);
+  --sidebar: #000000;
+  --v: #a855f7;
+  --vl: #c084fc;
+}
+[data-theme="amoled"] body { background: #000 !important; }
+[data-theme="amoled"] .db-sidebar { background: rgba(0,0,0,0.99) !important; border-right-color: rgba(255,255,255,0.04) !important; }
+[data-theme="amoled"] .db-card { background: rgba(255,255,255,0.02) !important; }
+[data-theme="amoled"] .cfg-row { background: rgba(255,255,255,0.015) !important; }
+[data-theme="amoled"] .cfg-input, [data-theme="amoled"] .cfg-select { background: rgba(255,255,255,0.03) !important; }
+[data-theme="amoled"] .save-bar { background: rgba(0,0,0,0.98) !important; }
+
+/* Theme: Green */
+[data-theme="green"] {
+  --v: #059669;
+  --vl: #34d399;
+  --vd: #064e3b;
+  --p: #10b981;
+  --p2: #6ee7b7;
+  --bdrv: rgba(16,185,129,0.3);
+}
+[data-theme="green"] .db-brand-icon {
+  background: linear-gradient(135deg, #059669, #0d9488) !important;
+  box-shadow: 0 4px 14px rgba(5,150,105,0.4) !important;
+}
+[data-theme="green"] .db-nav a.active {
+  color: #34d399 !important;
+  border-left-color: #059669 !important;
+  background: rgba(5,150,105,0.06) !important;
+}
+[data-theme="green"] .toggle input:checked+.slider {
+  background: rgba(5,150,105,0.35) !important;
+  border-color: rgba(5,150,105,0.5) !important;
+}
+[data-theme="green"] .toggle input:checked+.slider::before {
+  background: #34d399 !important;
+}
+
+/* Theme Switcher Button */
+.theme-switcher {
+  display: flex;
+  gap: 6px;
+  padding: 8px 12px;
+}
+.theme-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: all .2s;
+}
+.theme-dot:hover { transform: scale(1.2); }
+.theme-dot.active { border-color: #fff; box-shadow: 0 0 8px rgba(255,255,255,0.3); }
+.theme-dot[data-t="purple"] { background: #7c3aed; }
+.theme-dot[data-t="blue"] { background: #2563eb; }
+.theme-dot[data-t="amoled"] { background: #000; border: 2px solid rgba(255,255,255,0.2); }
+.theme-dot[data-t="green"] { background: #059669; }

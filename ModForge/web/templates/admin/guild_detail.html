@@ -1,152 +1,101 @@
-<!doctype html>
-<html lang="de">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>{{ guild.name }} – Admin – ModForge</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;700&family=Outfit:wght@400;500;600;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/style.css">
-  <style>
-    .admin-nav{position:fixed;top:0;left:0;right:0;z-index:9999;height:56px;background:rgba(6,6,16,0.97);backdrop-filter:blur(24px);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 24px;gap:20px}
-    .admin-nav a{color:var(--muted);font-size:.8rem;font-weight:600;transition:color .15s}
-    .admin-nav a:hover,.admin-nav a.active{color:var(--fg)}
-    .admin-body{padding-top:76px;max-width:1300px;margin:0 auto;padding-left:24px;padding-right:24px;padding-bottom:60px}
-    .admin-tabs{display:flex;gap:4px;margin-bottom:24px;border-bottom:1px solid var(--border);padding-bottom:0;overflow-x:auto}
-    .admin-tab{padding:10px 18px;font-size:.8rem;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:all .15s}
-    .admin-tab:hover{color:var(--fg)}
-    .admin-tab.active{color:var(--vl);border-bottom-color:var(--v)}
-    .tab-content{display:none}
-    .tab-content.active{display:block}
-    .cfg-row{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:14px;margin-bottom:8px;transition:all .15s;gap:12px}
-    .cfg-row:hover{border-color:rgba(139,92,246,0.18)}
-    .cfg-label{font-size:.85rem;font-weight:600}
-    .cfg-desc{font-size:.72rem;color:var(--muted);margin-top:2px}
-    .toggle{position:relative;width:44px;height:24px;flex-shrink:0}
-    .toggle input{opacity:0;width:0;height:0;position:absolute}
-    .toggle .slider{position:absolute;inset:0;background:rgba(255,255,255,0.08);border-radius:999px;cursor:pointer;transition:all .25s;border:1px solid rgba(255,255,255,0.08)}
-    .toggle .slider::before{content:'';position:absolute;width:18px;height:18px;border-radius:50%;background:var(--muted);left:2px;top:2px;transition:all .25s}
-    .toggle input:checked+.slider{background:rgba(124,58,237,0.35);border-color:rgba(124,58,237,0.5)}
-    .toggle input:checked+.slider::before{transform:translateX(20px);background:var(--vl)}
-    .cfg-input{padding:8px 14px;border-radius:10px;background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--fg);font-size:.82rem;outline:none;font-family:inherit;max-width:160px}
-    .cfg-input:focus{border-color:rgba(124,58,237,0.5)}
-    .cfg-select{padding:8px 14px;border-radius:10px;background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--fg);font-size:.82rem;outline:none;font-family:inherit}
-    .stat-card{padding:20px;border-radius:14px;background:rgba(255,255,255,0.03);border:1px solid var(--border);text-align:center}
-    .stat-value{font-size:1.6rem;font-weight:900;font-family:'Geist Mono',monospace}
-    .stat-label{font-size:.68rem;color:var(--muted);margin-top:4px;text-transform:uppercase;letter-spacing:.06em}
-  </style>
-</head>
-<body class="page-bg">
-  <nav class="admin-nav">
-    <span style="font-weight:800;font-size:.95rem;color:var(--vl);margin-right:auto">🔐 Admin · {{ guild.name }}</span>
-    <a href="/admin/dashboard">Dashboard</a><a href="/admin/guilds" class="active">Guilds</a><a href="/admin/stats">Stats</a><a href="/admin/logs">Logs</a><a href="/admin/logout" style="color:var(--redl)">Logout</a>
-  </nav>
+{% extends "admin/_base.html" %}
+{% set active = 'guilds' %}
+{% block title %}{{ guild.name }}{% endblock %}
+{% block page_title %}{{ guild.name }}{% endblock %}
+{% block page_desc %}ID: {{ guild.id }} · {{ guild.member_count }} Mitglieder{% endblock %}
+{% block content %}
+<div style="margin-bottom:20px"><a href="/admin/guilds" style="color:var(--vl);font-size:.82rem;display:inline-flex;align-items:center;gap:4px">← Zurück</a></div>
 
-  <div class="admin-body">
-    <div style="display:flex;align-items:center;gap:14px;margin-bottom:24px">
-      {% if guild.icon %}<img src="{{ guild.icon.url }}" style="width:56px;height:56px;border-radius:50%;object-fit:cover">{% else %}<div style="width:56px;height:56px;border-radius:50%;background:rgba(124,58,237,0.2);display:flex;align-items:center;justify-content:center;font-weight:900;color:var(--vl);font-size:1.4rem">{{ guild.name[0] }}</div>{% endif %}
-      <div><h1 style="font-size:1.4rem;font-weight:800">{{ guild.name }}</h1><p style="color:var(--muted);font-size:.78rem">ID: {{ guild.id }} · {{ guild.member_count }} Mitglieder · Owner: {{ guild.owner_id }}</p></div>
-    </div>
+<div style="display:flex;align-items:center;gap:14px;margin-bottom:24px">
+  {% if guild.icon %}<img src="{{ guild.icon.url }}" style="width:52px;height:52px;border-radius:50%;object-fit:cover">
+  {% else %}<div style="width:52px;height:52px;border-radius:50%;background:rgba(124,58,237,0.2);display:flex;align-items:center;justify-content:center;font-weight:900;color:var(--vl);font-size:1.3rem">{{ guild.name[0] }}</div>{% endif %}
+  <div><h2 style="font-size:1.2rem;font-weight:800">{{ guild.name }}</h2><p style="font-size:.75rem;color:var(--muted)">Owner: {{ guild.owner_id }}</p></div>
+</div>
 
-    <!-- TABS -->
-    <div class="admin-tabs">
-      <div class="admin-tab active" onclick="switchTab('overview')">📊 Übersicht</div>
-      <div class="admin-tab" onclick="switchTab('security')">🛡️ Security</div>
-      <div class="admin-tab" onclick="switchTab('automod')">🤖 AutoMod</div>
-      <div class="admin-tab" onclick="switchTab('warns')">⚠️ Warns</div>
-      <div class="admin-tab" onclick="switchTab('cases')">📋 Cases</div>
-      <div class="admin-tab" onclick="switchTab('config')">⚙️ Config</div>
-    </div>
+<!-- Stats -->
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:24px">
+  <div class="db-stat"><div class="db-stat-val" style="color:var(--vl)">{{ guild.member_count }}</div><div class="db-stat-label">Mitglieder</div></div>
+  <div class="db-stat"><div class="db-stat-val" style="color:var(--cl)">{{ cases|length }}</div><div class="db-stat-label">Cases</div></div>
+  <div class="db-stat"><div class="db-stat-val" style="color:var(--green)">{{ config.get('security_level',0) }}</div><div class="db-stat-label">Security Level</div></div>
+  <div class="db-stat"><div class="db-stat-val" style="color:var(--amberl)">{{ active_modules }}/6</div><div class="db-stat-label">Module aktiv</div></div>
+</div>
 
-    <!-- OVERVIEW TAB -->
-    <div class="tab-content active" id="tab-overview">
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;margin-bottom:24px">
-        <div class="stat-card"><div class="stat-value" style="color:var(--vl)">{{ guild.member_count }}</div><div class="stat-label">Mitglieder</div></div>
-        <div class="stat-card"><div class="stat-value" style="color:var(--cl)">{{ cases|length }}</div><div class="stat-label">Cases</div></div>
-        <div class="stat-card"><div class="stat-value" style="color:var(--green)">{{ config.get('security_level',0) }}</div><div class="stat-label">Security Level</div></div>
-        <div class="stat-card"><div class="stat-value" style="color:var(--amberl)">{{ active_modules }}/6</div><div class="stat-label">Module aktiv</div></div>
-      </div>
-      <h3 style="font-size:1rem;font-weight:700;margin-bottom:12px">📋 Letzte Cases</h3>
-      {% if cases %}
-      {% for c in cases[:15] %}
-      <div class="cfg-row"><div><span style="color:var(--vl);font-weight:700;font-family:'Geist Mono',monospace">#{{ c.get('case_id','?') }}</span> <span class="badge {% if c.get('action')=='ban' %}badge-red{% elif c.get('action')=='warn' %}badge-amber{% else %}badge-cyan{% endif %}" style="margin-left:8px">{{ c.get('action','?') }}</span></div><span style="color:var(--muted);font-size:.78rem">{{ c.get('reason','—')[:50] }}</span></div>
-      {% endfor %}
-      {% else %}<p style="color:var(--muted)">Keine Cases.</p>{% endif %}
-    </div>
+<!-- Tabs -->
+<div style="display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid var(--border);overflow-x:auto">
+  <button class="btn-glass btn-sm tab-btn active" onclick="switchTab(event,'security')">🛡️ Security</button>
+  <button class="btn-glass btn-sm tab-btn" onclick="switchTab(event,'automod')">🤖 AutoMod</button>
+  <button class="btn-glass btn-sm tab-btn" onclick="switchTab(event,'cases')">📋 Cases</button>
+  <button class="btn-glass btn-sm tab-btn" onclick="switchTab(event,'config')">⚙️ Raw Config</button>
+</div>
 
-    <!-- SECURITY TAB -->
-    <div class="tab-content" id="tab-security">
-      {% for mod_key, mod_label, mod_icon in [('anti_spam','Anti-Spam','⚡'),('anti_nuke','Anti-Nuke','💥'),('anti_raid','Anti-Raid','🚨'),('anti_mention','Anti-Mention','🔔'),('anti_scam','Anti-Scam','🎣'),('automod','AutoMod','🤖')] %}
-      <div class="cfg-row"><div><span style="font-size:1.1rem;margin-right:6px">{{ mod_icon }}</span><span class="cfg-label">{{ mod_label }}</span><div class="cfg-desc">{{ 'Aktiv' if config.get(mod_key,{}).get('enabled') else 'Inaktiv' }} · Bestrafung: {{ config.get(mod_key,{}).get('punishment','—') }}</div></div>
-      <label class="toggle"><input type="checkbox" data-mod="{{ mod_key }}" {% if config.get(mod_key,{}).get('enabled') %}checked{% endif %} onchange="toggleMod('{{ mod_key }}',this.checked)"><span class="slider"></span></label></div>
-      {% endfor %}
-    </div>
+<!-- SECURITY TAB -->
+<div class="tab-pane active" id="tab-security">
+  {% for mod_key, mod_label, mod_icon in [('anti_spam','Anti-Spam','⚡'),('anti_nuke','Anti-Nuke','💥'),('anti_raid','Anti-Raid','🚨'),('anti_mention','Anti-Mention','🔔'),('anti_scam','Anti-Scam','🎣'),('automod','AutoMod','🤖')] %}
+  <div class="cfg-row">
+    <div style="display:flex;align-items:center;gap:8px"><span style="font-size:1.1rem">{{ mod_icon }}</span><span class="cfg-label">{{ mod_label }}</span></div>
+    <label class="toggle"><input type="checkbox" data-mod="{{ mod_key }}" {% if config.get(mod_key,{}).get('enabled') %}checked{% endif %} onchange="toggleMod('{{ mod_key }}',this.checked)"><span class="slider"></span></label>
+  </div>
+  {% endfor %}
+</div>
 
-    <!-- AUTOMOD TAB -->
-    <div class="tab-content" id="tab-automod">
-      <h3 style="font-size:1rem;font-weight:700;margin-bottom:12px">🚫 Verbotene Wörter ({{ config.get('automod',{}).get('bad_words',[])|length }})</h3>
-      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:20px">
-        {% for w in config.get('automod',{}).get('bad_words',[]) %}<span style="padding:4px 12px;border-radius:999px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);font-size:.75rem;color:var(--redl)">{{ w }}</span>{% endfor %}
-        {% if not config.get('automod',{}).get('bad_words') %}<span style="color:var(--muted);font-size:.82rem">Keine verbotenen Wörter konfiguriert.</span>{% endif %}
-      </div>
-      <h3 style="font-size:1rem;font-weight:700;margin-bottom:12px">📏 Regex-Regeln ({{ config.get('automod',{}).get('regex_rules',[])|length }})</h3>
-      {% for r in config.get('automod',{}).get('regex_rules',[]) %}<div class="cfg-row"><code style="color:var(--cl);font-size:.82rem">{{ r }}</code></div>{% endfor %}
-      <h3 style="font-size:1rem;font-weight:700;margin-top:16px;margin-bottom:12px">🔗 Filter</h3>
-      <div class="cfg-row"><span class="cfg-label">Invite-Filter</span><span style="color:{% if config.get('automod',{}).get('invite_filter') %}var(--green){% else %}var(--red){% endif %}">{{ '✅ An' if config.get('automod',{}).get('invite_filter') else '❌ Aus' }}</span></div>
-      <div class="cfg-row"><span class="cfg-label">Link-Filter</span><span style="color:{% if config.get('automod',{}).get('link_filter') %}var(--green){% else %}var(--red){% endif %}">{{ '✅ An' if config.get('automod',{}).get('link_filter') else '❌ Aus' }}</span></div>
-      <div class="cfg-row"><span class="cfg-label">Phishing-Check</span><span style="color:{% if config.get('automod',{}).get('phishing_check') %}var(--green){% else %}var(--red){% endif %}">{{ '✅ An' if config.get('automod',{}).get('phishing_check') else '❌ Aus' }}</span></div>
-    </div>
-
-    <!-- WARNS TAB -->
-    <div class="tab-content" id="tab-warns">
-      <h3 style="font-size:1rem;font-weight:700;margin-bottom:12px">🎯 Warn-Schwellen</h3>
-      {% for threshold, action in config.get('warn_system',{}).get('thresholds',{}).items() %}
-      <div class="cfg-row"><span class="cfg-label">Bei {{ threshold }} Warns</span><span class="badge {% if action=='ban' %}badge-red{% elif action=='kick' %}badge-purple{% else %}badge-amber{% endif %}">{{ action }}</span></div>
-      {% endfor %}
-      <h3 style="font-size:1rem;font-weight:700;margin-top:16px;margin-bottom:12px">⏳ Warn-Decay</h3>
-      <div class="cfg-row"><span class="cfg-label">Aktiv</span><span style="color:{% if config.get('warn_decay',{}).get('enabled') %}var(--green){% else %}var(--red){% endif %}">{{ '✅' if config.get('warn_decay',{}).get('enabled') else '❌' }} ({{ config.get('warn_decay',{}).get('decay_days',0) }} Tage)</span></div>
-    </div>
-
-    <!-- CASES TAB -->
-    <div class="tab-content" id="tab-cases">
-      <input type="text" id="caseSearch" placeholder="🔍 Suchen…" style="padding:10px 16px;border-radius:999px;background:var(--glass2);border:1px solid var(--border);color:var(--fg);font-size:.82rem;outline:none;width:100%;max-width:400px;margin-bottom:16px" oninput="filterCases()">
-      <table style="width:100%"><thead><tr><th>#</th><th>Aktion</th><th>User</th><th>Mod</th><th>Grund</th></tr></thead><tbody id="caseTable">
-      {% for c in cases %}
-      <tr class="case-row"><td style="color:var(--vl);font-weight:700">{{ c.get('case_id','?') }}</td><td><span class="badge {% if c.get('action')=='ban' %}badge-red{% elif c.get('action')=='warn' %}badge-amber{% else %}badge-cyan{% endif %}">{{ c.get('action','?') }}</span></td><td style="font-family:'Geist Mono',monospace;font-size:.75rem">{{ c.get('user_id','?') }}</td><td style="font-family:'Geist Mono',monospace;font-size:.75rem">{{ c.get('moderator_id','?') }}</td><td style="font-size:.8rem;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ c.get('reason','—') }}</td></tr>
-      {% endfor %}
-      </tbody></table>
-    </div>
-
-    <!-- CONFIG TAB (raw JSON) -->
-    <div class="tab-content" id="tab-config">
-      <h3 style="font-size:1rem;font-weight:700;margin-bottom:12px">📄 Raw Config (JSON)</h3>
-      <textarea id="rawConfig" style="width:100%;min-height:400px;padding:16px;border-radius:12px;background:rgba(255,255,255,0.03);border:1px solid var(--border);color:var(--cl);font-family:'Geist Mono',monospace;font-size:.78rem;outline:none;resize:vertical">{{ config_json }}</textarea>
-      <button class="btn-glass btn-glass-primary" style="margin-top:12px" onclick="saveRawConfig()">💾 Config speichern</button>
+<!-- AUTOMOD TAB -->
+<div class="tab-pane" id="tab-automod" style="display:none">
+  <div class="db-card" style="margin-bottom:16px">
+    <div class="db-card-header"><span class="db-card-title">🚫 Bad Words ({{ config.get('automod',{}).get('bad_words',[])|length }})</span></div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px">
+      {% for w in config.get('automod',{}).get('bad_words',[]) %}<span class="tag" style="background:rgba(239,68,68,0.08);border-color:rgba(239,68,68,0.2);color:var(--redl)">{{ w }}</span>{% endfor %}
+      {% if not config.get('automod',{}).get('bad_words') %}<span style="color:var(--muted);font-size:.82rem">Keine.</span>{% endif %}
     </div>
   </div>
+  <div class="db-card">
+    <div class="db-card-header"><span class="db-card-title">🔗 Filter</span></div>
+    <div class="cfg-row"><span class="cfg-label">Invite-Filter</span><span style="color:{% if config.get('automod',{}).get('invite_filter') %}var(--green){% else %}var(--red){% endif %}">{{ '✅' if config.get('automod',{}).get('invite_filter') else '❌' }}</span></div>
+    <div class="cfg-row"><span class="cfg-label">Link-Filter</span><span style="color:{% if config.get('automod',{}).get('link_filter') %}var(--green){% else %}var(--red){% endif %}">{{ '✅' if config.get('automod',{}).get('link_filter') else '❌' }}</span></div>
+    <div class="cfg-row"><span class="cfg-label">Phishing-Check</span><span style="color:{% if config.get('automod',{}).get('phishing_check') %}var(--green){% else %}var(--red){% endif %}">{{ '✅' if config.get('automod',{}).get('phishing_check') else '❌' }}</span></div>
+  </div>
+</div>
 
-  <script>
-  function switchTab(name){
-    document.querySelectorAll('.admin-tab').forEach(t=>t.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
-    event.target.classList.add('active');
-    document.getElementById('tab-'+name).classList.add('active');
-  }
-  function filterCases(){
-    const q=document.getElementById('caseSearch').value.toLowerCase();
-    document.querySelectorAll('.case-row').forEach(r=>{r.style.display=r.textContent.toLowerCase().includes(q)?'':'none'});
-  }
-  async function toggleMod(mod,enabled){
-    const d={};d[mod]={enabled};
-    await fetch('/api/guild/{{ guild.id }}/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});
-  }
-  async function saveRawConfig(){
-    try{
-      const cfg=JSON.parse(document.getElementById('rawConfig').value);
-      const r=await fetch('/api/guild/{{ guild.id }}/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({_raw:cfg})});
-      if(r.ok)alert('✅ Gespeichert');else alert('❌ Fehler');
-    }catch(e){alert('❌ Ungültiges JSON: '+e.message)}
-  }
-  </script>
-</body>
-</html>
+<!-- CASES TAB -->
+<div class="tab-pane" id="tab-cases" style="display:none">
+  <input type="text" class="cfg-input" placeholder="🔍 Cases suchen…" style="max-width:300px;width:100%;margin-bottom:12px" oninput="filterCases(this.value)">
+  {% if cases %}
+  <div style="overflow-x:auto">
+  <table style="width:100%"><thead><tr><th>#</th><th>Aktion</th><th>User</th><th>Mod</th><th>Grund</th></tr></thead><tbody id="caseTable">
+    {% for c in cases %}
+    <tr class="case-tr"><td style="color:var(--vl);font-weight:700">{{ c.get('case_id','?') }}</td><td><span class="badge {% if c.get('action')=='ban' %}badge-red{% elif c.get('action')=='warn' %}badge-amber{% else %}badge-cyan{% endif %}">{{ c.get('action','?') }}</span></td><td style="font-family:'Geist Mono',monospace;font-size:.72rem">{{ c.get('user_id','?') }}</td><td style="font-family:'Geist Mono',monospace;font-size:.72rem">{{ c.get('moderator_id','?') }}</td><td style="font-size:.78rem;max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ c.get('reason','—') }}</td></tr>
+    {% endfor %}
+  </tbody></table>
+  </div>
+  {% else %}<p style="color:var(--muted);text-align:center;padding:20px">Keine Cases.</p>{% endif %}
+</div>
+
+<!-- CONFIG TAB -->
+<div class="tab-pane" id="tab-config" style="display:none">
+  <textarea id="rawCfg" style="width:100%;min-height:400px;padding:16px;border-radius:14px;background:rgba(255,255,255,0.03);border:1px solid var(--border);color:var(--cl);font-family:'Geist Mono',monospace;font-size:.75rem;outline:none;resize:vertical">{{ config_json }}</textarea>
+  <button class="btn-glass btn-glass-primary" style="margin-top:12px" onclick="saveRawCfg()">💾 Config speichern</button>
+</div>
+
+<script>
+function switchTab(e,name){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tab-pane').forEach(p=>p.style.display='none');
+  e.target.classList.add('active');
+  document.getElementById('tab-'+name).style.display='';
+}
+function filterCases(q){
+  q=q.toLowerCase();
+  document.querySelectorAll('.case-tr').forEach(r=>{r.style.display=r.textContent.toLowerCase().includes(q)?'':'none'});
+}
+async function toggleMod(mod,on){
+  const d={};d[mod]={enabled:on};
+  await fetch('/api/guild/{{ guild.id }}/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});
+}
+async function saveRawCfg(){
+  try{
+    const cfg=JSON.parse(document.getElementById('rawCfg').value);
+    const r=await fetch('/api/guild/{{ guild.id }}/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({_raw:cfg})});
+    if(r.ok)alert('✅ Gespeichert');else alert('❌ Fehler');
+  }catch(e){alert('❌ JSON-Fehler: '+e.message)}
+}
+</script>
+{% endblock %}

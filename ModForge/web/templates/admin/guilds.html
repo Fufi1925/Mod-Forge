@@ -1,61 +1,48 @@
-<!doctype html>
-<html lang="de">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Admin Guilds – ModForge</title>
-  <link rel="stylesheet" href="/static/style.css">
-  <style>
-    .admin-nav { position:fixed;top:0;left:0;right:0;z-index:9999;height:60px;background:rgba(6,6,16,0.95);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 24px;gap:20px }
-    .admin-nav a { color:var(--muted);font-size:.82rem;font-weight:600;transition:color var(--r) }
-    .admin-nav a:hover,.admin-nav a.active { color:var(--fg) }
-    .admin-body { padding-top:80px;max-width:1200px;margin:0 auto;padding-left:24px;padding-right:24px;padding-bottom:60px }
-  </style>
-</head>
-<body class="page-bg">
-  <nav class="admin-nav">
-    <span style="font-weight:800;font-size:1rem;color:var(--vl);margin-right:auto">🔐 Admin</span>
-    <a href="/admin/dashboard">Dashboard</a>
-    <a href="/admin/guilds" class="active">Guilds</a>
-    <a href="/admin/stats">Stats</a>
-    <a href="/admin/logout" style="color:var(--redl)">Logout</a>
-  </nav>
+{% extends "admin/_base.html" %}
+{% set active = 'guilds' %}
+{% block title %}Server{% endblock %}
+{% block page_title %}🏠 Server-Verwaltung{% endblock %}
+{% block page_desc %}{{ guilds|length }} verbundene Server{% endblock %}
+{% block content %}
+<div style="margin-bottom:20px">
+  <input type="text" id="guildSearch" class="cfg-input" placeholder="🔍 Server suchen…" style="max-width:400px;width:100%" oninput="filterGuilds()">
+</div>
 
-  <div class="admin-body">
-    <h1 style="font-size:1.6rem;font-weight:800;margin-bottom:8px">Guild-Verwaltung</h1>
-    <p style="color:var(--muted);font-size:.88rem;margin-bottom:24px">{{ guilds|length }} verbundene Server</p>
-
-    <div style="margin-bottom:20px">
-      <input type="text" id="guild-search" placeholder="🔍 Server suchen…"
-        style="width:100%;max-width:400px;padding:10px 16px;border-radius:999px;background:var(--glass2);border:1px solid var(--border);color:var(--fg);font-size:.85rem;outline:none"
-        onfocus="this.style.borderColor='var(--vl)'" onblur="this.style.borderColor='var(--border)'">
+<div id="guildList" style="display:flex;flex-direction:column;gap:10px">
+  {% for g in guilds %}
+  <a href="/admin/guilds/{{ g.id }}" class="cfg-row guild-item" style="text-decoration:none;cursor:pointer">
+    <div style="display:flex;align-items:center;gap:12px;flex:1;min-width:0">
+      {% if g.icon %}
+      <img src="{{ g.icon }}" style="width:40px;height:40px;border-radius:50%;object-fit:cover" alt="">
+      {% else %}
+      <div style="width:40px;height:40px;border-radius:50%;background:rgba(124,58,237,0.2);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--vl);font-size:.85rem;flex-shrink:0">{{ g.name[0] }}</div>
+      {% endif %}
+      <div style="min-width:0">
+        <div class="cfg-label" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ g.name }}</div>
+        <div class="cfg-desc">ID: {{ g.id }} · Owner: {{ g.owner_id }}</div>
+      </div>
     </div>
-
-    <div id="guild-list" style="display:flex;flex-direction:column;gap:10px">
-      {% for g in guilds %}
-      <a href="/admin/guilds/{{ g.id }}" class="guild-row" style="padding:16px 20px;border-radius:var(--radius);background:var(--glass2);border:1px solid var(--border);display:flex;align-items:center;gap:14px;text-decoration:none;transition:all var(--r)" onmouseenter="this.style.borderColor='var(--bdrv)'" onmouseleave="this.style.borderColor='var(--border)'">
-        {% if g.icon %}
-        <img src="{{ g.icon }}" style="width:40px;height:40px;border-radius:50%;object-fit:cover" alt="{{ g.name }}">
-        {% else %}
-        <div style="width:40px;height:40px;border-radius:50%;background:rgba(124,58,237,0.2);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--vl);font-size:.9rem">{{ g.name[0] }}</div>
-        {% endif %}
-        <div style="flex:1;min-width:0">
-          <div style="font-weight:700;font-size:.92rem;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ g.name }}</div>
-          <div style="font-size:.75rem;color:var(--muted)">ID: {{ g.id }} · Owner: {{ g.owner_id }}</div>
-        </div>
-        <div style="font-size:.82rem;color:var(--muted);font-weight:600;flex-shrink:0">{{ g.members }} Members</div>
-      </a>
-      {% endfor %}
+    <div style="display:flex;align-items:center;gap:12px;flex-shrink:0">
+      <span style="font-size:.82rem;color:var(--muted);font-weight:600;font-family:'Geist Mono',monospace">{{ g.members }}</span>
+      <span style="font-size:.7rem;color:var(--muted)">Members</span>
     </div>
-  </div>
+  </a>
+  {% endfor %}
+</div>
 
-  <script>
-    document.getElementById('guild-search').addEventListener('input', function() {
-      const q = this.value.toLowerCase();
-      document.querySelectorAll('.guild-row').forEach(el => {
-        el.style.display = el.textContent.toLowerCase().includes(q) ? '' : 'none';
-      });
-    });
-  </script>
-</body>
-</html>
+{% if not guilds %}
+<div class="db-card" style="text-align:center;padding:40px">
+  <div style="font-size:2.5rem;margin-bottom:12px">🤖</div>
+  <p style="color:var(--muted)">Bot ist auf keinem Server oder noch nicht verbunden.</p>
+</div>
+{% endif %}
+
+<script>
+function filterGuilds(){
+  const q=document.getElementById('guildSearch').value.toLowerCase();
+  document.querySelectorAll('.guild-item').forEach(el=>{
+    el.style.display=el.textContent.toLowerCase().includes(q)?'':'none';
+  });
+}
+</script>
+{% endblock %}

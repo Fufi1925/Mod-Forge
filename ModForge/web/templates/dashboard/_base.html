@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="de">
+<html lang="de" data-theme="purple">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -139,6 +139,15 @@
       <a href="/dashboard/{{ guild.id }}/embed" {% if active=='embed' %}class="active"{% endif %}><span class="nav-icon">🎨</span><span>Embed Builder</span></a>
       <a href="/dashboard/{{ guild.id }}/settings" {% if active=='settings' %}class="active"{% endif %}><span class="nav-icon">⚙️</span><span>Einstellungen</span></a>
     </nav>
+    <div style="padding:8px 16px;border-top:1px solid var(--border)">
+      <div class="db-nav-label" style="padding:0;margin:0 0 6px">Theme</div>
+      <div class="theme-switcher" style="padding:0">
+        <div class="theme-dot active" data-t="purple" onclick="setTheme('purple')"></div>
+        <div class="theme-dot" data-t="blue" onclick="setTheme('blue')"></div>
+        <div class="theme-dot" data-t="green" onclick="setTheme('green')"></div>
+        <div class="theme-dot" data-t="amoled" onclick="setTheme('amoled')"></div>
+      </div>
+    </div>
     <div class="db-user">
       <img src="{{ user.avatar_url }}" alt="">
       <div class="db-user-info"><div class="db-user-name">{{ user.username }}</div><div class="db-user-tag"><a href="/logout" style="color:var(--redl)">Logout</a></div></div>
@@ -163,6 +172,14 @@
     function showSaveBar(){document.getElementById('saveBar').classList.add('visible')}
     document.querySelectorAll('.cfg-input,.cfg-select').forEach(el=>{el.addEventListener('change',showSaveBar);el.addEventListener('input',showSaveBar)});
     document.querySelectorAll('.toggle input').forEach(el=>el.addEventListener('change',showSaveBar));
+  </script>
+  <script>
+  function setTheme(t){
+    document.documentElement.setAttribute('data-theme',t);
+    localStorage.setItem('mf-theme',t);
+    document.querySelectorAll('.theme-dot').forEach(d=>{d.classList.toggle('active',d.dataset.t===t)});
+  }
+  (function(){const t=localStorage.getItem('mf-theme');if(t)setTheme(t)})();
   </script>
   {% block scripts %}{% endblock %}
 </body>

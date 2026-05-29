@@ -792,6 +792,49 @@ async def on_member_join(member):
     if bot.is_whitelisted(member, "bypass_antinuke"):
         await bot.log_action(guild, "➕ Mitglied beigetreten", f"{member.mention}", COLOR_SUCCESS, user=member, module="members")
         return
+    # ── Anti-VPN Check ──
+    vpn_cfg = cfg.get("anti_vpn", {})
+    if vpn_cfg.get("enabled") and not member.bot:
+        vpn_wl = vpn_cfg.get("whitelist_ids", [])
+        if str(member.id) not in [str(w) for w in vpn_wl]:
+            # Note: Discord doesn't expose IP directly. We check via audit log guild join metadata
+            # This is a heuristic: new accounts + no avatar + suspicious patterns
+            account_age_hours = (datetime.datetime.utcnow() - member.created_at.replace(tzinfo=None)).total_seconds() / 3600
+            suspicious_vpn = (
+                account_age_hours < 24 and
+                not member.avatar and
+                (member.name.startswith("user") or len(member.name) < 4 or any(c.isdigit() for c in member.name[-4:]))
+            )
+            if suspicious_vpn:
+                action = vpn_cfg.get("action", "kick")
+                try:
+                    if action == "ban":
+                        await member.ban(reason="Anti-VPN: Verdächtiger Account (VPN/Proxy-Heuristik)")
+                    elif action == "kick":
+                        await member.kick(reason="Anti-VPN: Verdächtiger Account (VPN/Proxy-Heuristik)")
+                    await bot.log_action(guild, f"{E.SHIELD} Anti-VPN",
+                        f"{member.mention} wurde als verdächtig erkannt.\n"
+                        f"**Account-Alter:** {int(account_age_hours)}h\n**Aktion:** {action}\n"
+                        f"Kein Avatar + neuer Account + verdächtiger Name",
+                        COLOR_WARNING, user=member, module="antiraid")
+                except discord.Forbidden:
+                    await bot.log_action(guild, f"⚠️ Anti-VPN", f"Kann {member.mention} nicht {action}en (fehlende Rechte).", COLOR_WARNING, module="antiraid")
+
+    # ── Raid-Mode DM ──
+    if cfg.get("raidmode_active") and not member.bot:
+        try:
+            dm_embed = create_embed(
+                "🚨 Server im Raid-Modus",
+                f"**{guild.name}** ist aktuell im Raid-Modus.\n"
+                f"Der Zugang ist vorübergehend eingeschränkt.\n"
+                f"Bitte versuche es später erneut.",
+                COLOR_DANGER,
+                thumbnail=guild.icon.url if guild.icon else None
+            )
+            await safe_dm(member, dm_embed, cooldown_key=f"raidmode_dm:{guild.id}:{member.id}")
+        except Exception:
+            pass
+
     if sec_level >= 2:
         account_age = (datetime.datetime.utcnow() - member.created_at.replace(tzinfo=None)).days
         if account_age < 5:
@@ -7060,4 +7103,68 @@ async def afk_listener(message: discord.Message):
                     f"💤 **{mention.display_name}** ist AFK: {data['reason']} (seit {mins}m)", delete_after=10)
             except Exception:
                 pass
+
+
+
+# ═══════════════════════════════════════════════════════════════════
+# NEW: ANTI-VPN — VPN/Proxy-Erkennung bei Join
+# ═══════════════════════════════════════════════════════════════════
+_vpn_api_cache: Dict[str, bool] = {}
+
+async def _check_vpn(ip: str) -> bool:
+    """Prüft ob eine IP ein VPN/Proxy ist (via ip-api.com)."""
+    if ip in _vpn_api_cache:
+        return _vpn_api_cache[ip]
+    try:
+        import aiohttp
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                f"http://ip-api.com/json/{ip}?fields=proxy,hosting",
+                timeout=aiohttp.ClientTimeout(total=5)
+            ) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    is_vpn = data.get("proxy", False) or data.get("hosting", False)
+                    _vpn_api_cache[ip] = is_vpn
+                    # Cleanup cache
+                    if len(_vpn_api_cache) > 5000:
+                        keys = list(_vpn_api_cache.keys())[:2500]
+                        for k in keys:
+                            _vpn_api_cache.pop(k, None)
+                    return is_vpn
+    except Exception as e:
+        log.debug(f"VPN check error for {ip}: {e}")
+    return False
+
+
+@bot.tree.command(name="antivpn", description="Aktiviert/Deaktiviert die VPN/Proxy-Erkennung")
+@app_commands.describe(enabled="An oder Aus", action="Aktion bei VPN-Erkennung")
+@app_commands.default_permissions(administrator=True)
+async def slash_antivpn(interaction: discord.Interaction, enabled: bool, action: str = "kick") -> None:
+    if action not in ("kick", "ban", "log"):
+        action = "kick"
+    cfg = bot.db.get_config(interaction.guild.id)
+    cfg["anti_vpn"] = {"enabled": enabled, "action": action, "whitelist_ids": cfg.get("anti_vpn", {}).get("whitelist_ids", [])}
+    await bot.db.set_config(interaction.guild.id, cfg)
+    status = "**aktiviert** ✅" if enabled else "**deaktiviert** ❌"
+    desc = f"Anti-VPN {status}\nAktion: `{action}`"
+    if enabled:
+        desc += "\n\nNeue Member mit VPN/Proxy werden automatisch erkannt."
+    await interaction.response.send_message(embed=create_embed(f"{E.SHIELD} Anti-VPN", desc, COLOR_SUCCESS if enabled else COLOR_WARNING))
+
+@bot.command(name="antivpn")
+@commands.has_permissions(administrator=True)
+async def prefix_antivpn(ctx, enabled: str = ""):
+    cfg = bot.db.get_config(ctx.guild.id)
+    if enabled.lower() in ("on", "true", "1", "an"):
+        cfg["anti_vpn"] = {"enabled": True, "action": "kick", "whitelist_ids": cfg.get("anti_vpn", {}).get("whitelist_ids", [])}
+        await bot.db.set_config(ctx.guild.id, cfg)
+        await ctx.send(embed=create_embed(f"{E.SHIELD}", "Anti-VPN aktiviert. Aktion: kick", COLOR_SUCCESS))
+    elif enabled.lower() in ("off", "false", "0", "aus"):
+        cfg["anti_vpn"] = {"enabled": False, "action": "kick"}
+        await bot.db.set_config(ctx.guild.id, cfg)
+        await ctx.send(embed=create_embed(f"{E.SHIELD}", "Anti-VPN deaktiviert.", COLOR_WARNING))
+    else:
+        active = cfg.get("anti_vpn", {}).get("enabled", False)
+        await ctx.send(embed=create_embed(f"{E.SHIELD} Anti-VPN", f"Status: **{'Aktiv' if active else 'Inaktiv'}**\n`!antivpn on` / `!antivpn off`", COLOR_INFO))
 

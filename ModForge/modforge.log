@@ -30,3 +30,6 @@
 2026-05-29 12:54:40,087 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
 2026-05-29 12:54:40,087 [WARNING] discord.client: davey is not installed, voice will NOT be supported
 2026-05-29 12:54:40,275 [INFO] ModForge.Auth: OAuth2 login redirect → https://discord.com/oauth2/authorize?client_id=1491447622442160248&redirect_uri=http%3A%2F%2Fmod-forge.up.railway.app%2F...
+2026-05-29 19:53:38,128 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-05-29 19:53:38,128 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-05-29 19:53:38,338 [INFO] ModForge.Auth: OAuth2 login redirect → https://discord.com/oauth2/authorize?client_id=1491447622442160248&redirect_uri=http%3A%2F%2Fmod-forge.up.railway.app%2F...

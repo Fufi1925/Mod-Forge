@@ -1,19 +1,49 @@
-<!doctype html>
-<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>System Logs – Admin – ModForge</title><link rel="stylesheet" href="/static/style.css">
-<style>.admin-nav{position:fixed;top:0;left:0;right:0;z-index:9999;height:60px;background:rgba(6,6,16,0.95);backdrop-filter:blur(24px);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 24px;gap:20px}.admin-nav a{color:var(--muted);font-size:.82rem;font-weight:600}.admin-nav a:hover,.admin-nav a.active{color:var(--fg)}.admin-body{padding-top:80px;max-width:1200px;margin:0 auto;padding:80px 24px 60px}</style></head>
-<body class="page-bg">
-<nav class="admin-nav"><span style="font-weight:800;font-size:1rem;color:var(--vl);margin-right:auto">🔐 Admin</span><a href="/admin/dashboard">Dashboard</a><a href="/admin/guilds">Guilds</a><a href="/admin/stats">Stats</a><a href="/admin/logs" class="active">Logs</a><a href="/admin/logout" style="color:var(--redl)">Logout</a></nav>
-<div class="admin-body">
-  <h1 style="font-size:1.4rem;font-weight:800;margin-bottom:20px">📄 System-Logs</h1>
-  <div style="display:flex;gap:10px;margin-bottom:16px"><input type="text" id="logSearch" class="cfg-input" placeholder="🔍 Filtern…" style="max-width:300px"><select class="cfg-select" id="logLevel"><option value="">Alle Level</option><option>ERROR</option><option>WARNING</option><option>INFO</option></select></div>
-  <div style="background:var(--glass2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;max-height:600px;overflow-y:auto;font-family:'Geist Mono',monospace;font-size:.75rem;line-height:1.8">
+{% extends "admin/_base.html" %}
+{% set active = 'logs' %}
+{% block title %}System-Logs{% endblock %}
+{% block page_title %}📄 System-Logs{% endblock %}
+{% block page_desc %}Bot-Logs durchsuchen und filtern{% endblock %}
+{% block content %}
+<div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+  <input type="text" id="logSearch" class="cfg-input" placeholder="🔍 Filtern…" style="max-width:300px;width:100%" oninput="filterLogs()">
+  <select class="cfg-select" id="logLevel" onchange="filterLogs()">
+    <option value="">Alle Level</option>
+    <option value="ERROR">ERROR</option>
+    <option value="WARNING">WARNING</option>
+    <option value="INFO">INFO</option>
+  </select>
+</div>
+
+<div class="db-card" style="padding:0;overflow:hidden">
+  <div style="padding:14px 20px;border-bottom:1px solid var(--border);background:rgba(255,255,255,0.02)">
+    <span class="db-card-title">📜 Log-Einträge ({{ log_entries|length }})</span>
+  </div>
+  <div style="max-height:600px;overflow-y:auto;font-family:'Geist Mono',monospace;font-size:.75rem;line-height:2">
     {% for entry in log_entries %}
-    <div class="log-line" data-level="{{ entry.level }}" style="color:{% if entry.level=='ERROR' %}var(--red){% elif entry.level=='WARNING' %}var(--amberl){% else %}var(--muted){% endif %}">{{ entry.timestamp }} [{{ entry.level }}] {{ entry.message }}</div>
+    <div class="log-line" data-level="{{ entry.level }}"
+         style="padding:4px 20px;border-bottom:1px solid rgba(255,255,255,0.02);
+                color:{% if entry.level=='ERROR' %}var(--red){% elif entry.level=='WARNING' %}var(--amberl){% else %}var(--muted){% endif %}">
+      <span style="color:var(--muted);opacity:.6">{{ entry.timestamp }}</span>
+      <span style="padding:1px 6px;border-radius:4px;font-size:.6rem;font-weight:700;
+                   background:{% if entry.level=='ERROR' %}rgba(239,68,68,0.15){% elif entry.level=='WARNING' %}rgba(245,158,11,0.15){% else %}rgba(56,189,248,0.1){% endif %}">{{ entry.level }}</span>
+      {{ entry.message }}
+    </div>
     {% endfor %}
-    {% if not log_entries %}<div style="color:var(--muted)">Keine Logs verfügbar.</div>{% endif %}
+    {% if not log_entries %}
+    <div style="padding:40px;text-align:center;color:var(--muted)">Keine Logs verfügbar.</div>
+    {% endif %}
   </div>
 </div>
+
 <script>
-document.getElementById('logSearch').addEventListener('input',function(){const q=this.value.toLowerCase();document.querySelectorAll('.log-line').forEach(l=>{l.style.display=l.textContent.toLowerCase().includes(q)?'':'none'})});
-document.getElementById('logLevel').addEventListener('change',function(){const v=this.value;document.querySelectorAll('.log-line').forEach(l=>{l.style.display=!v||l.dataset.level===v?'':'none'})});
-</script></body></html>
+function filterLogs(){
+  const q=document.getElementById('logSearch').value.toLowerCase();
+  const lvl=document.getElementById('logLevel').value;
+  document.querySelectorAll('.log-line').forEach(l=>{
+    const matchQ=!q||l.textContent.toLowerCase().includes(q);
+    const matchL=!lvl||l.dataset.level===lvl;
+    l.style.display=matchQ&&matchL?'':'none';
+  });
+}
+</script>
+{% endblock %}
