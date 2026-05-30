@@ -261,6 +261,7 @@ DEFAULT_CONFIG = {
     "dashboard_theme": "purple",
     "auto_slowmode": {"enabled": False, "channels": []},
     "server_tag": {"enabled": False, "tag": None, "reward_role": None},
+    "auto_nickname": {"enabled": False, "rules": []},
     "webhook_logging": {"enabled": False, "webhooks": {}},
     "public_page": {"enabled": False, "invite_url": None},
     "birthday": {"enabled": False, "channel_id": None, "role_id": None}

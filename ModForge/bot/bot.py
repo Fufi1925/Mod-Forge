@@ -7192,3 +7192,110 @@ async def servertag_check(before: discord.Member, after: discord.Member):
 # Auch bei Nickname-Änderung prüfen (on_member_update feuert dafür)
 # Und bei Boost-Status-Änderung (premium_since ändert sich)
 
+
+
+# ═══════════════════════════════════════════════════════════════════
+# AUTO-NICKNAME SYSTEM
+# ═══════════════════════════════════════════════════════════════════
+@bot.listen("on_member_update")
+async def auto_nickname_check(before: discord.Member, after: discord.Member):
+    """Wenn sich Rollen ändern → prüfe Auto-Nickname Regeln."""
+    if after.bot or after.id == after.guild.owner_id:
+        return
+    if before.roles == after.roles:
+        return  # Keine Rollenänderung
+    try:
+        cfg = bot.db.get_config(after.guild.id)
+        an = cfg.get("auto_nickname", {})
+        if not an.get("enabled") or not an.get("rules"):
+            return
+
+        rules = an["rules"]
+        # Sortiere Regeln nach Priorität (niedrigere Zahl = höhere Priorität)
+        sorted_rules = sorted(rules, key=lambda r: r.get("priority", 99))
+
+        # Finde die erste passende Regel
+        base_name = after.name  # Globaler Discord-Name (nicht Nick)
+        new_nick = None
+
+        for rule in sorted_rules:
+            role_id = rule.get("role_id")
+            if not role_id:
+                continue
+            role = after.guild.get_role(int(role_id))
+            if not role or role not in after.roles:
+                continue
+
+            # Regel gefunden — Nick bauen
+            prefix = rule.get("prefix", "")
+            suffix = rule.get("suffix", "")
+            new_nick = f"{prefix}{base_name}{suffix}"
+            break  # Erste passende Regel gewinnt
+
+        if new_nick is None:
+            # Keine Regel passt → Nick zurücksetzen wenn er von einer alten Regel stammt
+            for rule in rules:
+                p = rule.get("prefix", "")
+                s = rule.get("suffix", "")
+                if after.nick and ((p and after.nick.startswith(p)) or (s and after.nick.endswith(s))):
+                    # Alte Regel-Nick entfernen
+                    try:
+                        await after.edit(nick=None, reason="Auto-Nickname: Rolle entfernt")
+                        await bot.log_action(after.guild, "📝 Auto-Nick entfernt",
+                            f"{after.mention} — Nickname zurückgesetzt (Rolle nicht mehr vorhanden)",
+                            0x94a3b8, user=after, module="nicknames")
+                    except (discord.Forbidden, discord.HTTPException):
+                        pass
+                    return
+            return
+
+        # Nick setzen wenn anders als aktuell
+        new_nick = new_nick[:32]  # Discord max 32 chars
+        if after.nick != new_nick:
+            try:
+                await after.edit(nick=new_nick, reason=f"Auto-Nickname: Rolle erkannt")
+                await bot.log_action(after.guild, "📝 Auto-Nickname gesetzt",
+                    f"{after.mention} → **{new_nick}**",
+                    0x7c3aed, user=after, module="nicknames")
+            except (discord.Forbidden, discord.HTTPException):
+                pass
+    except Exception as e:
+        log.debug(f"Auto-nickname error: {e}")
+
+
+# Auch bei Join: Nickname setzen wenn Auto-Role eine Regel hat
+@bot.listen("on_member_join")
+async def auto_nickname_on_join(member: discord.Member):
+    if member.bot:
+        return
+    try:
+        cfg = bot.db.get_config(member.guild.id)
+        an = cfg.get("auto_nickname", {})
+        if not an.get("enabled") or not an.get("rules"):
+            return
+        # Kurz warten bis Auto-Roles vergeben wurden
+        await asyncio.sleep(3)
+        # Member neu laden
+        member = member.guild.get_member(member.id)
+        if not member:
+            return
+        rules = sorted(an["rules"], key=lambda r: r.get("priority", 99))
+        for rule in rules:
+            role_id = rule.get("role_id")
+            if not role_id:
+                continue
+            role = member.guild.get_role(int(role_id))
+            if not role or role not in member.roles:
+                continue
+            prefix = rule.get("prefix", "")
+            suffix = rule.get("suffix", "")
+            new_nick = f"{prefix}{member.name}{suffix}"[:32]
+            if member.nick != new_nick:
+                try:
+                    await member.edit(nick=new_nick, reason="Auto-Nickname bei Join")
+                except (discord.Forbidden, discord.HTTPException):
+                    pass
+            break
+    except Exception:
+        pass
+
