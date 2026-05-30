@@ -123,7 +123,7 @@
 <script>
 {% raw %}
 const GID = "{{ guild.id }}";
-let dirty = false;
+// uses global _dirty from _base.html
 
 function toast(msg, ok) {
   const t = document.getElementById('toast');
@@ -133,7 +133,7 @@ function toast(msg, ok) {
 }
 
 function markDirty() {
-  dirty = true;
+  _dirty = true;
   document.getElementById('saveBar').classList.add('visible');
 }
 
@@ -185,9 +185,7 @@ async function saveAll() {
     });
     const d = await r.json();
     if (d.ok || r.status === 200) {
-      toast('💾 Gespeichert! Änderungen sind sofort aktiv.', true);
-      dirty = false;
-      document.getElementById('saveBar').classList.remove('visible');
+      markSaved();
       // Update stats
       const configured = Object.keys(channels).length;
       document.querySelectorAll('.log-stat-v')[1].textContent = configured;
@@ -204,7 +202,7 @@ window.saveConfig = saveAll;
 
 // Warn before leaving with unsaved changes
 window.addEventListener('beforeunload', function(e) {
-  if (dirty) { e.preventDefault(); e.returnValue = ''; }
+  if (_dirty) { e.preventDefault(); e.returnValue = ''; }
 });
 {% endraw %}
 </script>

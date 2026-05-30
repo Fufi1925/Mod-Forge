@@ -170,14 +170,72 @@
   </main>
 
   <div class="save-bar" id="saveBar">
-    <span style="color:var(--amberl);font-size:.78rem">⚠️ Ungespeicherte Änderungen</span>
-    <button class="btn-glass btn-glass-ghost btn-sm" onclick="location.reload()">Verwerfen</button>
+    <div style="display:flex;align-items:center;gap:8px;flex:1">
+      <div style="width:8px;height:8px;border-radius:50%;background:var(--amberl);animation:pulse 1.5s ease infinite"></div>
+      <span style="color:var(--amberl);font-size:.78rem;font-weight:600">Ungespeicherte Änderungen</span>
+    </div>
+    <button class="btn-glass btn-glass-ghost btn-sm" onclick="discardChanges()">Verwerfen</button>
     <button class="btn-glass btn-glass-primary btn-sm" onclick="saveConfig()">💾 Speichern</button>
   </div>
+
+  <!-- Save Toast -->
+  <div id="globalToast" style="position:fixed;bottom:20px;right:20px;padding:12px 20px;border-radius:12px;z-index:99999;font-size:.82rem;font-weight:600;display:none"></div>
+
   <script>
-    function showSaveBar(){document.getElementById('saveBar').classList.add('visible')}
-    document.querySelectorAll('.cfg-input,.cfg-select').forEach(el=>{el.addEventListener('change',showSaveBar);el.addEventListener('input',showSaveBar)});
-    document.querySelectorAll('.toggle input').forEach(el=>el.addEventListener('change',showSaveBar));
+    let _dirty = false;
+
+    function showSaveBar() {
+      _dirty = true;
+      document.getElementById('saveBar').classList.add('visible');
+    }
+
+    function discardChanges() {
+      _dirty = false;
+      document.getElementById('saveBar').classList.remove('visible');
+      location.reload();
+    }
+
+    function showToast(msg, ok) {
+      const t = document.getElementById('globalToast');
+      t.style.display = 'block';
+      t.style.background = ok ? 'rgba(74,222,128,0.15)' : 'rgba(239,68,68,0.12)';
+      t.style.border = ok ? '1px solid rgba(74,222,128,0.3)' : '1px solid rgba(239,68,68,0.25)';
+      t.style.color = ok ? 'var(--green)' : 'var(--red)';
+      t.textContent = msg;
+      t.style.animation = 'fadeUp .2s ease';
+      setTimeout(() => { t.style.display = 'none'; }, 3000);
+    }
+
+    function markSaved() {
+      _dirty = false;
+      document.getElementById('saveBar').classList.remove('visible');
+      showToast('💾 Gespeichert!', true);
+    }
+
+    // Track changes
+    document.querySelectorAll('.cfg-input,.cfg-select').forEach(el => {
+      el.addEventListener('change', showSaveBar);
+      el.addEventListener('input', showSaveBar);
+    });
+    document.querySelectorAll('.toggle input').forEach(el => el.addEventListener('change', showSaveBar));
+
+    // Block navigation with unsaved changes
+    window.addEventListener('beforeunload', function(e) {
+      if (_dirty) { e.preventDefault(); e.returnValue = ''; }
+    });
+
+    // Block sidebar navigation
+    document.querySelectorAll('.db-nav a').forEach(link => {
+      link.addEventListener('click', function(e) {
+        if (_dirty) {
+          if (!confirm('Du hast ungespeicherte Änderungen. Trotzdem verlassen?')) {
+            e.preventDefault();
+          } else {
+            _dirty = false;
+          }
+        }
+      });
+    });
   </script>
   <script>
   function setTheme(t){

@@ -1018,52 +1018,20 @@ def guild_dashboard(guild_id):
 @flask_app.route("/dashboard/<guild_id>/modules")
 @require_auth
 def guild_modules(guild_id):
-    user_session = get_session()
-    if not user_session:
-        return redirect(url_for("discord_login_page"))
-
-    if not _user_can_manage_guild_in_session(user_session, guild_id):
-        abort(403)
-
-    g = get_guild(guild_id)
-    if not g:
-        abort(404)
-
-    cfg = _get_guild_config(guild_id)
+    us, g, cfg, err = _dash_guard(guild_id)
+    if err: return err
     section = request.args.get("section", "antispam")
     form = _build_module_form(section, cfg, guild_id)
-
-    return render_template(
-        "dashboard/modules.html",
-        guild=g,
-        form=form,
-        user=user_session["user"],
-    )
+    return render_template("dashboard/modules.html", guild=g, cfg=cfg, form=form, user=us["user"], active="modules")
 
 
 @flask_app.route("/dashboard/<guild_id>/welcome")
 @require_auth
 def guild_welcome(guild_id):
-    user_session = get_session()
-    if not user_session:
-        return redirect(url_for("discord_login_page"))
-
-    if not _user_can_manage_guild_in_session(user_session, guild_id):
-        abort(403)
-
-    g = get_guild(guild_id)
-    if not g:
-        abort(404)
-
-    cfg = _get_guild_config(guild_id)
+    us, g, cfg, err = _dash_guard(guild_id)
+    if err: return err
     content = _build_welcome_content(cfg, guild_id)
-
-    return render_template(
-        "dashboard/welcome.html",
-        guild=g,
-        content=content,
-        user=user_session["user"],
-    )
+    return render_template("dashboard/welcome.html", guild=g, cfg=cfg, content=content, user=us["user"], active="welcome")
 
 
 # =========================================================
@@ -2291,7 +2259,10 @@ def api_guild_autonick(guild_id):
     action = data.get("action")
 
     if action == "toggle":
-        an["enabled"] = data.get("enabled", False)
+        an["enabled"] = bool(data.get("enabled", False))
+        # Preserve existing rules
+        if "rules" not in an:
+            an["rules"] = []
     elif action == "add":
         rule = {
             "role_id": data.get("role_id"),

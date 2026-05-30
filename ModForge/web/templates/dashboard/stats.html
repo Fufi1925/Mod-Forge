@@ -1,41 +1,28 @@
 {% extends "dashboard/_base.html" %}
 {% set active = 'stats' %}
 {% block title %}Statistiken{% endblock %}
-{% block page_title %}📊 Server-Statistiken{% endblock %}
-{% block page_desc %}Grafiken und Analysen{% endblock %}
+{% block page_title %}📊 Statistiken{% endblock %}
+{% block page_desc %}Server-Analysen{% endblock %}
 {% block content %}
-<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:24px">
-  <div class="db-stat"><div class="db-stat-val" style="color:var(--vl)">{{ guild.member_count }}</div><div class="db-stat-label">Mitglieder</div></div>
-  <div class="db-stat"><div class="db-stat-val" style="color:var(--cl)">{{ cases_count }}</div><div class="db-stat-label">Cases</div></div>
-  <div class="db-stat"><div class="db-stat-val" style="color:var(--green)">{{ active_mods }}/6</div><div class="db-stat-label">Module</div></div>
-  <div class="db-stat"><div class="db-stat-val" style="color:var(--amberl)">{{ channels_count }}</div><div class="db-stat-label">Kanäle</div></div>
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-bottom:16px">
+  <div class="ov-stat" style="animation:fadeUp .2s ease .05s both"><div class="ov-sv" style="color:var(--vl)">{{ guild.member_count or 0 }}</div><div class="ov-sl">Mitglieder</div></div>
+  <div class="ov-stat" style="animation:fadeUp .2s ease .1s both"><div class="ov-sv" style="color:var(--cl)">{{ cases_count }}</div><div class="ov-sl">Cases</div></div>
+  <div class="ov-stat" style="animation:fadeUp .2s ease .15s both"><div class="ov-sv" style="color:var(--green)">{{ active_mods }}/6</div><div class="ov-sl">Module</div></div>
+  <div class="ov-stat" style="animation:fadeUp .2s ease .2s both"><div class="ov-sv" style="color:var(--amberl)">{{ channels_count }}</div><div class="ov-sl">Kanäle</div></div>
 </div>
-<div class="db-grid">
-  <div class="db-card">
-    <div class="db-card-header"><span class="db-card-title">📈 Mod-Aktionen (letzte 7 Tage)</span></div>
-    <canvas id="modChart" height="200"></canvas>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+  <div class="db-card" style="padding:16px"><div style="font-weight:700;font-size:.85rem;margin-bottom:12px">📈 Cases/Tag (7 Tage)</div><canvas id="chart" height="180"></canvas></div>
+  <div class="db-card" style="padding:16px"><div style="font-weight:700;font-size:.85rem;margin-bottom:12px">🏆 Top-Moderatoren</div>
+    {% for mod in top_mods %}<div class="cfg-row" style="animation:fadeUp .2s ease {{ loop.index * 0.05 }}s both"><span style="font-weight:800;color:var(--vl);min-width:20px">{{ loop.index }}.</span><span class="cfg-label">&lt;@{{ mod.id }}&gt;</span><span style="font-family:'Geist Mono',monospace;font-size:.78rem;color:var(--cl)">{{ mod.count }}</span></div>{% endfor %}
+    {% if not top_mods %}<div style="text-align:center;padding:20px;color:var(--muted);font-size:.78rem">Keine Daten</div>{% endif %}
   </div>
-  <div class="db-card">
-    <div class="db-card-header"><span class="db-card-title">🏆 Top-Moderatoren</span></div>
-    <div id="topMods">
-      {% for mod in top_mods %}
-      <div class="cfg-row" style="margin-bottom:6px"><div style="display:flex;align-items:center;gap:8px"><span style="font-weight:800;color:var(--vl);min-width:20px">{{ loop.index }}.</span><span class="cfg-label">&lt;@{{ mod.id }}&gt;</span></div><span style="font-family:'Geist Mono',monospace;font-size:.82rem;color:var(--cl)">{{ mod.count }}</span></div>
-      {% endfor %}
-      {% if not top_mods %}<p style="color:var(--muted);font-size:.82rem;text-align:center;padding:20px">Keine Daten.</p>{% endif %}
-    </div>
-  </div>
-  <div class="db-card" style="grid-column:span 2">
-    <div class="db-card-header"><span class="db-card-title">📋 Cases nach Typ</span></div>
-    <div style="display:flex;gap:16px;flex-wrap:wrap">
-      {% for typ, count in case_types.items() %}
-      <div style="text-align:center"><div style="font-size:1.4rem;font-weight:900;color:{% if typ=='ban' %}var(--red){% elif typ=='warn' %}var(--amberl){% elif typ=='kick' %}var(--orange){% else %}var(--cl){% endif %}">{{ count }}</div><div style="font-size:.68rem;color:var(--muted);text-transform:uppercase">{{ typ }}</div></div>
-      {% endfor %}
-    </div>
+  <div class="db-card" style="padding:16px;grid-column:span 2"><div style="font-weight:700;font-size:.85rem;margin-bottom:12px">📋 Cases nach Typ</div>
+    <div style="display:flex;gap:14px;flex-wrap:wrap">{% for typ, count in case_types.items() %}<div style="text-align:center;animation:fadeUp .2s ease {{ loop.index * 0.05 }}s both"><div style="font-size:1.4rem;font-weight:900;color:{% if typ=='ban' %}var(--red){% elif typ=='warn' %}var(--amberl){% elif typ=='kick' %}var(--orange){% else %}var(--cl){% endif %}">{{ count }}</div><div style="font-size:.62rem;color:var(--muted);text-transform:uppercase">{{ typ }}</div></div>{% endfor %}</div>
   </div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <script>
-const ctx=document.getElementById('modChart');
-if(ctx){new Chart(ctx,{type:'bar',data:{labels:{{ days_labels|tojson }},datasets:[{label:'Cases',data:{{ days_data|tojson }},backgroundColor:'rgba(124,58,237,0.4)',borderColor:'rgba(124,58,237,0.8)',borderWidth:1,borderRadius:6}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'rgba(255,255,255,0.03)'},ticks:{color:'#94a3b8'}},x:{grid:{display:false},ticks:{color:'#94a3b8'}}}}});}
+const ctx=document.getElementById('chart');
+if(ctx){new Chart(ctx,{type:'bar',data:{labels:{{ days_labels|tojson }},datasets:[{label:'Cases',data:{{ days_data|tojson }},backgroundColor:'rgba(124,58,237,0.35)',borderColor:'rgba(124,58,237,0.7)',borderWidth:1,borderRadius:6}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'rgba(255,255,255,0.03)'},ticks:{color:'#94a3b8'}},x:{grid:{display:false},ticks:{color:'#94a3b8'}}},animation:{duration:800,easing:'easeOutQuart'}}})}
 </script>
 {% endblock %}

@@ -3,27 +3,20 @@
 {% block title %}Tickets{% endblock %}
 {% block page_title %}🎫 Ticket-System{% endblock %}
 {% block content %}
-<div class="cfg-row" style="background:rgba(124,58,237,0.06);border-color:rgba(124,58,237,0.2)">
-  <div><span class="cfg-label">Ticket-System</span><div class="cfg-desc">Aktiviert das Support-Ticket-System</div></div>
-  <label class="toggle"><input type="checkbox" id="ticketOn" {% if cfg.get('ticket_system',{}).get('enabled') %}checked{% endif %}><span class="slider"></span></label>
+<div class="cfg-row" style="{% if cfg.get('ticket_system',{}).get('enabled') %}background:rgba(74,222,128,0.03);border-color:rgba(74,222,128,0.12){% endif %};margin-bottom:14px">
+  <div><span class="cfg-label">Ticket-System</span><div class="cfg-desc">Support-Tickets per Button erstellen</div></div>
+  <label class="toggle"><input type="checkbox" id="tOn" {% if cfg.get('ticket_system',{}).get('enabled') %}checked{% endif %} onchange="showSaveBar()"><span class="slider"></span></label>
 </div>
-<div class="dash-section" style="margin-top:20px">
-  <h2>⚙️ Einstellungen</h2>
-  <div class="cfg-row"><div><span class="cfg-label">Ticket-Kategorie</span><div class="cfg-desc">Kategorie in der Tickets erstellt werden</div></div>
-    <select class="cfg-select" id="ticketCat" style="min-width:200px"><option value="">— Wählen —</option>
-      {% for cat in categories %}<option value="{{ cat.id }}" {% if cat.id==cfg.get('ticket_system',{}).get('category_id') %}selected{% endif %}>{{ cat.name }}</option>{% endfor %}
-    </select>
-  </div>
-  <div class="cfg-row"><div><span class="cfg-label">Log-Kanal</span><div class="cfg-desc">Kanal für Ticket-Transkripte</div></div>
-    <select class="cfg-select" id="ticketLog" style="min-width:200px"><option value="">— Wählen —</option>
-      {% for ch in channels %}<option value="{{ ch.id }}" {% if ch.id==cfg.get('ticket_system',{}).get('log_channel_id') %}selected{% endif %}>#{{ ch.name }}</option>{% endfor %}
-    </select>
-  </div>
+<div class="db-card" style="padding:16px">
+  <div class="cfg-row"><div><span class="cfg-label">Kategorie</span><div class="cfg-desc">Wo Tickets erstellt werden</div></div>
+    <select class="cfg-select" id="tCat" style="min-width:180px" onchange="showSaveBar()"><option value="">— Wählen —</option>{% for cat in categories %}<option value="{{ cat.id }}" {% if cat.id|string==cfg.get('ticket_system',{}).get('category_id','')|string %}selected{% endif %}>{{ cat.name }}</option>{% endfor %}</select></div>
+  <div class="cfg-row"><div><span class="cfg-label">Log-Kanal</span><div class="cfg-desc">Transkripte</div></div>
+    <select class="cfg-select" id="tLog" style="min-width:180px" onchange="showSaveBar()"><option value="">— Wählen —</option>{% for ch in channels %}<option value="{{ ch.id }}" {% if ch.id|string==cfg.get('ticket_system',{}).get('log_channel_id','')|string %}selected{% endif %}>#{{ ch.name }}</option>{% endfor %}</select></div>
 </div>
 {% block scripts %}<script>
 async function saveConfig(){
-  await fetch('/api/guild/{{ guild.id }}/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({_ticket_system:{enabled:document.getElementById('ticketOn').checked,category_id:document.getElementById('ticketCat').value||null,log_channel_id:document.getElementById('ticketLog').value||null}})});
-  document.getElementById('saveBar').classList.remove('visible');location.reload();
+  await fetch('/api/guild/{{ guild.id }}/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({_ticket_system:{enabled:document.getElementById('tOn').checked,category_id:document.getElementById('tCat').value||null,log_channel_id:document.getElementById('tLog').value||null}})});
+  markSaved();
 }
 </script>{% endblock %}
 {% endblock %}

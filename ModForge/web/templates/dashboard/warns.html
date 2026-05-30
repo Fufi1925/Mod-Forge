@@ -2,46 +2,41 @@
 {% set active = 'warns' %}
 {% block title %}Warns{% endblock %}
 {% block page_title %}⚠️ Warn-System{% endblock %}
+{% block page_desc %}Schwellen + Decay{% endblock %}
 {% block content %}
-<div class="dash-section">
-  <h2>🎯 Warn-Schwellen</h2>
-  <p style="color:var(--muted);font-size:.85rem;margin-bottom:16px">Was passiert wenn ein User X Verwarnungen erreicht?</p>
+<div class="db-card" style="padding:16px;margin-bottom:14px">
+  <div style="font-weight:700;font-size:.85rem;margin-bottom:10px">🎯 Warn-Schwellen</div>
+  <div class="cfg-desc" style="margin-bottom:12px">Was passiert bei X Verwarnungen?</div>
   {% for threshold, action in cfg.get('warn_system',{}).get('thresholds',{}).items() %}
-  <div class="cfg-row">
-    <div><span class="cfg-label">Bei {{ threshold }} Warns</span></div>
-    <select class="cfg-select th-select" data-threshold="{{ threshold }}">
-      {% for a in ['warn','timeout','kick','ban'] %}<option {% if a==action %}selected{% endif %}>{{ a }}</option>{% endfor %}
-    </select>
+  <div class="cfg-row" style="animation:fadeUp .2s ease {{ loop.index * 0.05 }}s both">
+    <span class="cfg-label">Bei {{ threshold }} Warns →</span>
+    <span class="badge {% if action=='ban' %}badge-red{% elif action=='kick' %}badge-purple{% else %}badge-amber{% endif %}">{{ action }}</span>
   </div>
   {% endfor %}
-  <div style="display:flex;gap:8px;margin-top:12px">
-    <input type="number" id="newThNum" class="cfg-input" placeholder="Anzahl" min="1" max="99" style="max-width:100px">
-    <select class="cfg-select" id="newThAct"><option>timeout</option><option>kick</option><option>ban</option></select>
-    <button class="btn-glass btn-sm btn-glass-primary" onclick="addThreshold()">+ Schwelle</button>
+  <div style="display:flex;gap:6px;margin-top:10px">
+    <input type="number" id="thN" class="cfg-input" placeholder="Anzahl" min="1" max="99" style="max-width:80px">
+    <select class="cfg-select" id="thA"><option>timeout</option><option>kick</option><option>ban</option></select>
+    <button class="btn-glass btn-sm btn-glass-primary" onclick="addTh()">+ Schwelle</button>
   </div>
 </div>
-<div class="dash-section">
-  <h2>⏳ Warn-Decay</h2>
-  <div class="cfg-row">
-    <div><span class="cfg-label">Warns automatisch verfallen</span><div class="cfg-desc">Nach X Tagen werden Warns automatisch gelöscht</div></div>
-    <label class="toggle"><input type="checkbox" id="decayOn" {% if cfg.get('warn_decay',{}).get('enabled') %}checked{% endif %}><span class="slider"></span></label>
-  </div>
-  <div class="cfg-row">
-    <div><span class="cfg-label">Decay-Tage</span></div>
-    <input type="number" id="decayDays" class="cfg-input" value="{{ cfg.get('warn_decay',{}).get('decay_days',30) }}" min="1" max="365" style="max-width:120px">
-  </div>
+<div class="db-card" style="padding:16px">
+  <div style="font-weight:700;font-size:.85rem;margin-bottom:10px">⏳ Warn-Decay</div>
+  <div class="cfg-row"><div><span class="cfg-label">Warns verfallen</span><div class="cfg-desc">Nach X Tagen automatisch löschen</div></div>
+    <label class="toggle"><input type="checkbox" id="decayOn" {% if cfg.get('warn_decay',{}).get('enabled') %}checked{% endif %} onchange="showSaveBar()"><span class="slider"></span></label></div>
+  <div class="cfg-row"><div><span class="cfg-label">Tage</span></div>
+    <input type="number" id="decayD" class="cfg-input" value="{{ cfg.get('warn_decay',{}).get('decay_days',30) }}" min="1" max="365" style="max-width:100px" oninput="showSaveBar()"></div>
 </div>
 {% block scripts %}<script>
 async function saveConfig(){
-  const thresholds={};
-  document.querySelectorAll('.th-select').forEach(el=>{thresholds[el.dataset.threshold]=el.value});
-  const decay={enabled:document.getElementById('decayOn').checked,decay_days:Number(document.getElementById('decayDays').value)};
-  await fetch('/api/guild/{{ guild.id }}/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({_warn_thresholds:thresholds,_warn_decay:decay})});
-  document.getElementById('saveBar').classList.remove('visible');location.reload();
+  const decay={enabled:document.getElementById('decayOn').checked,decay_days:Number(document.getElementById('decayD').value)};
+  await fetch('/api/guild/{{ guild.id }}/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({_warn_decay:decay})});
+  markSaved();
 }
-function addThreshold(){
-  const n=document.getElementById('newThNum').value,a=document.getElementById('newThAct').value;
-  if(n)fetch('/api/guild/{{ guild.id }}/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({_warn_thresholds_add:{[n]:a}})}).then(()=>location.reload());
+async function addTh(){
+  const n=document.getElementById('thN').value,a=document.getElementById('thA').value;
+  if(!n)return showToast('❌ Anzahl eingeben',false);
+  await fetch('/api/guild/{{ guild.id }}/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({_warn_thresholds_add:{[n]:a}})});
+  showToast('✅ Schwelle hinzugefügt',true);setTimeout(()=>location.reload(),600);
 }
 </script>{% endblock %}
 {% endblock %}

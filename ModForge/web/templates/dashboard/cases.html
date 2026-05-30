@@ -2,42 +2,34 @@
 {% set active = 'cases' %}
 {% block title %}Cases{% endblock %}
 {% block page_title %}📋 Case-Explorer{% endblock %}
+{% block page_desc %}{{ cases|length }} Cases{% endblock %}
 {% block content %}
-<div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap">
-  <input type="text" id="caseSearch" class="cfg-input" placeholder="🔍 User-ID oder Grund suchen…" style="max-width:300px">
-  <select class="cfg-select" id="caseFilter"><option value="">Alle Aktionen</option><option>ban</option><option>kick</option><option>warn</option><option>timeout</option><option>softban</option><option>tempmute</option><option>tempban</option></select>
+<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+  <input type="text" id="cS" class="cfg-input" placeholder="🔍 User-ID oder Grund…" style="max-width:260px;width:100%" oninput="fc()">
+  <select class="cfg-select" id="cF" onchange="fc()" style="font-size:.72rem"><option value="">Alle</option><option value="ban">🔨 Ban</option><option value="kick">👢 Kick</option><option value="warn">⚠️ Warn</option><option value="timeout">🔇 Timeout</option><option value="softban">Softban</option></select>
+  <span style="font-size:.62rem;color:var(--muted);margin-left:auto" id="cC">{{ cases|length }}</span>
 </div>
-<div class="dash-section">
-  <table style="width:100%">
-    <thead><tr><th>#</th><th>Aktion</th><th>User</th><th>Moderator</th><th>Grund</th><th>Datum</th></tr></thead>
-    <tbody id="caseTable">
-      {% for c in cases %}
-      <tr class="case-row" data-action="{{ c.action }}" data-search="{{ c.user_id }} {{ c.reason|default('',true)|lower }}">
-        <td style="color:var(--vl);font-weight:700">{{ c.case_id }}</td>
-        <td><span class="badge {% if c.action=='ban' %}badge-red{% elif c.action=='warn' %}badge-amber{% elif c.action=='kick' %}badge-purple{% else %}badge-cyan{% endif %}">{{ c.action }}</span></td>
-        <td style="font-family:'Geist Mono',monospace;font-size:.78rem">{{ c.user_id }}</td>
-        <td style="font-family:'Geist Mono',monospace;font-size:.78rem">{{ c.moderator_id }}</td>
-        <td style="max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.82rem">{{ c.reason|default('—',true) }}</td>
-        <td style="font-size:.75rem;color:var(--muted)">{{ c.timestamp|default('—',true) }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  {% if not cases %}<p style="text-align:center;color:var(--muted);padding:40px 0">Keine Cases gefunden.</p>{% endif %}
-</div>
-{% block scripts %}
+{% if cases %}
+<div style="overflow-x:auto">
+<table style="width:100%"><thead><tr><th style="width:50px">#</th><th>Aktion</th><th>User</th><th>Moderator</th><th>Grund</th><th>Datum</th></tr></thead>
+<tbody id="cT">
+{% for c in cases %}
+<tr class="cr" data-a="{{ c.action }}" data-s="{{ c.user_id }} {{ c.reason|default('')|lower }}" style="animation:fadeUp .2s ease {{ loop.index * 0.02 }}s both">
+  <td style="color:var(--vl);font-weight:700;font-family:'Geist Mono',monospace">{{ c.case_id }}</td>
+  <td><span class="badge {% if c.action=='ban' %}badge-red{% elif c.action=='warn' %}badge-amber{% elif c.action=='kick' %}badge-purple{% else %}badge-cyan{% endif %}">{{ c.action }}</span></td>
+  <td style="font-family:'Geist Mono',monospace;font-size:.72rem">{{ c.user_id }}</td>
+  <td style="font-family:'Geist Mono',monospace;font-size:.72rem">{{ c.moderator_id }}</td>
+  <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.78rem">{{ c.reason|default('—') }}</td>
+  <td style="font-size:.68rem;color:var(--muted)">{{ c.timestamp }}</td>
+</tr>
+{% endfor %}
+</tbody></table></div>
+{% else %}
+<div class="db-card" style="text-align:center;padding:40px"><p style="color:var(--muted)">Keine Cases</p></div>
+{% endif %}
 <script>
-const search=document.getElementById('caseSearch'),filter=document.getElementById('caseFilter');
-function applyFilter(){
-  const q=search.value.toLowerCase(),f=filter.value;
-  document.querySelectorAll('.case-row').forEach(r=>{
-    const matchQ=!q||r.dataset.search.includes(q);
-    const matchF=!f||r.dataset.action===f;
-    r.style.display=matchQ&&matchF?'':'none';
-  });
-}
-search.addEventListener('input',applyFilter);
-filter.addEventListener('change',applyFilter);
+function fc(){const q=document.getElementById('cS').value.toLowerCase(),f=document.getElementById('cF').value;let v=0;
+document.querySelectorAll('.cr').forEach(r=>{const mq=!q||r.dataset.s.includes(q);const mf=!f||r.dataset.a===f;const s=mq&&mf;r.style.display=s?'':'none';if(s)v++});
+document.getElementById('cC').textContent=v+'/{{ cases|length }}';}
 </script>
-{% endblock %}
 {% endblock %}
