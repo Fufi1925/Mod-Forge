@@ -4,132 +4,146 @@
 {% block page_title %}💬 Auto-Antworten{% endblock %}
 {% block page_desc %}{{ auto_responses|length }} aktive Regeln{% endblock %}
 {% block content %}
-<div class="cfg-desc" style="margin-bottom:20px">
-  Erstelle automatische Antworten für deinen Server. Wenn ein Trigger im Text erkannt wird, sendet der Bot die entsprechende Antwort.<br>
-  <strong>Placeholders:</strong> <code style="color:var(--vl)">{user}</code> (Mention), <code style="color:var(--vl)">{server}</code> (Name), <code style="color:var(--vl)">{channel}</code> (Mention).
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-bottom:16px">
+  <div class="ov-stat" style="animation:scaleIn .3s ease .05s both"><div class="ov-sv" style="color:var(--vl)">{{ auto_responses|length }}</div><div class="ov-sl">Regeln</div></div>
+  <div class="ov-stat" style="animation:scaleIn .3s ease .1s both"><div class="ov-sv" style="color:var(--green)">{{ auto_responses|selectattr('enabled')|list|length if auto_responses else 0 }}</div><div class="ov-sl">Aktiv</div></div>
+  <div class="ov-stat" style="animation:scaleIn .3s ease .15s both"><div class="ov-sv" style="color:var(--red)">{{ auto_responses|rejectattr('enabled')|list|length if auto_responses else 0 }}</div><div class="ov-sl">Pausiert</div></div>
 </div>
 
-<div class="db-card" style="padding:20px; margin-bottom:24px; border: 1px solid rgba(124,58,237,0.2)">
-  <div style="font-weight:700; font-size:.9rem; margin-bottom:15px; display:flex; align-items:center; gap:8px">
-    <span style="color:var(--vl)">➕</span> Neue Auto-Antwort hinzufügen
-  </div>
-  <div style="display:flex; gap:12px; flex-wrap:wrap">
-    <div style="flex:1; min-width:200px">
-      <label>Trigger</label>
-      <input type="text" id="arT" class="cfg-input" placeholder="z.B. !hilfe oder wie beitreten">
+<div class="db-card" style="padding:16px;margin-bottom:16px;background:rgba(124,58,237,0.02);border-color:rgba(124,58,237,0.08)">
+  <div style="font-weight:700;font-size:.85rem;margin-bottom:4px">💡 So funktioniert es</div>
+  <div style="font-size:.72rem;color:var(--muted);line-height:1.6">Wenn eine Nachricht den <strong>Trigger</strong> enthält, sendet der Bot die <strong>Antwort</strong> automatisch. Groß/Kleinschreibung wird ignoriert. Nur die erste passende Regel wird ausgeführt.</div>
+</div>
+
+<div class="db-card" style="padding:16px;margin-bottom:16px">
+  <div style="font-weight:700;font-size:.85rem;margin-bottom:12px">➕ Neue Auto-Antwort</div>
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <div>
+      <label style="font-size:.65rem;color:var(--muted);display:block;margin-bottom:4px">Trigger-Wort oder Phrase</label>
+      <input type="text" id="arT" class="cfg-input" placeholder="z.B. wie beitreten, hilfe, regeln" style="width:100%;max-width:100%">
     </div>
-    <div style="flex:2; min-width:300px">
-      <label>Antwort</label>
-      <input type="text" id="arR" class="cfg-input" placeholder="z.B. Hallo {user}! Nutze /help für Hilfe.">
+    <div>
+      <label style="font-size:.65rem;color:var(--muted);display:block;margin-bottom:4px">Antwort-Text</label>
+      <textarea id="arR" rows="3" style="width:100%;padding:10px 14px;border-radius:10px;background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--fg);font-family:inherit;font-size:.82rem;resize:vertical;outline:none" placeholder="z.B. Nutze /ticket um ein Support-Ticket zu öffnen! 🎫"></textarea>
     </div>
-    <div style="display:flex; align-items:flex-end">
-      <button class="btn-glass btn-glass-primary" onclick="addAR()" style="height:42px; padding:0 24px">Hinzufügen</button>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="btn-glass btn-sm btn-glass-primary" onclick="addAR()">➕ Hinzufügen</button>
+      <span style="font-size:.65rem;color:var(--muted)" id="arPreview"></span>
     </div>
   </div>
 </div>
 
-<div class="glass-card" style="overflow:hidden">
-  <table style="border-collapse:collapse; width:100%">
-    <thead>
-      <tr>
-        <th style="padding:14px 20px">Trigger</th>
-        <th style="padding:14px 20px">Antwort</th>
-        <th style="padding:14px 20px; text-align:center">Status</th>
-        <th style="padding:14px 20px; text-align:right">Aktion</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for ar in auto_responses %}
-      <tr class="cfg-row" style="transition: background 0.2s; border-bottom: 1px solid rgba(255,255,255,0.05)">
-        <td style="padding:12px 20px">
-          <input type="text" class="cfg-input" style="padding:6px 12px; font-size:.85rem" 
-                 value="{{ ar.trigger }}" onchange="editAR({{ loop.index0 }}, 'trigger', this.value)">
-        </td>
-        <td style="padding:12px 20px">
-          <input type="text" class="cfg-input" style="padding:6px 12px; font-size:.85rem" 
-                 value="{{ ar.response }}" onchange="editAR({{ loop.index0 }}, 'response', this.value)">
-        </td>
-        <td style="padding:12px 20px; text-align:center">
-          <label class="toggle" style="margin:0; display:inline-block">
-            <input type="checkbox" {% if ar.get('enabled',true) %}checked{% endif %} onchange="togAR({{ loop.index0 }},this.checked)">
-            <span class="slider"></span>
-          </label>
-        </td>
-        <td style="padding:12px 20px; text-align:right">
-          <button class="btn-glass btn-sm btn-glass-danger" onclick="delAR({{ loop.index0 }})" style="padding:6px 12px">🗑️</button>
-        </td>
-      </tr>
-      {% endfor %}
-      {% if not auto_responses %}
-      <tr>
-        <td colspan="4" style="text-align:center; padding:40px; color:var(--muted); font-size:.9rem">
-          Keine Auto-Antworten konfiguriert. Erstelle deine erste Regel oben!
-        </td>
-      </tr>
-      {% endif %}
-    </tbody>
-  </table>
+<div style="font-weight:700;font-size:.85rem;margin-bottom:8px">📋 Aktive Regeln</div>
+
+{% if auto_responses %}
+{% for ar in auto_responses %}
+<div class="cfg-row" style="flex-direction:column;align-items:stretch;gap:8px;padding:14px 16px;animation:fadeUp .2s ease {{ loop.index * 0.04 }}s both;{% if not ar.get('enabled',true) %}opacity:.5{% endif %}">
+  <div style="display:flex;align-items:center;gap:10px">
+    <label class="toggle"><input type="checkbox" {% if ar.get('enabled',true) %}checked{% endif %} onchange="togAR({{ loop.index0 }},this.checked)"><span class="slider"></span></label>
+    <div style="flex:1;min-width:0">
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+        <span style="padding:3px 10px;border-radius:999px;font-size:.68rem;font-weight:700;background:rgba(124,58,237,0.06);color:var(--vl);border:1px solid rgba(124,58,237,0.1)">{{ ar.trigger }}</span>
+        <span style="font-size:.7rem;color:var(--muted)">→</span>
+      </div>
+      <div style="font-size:.78rem;color:var(--cl);margin-top:4px;line-height:1.4;white-space:pre-wrap">{{ ar.response }}</div>
+    </div>
+    <div style="display:flex;gap:4px;flex-shrink:0">
+      <button class="btn-glass btn-sm btn-glass-ghost" onclick="editAR({{ loop.index0 }},'{{ ar.trigger }}','{{ ar.response|replace("'","\\'") }}')" title="Bearbeiten">✏️</button>
+      <button class="btn-glass btn-sm btn-glass-danger" onclick="delAR({{ loop.index0 }})" title="Löschen">🗑️</button>
+    </div>
+  </div>
 </div>
+{% endfor %}
+{% else %}
+<div class="db-card" style="text-align:center;padding:40px">
+  <div style="font-size:2.5rem;margin-bottom:10px">💬</div>
+  <div style="font-weight:700;margin-bottom:4px">Keine Auto-Antworten</div>
+  <div style="color:var(--muted);font-size:.78rem">Erstelle oben deine erste Regel</div>
+</div>
+{% endif %}
 
 <script>
 {% raw %}
-const G="{{ guild.id }}", 
-      api = (data) => fetch('/api/guild/'+G+'/autoresponse', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(data)
-      });
+const GID = "{{ guild.id }}";
+const api = (d) => fetch('/api/guild/'+GID+'/autoresponse', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(d)});
 
-function addAR() {
-  const t = document.getElementById('arT').value.trim(),
-        r = document.getElementById('arR').value.trim();
-  if (!t || !r) return showToast('❌ Trigger und Antwort sind erforderlich!', false);
-  
-  api({action: 'add', trigger: t, response: r}).then(res => {
-    if(res.ok) {
-      showToast('✅ Antwort hinzugefügt', true);
-      document.getElementById('arT').value = '';
-      document.getElementById('arR').value = '';
-      setTimeout(() => location.reload(), 500);
-    } else {
-      showToast('❌ Fehler beim Speichern', false);
-    }
-  });
+document.getElementById('arT')?.addEventListener('input', function() {
+  const el = document.getElementById('arPreview');
+  if (this.value) el.textContent = 'Trigger: "' + this.value + '"';
+  else el.textContent = '';
+});
+
+async function addAR() {
+  const t = document.getElementById('arT').value.trim();
+  const r = document.getElementById('arR').value.trim();
+  if (!t) return showToast('❌ Trigger eingeben!', 'err');
+  if (!r) return showToast('❌ Antwort eingeben!', 'err');
+  if (t.length > 100) return showToast('❌ Trigger zu lang (max 100)', 'err');
+  if (r.length > 2000) return showToast('❌ Antwort zu lang (max 2000)', 'err');
+  const res = await api({action:'add', trigger:t, response:r});
+  const d = await res.json();
+  if (d.ok) { showToast('✅ Auto-Antwort hinzugefügt', 'ok'); setTimeout(() => location.reload(), 600); }
+  else showToast('❌ ' + (d.error || 'Fehler'), 'err');
 }
 
-function editAR(i, field, value) {
-  // We fetch the current value from the input or state if needed, 
-  // but here we just send the updated field.
-  // Since we only have index and field, we can't easily send the full object 
-  // without keeping track of it, but the backend implementation I wrote 
-  // handles partial updates: ars[idx]["trigger"] = data.get("trigger", ...)
-  
-  const data = { action: 'edit', index: i };
-  data[field] = value;
-  
-  api(data).then(res => {
-    if(res.ok) showToast('💾 Geändert', true);
-    else showToast('❌ Fehler beim Ändern', false);
-  });
+async function delAR(i) {
+  showModal(`
+    <div style="text-align:center;margin-bottom:20px">
+      <div style="font-size:2rem;margin-bottom:8px">🗑️</div>
+      <div style="font-weight:700">Auto-Antwort löschen?</div>
+      <div style="color:var(--muted);font-size:.82rem;margin-top:4px">Diese Aktion kann nicht rückgängig gemacht werden.</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button onclick="closeModal()" style="flex:1;padding:10px;border-radius:10px;background:rgba(255,255,255,0.05);border:1px solid var(--border);color:var(--fg);font-size:.82rem;cursor:pointer;font-family:inherit">Abbrechen</button>
+      <button onclick="closeModal();confirmDelAR(${i})" style="flex:1;padding:10px;border-radius:10px;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.25);color:#f87171;font-size:.82rem;cursor:pointer;font-family:inherit;font-weight:600">🗑️ Löschen</button>
+    </div>
+  `);
 }
 
-function delAR(i) {
-  if(!confirm('Möchtest du diese Antwort wirklich löschen?')) return;
-  api({action: 'del', index: i}).then(res => {
-    if(res.ok) {
-      showToast('🗑️ Gelöscht', true);
-      setTimeout(() => location.reload(), 500);
-    } else {
-      showToast('❌ Fehler beim Löschen', false);
-    }
-  });
+async function confirmDelAR(i) {
+  const res = await api({action:'del', index:i});
+  const d = await res.json();
+  if (d.ok) { showToast('🗑️ Gelöscht', 'ok'); setTimeout(() => location.reload(), 500); }
+  else showToast('❌ Fehler', 'err');
 }
 
-function togAR(i, v) {
-  api({action: 'toggle', index: i, enabled: v}).then(res => {
-    if(res.ok) showToast(v ? '✅ Aktiviert' : '❌ Deaktiviert', true);
-    else showToast('❌ Fehler beim Umschalten', false);
-  });
+async function togAR(i, v) {
+  const res = await api({action:'toggle', index:i, enabled:v});
+  const d = await res.json();
+  if (d.ok) showToast(v ? '✅ Aktiviert' : '⏸️ Pausiert', 'ok');
+  else showToast('❌ Fehler', 'err');
+}
+
+function editAR(i, trigger, response) {
+  showModal(`
+    <div style="margin-bottom:16px">
+      <div style="font-weight:700;font-size:1rem;margin-bottom:12px">✏️ Regel bearbeiten</div>
+      <div style="margin-bottom:10px">
+        <label style="font-size:.65rem;color:var(--muted);display:block;margin-bottom:4px">Trigger</label>
+        <input type="text" id="editT" value="${trigger}" style="width:100%;padding:10px;border-radius:10px;background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--fg);font-family:inherit;outline:none">
+      </div>
+      <div>
+        <label style="font-size:.65rem;color:var(--muted);display:block;margin-bottom:4px">Antwort</label>
+        <textarea id="editR" rows="3" style="width:100%;padding:10px;border-radius:10px;background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--fg);font-family:inherit;resize:vertical;outline:none">${response}</textarea>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button onclick="closeModal()" style="flex:1;padding:10px;border-radius:10px;background:rgba(255,255,255,0.05);border:1px solid var(--border);color:var(--fg);font-size:.82rem;cursor:pointer;font-family:inherit">Abbrechen</button>
+      <button onclick="saveEditAR(${i})" style="flex:1;padding:10px;border-radius:10px;background:linear-gradient(135deg,rgba(109,40,217,0.7),rgba(30,64,175,0.7));border:1px solid rgba(139,92,246,0.3);color:#fff;font-size:.82rem;cursor:pointer;font-family:inherit;font-weight:600">💾 Speichern</button>
+    </div>
+  `);
+}
+
+async function saveEditAR(i) {
+  const t = document.getElementById('editT').value.trim();
+  const r = document.getElementById('editR').value.trim();
+  if (!t || !r) return showToast('❌ Felder ausfüllen', 'err');
+  // Delete old + add new at same position
+  await api({action:'del', index:i});
+  await api({action:'add', trigger:t, response:r});
+  closeModal();
+  showToast('✅ Aktualisiert', 'save');
+  setTimeout(() => location.reload(), 600);
 }
 {% endraw %}
 </script>

@@ -2,24 +2,26 @@
 {% set active = 'whitelist' %}
 {% block title %}Whitelist{% endblock %}
 {% block page_title %}🔐 Whitelist-Manager{% endblock %}
-{% block page_desc %}Anti-Nuke Whitelist{% endblock %}
 {% block content %}
-<div class="cfg-desc" style="margin-bottom:14px">Whitelistete Einträge werden von Security-Modulen ignoriert.</div>
-{% for cat_key, cat_label, cat_icon in [('users','User','👤'),('roles','Rollen','🏷️'),('channels','Kanäle','📁'),('bypass_antinuke','Bypass Anti-Nuke','💥'),('bypass_antispam','Bypass Anti-Spam','⚡')] %}
-<div class="db-card" style="padding:14px;margin-bottom:10px;animation:fadeUp .2s ease {{ loop.index * 0.05 }}s both">
-  <div style="font-weight:700;font-size:.82rem;margin-bottom:8px;display:flex;align-items:center;gap:6px">{{ cat_icon }} {{ cat_label }} ({{ whitelist.get(cat_key,[])|length }})</div>
-  <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px">
-    {% for item_id in whitelist.get(cat_key,[]) %}<span style="padding:3px 10px;border-radius:999px;font-size:.65rem;background:rgba(124,58,237,0.05);color:var(--vl);border:1px solid rgba(124,58,237,0.1);display:inline-flex;align-items:center;gap:4px">{{ item_id }} <span style="cursor:pointer;font-weight:700;color:var(--redl)" onclick="wlDel('{{ cat_key }}','{{ item_id }}')">×</span></span>{% endfor %}
-    {% if not whitelist.get(cat_key) %}<span style="color:var(--muted);font-size:.72rem">Leer</span>{% endif %}
+<div class="cfg-desc" style="margin-bottom:14px">Whitelistete Einträge werden von allen Security-Modulen ignoriert.</div>
+{% for cat_key, cat_label, cat_icon, cat_desc in [('users','User','👤','User-IDs die alle Module umgehen'),('roles','Rollen','🏷️','Rollen deren Mitglieder geschützt sind'),('channels','Kanäle','📁','Kanäle in denen Module deaktiviert sind'),('bypass_antinuke','Bypass Anti-Nuke','💥','Dürfen Massenaktionen durchführen'),('bypass_antispam','Bypass Anti-Spam','⚡','Spam-Filter ignoriert diese User')] %}
+<div class="db-card" style="padding:14px;margin-bottom:10px;animation:fadeUp .2s ease {{ loop.index*0.04 }}s both">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+    <div><span style="font-weight:700;font-size:.82rem">{{ cat_icon }} {{ cat_label }}</span><div style="font-size:.62rem;color:var(--muted)">{{ cat_desc }}</div></div>
+    <span style="padding:2px 8px;border-radius:999px;font-size:.55rem;font-weight:700;background:rgba(124,58,237,0.06);color:var(--vl)">{{ whitelist.get(cat_key,[])|length }}</span>
   </div>
-  <div style="display:flex;gap:6px"><input type="text" class="cfg-input" id="wl-{{ cat_key }}" placeholder="ID…" style="max-width:180px"><button class="btn-glass btn-sm btn-glass-primary" onclick="wlAdd('{{ cat_key }}')">+</button></div>
+  <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px">
+    {% for item_id in whitelist.get(cat_key,[]) %}<span style="padding:3px 10px;border-radius:999px;font-size:.65rem;background:rgba(124,58,237,0.05);color:var(--vl);border:1px solid rgba(124,58,237,0.1);display:inline-flex;align-items:center;gap:4px;animation:fadeUp .15s ease">{{ item_id }} <span style="cursor:pointer;font-weight:800;color:var(--redl)" onclick="wlDel('{{ cat_key }}','{{ item_id }}')">×</span></span>{% endfor %}
+    {% if not whitelist.get(cat_key) %}<span style="color:var(--muted);font-size:.72rem">Leer — keine Einträge</span>{% endif %}
+  </div>
+  <div style="display:flex;gap:6px"><input type="text" class="cfg-input" id="wl-{{ cat_key }}" placeholder="ID eingeben…" style="max-width:200px"><button class="btn-glass btn-sm btn-glass-primary" onclick="wlAdd('{{ cat_key }}')">+</button></div>
 </div>
 {% endfor %}
 <script>
 {% raw %}
 const G="{{ guild.id }}";
-async function wlAdd(cat){const v=document.getElementById('wl-'+cat).value.trim();if(!v)return;await fetch('/api/guild/'+G+'/whitelist',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'add',category:cat,id:v})});showToast('✅ Hinzugefügt',true);setTimeout(()=>location.reload(),500)}
-async function wlDel(cat,id){await fetch('/api/guild/'+G+'/whitelist',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'del',category:cat,id:id})});showToast('🗑️ Entfernt',true);setTimeout(()=>location.reload(),500)}
+async function wlAdd(cat){const v=document.getElementById('wl-'+cat).value.trim();if(!v)return showToast('❌ ID eingeben','err');const r=await fetch('/api/guild/'+G+'/whitelist',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'add',category:cat,id:v})});if(r.ok){showToast('✅ Hinzugefügt','ok');setTimeout(()=>location.reload(),500)}else showToast('❌ Fehler','err')}
+async function wlDel(cat,id){const r=await fetch('/api/guild/'+G+'/whitelist',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'del',category:cat,id:id})});if(r.ok){showToast('🗑️ Entfernt','ok');setTimeout(()=>location.reload(),500)}}
 {% endraw %}
 </script>
 {% endblock %}

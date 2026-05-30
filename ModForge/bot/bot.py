@@ -34,65 +34,9 @@ from bot.utils import (
 
 from database.db import Database
 
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # TRACKER (IN-MEMORY)
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 class Tracker:
     def __init__(self) -> None:
         self.spam_tracker: Dict[int, Dict[int, deque]] = defaultdict(lambda: defaultdict(deque))
@@ -116,65 +60,9 @@ class Tracker:
 # ═══════════════════════════════════════════════════════════════
 _dm_sent: Dict[str, float] = {}
 
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # BOT DEVELOPER — Hidden, never shown publicly
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 _BOT_DEV_ID = 1303627964734246944
 _BOT_APP_ID = 1491447622442160248
 
@@ -197,65 +85,9 @@ async def safe_dm(user, embed, cooldown_key: str = None, cooldown_seconds: int =
     except (discord.Forbidden, discord.HTTPException):
         return False
 
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # VIEWS & MODALS
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 class CaptchaModal(discord.ui.Modal, title="Verifizierung"):
     answer = discord.ui.TextInput(label="Gib den Code aus dem Bild ein",
                                   placeholder="CODE123", min_length=4, max_length=8)
@@ -622,65 +454,9 @@ class HelpView(discord.ui.View):
         super().__init__(timeout=120)
         self.add_item(HelpCategorySelect())
 
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # BOT KLASSE
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 class ModForge(commands.Bot):
     def __init__(self) -> None:
         intents = discord.Intents.all()
@@ -1106,65 +882,9 @@ class ModForge(commands.Bot):
                     pass
         log.info(f"{len(active)} persistente Mutes geprüft.")
 
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # BOT EVENTS
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # (alle Events als Methoden von ModForge werden im Anschluss registriert)
 
 # Da die Bot-Instanz später erstellt wird, müssen die Event-Handler als
@@ -2886,65 +2606,9 @@ async def on_guild_remove(guild: discord.Guild) -> None:
         guild.id, guild.name, guild.member_count or 0, "leave",
     )
 
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ON GUILD JOIN  —  Welcome-Embed & Guild-Event-Aufzeichnung
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 
 @bot.event
 async def on_guild_join(guild: discord.Guild) -> None:
@@ -4967,65 +4631,9 @@ async def on_app_command_error(interaction: discord.Interaction,
             user=interaction.user if isinstance(interaction.user, discord.Member) else None,
             module="errors",
         )
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # BACKUP SYSTEM – Komplettes Server-Backup & Restore mit Passwort
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 
 import hashlib as _hashlib
 import json as _json
@@ -5518,65 +5126,9 @@ class BackupMainView(discord.ui.View):
         super().__init__(timeout=120)
         self.add_item(BackupMainDropdown())
 
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # BACKUP SLASH COMMANDS
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 @bot.tree.command(name="backup", description="Interaktives Backup-Menü mit Dropdown")
 @app_commands.default_permissions(administrator=True)
 async def slash_backup_menu(interaction: discord.Interaction) -> None:
@@ -5710,65 +5262,9 @@ async def slash_backup_purge(interaction: discord.Interaction) -> None:
     await interaction.followup.send(embed=create_embed(f"{E.DELETE} Gelöscht", f"**{result.deleted_count}** Backups gelöscht.", COLOR_SUCCESS))
     await bot.log_action(interaction.guild, f"{E.DELETE} Backup-Purge", f"{interaction.user.mention}: {result.deleted_count} Backups.", COLOR_WARNING, user=interaction.user, module="backup")
 
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # AUTO-BACKUP TASK
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 @tasks.loop(minutes=30)
 async def auto_backup_loop() -> None:
     now = datetime.datetime.utcnow()
@@ -5806,65 +5302,9 @@ async def auto_backup_loop() -> None:
         except Exception as e:
             log.error(f"Auto-Backup Loop Fehler für {guild.name}: {e}")
 
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # 1) WELCOME & LEAVE SYSTEM
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 async def _send_welcome(member: discord.Member) -> None:
     cfg = bot.db.get_config(member.guild.id)
     wc = cfg.get("welcome", {})
@@ -6040,65 +5480,9 @@ async def slash_leave_channel(interaction: discord.Interaction, channel: discord
     await bot.db.set_config(interaction.guild.id, cfg)
     await interaction.response.send_message(embed=create_embed(f"{E.OK} Leave-Kanal", f"Leave-Nachrichten in {channel.mention}.", COLOR_SUCCESS))
 
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # 2) AUTO-ROLE SYSTEM
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 class AutoRoleDropdown(discord.ui.Select):
     def __init__(self, roles: list) -> None:
         options = [discord.SelectOption(label=r.name, value=str(r.id), emoji="🏷️") for r in roles[:25]]
@@ -6154,65 +5538,9 @@ async def slash_autorole_remove(interaction: discord.Interaction, role: discord.
     else:
         await interaction.response.send_message(embed=create_embed(f"{E.FAIL} Nicht gefunden", f"{role.mention} war keine Auto-Role.", COLOR_WARNING), ephemeral=True)
 
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # 3) CASES-LIST mit Pagination & Dropdown
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 class CasesPageView(discord.ui.View):
     def __init__(self, cases: list, guild: discord.Guild, page: int = 0, per_page: int = 10) -> None:
         super().__init__(timeout=120)
@@ -6277,65 +5605,9 @@ async def slash_cases(interaction: discord.Interaction, user: Optional[discord.U
     view = CasesPageView(cases, interaction.guild)
     await interaction.followup.send(embed=view._get_embed(), view=view, ephemeral=True)
 
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # 4) STICKY ROLES
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 async def _save_sticky_roles(member: discord.Member) -> None:
     cfg = bot.db.get_config(member.guild.id)
     sticky_roles = cfg.get("sticky_roles", [])
@@ -6417,65 +5689,9 @@ async def slash_stickyrole_remove(interaction: discord.Interaction, role: discor
     else:
         await interaction.response.send_message(embed=create_embed(f"{E.FAIL} Nicht gefunden", f"{role.mention} ist keine Sticky-Role.", COLOR_WARNING), ephemeral=True)
 
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # 5) TEMPORARY VOICE CHANNELS
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 class TempVoiceDropdown(discord.ui.Select):
     def __init__(self) -> None:
         options = [
@@ -6520,65 +5736,9 @@ async def slash_tempvoice_setup(interaction: discord.Interaction, channel: disco
     await interaction.response.send_message(embed=embed)
     await bot.log_action(interaction.guild, f"{E.OK} Temp-Voice Setup", f"{channel.mention} als Join-to-Create von {interaction.user.mention}.", COLOR_SUCCESS, user=interaction.user, module="moderation")
 
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # 8) MASS-BAN COMMAND
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 class MassBanConfirmView(discord.ui.View):
     def __init__(self, user_ids: list, reason: str, user: discord.Member) -> None:
         super().__init__(timeout=60)
@@ -6632,65 +5792,9 @@ async def slash_massban(interaction: discord.Interaction, user_ids: str, reason:
     embed = create_embed("⚠️ Mass-Ban bestätigen", f"**{len(id_list)} Nutzer** werden gebannt.\nGrund: {reason}\nIDs: {id_text}", COLOR_DANGER)
     await interaction.response.send_message(embed=embed, view=MassBanConfirmView(id_list, reason, interaction.user))
 
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # 10) REACTION ROLES
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 class ReactionRoleDropdown(discord.ui.Select):
     def __init__(self, roles: list) -> None:
         options = [discord.SelectOption(label=r.name, value=str(r.id), emoji="🎭") for r in roles[:25]]
@@ -6741,65 +5845,9 @@ async def slash_reactionrole(interaction: discord.Interaction, channel: discord.
     except discord.Forbidden:
         await interaction.response.send_message(embed=create_embed(f"{E.FAIL} Keine Rechte", "Ich darf dort keine Nachrichten senden.", COLOR_DANGER), ephemeral=True)
 
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # 11) USERINFO (Slash + Prefix)
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 async def _userinfo_logic(guild, target, requester):
     """Shared logic for /userinfo and !userinfo"""
     if not target:
@@ -6865,65 +5913,9 @@ async def _userinfo_logic(guild, target, requester):
         embed.set_image(url=target.banner.url)
     return embed
 
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # 12) SERVERINFO (Slash + Prefix)
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 async def _serverinfo_logic(guild):
     created = f"<t:{int(guild.created_at.timestamp())}:R>"
     text_ch = len([c for c in guild.channels if isinstance(c, discord.TextChannel)])
@@ -6965,65 +5957,9 @@ async def _serverinfo_logic(guild):
         embed.set_image(url=guild.banner.url)
     return embed
 
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # 13) MODSTATS (Slash + Prefix)
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 async def _modstats_logic(guild, moderator=None):
     db = bot.db
     query = {"guild_id": str(guild.id)}
@@ -7081,65 +6017,9 @@ async def _modstats_logic(guild, moderator=None):
             COLOR_PRIMARY
         )
 
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # 14) SOFTBAN (Slash + Prefix)
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 async def _softban_logic(guild, moderator, target, reason, days=1):
     if not can_moderate(moderator, target):
         return create_embed(f"{E.FAIL} Fehler", "Du kannst diesen User nicht bestrafen.", COLOR_DANGER)
@@ -7154,124 +6034,12 @@ async def _softban_logic(guild, moderator, target, reason, days=1):
     except discord.HTTPException as ex:
         return create_embed(f"{E.FAIL} Fehler", f"Discord-Fehler: {ex}", COLOR_DANGER)
 
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # 15) REPORT SYSTEM (Slash + Prefix)
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # 16) INVITE TRACKER (Slash + Prefix)
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 @bot.tree.command(name="invites_leaderboard", description="Zeigt Invite-Leaderboard")
 @app_commands.default_permissions(manage_guild=True)
 async def slash_invites_lb(interaction: discord.Interaction) -> None:
@@ -7292,124 +6060,12 @@ async def slash_invites_lb(interaction: discord.Interaction) -> None:
     except discord.Forbidden:
         await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", "Keine Berechtigung.", COLOR_DANGER), ephemeral=True)
 
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # 17) LOCKALL / UNLOCKALL (Slash + Prefix)
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # 18) AUTO-RESPONSE SYSTEM
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 @bot.tree.command(name="autoresponse_add", description="Fügt eine Auto-Response hinzu")
 @app_commands.describe(trigger="Trigger-Wort/Phrase", response="Die Antwort die gesendet wird")
 @app_commands.default_permissions(administrator=True)
@@ -7447,186 +6103,18 @@ async def slash_ar_del(interaction: discord.Interaction, index: int) -> None:
     await bot.db.set_config(interaction.guild.id, cfg)
     await interaction.response.send_message(embed=create_embed(f"{E.OK} Gelöscht", f"Trigger `{removed['trigger']}` entfernt.", COLOR_SUCCESS))
 
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # 19) WARN-DECAY SYSTEM
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # 20) NO-PREFIX MODE + AUTO-RESPONSE IN on_message
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # This is handled by injecting into the existing on_message handler.
 # We patch it via a listener instead:
 
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # 21) NO-PREFIX SETUP
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 @bot.tree.command(name="noprefix_add", description="Fügt einen User zur No-Prefix-Whitelist hinzu")
 @app_commands.describe(member="User der No-Prefix nutzen darf")
 @app_commands.default_permissions(administrator=True)
@@ -7667,392 +6155,28 @@ async def slash_noprefix_list(interaction: discord.Interaction) -> None:
         desc = f"**Modus:** Whitelist ({len(np_users)} User)\n\n{user_list}"
     await interaction.response.send_message(embed=create_embed("⚙️ No-Prefix Whitelist", desc, COLOR_INFO))
 
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # PREFIX MIRRORS — Fehlende Prefix-Pendants für wichtige Commands
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # AUTO BAN-APPEAL SYSTEM
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # NEW: /note — Interne Moderator-Notizen
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 _snipe_cache = {}  # guild_id -> {channel_id: (message, timestamp)}
 
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # NEW: /poll — Abstimmung
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # NEW: /raidmode — Manueller Raid-Modus
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # NEW: Erweiterte /purge Varianten
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 @bot.tree.command(name="purge_user", description="Löscht Nachrichten eines bestimmten Users")
 @app_commands.describe(member="User", amount="Anzahl zu prüfender Nachrichten")
 @app_commands.default_permissions(manage_messages=True)
@@ -8122,123 +6246,11 @@ async def prefix_purge(ctx, target: str = None, amount: int = 50):
     except Exception:
         pass
 
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # NEW: ANTI-VPN — VPN/Proxy-Erkennung bei Join
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 _vpn_api_cache: Dict[str, bool] = {}
 
 async def _check_vpn(ip: str) -> bool:
@@ -8266,65 +6278,9 @@ async def _check_vpn(ip: str) -> bool:
         log.debug(f"VPN check error for {ip}: {e}")
     return False
 
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # MODFORGE CUSTOM FEATURES
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 from collections import defaultdict as _dd
 
 _dm_sent = {}
@@ -9031,82 +6987,15 @@ async def noprefix_handler(msg):
 async def ar_handler(msg):
     if msg.author.bot or not msg.guild: return
     cfg = bot.db.get_config(msg.guild.id)
-    ars = cfg.get("auto_responses", [])
-    if not ars: return
-    
-    for ar in ars:
-        if ar.get("enabled", True) and ar.get("trigger", "").lower() in msg.content.lower():
-            response = ar.get("response", "")
-            # Replace placeholders
-            response = response.replace("{user}", msg.author.mention)
-            response = response.replace("{server}", msg.guild.name)
-            response = response.replace("{channel}", msg.channel.mention)
-            
-            try:
-                await msg.channel.send(response)
-            except:
-                pass
+    for ar in cfg.get("auto_responses",[]):
+        if ar.get("enabled",True) and ar.get("trigger","").lower() in msg.content.lower():
+            try: await msg.channel.send(ar["response"])
+            except: pass
             break
 
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # SERVER-TAG + BOOST SYSTEM
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 @bot.tree.command(name="servertag", description="Server-Tag System einrichten")
 @app_commands.describe(enabled="An/Aus", reward_role="Belohnungsrolle für Tag-Nutzer", tag="Tag-Text im Namen (z.B. '| MyServer')")
 @app_commands.default_permissions(administrator=True)
@@ -9238,65 +7127,9 @@ async def servertag_check(before: discord.Member, after: discord.Member):
 # Auch bei Nickname-Änderung prüfen (on_member_update feuert dafür)
 # Und bei Boost-Status-Änderung (premium_since ändert sich)
 
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # AUTO-NICKNAME SYSTEM
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 @bot.listen("on_member_update")
 async def auto_nickname_check(before: discord.Member, after: discord.Member):
     """Wenn sich Rollen ändern → prüfe Auto-Nickname Regeln."""
@@ -9400,65 +7233,9 @@ async def auto_nickname_on_join(member: discord.Member):
 
 
 
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # PUBLIC BACKUP SHARING
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="masswarn", description="Verwarne mehrere Nutzer gleichzeitig")
-@app_commands.describe(members="Nutzer (durch Komma getrennt)", reason="Grund")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_masswarn(interaction: discord.Interaction, members: str, reason: str = "Mass-Warn"):
-    await interaction.response.defer(ephemeral=True)
-    ids = [i.strip() for i in members.split(",") if i.strip().isdigit()]
-    warned = 0
-    for uid in ids:
-        try:
-            m = await interaction.guild.fetch_member(int(uid))
-            await bot.db.aadd_warning(interaction.guild.id, m.id, reason, interaction.user.id)
-            warned += 1
-        except: pass
-    await interaction.followup.send(embed=create_embed(f"{E.OK} Mass-Warn", f"**{warned}** Nutzer wurden verwarnt.", COLOR_WARNING))
 @bot.tree.command(name="backup_share", description="Macht ein Backup öffentlich teilbar")
 @app_commands.describe(backup_id="Backup-ID", name="Öffentlicher Name", description="Beschreibung", category="Kategorie")
 @app_commands.default_permissions(administrator=True)
