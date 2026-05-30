@@ -78,3 +78,11 @@
 2026-05-30 18:27:58,323 [ERROR] ModForge.Web.Routes: [ASYNC ERROR] cannot import name 'bot_ref' from 'bot.bot' (/home/user/ModForge/bot/bot.py)
 2026-05-30 18:27:58,376 [ERROR] ModForge.Web.Routes: [ASYNC ERROR] cannot import name 'bot_ref' from 'bot.bot' (/home/user/ModForge/bot/bot.py)
 2026-05-30 18:27:58,578 [ERROR] ModForge.Auth: Discord API 401: {"message": "401: Unauthorized", "code": 0}
+2026-05-30 19:05:44,739 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-05-30 19:05:44,739 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-05-30 19:05:44,990 [ERROR] ModForge.Web.Routes: [ASYNC ERROR] cannot import name 'bot_ref' from 'bot.bot' (/home/user/ModForge/bot/bot.py)
+2026-05-30 19:05:45,049 [ERROR] ModForge.Web.Routes: [ASYNC ERROR] cannot import name 'bot_ref' from 'bot.bot' (/home/user/ModForge/bot/bot.py)
+2026-05-30 19:06:24,731 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-05-30 19:06:24,731 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-05-30 19:06:24,981 [ERROR] ModForge.Web.Routes: [ASYNC ERROR] cannot import name 'bot_ref' from 'bot.bot' (/home/user/ModForge/bot/bot.py)
+2026-05-30 19:06:25,041 [ERROR] ModForge.Web.Routes: [ASYNC ERROR] cannot import name 'bot_ref' from 'bot.bot' (/home/user/ModForge/bot/bot.py)

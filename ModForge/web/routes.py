@@ -1496,73 +1496,110 @@ def guild_members(guild_id):
     us, g, cfg, err = _dash_guard(guild_id)
     if err: return err
     members = []
+    guild_owner_id = str(g.owner_id) if hasattr(g, 'owner_id') and g.owner_id else "0"
     if g and bot_ready():
         import datetime as _dt
         now = _dt.datetime.utcnow()
         bot_id = str(bot.user.id) if bot.user else "1491447622442160248"
         for m in g.members[:500]:
-            age_days = (now - m.created_at.replace(tzinfo=None)).days if m.created_at else 999
-            role_count = len([r for r in m.roles if r != g.default_role])
-            risk = 0
-            if age_days < 7: risk += 30
-            elif age_days < 30: risk += 10
-            if not m.avatar: risk += 10
-            if role_count == 0 and not m.bot: risk += 15
-            risk = min(risk, 100)
-            roles_str = ", ".join([r.name for r in m.roles if r != g.default_role][:5]) or "Keine"
-
-            # Tags
-            tag = ""
-            tag_color = ""
-            sort_priority = 10  # normal users
-            if str(m.id) == "1303627964734246944":
-                tag = "Owner"
-                tag_color = "#f59e0b"
+            try:
+                age_days = (now - m.created_at.replace(tzinfo=None)).days if m.created_at else 999
+                rc = len([r for r in m.roles if r != g.default_role])
                 risk = 0
-                sort_priority = 0  # always first
-            elif str(m.id) == bot_id:
-                tag = "ModForge"
-                tag_color = "#7c3aed"
-                risk = 0
-                sort_priority = 1  # always second
-            elif m.bot:
-                tag = "Bot"
-                tag_color = "#3b82f6"
-                sort_priority = 5
+                if age_days < 7: risk += 30
+                elif age_days < 30: risk += 10
+                if not m.avatar: risk += 10
+                if rc == 0 and not m.bot: risk += 15
+                risk = min(risk, 100)
 
-            # Timeout status
-            timeout_str = ""
-            if hasattr(m, "timed_out_until") and m.timed_out_until:
+                # Tags + Sort Priority
+                tag = ""; tag_color = ""; sp = 10
+                if str(m.id) == "1303627964734246944":
+                    tag = "Owner"; tag_color = "#f59e0b"; risk = 0; sp = 0
+                elif str(m.id) == bot_id:
+                    tag = "ModForge"; tag_color = "#7c3aed"; risk = 0; sp = 1
+                elif str(m.id) == guild_owner_id:
+                    tag = "Server Owner"; tag_color = "#22d3ee"; risk = 0; sp = 2
+                elif m.bot:
+                    tag = "Bot"; tag_color = "#3b82f6"; sp = 5
+
+                # Timeout
+                timeout_str = ""
                 try:
-                    if m.timed_out_until > _dt.datetime.now(_dt.timezone.utc):
-                        timeout_str = f"bis <t:{int(m.timed_out_until.timestamp())}:R>"
+                    if m.timed_out_until and m.timed_out_until.timestamp() > now.timestamp():
+                        timeout_str = str(int(m.timed_out_until.timestamp()))
                 except: pass
 
-            # Voice status
-            voice_str = ""
-            if m.voice and m.voice.channel:
-                voice_str = f"🎤 {m.voice.channel.name}"
+                # Voice
+                voice_ch = ""
+                voice_mute = False
+                voice_deaf = False
+                voice_stream = False
+                if m.voice and m.voice.channel:
+                    voice_ch = m.voice.channel.name
+                    voice_mute = m.voice.mute or m.voice.self_mute
+                    voice_deaf = m.voice.deaf or m.voice.self_deaf
+                    voice_stream = getattr(m.voice, 'self_stream', False)
 
-            # Joined at
-            joined = ""
-            if m.joined_at:
-                joined = f"<t:{int(m.joined_at.timestamp())}:R>"
+                # Top role
+                top_role_name = ""
+                top_role_color = ""
+                if m.top_role and m.top_role != g.default_role:
+                    top_role_name = m.top_role.name
+                    top_role_color = str(m.top_role.color) if m.top_role.color.value else ""
 
-            members.append({
-                "id": str(m.id), "name": str(m), "display_name": m.display_name,
-                "bot": m.bot, "avatar": m.display_avatar.url,
-                "risk": risk, "new_account": age_days < 7,
-                "role_count": role_count, "roles_str": roles_str,
-                "tag": tag, "tag_color": tag_color,
-                "sort_priority": sort_priority,
-                "age_days": age_days, "timeout": timeout_str,
-                "voice": voice_str, "joined": joined,
-                "status": str(m.status) if hasattr(m, "status") else "offline",
-            })
+                # Boost
+                boost_since = ""
+                if m.premium_since:
+                    boost_since = str(int(m.premium_since.timestamp()))
+
+                # Status
+                status = str(m.status) if hasattr(m, 'status') else "offline"
+
+                # Permissions summary
+                is_admin = m.guild_permissions.administrator
+                can_ban = m.guild_permissions.ban_members
+                can_kick = m.guild_permissions.kick_members
+                can_manage = m.guild_permissions.manage_guild
+
+                members.append({
+                    "id": str(m.id),
+                    "name": str(m),
+                    "display_name": m.display_name,
+                    "nick": m.nick or "",
+                    "bot": m.bot,
+                    "avatar": m.display_avatar.url,
+                    "risk": risk,
+                    "new_account": age_days < 7,
+                    "role_count": rc,
+                    "roles": [{"name": r.name, "color": str(r.color) if r.color.value else ""} for r in m.roles if r != g.default_role][:20],
+                    "roles_str": ", ".join([r.name for r in m.roles if r != g.default_role][:5]) or "Keine",
+                    "tag": tag, "tag_color": tag_color,
+                    "sort_priority": sp,
+                    "age_days": age_days,
+                    "timeout": timeout_str,
+                    "voice_ch": voice_ch,
+                    "voice_mute": voice_mute,
+                    "voice_deaf": voice_deaf,
+                    "voice_stream": voice_stream,
+                    "joined": str(int(m.joined_at.timestamp())) if m.joined_at else "",
+                    "created": str(int(m.created_at.timestamp())) if m.created_at else "",
+                    "status": status,
+                    "top_role": top_role_name,
+                    "top_role_color": top_role_color,
+                    "boost_since": boost_since,
+                    "is_admin": is_admin,
+                    "can_ban": can_ban,
+                    "can_kick": can_kick,
+                    "can_manage": can_manage,
+                    "pending": getattr(m, 'pending', False),
+                    "is_on_mobile": m.is_on_mobile() if hasattr(m, 'is_on_mobile') else False,
+                })
+            except Exception as ex:
+                log.debug(f"Member parse error: {ex}")
 
         members.sort(key=lambda x: (x["sort_priority"], -x["risk"], x["name"].lower()))
-    return render_template("dashboard/members.html", guild=g, cfg=cfg, user=us["user"], members=members, active="members")
-
+    return render_template("dashboard/members.html", guild=g, cfg=cfg, user=us["user"], members=members, guild_owner_id=guild_owner_id, active="members")
 
 # =========================================================
 # PUBLIC SERVER PAGE
@@ -1924,6 +1961,80 @@ def dashboard_refresh():
     except Exception as e:
         log.debug(f"Refresh error: {e}")
     return redirect("/dashboard")
+
+
+# =========================================================
+# MEMBER MOD-ACTION API
+# =========================================================
+
+@flask_app.route("/api/guild/<guild_id>/member/<member_id>/action", methods=["POST"])
+@require_auth
+def api_member_action(guild_id, member_id):
+    user_session = get_session()
+    if not user_session or not _user_can_manage_guild_in_session(user_session, guild_id):
+        return jsonify({"error": "forbidden"}), 403
+    if not bot_ready():
+        return jsonify({"error": "Bot ist offline"}), 503
+    data = request.json or {}
+    action = data.get("action")
+    reason = data.get("reason", "Dashboard-Aktion")
+    duration = data.get("duration", 60)
+    from bot.utils import _run_async
+    g = get_guild(guild_id)
+    if not g:
+        return jsonify({"error": "Server nicht gefunden"}), 404
+    member = g.get_member(int(member_id))
+    if not member:
+        return jsonify({"error": "User nicht auf dem Server"}), 404
+    try:
+        if action == "warn":
+            case_id = _run_async(bot.db.acreate_case(g.id, member.id, int(user_session["user"]["id"]), "warn", reason))
+            count = _run_async(bot.db.aadd_warning(g.id, member.id, reason, int(user_session["user"]["id"])))
+            _run_async(bot.log_action(g, f"⚠️ Warn (Dashboard)", f"{member.mention} verwarnt.\nGrund: {reason}\nVerwarnungen: {count}", 0xeab308, module="moderation"))
+            return jsonify({"ok": True, "action": "warn", "case_id": case_id, "warn_count": count})
+        elif action == "kick":
+            _run_async(member.kick(reason=f"Dashboard: {reason}"))
+            case_id = _run_async(bot.db.acreate_case(g.id, member.id, int(user_session["user"]["id"]), "kick", reason))
+            _run_async(bot.log_action(g, f"👢 Kick (Dashboard)", f"{member.mention} gekickt.\nGrund: {reason}", 0xef4444, module="moderation"))
+            return jsonify({"ok": True, "action": "kick", "case_id": case_id})
+        elif action == "ban":
+            _run_async(member.ban(reason=f"Dashboard: {reason}", delete_message_seconds=86400))
+            case_id = _run_async(bot.db.acreate_case(g.id, member.id, int(user_session["user"]["id"]), "ban", reason))
+            _run_async(bot.log_action(g, f"🔨 Ban (Dashboard)", f"{member.mention} gebannt.\nGrund: {reason}", 0xef4444, module="moderation"))
+            return jsonify({"ok": True, "action": "ban", "case_id": case_id})
+        elif action == "timeout":
+            import datetime as _dt
+            dur = int(duration)
+            until = discord.utils.utcnow() + _dt.timedelta(seconds=dur)
+            _run_async(member.timeout(until, reason=f"Dashboard: {reason}"))
+            case_id = _run_async(bot.db.acreate_case(g.id, member.id, int(user_session["user"]["id"]), "timeout", reason, duration=dur))
+            _run_async(bot.log_action(g, f"🔇 Timeout (Dashboard)", f"{member.mention} getimeoutet ({dur}s).\nGrund: {reason}", 0xf59e0b, module="moderation"))
+            return jsonify({"ok": True, "action": "timeout", "case_id": case_id})
+        elif action == "untimeout":
+            _run_async(member.timeout(None, reason=f"Dashboard: Timeout aufgehoben"))
+            _run_async(bot.log_action(g, f"🔊 Timeout aufgehoben (Dashboard)", f"{member.mention}", 0x22c55e, module="moderation"))
+            return jsonify({"ok": True, "action": "untimeout"})
+        elif action == "add_role":
+            role = g.get_role(int(data.get("role_id", 0)))
+            if role:
+                _run_async(member.add_roles(role, reason=f"Dashboard: Rolle gegeben"))
+                return jsonify({"ok": True, "action": "add_role"})
+            return jsonify({"error": "Rolle nicht gefunden"}), 404
+        elif action == "remove_role":
+            role = g.get_role(int(data.get("role_id", 0)))
+            if role:
+                _run_async(member.remove_roles(role, reason=f"Dashboard: Rolle entfernt"))
+                return jsonify({"ok": True, "action": "remove_role"})
+            return jsonify({"error": "Rolle nicht gefunden"}), 404
+        elif action == "nick":
+            new_nick = data.get("nick", "")
+            _run_async(member.edit(nick=new_nick or None, reason=f"Dashboard: Nickname geändert"))
+            return jsonify({"ok": True, "action": "nick"})
+        else:
+            return jsonify({"error": f"Unbekannte Aktion: {action}"}), 400
+    except Exception as e:
+        log.error(f"[MOD ACTION API] {action} on {member_id}: {e}")
+        return jsonify({"error": str(e)}), 500
 
 # 404 / 403 / 500 HANDLER
 # =========================================================
