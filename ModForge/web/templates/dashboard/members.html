@@ -125,6 +125,17 @@ function panel(i){
       <button class="btn-glass btn-sm" onclick="modAct('timeout','${m.id}')">🔇 Timeout</button>
       ${m.timeout ? '<button class="btn-glass btn-sm btn-glass-ghost" onclick="modAct(\'untimeout\',\''+m.id+'\')">🔊 Unmute</button>' : ''}
       <button class="btn-glass btn-sm btn-glass-ghost" onclick="modNick('${m.id}','${m.nick||m.display_name}')">✏️ Nick</button>
+      <button class="btn-glass btn-sm btn-glass-ghost" onclick="window.location='/dashboard/${GID}/cases?user='+m.id">📋 Cases</button>
+    </div>
+    <div class="mp-section">⏱️ Timeout-Optionen</div>
+    <div style="display:flex;gap:4px;flex-wrap:wrap">
+      <button class="btn-glass btn-sm btn-glass-ghost" onclick="modTimeout('${m.id}',60)">1m</button>
+      <button class="btn-glass btn-sm btn-glass-ghost" onclick="modTimeout('${m.id}',300)">5m</button>
+      <button class="btn-glass btn-sm btn-glass-ghost" onclick="modTimeout('${m.id}',600)">10m</button>
+      <button class="btn-glass btn-sm btn-glass-ghost" onclick="modTimeout('${m.id}',1800)">30m</button>
+      <button class="btn-glass btn-sm btn-glass-ghost" onclick="modTimeout('${m.id}',3600)">1h</button>
+      <button class="btn-glass btn-sm btn-glass-ghost" onclick="modTimeout('${m.id}',86400)">24h</button>
+      <button class="btn-glass btn-sm btn-glass-ghost" onclick="modTimeout('${m.id}',604800)">7d</button>
     </div>
   ` : '';
 
@@ -137,10 +148,12 @@ function panel(i){
       ${m.nick?`<div style="font-size:.72rem;color:var(--vl);margin-top:4px">Nick: ${m.nick}</div>`:''}
     </div>
 
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px">
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:16px">
       <div class="mp-stat"><div class="mp-stat-val" style="color:${rc}">${m.risk}%</div><div class="mp-stat-lbl">Risk</div></div>
       <div class="mp-stat"><div class="mp-stat-val" style="color:var(--vl)">${m.role_count}</div><div class="mp-stat-lbl">Rollen</div></div>
       <div class="mp-stat"><div class="mp-stat-val" style="color:var(--cl)">${m.age_days}d</div><div class="mp-stat-lbl">Alter</div></div>
+      <div class="mp-stat"><div class="mp-stat-val" style="color:var(--orange)">${m.cases||0}</div><div class="mp-stat-lbl">Cases</div></div>
+      <div class="mp-stat"><div class="mp-stat-val" style="color:var(--amberl)">${m.warns||0}</div><div class="mp-stat-lbl">Warns</div></div>
     </div>
 
     <div class="mp-section">📋 Details</div>
@@ -214,6 +227,20 @@ async function modNick(uid, current){
     if(d.ok) {alert('✅ Nickname geändert');location.reload();}
     else alert('❌ '+(d.error||'Fehler'));
   }catch(e){alert('❌ '+e.message)}
+}
+
+async function modTimeout(uid, dur) {
+  const reason = prompt('Timeout-Grund:');
+  if (reason === null) return;
+  try {
+    const r = await fetch('/api/guild/' + GID + '/member/' + uid + '/action', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({action: 'timeout', reason: reason || 'Dashboard', duration: dur})
+    });
+    const d = await r.json();
+    if (d.ok) { alert('🔇 Timeout gesetzt (Case #' + d.case_id + ')'); location.reload(); }
+    else alert('❌ ' + (d.error || 'Fehler'));
+  } catch(e) { alert('❌ ' + e.message); }
 }
 
 function filt(){

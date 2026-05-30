@@ -130,7 +130,7 @@ def parse_duration(text: str) -> Optional[int]:
 
 def _run_async(coro, timeout: float = 8.0):
     """Führt eine Coroutine threadsafe aus (für Flask)."""
-    from bot.bot import bot_ref
+    from bot.bot import BOT_REF as bot_ref
     if bot_ref is None or not bot_ref.loop or not bot_ref.loop.is_running():
         return None
     try:

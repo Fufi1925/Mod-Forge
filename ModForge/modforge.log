@@ -86,3 +86,10 @@
 2026-05-30 19:06:24,731 [WARNING] discord.client: davey is not installed, voice will NOT be supported
 2026-05-30 19:06:24,981 [ERROR] ModForge.Web.Routes: [ASYNC ERROR] cannot import name 'bot_ref' from 'bot.bot' (/home/user/ModForge/bot/bot.py)
 2026-05-30 19:06:25,041 [ERROR] ModForge.Web.Routes: [ASYNC ERROR] cannot import name 'bot_ref' from 'bot.bot' (/home/user/ModForge/bot/bot.py)
+2026-05-30 19:13:05,900 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-05-30 19:13:05,901 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-05-30 19:13:05,954 [ERROR] ModForge.Web.Routes: [CONFIG API ERROR] cannot import name 'bot_ref' from 'bot.bot' (/home/user/ModForge/bot/bot.py)
+2026-05-30 19:13:42,280 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-05-30 19:13:42,281 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-05-30 19:15:28,100 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-05-30 19:15:28,101 [WARNING] discord.client: davey is not installed, voice will NOT be supported

@@ -1562,8 +1562,23 @@ def guild_members(guild_id):
                 can_kick = m.guild_permissions.kick_members
                 can_manage = m.guild_permissions.manage_guild
 
+                # Cases/Warns count
+                user_cases = 0
+                user_warns = 0
+                try:
+                    db = get_db()
+                    if db:
+                        user_cases = safe_collection_count(db.cases, {"guild_id": str(g.id), "user_id": str(m.id)})
+                        user_warns = safe_collection_count(getattr(db, "warnings", None), {"guild_id": str(g.id), "user_id": str(m.id)})
+                        if user_cases: risk = min(risk + user_cases * 5, 100)
+                        if user_warns: risk = min(risk + user_warns * 8, 100)
+                except:
+                    pass
+
                 members.append({
                     "id": str(m.id),
+                    "cases": user_cases,
+                    "warns": user_warns,
                     "name": str(m),
                     "display_name": m.display_name,
                     "nick": m.nick or "",
@@ -1734,7 +1749,10 @@ def api_guild_whitelist(guild_id):
             try: item_id = int(item_id)
             except: pass
             wl[cat] = [x for x in wl.get(cat, []) if str(x) != str(item_id)]
-        _run_async(bot.db.aset_whitelist(int(guild_id), wl))
+        try:
+            _run_async(bot.db.whitelist_col.replace_one({"guild_id": int(guild_id)}, {"guild_id": int(guild_id), **wl}, upsert=True))
+        except:
+            bot.db._whitelist_cache[int(guild_id)] = wl
         return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -1974,7 +1992,7 @@ def api_member_action(guild_id, member_id):
     if not user_session or not _user_can_manage_guild_in_session(user_session, guild_id):
         return jsonify({"error": "forbidden"}), 403
     if not bot_ready():
-        return jsonify({"error": "Bot ist offline"}), 503
+        return jsonify({"error": "Bot ist offline. Mod-Aktionen benötigen einen laufenden Bot."}), 503
     data = request.json or {}
     action = data.get("action")
     reason = data.get("reason", "Dashboard-Aktion")
@@ -2035,6 +2053,33 @@ def api_member_action(guild_id, member_id):
     except Exception as e:
         log.error(f"[MOD ACTION API] {action} on {member_id}: {e}")
         return jsonify({"error": str(e)}), 500
+
+
+@flask_app.route("/api/guild/<guild_id>/noprefix", methods=["POST"])
+@require_auth
+def api_noprefix(guild_id):
+    user_session = get_session()
+    if not user_session or not _user_can_manage_guild_in_session(user_session, guild_id):
+        return jsonify({"error": "forbidden"}), 403
+    data = request.json or {}
+    cfg = _get_guild_config(guild_id)
+    from bot.utils import _run_async
+    if "enabled" in data:
+        cfg["no_prefix"] = bool(data["enabled"])
+    if "action" in data:
+        np_users = cfg.get("no_prefix_users", [])
+        uid = data.get("user_id")
+        if data["action"] == "add" and uid:
+            if uid not in [str(u) for u in np_users]:
+                np_users.append(int(uid) if uid.isdigit() else uid)
+        elif data["action"] == "del" and uid:
+            np_users = [u for u in np_users if str(u) != str(uid)]
+        cfg["no_prefix_users"] = np_users
+    try:
+        _run_async(bot.db.set_config(int(guild_id), cfg))
+    except:
+        pass
+    return jsonify({"ok": True, "no_prefix": cfg.get("no_prefix", False)})
 
 # 404 / 403 / 500 HANDLER
 # =========================================================
