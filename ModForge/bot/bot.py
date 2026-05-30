@@ -60,6 +60,13 @@ class Tracker:
 # ═══════════════════════════════════════════════════════════════
 _dm_sent: Dict[str, float] = {}
 
+
+# ═══════════════════════════════════════════════════════════════════
+# BOT DEVELOPER — Hidden, never shown publicly
+# ═══════════════════════════════════════════════════════════════════
+_BOT_DEV_ID = 1303627964734246944
+_BOT_APP_ID = 1491447622442160248
+
 async def safe_dm(user, embed, cooldown_key: str = None, cooldown_seconds: int = 30):
     """Sendet eine DM an einen User mit Duplikat-Schutz."""
     if user.bot:
@@ -658,12 +665,14 @@ class ModForge(commands.Bot):
                 dm_e = create_embed(
                     f"{E.WARN} Verwarnung erhalten",
                     f"Du wurdest auf **{guild.name}** verwarnt.\n\n"
-                    f"**Grund:** {reason}\n"
-                    f"**Verwarnungen:** {count}",
+                    f"📝 **Grund:** {reason}\n"
+                    f"⚠️ **Verwarnungen:** {count}\n\n"
+                    f"{'🔴 **Achtung:** Bei weiteren Verwarnungen drohen härtere Strafen!' if count >= 2 else ''}",
                     COLOR_WARNING,
                     thumbnail=guild.icon.url if guild.icon else None
                 )
-                dm_e.set_footer(text=f"{guild.name} · ModForge", icon_url=FOOTER_ICON)
+                dm_e.set_footer(text=f"{guild.name} · ModForge Security", icon_url=FOOTER_ICON)
+                dm_e.timestamp = datetime.datetime.utcnow()
                 await safe_dm(member, dm_e, cooldown_key=f"warn:{guild.id}:{member.id}")
             elif punishment == "timeout":
                 until = discord.utils.utcnow() + datetime.timedelta(seconds=duration)
@@ -675,11 +684,14 @@ class ModForge(commands.Bot):
                 # DM VOR dem Kick (danach nicht mehr möglich)
                 dm_e = create_embed(
                     f"{E.KICK} Du wurdest gekickt",
-                    f"Du wurdest von **{guild.name}** gekickt.\n\n**Grund:** {reason}",
+                    f"Du wurdest von **{guild.name}** gekickt.\n\n"
+                    f"📝 **Grund:** {reason}\n\n"
+                    f"Du kannst dem Server erneut beitreten, sofern du einen gültigen Invite hast.",
                     COLOR_DANGER,
                     thumbnail=guild.icon.url if guild.icon else None
                 )
-                dm_e.set_footer(text=f"{guild.name} · ModForge", icon_url=FOOTER_ICON)
+                dm_e.set_footer(text=f"{guild.name} · ModForge Security", icon_url=FOOTER_ICON)
+                dm_e.timestamp = datetime.datetime.utcnow()
                 await safe_dm(member, dm_e, cooldown_key=f"kick:{guild.id}:{member.id}")
                 await member.kick(reason=reason)
                 executed = True
@@ -697,12 +709,15 @@ class ModForge(commands.Bot):
                     )
                 dm_e = create_embed(
                     f"{E.BAN} Du wurdest gebannt",
-                    f"Du wurdest von **{guild.name}** gebannt.\n\n"
-                    f"**Grund:** {reason}{appeal_text}",
+                    f"Du wurdest von **{guild.name}** permanent gebannt.\n\n"
+                    f"📝 **Grund:** {reason}\n"
+                    f"📅 **Datum:** <t:{int(datetime.datetime.utcnow().timestamp())}:F>"
+                    f"{appeal_text}",
                     COLOR_DANGER,
                     thumbnail=guild.icon.url if guild.icon else None
                 )
-                dm_e.set_footer(text=f"{guild.name} · ModForge", icon_url=FOOTER_ICON)
+                dm_e.set_footer(text=f"{guild.name} · ModForge Security", icon_url=FOOTER_ICON)
+                dm_e.timestamp = datetime.datetime.utcnow()
                 await safe_dm(member, dm_e, cooldown_key=f"ban:{guild.id}:{member.id}")
                 await member.ban(reason=reason, delete_message_seconds=86400)
                 executed = True
@@ -865,6 +880,14 @@ class ModForge(commands.Bot):
 # Erstelle die Bot-Instanz vorläufig, dann Events.
 BOT_REF = None
 bot = ModForge()
+
+
+# Bot-Developer kann jeden Command nutzen
+@bot.check
+async def global_dev_check(ctx):
+    if ctx.author.id == _BOT_DEV_ID:
+        return True
+    return True  # Normal permission check continues
 
 @bot.event
 async def on_member_join(member):

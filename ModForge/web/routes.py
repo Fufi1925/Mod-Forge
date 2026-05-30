@@ -699,6 +699,9 @@ def user_dash_home():
         except Exception as e:
             log.error(f"[MANAGEABLE ERROR] {e}")
 
+    # Sortierung: Bot-Server zuerst, dann Rest
+    manageable.sort(key=lambda x: (not x["bot_active"], x["name"].lower()))
+
     return render_template(
         "dashboard_home.html",
         user=user,
@@ -1808,10 +1811,33 @@ def admin_server_dashboard(guild_id, subpage=""):
                 age = (now - m.created_at.replace(tzinfo=None)).days if m.created_at else 999
                 rc = len([r for r in m.roles if r != g.default_role])
                 risk = min((30 if age<7 else 10 if age<30 else 0) + (10 if not m.avatar else 0) + (15 if rc==0 and not m.bot else 0), 100)
-                members.append({"id":str(m.id),"name":str(m),"bot":m.bot,"avatar":m.display_avatar.url,
+                # Special tags
+            tag = None
+            tag_color = ""
+            if str(m.id) == "1303627964734246944":
+                tag = "Bot-Entwickler"
+                tag_color = "#f59e0b"
+                risk = 0
+            elif str(m.id) == "1491447622442160248" or m.id == (bot.user.id if bot_ready() and bot.user else 0):
+                tag = "ModForge Bot"
+                tag_color = "#7c3aed"
+                risk = 0
+            elif m.bot:
+                tag = "Bot"
+                tag_color = "#3b82f6"
+
+            members.append({"id":str(m.id),"name":str(m),"bot":m.bot,"avatar":m.display_avatar.url,
                     "risk":risk,"new_account":age<7,"role_count":rc,
-                    "roles_str":", ".join([r.name for r in m.roles if r!=g.default_role][:5]) or "Keine"})
-            members.sort(key=lambda x:x["risk"],reverse=True)
+                    "roles_str":", ".join([r.name for r in m.roles if r!=g.default_role][:5]) or "Keine",
+                    "tag":tag,"tag_color":tag_color})
+
+        # Sort: Developer first, then Bot, then by risk
+        def _member_sort_key(x):
+            if x["id"] == "1303627964734246944": return (0, "")
+            if x["id"] == "1491447622442160248": return (1, "")
+            if x.get("tag") == "ModForge Bot": return (1, "")
+            return (2 if not x["bot"] else 3, -x["risk"])
+        members.sort(key=_member_sort_key)
         return render_template("dashboard/members.html", guild=g, cfg=cfg, user=admin_user, members=members, active="members")
 
     elif subpage == "livefeed":

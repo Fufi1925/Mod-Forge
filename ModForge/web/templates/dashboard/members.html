@@ -13,7 +13,7 @@
 <div class="cfg-row member-row" data-bot="{{ 'bot' if m.bot else '' }}" data-new="{{ 'new' if m.new_account else '' }}" data-noroles="{{ 'noroles' if m.role_count == 0 else '' }}">
   <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
     <img src="{{ m.avatar }}" style="width:32px;height:32px;border-radius:50%">
-    <div style="min-width:0"><div class="cfg-label" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ m.name }}{% if m.bot %} <span class="badge badge-cyan" style="font-size:.5rem">BOT</span>{% endif %}</div>
+    <div style="min-width:0"><div class="cfg-label" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ m.name }}{% if m.tag %}<span style="display:inline-block;padding:2px 8px;border-radius:999px;font-size:.5rem;font-weight:700;background:{{ m.tag_color }}22;color:{{ m.tag_color }};border:1px solid {{ m.tag_color }}44;margin-left:4px">{{ m.tag }}</span>{% endif %}</div>
     <div class="cfg-desc">{{ m.roles_str }}</div></div>
   </div>
   <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
