@@ -2,31 +2,135 @@
 {% set active = 'autoresponse' %}
 {% block title %}Auto-Antworten{% endblock %}
 {% block page_title %}💬 Auto-Antworten{% endblock %}
-{% block page_desc %}{{ auto_responses|length }} Regeln{% endblock %}
+{% block page_desc %}{{ auto_responses|length }} aktive Regeln{% endblock %}
 {% block content %}
-<div class="cfg-desc" style="margin-bottom:14px">Wenn ein Trigger-Wort erkannt wird, antwortet der Bot automatisch.</div>
-<div class="db-card" style="padding:16px;margin-bottom:14px">
-  <div style="font-weight:700;font-size:.85rem;margin-bottom:10px">➕ Neue Antwort</div>
-  <div style="display:flex;gap:8px;flex-wrap:wrap">
-    <input type="text" id="arT" class="cfg-input" placeholder="Trigger (z.B. wie beitreten)" style="max-width:220px">
-    <input type="text" id="arR" class="cfg-input" placeholder="Antwort (z.B. Nutze /ticket!)" style="max-width:350px;flex:1">
-    <button class="btn-glass btn-sm btn-glass-primary" onclick="addAR()">+</button>
+<div class="cfg-desc" style="margin-bottom:20px">
+  Erstelle automatische Antworten für deinen Server. Wenn ein Trigger im Text erkannt wird, sendet der Bot die entsprechende Antwort.<br>
+  <strong>Placeholders:</strong> <code style="color:var(--vl)">{user}</code> (Mention), <code style="color:var(--vl)">{server}</code> (Name), <code style="color:var(--vl)">{channel}</code> (Mention).
+</div>
+
+<div class="db-card" style="padding:20px; margin-bottom:24px; border: 1px solid rgba(124,58,237,0.2)">
+  <div style="font-weight:700; font-size:.9rem; margin-bottom:15px; display:flex; align-items:center; gap:8px">
+    <span style="color:var(--vl)">➕</span> Neue Auto-Antwort hinzufügen
+  </div>
+  <div style="display:flex; gap:12px; flex-wrap:wrap">
+    <div style="flex:1; min-width:200px">
+      <label>Trigger</label>
+      <input type="text" id="arT" class="cfg-input" placeholder="z.B. !hilfe oder wie beitreten">
+    </div>
+    <div style="flex:2; min-width:300px">
+      <label>Antwort</label>
+      <input type="text" id="arR" class="cfg-input" placeholder="z.B. Hallo {user}! Nutze /help für Hilfe.">
+    </div>
+    <div style="display:flex; align-items:flex-end">
+      <button class="btn-glass btn-glass-primary" onclick="addAR()" style="height:42px; padding:0 24px">Hinzufügen</button>
+    </div>
   </div>
 </div>
-{% for ar in auto_responses %}
-<div class="cfg-row" style="animation:fadeUp .2s ease {{ loop.index * 0.05 }}s both">
-  <div style="flex:1"><span class="cfg-label">{{ ar.trigger }}</span><div class="cfg-desc" style="color:var(--cl)">→ {{ ar.response }}</div></div>
-  <label class="toggle" style="margin-right:8px"><input type="checkbox" {% if ar.get('enabled',true) %}checked{% endif %} onchange="togAR({{ loop.index0 }},this.checked)"><span class="slider"></span></label>
-  <button class="btn-glass btn-sm btn-glass-danger" onclick="delAR({{ loop.index0 }})">🗑️</button>
+
+<div class="glass-card" style="overflow:hidden">
+  <table style="border-collapse:collapse; width:100%">
+    <thead>
+      <tr>
+        <th style="padding:14px 20px">Trigger</th>
+        <th style="padding:14px 20px">Antwort</th>
+        <th style="padding:14px 20px; text-align:center">Status</th>
+        <th style="padding:14px 20px; text-align:right">Aktion</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for ar in auto_responses %}
+      <tr class="cfg-row" style="transition: background 0.2s; border-bottom: 1px solid rgba(255,255,255,0.05)">
+        <td style="padding:12px 20px">
+          <input type="text" class="cfg-input" style="padding:6px 12px; font-size:.85rem" 
+                 value="{{ ar.trigger }}" onchange="editAR({{ loop.index0 }}, 'trigger', this.value)">
+        </td>
+        <td style="padding:12px 20px">
+          <input type="text" class="cfg-input" style="padding:6px 12px; font-size:.85rem" 
+                 value="{{ ar.response }}" onchange="editAR({{ loop.index0 }}, 'response', this.value)">
+        </td>
+        <td style="padding:12px 20px; text-align:center">
+          <label class="toggle" style="margin:0; display:inline-block">
+            <input type="checkbox" {% if ar.get('enabled',true) %}checked{% endif %} onchange="togAR({{ loop.index0 }},this.checked)">
+            <span class="slider"></span>
+          </label>
+        </td>
+        <td style="padding:12px 20px; text-align:right">
+          <button class="btn-glass btn-sm btn-glass-danger" onclick="delAR({{ loop.index0 }})" style="padding:6px 12px">🗑️</button>
+        </td>
+      </tr>
+      {% endfor %}
+      {% if not auto_responses %}
+      <tr>
+        <td colspan="4" style="text-align:center; padding:40px; color:var(--muted); font-size:.9rem">
+          Keine Auto-Antworten konfiguriert. Erstelle deine erste Regel oben!
+        </td>
+      </tr>
+      {% endif %}
+    </tbody>
+  </table>
 </div>
-{% endfor %}
-{% if not auto_responses %}<div class="cfg-row" style="justify-content:center;padding:24px"><span style="color:var(--muted);font-size:.82rem">Keine Auto-Antworten</span></div>{% endif %}
+
 <script>
 {% raw %}
-const G="{{ guild.id }}",api=(d)=>fetch('/api/guild/'+G+'/autoresponse',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});
-function addAR(){const t=document.getElementById('arT').value.trim(),r=document.getElementById('arR').value.trim();if(!t||!r)return showToast('❌ Trigger + Antwort nötig',false);api({action:'add',trigger:t,response:r}).then(()=>{showToast('✅ Hinzugefügt',true);setTimeout(()=>location.reload(),500)})}
-function delAR(i){api({action:'del',index:i}).then(()=>{showToast('🗑️ Gelöscht',true);setTimeout(()=>location.reload(),500)})}
-function togAR(i,v){api({action:'toggle',index:i,enabled:v}).then(()=>showToast(v?'✅ Aktiviert':'❌ Deaktiviert',true))}
+const G="{{ guild.id }}", 
+      api = (data) => fetch('/api/guild/'+G+'/autoresponse', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+      });
+
+function addAR() {
+  const t = document.getElementById('arT').value.trim(),
+        r = document.getElementById('arR').value.trim();
+  if (!t || !r) return showToast('❌ Trigger und Antwort sind erforderlich!', false);
+  
+  api({action: 'add', trigger: t, response: r}).then(res => {
+    if(res.ok) {
+      showToast('✅ Antwort hinzugefügt', true);
+      document.getElementById('arT').value = '';
+      document.getElementById('arR').value = '';
+      setTimeout(() => location.reload(), 500);
+    } else {
+      showToast('❌ Fehler beim Speichern', false);
+    }
+  });
+}
+
+function editAR(i, field, value) {
+  // We fetch the current value from the input or state if needed, 
+  // but here we just send the updated field.
+  // Since we only have index and field, we can't easily send the full object 
+  // without keeping track of it, but the backend implementation I wrote 
+  // handles partial updates: ars[idx]["trigger"] = data.get("trigger", ...)
+  
+  const data = { action: 'edit', index: i };
+  data[field] = value;
+  
+  api(data).then(res => {
+    if(res.ok) showToast('💾 Geändert', true);
+    else showToast('❌ Fehler beim Ändern', false);
+  });
+}
+
+function delAR(i) {
+  if(!confirm('Möchtest du diese Antwort wirklich löschen?')) return;
+  api({action: 'del', index: i}).then(res => {
+    if(res.ok) {
+      showToast('🗑️ Gelöscht', true);
+      setTimeout(() => location.reload(), 500);
+    } else {
+      showToast('❌ Fehler beim Löschen', false);
+    }
+  });
+}
+
+function togAR(i, v) {
+  api({action: 'toggle', index: i, enabled: v}).then(res => {
+    if(res.ok) showToast(v ? '✅ Aktiviert' : '❌ Deaktiviert', true);
+    else showToast('❌ Fehler beim Umschalten', false);
+  });
+}
 {% endraw %}
 </script>
 {% endblock %}

@@ -1436,48 +1436,54 @@ def api_guild_config(guild_id):
     cfg = _get_guild_config(guild_id)
     from bot.utils import _run_async
 
-    # Handle special keys with _ prefix
-    if "_reset" in data:
+    # 1. Global Reset
+    if data.get("_reset"):
         from bot.config import DEFAULT_CONFIG
         import copy
         cfg = copy.deepcopy(DEFAULT_CONFIG)
-    if "_security_level" in data:
-        cfg["security_level"] = int(data["_security_level"])
-    if "_log_channel" in data:
-        cfg["log_channel"] = int(data["_log_channel"]) if data["_log_channel"] else None
-    if "_log_channels" in data:
-        cfg["log_channels"] = {k:int(v) for k,v in data["_log_channels"].items()}
-    if "_prefix" in data:
-        cfg["prefix"] = str(data["_prefix"])[:5] or "!"
-    if "_no_prefix" in data:
-        cfg["no_prefix"] = bool(data["_no_prefix"])
-    if "_report_channel" in data:
-        cfg["report_channel"] = int(data["_report_channel"]) if data["_report_channel"] else None
-    if "_appeal_log_channel" in data:
-        cfg["appeal_log_channel"] = int(data["_appeal_log_channel"]) if data["_appeal_log_channel"] else None
-    if "_auto_ban_appeal" in data:
-        cfg["auto_ban_appeal"] = data["_auto_ban_appeal"]
-    if "_invite_tracking" in data:
-        cfg["invite_tracking"] = data["_invite_tracking"]
-    if "_message_archive" in data:
-        ma = cfg.get("message_archive",{})
-        ma["enabled"] = data["_message_archive"].get("enabled", False)
-        cfg["message_archive"] = ma
-    if "_webhook_logging" in data:
-        wl = cfg.get("webhook_logging", {"enabled": False, "webhooks": {}})
-        wl["enabled"] = data["_webhook_logging"].get("enabled", False)
-        cfg["webhook_logging"] = wl
-    if "_server_tag" in data:
-        st = cfg.get("server_tag", {})
-        st["enabled"] = data["_server_tag"].get("enabled", False)
-        if data["_server_tag"].get("tag"): st["tag"] = data["_server_tag"]["tag"]
-        cfg["server_tag"] = st
-    if "_warn_thresholds" in data:
-        ws = cfg.get("warn_system",{})
-        ws["thresholds"] = data["_warn_thresholds"]
-        cfg["warn_system"] = ws
-    if "_warn_thresholds_add" in data:
-        ws = cfg.get("warn_system",{})
+
+    # 2. Dynamische Aktualisierung (Handle a-z und _-Keys)
+    for key, value in data.items():
+        if key.startswith("_"):
+            # Special handling for underscored keys to map them to correct config paths
+            mapping = {
+                "_security_level": ("security_level", int),
+                "_log_channel": ("log_channel", int),
+                "_prefix": ("prefix", str),
+                "_no_prefix": ("no_prefix", bool),
+                "_report_channel": ("report_channel", int),
+                "_appeal_log_channel": ("appeal_log_channel", int),
+                "_auto_ban_appeal": ("auto_ban_appeal", dict),
+                "_invite_tracking": ("invite_tracking", dict),
+                "_webhook_logging": ("webhook_logging", dict),
+                "_server_tag": ("server_tag", dict),
+                "_warn_thresholds": ("warn_system", "thresholds"),
+                "_warn_decay": ("warn_decay", dict),
+            }
+            if key in mapping:
+                target, dtype = mapping[key]
+                if isinstance(dtype, tuple): # Nested update (e.g., warn_system -> thresholds)
+                    parent, child = dtype
+                    if parent not in cfg: cfg[parent] = {}
+                    cfg[parent][child] = value
+                else:
+                    try: cfg[target] = dtype(value) if value is not None else None
+                    except: pass
+        else:
+            # Direct module update (e.g., anti_spam: {...})
+            if isinstance(value, dict):
+                if key not in cfg or not isinstance(cfg[key], dict):
+                    cfg[key] = {}
+                cfg[key].update(value)
+            else:
+                cfg[key] = value
+
+    try:
+        _run_async(bot.db.set_config(int(guild_id), cfg))
+    except Exception as e:
+        log.error(f"[CONFIG API ERROR] {e}")
+        return jsonify({"error": str(e)}), 500
+    return jsonify({"ok": True})
         th = ws.get("thresholds",{})
         th.update(data["_warn_thresholds_add"])
         ws["thresholds"] = th
@@ -1562,6 +1568,11 @@ def api_guild_autoresponse(guild_id):
     elif action == "del":
         idx = int(data.get("index", -1))
         if 0 <= idx < len(ars): ars.pop(idx)
+    elif action == "edit":
+        idx = int(data.get("index", -1))
+        if 0 <= idx < len(ars):
+            ars[idx]["trigger"] = data.get("trigger", ars[idx]["trigger"])
+            ars[idx]["response"] = data.get("response", ars[idx]["response"])
     elif action == "toggle":
         idx = int(data.get("index", -1))
         if 0 <= idx < len(ars): ars[idx]["enabled"] = data.get("enabled", True)
