@@ -34,7 +34,6 @@ from bot.utils import (
 
 from database.db import Database
 
-
 # ═══════════════════════════════════════════════════════════════════
 # TRACKER (IN-MEMORY)
 # ═══════════════════════════════════════════════════════════════════
@@ -449,7 +448,6 @@ class HelpView(discord.ui.View):
         super().__init__(timeout=120)
         self.add_item(HelpCategorySelect())
 
-
 # ═══════════════════════════════════════════════════════════════════
 # BOT KLASSE
 # ═══════════════════════════════════════════════════════════════════
@@ -514,7 +512,6 @@ class ModForge(commands.Bot):
                 activity = discord.Activity(type=activity_type, name=formatted_name)
                 await self.change_presence(activity=activity)
                 
-                
                 await asyncio.sleep(duration)
     
     async def _warmup_caches(self) -> None:
@@ -526,10 +523,100 @@ class ModForge(commands.Bot):
             await asyncio.gather(*tasks_list, return_exceptions=True)
             log.info(f"Cache-Warmup für {len(self.guilds)} Guilds abgeschlossen.")
 
+    # Webhook-Module: Name + Avatar pro Modul
+    WEBHOOK_MODULES = {
+        "moderation": ("🛡️ Moderation", "https://cdn.discordapp.com/embed/avatars/0.png"),
+        "antispam":   ("⚡ Anti-Spam", "https://cdn.discordapp.com/embed/avatars/1.png"),
+        "antinuke":   ("💥 Anti-Nuke", "https://cdn.discordapp.com/embed/avatars/2.png"),
+        "antiraid":   ("🚨 Anti-Raid", "https://cdn.discordapp.com/embed/avatars/3.png"),
+        "antimention":("🔔 Anti-Mention", "https://cdn.discordapp.com/embed/avatars/4.png"),
+        "antiscam":   ("🎣 Anti-Scam", "https://cdn.discordapp.com/embed/avatars/0.png"),
+        "automod":    ("🤖 AutoMod", "https://cdn.discordapp.com/embed/avatars/1.png"),
+        "voice":      ("🎤 Voice-Log", "https://cdn.discordapp.com/embed/avatars/2.png"),
+        "members":    ("👥 Members", "https://cdn.discordapp.com/embed/avatars/3.png"),
+        "nicknames":  ("📝 Nicknames", "https://cdn.discordapp.com/embed/avatars/4.png"),
+        "channels":   ("📁 Channels", "https://cdn.discordapp.com/embed/avatars/0.png"),
+        "roles":      ("🏷️ Rollen", "https://cdn.discordapp.com/embed/avatars/1.png"),
+        "webhooks":   ("🔌 Webhooks", "https://cdn.discordapp.com/embed/avatars/2.png"),
+        "tickets":    ("🎫 Tickets", "https://cdn.discordapp.com/embed/avatars/3.png"),
+        "verify":     ("✅ Verify", "https://cdn.discordapp.com/embed/avatars/4.png"),
+        "warns":      ("⚠️ Warns", "https://cdn.discordapp.com/embed/avatars/0.png"),
+        "cases":      ("📋 Cases", "https://cdn.discordapp.com/embed/avatars/1.png"),
+        "backup":     ("💾 Backup", "https://cdn.discordapp.com/embed/avatars/2.png"),
+        "welcome":    ("👋 Welcome", "https://cdn.discordapp.com/embed/avatars/3.png"),
+        "errors":     ("❌ Errors", "https://cdn.discordapp.com/embed/avatars/4.png"),
+        "default":    ("🛡️ ModForge", "https://cdn.discordapp.com/embed/avatars/0.png"),
+    }
+
     async def log_action(self, guild, title, description, color=COLOR_INFO, fields=None, user=None, module="default") -> None:
         if not guild:
             return
         cfg = self.db.get_config(guild.id)
+
+        # Embed bauen
+        thumb = user.display_avatar.url if user else None
+        embed = create_embed(title, description, color, fields, thumbnail=thumb, user=user)
+        embed.timestamp = datetime.datetime.utcnow()
+
+        # ── Auto-Webhook-Logging ──
+        # Wenn aktiviert: Bot erstellt/nutzt automatisch Webhooks pro Log-Kanal
+        wl_cfg = cfg.get("webhook_logging", {})
+        if wl_cfg.get("enabled"):
+            # Finde den Ziel-Kanal
+            _log_channels = cfg.get("log_channels", {}) or {}
+            _log_ch_id = _log_channels.get(module)
+            if not _log_ch_id and module != "default":
+                _log_ch_id = _log_channels.get("default")
+            if not _log_ch_id:
+                _log_ch_id = cfg.get("log_channel")
+            if _log_ch_id:
+                try:
+                    _target_ch = guild.get_channel(int(_log_ch_id))
+                    if _target_ch:
+                        # Webhook-Cache: {channel_id: webhook_url}
+                        _wh_cache = wl_cfg.get("_cache", {})
+                        _wh_url = _wh_cache.get(str(_target_ch.id))
+
+                        # Auto-Create: Webhook existiert nicht → erstellen
+                        if not _wh_url:
+                            try:
+                                existing = await _target_ch.webhooks()
+                                mf_wh = None
+                                for w in existing:
+                                    if w.name and "ModForge" in w.name:
+                                        mf_wh = w
+                                        break
+                                if not mf_wh:
+                                    mf_wh = await _target_ch.create_webhook(
+                                        name="ModForge Logs",
+                                        reason="Auto-Webhook für ModForge Logging"
+                                    )
+                                _wh_url = mf_wh.url
+                                _wh_cache[str(_target_ch.id)] = _wh_url
+                                wl_cfg["_cache"] = _wh_cache
+                                cfg["webhook_logging"] = wl_cfg
+                                await self.db.aset_config(guild.id, cfg)
+                            except (discord.Forbidden, discord.HTTPException):
+                                pass
+
+                        if _wh_url:
+                            try:
+                                import aiohttp
+                                wh_name, wh_avatar = self.WEBHOOK_MODULES.get(module, self.WEBHOOK_MODULES["default"])
+                                if self.user and self.user.display_avatar:
+                                    wh_avatar = self.user.display_avatar.url
+                                async with aiohttp.ClientSession() as session:
+                                    wh = discord.Webhook.from_url(_wh_url, session=session)
+                                    await wh.send(embed=embed, username=wh_name, avatar_url=wh_avatar)
+                                return  # Webhook OK
+                            except Exception as wh_err:
+                                log.debug(f"Webhook send error ({module}): {wh_err}")
+                                # Webhook ungültig → Cache löschen
+                                _wh_cache.pop(str(_target_ch.id), None)
+                except Exception as e:
+                    log.debug(f"Auto-webhook error: {e}")
+
+        # ── Standard Channel-Logging ──
         log_channels = cfg.get("log_channels", {}) or {}
         log_ch_id = log_channels.get(module)
         if not log_ch_id and module != "default":
@@ -544,8 +631,6 @@ class ModForge(commands.Bot):
             return
         if not channel:
             return
-        thumb = user.display_avatar.url if user else None
-        embed = create_embed(title, description, color, fields, thumbnail=thumb, user=user)
         try:
             await channel.send(embed=embed)
         except discord.Forbidden:
@@ -923,7 +1008,6 @@ APPEAL_QUESTIONS = [
 ]
 APPEAL_KEYS = ["ban_grund", "fehler_eingesehen", "statement", "regeln_versprechen", "zusatz"]
 
-
 async def handle_appeal_dm(message: discord.Message) -> bool:
     if message.author.bot or message.guild:
         return False
@@ -973,7 +1057,6 @@ async def handle_appeal_dm(message: discord.Message) -> bool:
         return True
 
     return False
-
 
 async def _submit_appeal(user: discord.User, session: dict) -> None:
     guild_id = session["guild_id"]
@@ -1027,7 +1110,6 @@ async def _submit_appeal(user: discord.User, session: dict) -> None:
         COLOR_SUCCESS,
         thumbnail=guild.icon.url if guild.icon else None))
 
-
 # ═══════════════════════════════════════════════════════════════
 # HILFSFUNKTIONEN FÜR LOCKDOWN & NUKE
 # ═══════════════════════════════════════════════════════════════
@@ -1057,7 +1139,6 @@ async def _activate_lockdown(guild: discord.Guild) -> None:
         module="antiraid"
     )
 
-
 async def _deactivate_lockdown(guild: discord.Guild) -> None:
     """Hebt den Lockdown vollständig auf."""
 
@@ -1085,7 +1166,6 @@ async def _deactivate_lockdown(guild: discord.Guild) -> None:
         module="antiraid"
     )
 
-
 async def _auto_deactivate_lockdown(
     guild: discord.Guild,
     delay: int
@@ -1096,7 +1176,6 @@ async def _auto_deactivate_lockdown(
 
     if bot.tracker.lockdown_active[guild.id]:
         await _deactivate_lockdown(guild)
-
 
 async def _notify_owner_nuke(
     guild: discord.Guild,
@@ -1312,7 +1391,6 @@ async def _notify_owner_nuke(
     if False:  # kept for structure
         pass
 
-
 async def _nuke_check(
     guild: discord.Guild,
     executor_id: int,
@@ -1516,7 +1594,6 @@ async def _nuke_check(
             module="antinuke"
         )
 
-
 async def _audit_actor(
     guild: discord.Guild,
     action: discord.AuditLogAction,
@@ -1549,7 +1626,6 @@ async def _audit_actor(
 
     return None
     
-
 # ═══════════════════════════════════════════════════════════════
 # EVENT: ON_MESSAGE
 # ═══════════════════════════════════════════════════════════════
@@ -1860,7 +1936,6 @@ async def on_message(message: discord.Message) -> None:
 
     await bot.process_commands(message)
 
-
 # ═══════════════════════════════════════════════════════════════
 # EVENT: ON_MESSAGE_DELETE
 # ═══════════════════════════════════════════════════════════════
@@ -1901,7 +1976,6 @@ async def on_message_delete(message: discord.Message) -> None:
         user=message.author, module="messages"
     )
 
-
 # ═══════════════════════════════════════════════════════════════
 # EVENT: ON_MESSAGE_EDIT
 # ═══════════════════════════════════════════════════════════════
@@ -1926,7 +2000,6 @@ async def on_message_edit(before: discord.Message, after: discord.Message) -> No
          ("Nachher", after.content[:500] or "*(leer)*", False)],
         user=before.author, module="messages"
     )
-
 
 # ═══════════════════════════════════════════════════════════════
 # EVENT: ON_VOICE_STATE_UPDATE
@@ -2179,7 +2252,6 @@ async def on_member_update(before: discord.Member, after: discord.Member) -> Non
             user=after, module="nicknames",
         )
 
-
 # ═══════════════════════════════════════════════════════════════
 
     # ── Timeout (Server-Timeout) ───────────────────────────────
@@ -2288,7 +2360,6 @@ async def on_guild_channel_delete(channel: discord.abc.GuildChannel) -> None:
         COLOR_DANGER, module="channels",
     )
 
-
 @bot.event
 async def on_guild_channel_create(channel: discord.abc.GuildChannel) -> None:
     actor = await _audit_actor(channel.guild, discord.AuditLogAction.channel_create, channel.id)
@@ -2301,7 +2372,6 @@ async def on_guild_channel_create(channel: discord.abc.GuildChannel) -> None:
         f"**Erstellt von:** {actor.mention if actor else 'Unbekannt'}",
         COLOR_SUCCESS, module="channels",
     )
-
 
 @bot.event
 async def on_guild_channel_update(before: discord.abc.GuildChannel,
@@ -2372,7 +2442,6 @@ async def on_guild_channel_update(before: discord.abc.GuildChannel,
                 COLOR_WARNING, module="permissions",
             )
 
-
 @bot.event
 async def on_guild_role_delete(role: discord.Role) -> None:
     actor = await _audit_actor(role.guild, discord.AuditLogAction.role_delete, role.id)
@@ -2386,7 +2455,6 @@ async def on_guild_role_delete(role: discord.Role) -> None:
         COLOR_DANGER, module="roles",
     )
 
-
 @bot.event
 async def on_guild_role_create(role: discord.Role) -> None:
     actor = await _audit_actor(role.guild, discord.AuditLogAction.role_create, role.id)
@@ -2399,7 +2467,6 @@ async def on_guild_role_create(role: discord.Role) -> None:
         f"**Erstellt von:** {actor.mention if actor else 'Unbekannt'}",
         COLOR_SUCCESS, module="roles",
     )
-
 
 @bot.event
 async def on_guild_role_update(before: discord.Role, after: discord.Role) -> None:
@@ -2433,7 +2500,6 @@ async def on_guild_role_update(before: discord.Role, after: discord.Role) -> Non
             COLOR_INFO, diffs, module="roles",
         )
 
-
 @bot.event
 async def on_webhooks_update(channel: discord.abc.GuildChannel) -> None:
     """Loggt Webhook-Änderungen in einem Channel."""
@@ -2457,7 +2523,6 @@ async def on_webhooks_update(channel: discord.abc.GuildChannel) -> None:
         COLOR_WARNING, module="webhooks",
     )
 
-
 @bot.event
 async def on_member_ban(guild: discord.Guild, user: Union[discord.User, discord.Member]) -> None:
     try:
@@ -2465,7 +2530,6 @@ async def on_member_ban(guild: discord.Guild, user: Union[discord.User, discord.
             await _nuke_check(guild, entry.user.id, "Mass-Ban")
     except discord.Forbidden:
         pass
-
 
 @bot.event
 async def on_member_remove(member: discord.Member) -> None:
@@ -2490,7 +2554,6 @@ async def on_member_remove(member: discord.Member) -> None:
         await _save_sticky_roles(member)
     except Exception as ex:
         log.debug(f"Leave/Sticky-Roles Fehler: {ex}")
-
 
 # ═══════════════════════════════════════════════════════════════
 # EVENT: GUILD JOIN / LEAVE  (Bot wird zu Server hinzugefügt/entfernt)
@@ -2705,8 +2768,6 @@ async def on_guild_join(guild: discord.Guild) -> None:
     except discord.HTTPException as ex:
         log.error(f"on_guild_join: HTTP-Fehler: {ex}")
 
-
-
 # ═══════════════════════════════════════════════════════════════
 # PREFIX COMMANDS
 # ═══════════════════════════════════════════════════════════════
@@ -2721,12 +2782,10 @@ def has_mod_perms() -> Callable:
         return False
     return commands.check(predicate)
 
-
 def has_admin_perms() -> Callable:
     async def predicate(ctx: commands.Context) -> bool:
         return ctx.author.guild_permissions.administrator
     return commands.check(predicate)
-
 
 @bot.command(name="ban")
 @has_mod_perms()
@@ -2747,7 +2806,6 @@ async def prefix_ban(ctx: commands.Context, member: discord.Member, *,
     await bot.log_action(ctx.guild, f"{E.BAN} Ban", f"{member.mention} wurde gebannt.", COLOR_DANGER,
                          [("Grund", reason, False), ("Moderator", ctx.author.mention, True)],
                          user=member, module="moderation")
-
 
 @bot.command(name="kick")
 @has_mod_perms()
@@ -2770,7 +2828,6 @@ async def prefix_kick(ctx: commands.Context, member: discord.Member, *,
                          [("Grund", reason, False), ("Moderator", ctx.author.mention, True)],
                          user=member, module="moderation")
 
-
 @bot.command(name="warn")
 @has_mod_perms()
 async def prefix_warn(ctx: commands.Context, member: discord.Member, *,
@@ -2787,7 +2844,6 @@ async def prefix_warn(ctx: commands.Context, member: discord.Member, *,
                          COLOR_WARNING,
                          [("Grund", reason, False), ("Total", str(count), True)],
                          user=member, module="moderation")
-
 
 @bot.command(name="mute")
 @has_mod_perms()
@@ -2814,7 +2870,6 @@ async def prefix_mute(ctx: commands.Context, member: discord.Member, duration: i
                          [("Grund", reason, False), ("Dauer", f"{duration}s", True)],
                          user=member, module="moderation")
 
-
 @bot.command(name="unmute")
 @has_mod_perms()
 async def prefix_unmute(ctx: commands.Context, member: discord.Member) -> None:
@@ -2829,7 +2884,6 @@ async def prefix_unmute(ctx: commands.Context, member: discord.Member) -> None:
     await bot.log_action(ctx.guild, f"{E.UNMUTE} Unmute",
                          f"{member.mention} entmutet von {ctx.author.mention}",
                          COLOR_SUCCESS, user=member, module="moderation")
-
 
 @bot.command(name="clear")
 @has_mod_perms()
@@ -2851,7 +2905,6 @@ async def prefix_clear(ctx: commands.Context, amount: int = 10) -> None:
                          f"{ctx.author.mention} hat {len(deleted) - 1} Nachrichten in {ctx.channel.mention} gelöscht.",
                          COLOR_INFO, user=ctx.author, module="moderation")
 
-
 @bot.command(name="slowmode")
 @has_mod_perms()
 async def prefix_slowmode(ctx: commands.Context, seconds: int = 0) -> None:
@@ -2868,7 +2921,6 @@ async def prefix_slowmode(ctx: commands.Context, seconds: int = 0) -> None:
                          f"{ctx.author.mention} hat Slowmode in {ctx.channel.mention} auf {seconds}s gesetzt.",
                          COLOR_INFO, user=ctx.author, module="moderation")
 
-
 @bot.command(name="lock")
 @has_mod_perms()
 async def prefix_lock(ctx: commands.Context) -> None:
@@ -2884,7 +2936,6 @@ async def prefix_lock(ctx: commands.Context) -> None:
                          f"{ctx.channel.mention} gesperrt von {ctx.author.mention}",
                          COLOR_DANGER, user=ctx.author, module="moderation")
 
-
 @bot.command(name="unlock")
 @has_mod_perms()
 async def prefix_unlock(ctx: commands.Context) -> None:
@@ -2899,7 +2950,6 @@ async def prefix_unlock(ctx: commands.Context) -> None:
     await bot.log_action(ctx.guild, f"{E.UNLOCK} Unlock",
                          f"{ctx.channel.mention} entsperrt von {ctx.author.mention}",
                          COLOR_SUCCESS, user=ctx.author, module="moderation")
-
 
 @bot.command(name="warnings")
 @has_mod_perms()
@@ -2922,7 +2972,6 @@ async def prefix_warnings(ctx: commands.Context, member: discord.Member) -> None
                              fields, thumbnail=member.display_avatar.url)
     await ctx.send(embed=embed)
 
-
 @bot.command(name="clearwarnings")
 @has_mod_perms()
 async def prefix_clearwarnings(ctx: commands.Context, member: discord.Member) -> None:
@@ -2934,7 +2983,6 @@ async def prefix_clearwarnings(ctx: commands.Context, member: discord.Member) ->
     await bot.log_action(ctx.guild, f"{E.DELETE} Clear-Warnings",
                          f"{ctx.author.mention} hat {deleted} Verwarnungen von {member.mention} gelöscht.",
                          COLOR_INFO, user=member, module="moderation")
-
 
 @bot.command(name="unban")
 @has_mod_perms()
@@ -2955,7 +3003,6 @@ async def prefix_unban(ctx: commands.Context, user_id: int) -> None:
                          f"{user} entbannt von {ctx.author.mention}",
                          COLOR_SUCCESS, module="moderation")
 
-
 @bot.command(name="nick")
 @has_mod_perms()
 async def prefix_nick(ctx: commands.Context, member: discord.Member, *, nickname: str = None) -> None:
@@ -2971,7 +3018,6 @@ async def prefix_nick(ctx: commands.Context, member: discord.Member, *, nickname
     await bot.log_action(ctx.guild, f"{E.NICK} Nick",
                          f"{member.mention} → **{nickname or 'Standard'}** durch {ctx.author.mention}",
                          COLOR_INFO, user=member, module="moderation")
-
 
 @bot.command(name="role")
 @has_mod_perms()
@@ -2991,7 +3037,6 @@ async def prefix_role(ctx: commands.Context, action: str, member: discord.Member
     except discord.Forbidden:
         embed = create_embed(f"{E.FAIL} Forbidden", "Ich darf das nicht.", COLOR_DANGER)
     await ctx.send(embed=embed)
-
 
 # ─────────────────────────────────────────────────────────────────
 # APPEAL COMMAND (PREFIX)
@@ -3057,7 +3102,6 @@ async def cmd_banappeal(ctx: commands.Context, user_id: int, *,
                                           f"**{user}** hat DMs deaktiviert oder hat den Bot blockiert.",
                                           COLOR_DANGER))
 
-
 # ═══════════════════════════════════════════════════════════════
 # SLASH COMMANDS – Verifizierung & Tickets
 # ═══════════════════════════════════════════════════════════════
@@ -3088,7 +3132,6 @@ async def setup_verify(interaction: discord.Interaction, channel: discord.TextCh
     await interaction.response.send_message(f"{E.OK} Verifizierung in {channel.mention} eingerichtet!",
                                             ephemeral=True)
 
-
 @bot.tree.command(name="verify_roles", description="Stellt die Rollen für die Verifizierung ein")
 @app_commands.describe(add_role="Rolle die gegeben wird", remove_role="Rolle die entfernt wird")
 @app_commands.default_permissions(administrator=True)
@@ -3102,7 +3145,6 @@ async def verify_roles(interaction: discord.Interaction,
         cfg["verify_system"]["remove_roles"] = [remove_role.id]
     await bot.db.set_config(interaction.guild.id, cfg)
     await interaction.response.send_message(f"{E.OK} Verifizierungs-Rollen aktualisiert!", ephemeral=True)
-
 
 @bot.tree.command(name="setup_tickets", description="Richtet das Ticket-System ein")
 @app_commands.describe(category="Kategorie für Tickets", log_channel="Kanal für Ticket-Logs")
@@ -3120,7 +3162,6 @@ async def setup_tickets(interaction: discord.Interaction,
     cfg["ticket_system"]["ticket_message_id"] = msg.id
     await bot.db.set_config(interaction.guild.id, cfg)
     await interaction.response.send_message(f"{E.OK} Ticket-System eingerichtet!", ephemeral=True)
-
 
 # ├────────────────────────────────────────────────────────────────
 # SLASH COMMANDS – Moderation
@@ -3172,7 +3213,6 @@ async def slash_ban(interaction: discord.Interaction, member: discord.Member,
                           ("Case-ID", f"`{case_id}` – `/case {case_id}`", True),
                           ("Archiv", f"{len(pre_msgs)} Nachrichten", True)],
                          user=member, module="moderation")
-
 
 @bot.tree.command(name="tempban", description="Bannt einen Nutzer temporär")
 @app_commands.describe(member="Der zu bannende Nutzer",
@@ -3230,7 +3270,6 @@ async def slash_tempban(interaction: discord.Interaction, member: discord.Member
                           ("Case-ID", f"`{case_id}` – `/case {case_id}`", True)],
                          user=member, module="moderation")
 
-
 @bot.tree.command(name="tempmute", description="Persistenter Timeout (überlebt Neustart)")
 @app_commands.describe(member="Nutzer", duration="Dauer (z.B. 30m, 2h)", reason="Grund")
 @app_commands.default_permissions(moderate_members=True)
@@ -3275,7 +3314,6 @@ async def slash_tempmute(interaction: discord.Interaction, member: discord.Membe
                           ("Case-ID", f"`{case_id}` – `/case {case_id}`", True)],
                          user=member, module="moderation")
 
-
 @bot.tree.command(name="kick", description="Kickt einen Nutzer vom Server")
 @app_commands.describe(member="Der zu kickende Nutzer", reason="Grund")
 @app_commands.default_permissions(kick_members=True)
@@ -3309,7 +3347,6 @@ async def slash_kick(interaction: discord.Interaction, member: discord.Member,
                           ("Case-ID", f"`{case_id}` – `/case {case_id}`", True)],
                          user=member, module="moderation")
 
-
 @bot.tree.command(name="warn", description="Verwarnt einen Nutzer")
 @app_commands.describe(member="Der zu verwarnende Nutzer", reason="Grund")
 @app_commands.default_permissions(manage_messages=True)
@@ -3334,7 +3371,6 @@ async def slash_warn(interaction: discord.Interaction, member: discord.Member,
                          [("Grund", reason, False), ("Total", str(count), True),
                           ("Case-ID", f"`{case_id}` – `/case {case_id}`", True)],
                          user=member, module="moderation")
-
 
 @bot.tree.command(name="mute", description="Mutet einen Nutzer (Timeout)")
 @app_commands.describe(member="Nutzer", duration="Dauer in Sekunden", reason="Grund")
@@ -3369,7 +3405,6 @@ async def slash_mute(interaction: discord.Interaction, member: discord.Member,
                           ("Case-ID", f"`{case_id}` – `/case {case_id}`", True)],
                          user=member, module="moderation")
 
-
 @bot.tree.command(name="unmute", description="Entmutet einen Nutzer")
 @app_commands.describe(member="Nutzer")
 @app_commands.default_permissions(moderate_members=True)
@@ -3386,7 +3421,6 @@ async def slash_unmute(interaction: discord.Interaction, member: discord.Member)
     await bot.log_action(interaction.guild, f"{E.UNMUTE} Unmute",
                          f"{member.mention} entmutet von {interaction.user.mention}",
                          COLOR_SUCCESS, user=member, module="moderation")
-
 
 @bot.tree.command(name="clear", description="Löscht Nachrichten im Kanal")
 @app_commands.describe(amount="Anzahl der zu löschenden Nachrichten")
@@ -3406,7 +3440,6 @@ async def slash_clear(interaction: discord.Interaction, amount: int = 10) -> Non
                          f"{interaction.user.mention} hat {len(deleted)} Nachrichten in {interaction.channel.mention} gelöscht.",
                          COLOR_INFO, user=interaction.user, module="moderation")
 
-
 @bot.tree.command(name="slowmode", description="Setzt den Slowmode im Kanal")
 @app_commands.describe(seconds="Sekunden (0 = deaktiviert)")
 @app_commands.default_permissions(manage_channels=True)
@@ -3425,7 +3458,6 @@ async def slash_slowmode(interaction: discord.Interaction, seconds: int = 0) -> 
                          f"{interaction.user.mention} setzte Slowmode in {interaction.channel.mention} auf {seconds}s.",
                          COLOR_INFO, user=interaction.user, module="moderation")
 
-
 @bot.tree.command(name="lock", description="Sperrt den aktuellen Kanal")
 @app_commands.default_permissions(manage_channels=True)
 async def slash_lock(interaction: discord.Interaction) -> None:
@@ -3443,7 +3475,6 @@ async def slash_lock(interaction: discord.Interaction) -> None:
                          f"{interaction.channel.mention} gesperrt von {interaction.user.mention}",
                          COLOR_DANGER, user=interaction.user, module="moderation")
 
-
 @bot.tree.command(name="unlock", description="Entsperrt den aktuellen Kanal")
 @app_commands.default_permissions(manage_channels=True)
 async def slash_unlock(interaction: discord.Interaction) -> None:
@@ -3460,7 +3491,6 @@ async def slash_unlock(interaction: discord.Interaction) -> None:
     await bot.log_action(interaction.guild, f"{E.UNLOCK} Unlock",
                          f"{interaction.channel.mention} entsperrt von {interaction.user.mention}",
                          COLOR_SUCCESS, user=interaction.user, module="moderation")
-
 
 @bot.tree.command(name="unban", description="Entbannt einen Nutzer")
 @app_commands.describe(user_id="Die Discord-ID des Nutzers")
@@ -3490,7 +3520,6 @@ async def slash_unban(interaction: discord.Interaction, user_id: str) -> None:
                          f"{user} entbannt von {interaction.user.mention}",
                          COLOR_SUCCESS, module="moderation")
 
-
 @bot.tree.command(name="warnings", description="Zeigt Verwarnungen eines Nutzers")
 @app_commands.describe(member="Nutzer")
 @app_commands.default_permissions(manage_messages=True)
@@ -3514,7 +3543,6 @@ async def slash_warnings(interaction: discord.Interaction, member: discord.Membe
                              fields, thumbnail=member.display_avatar.url)
     await interaction.response.send_message(embed=embed)
 
-
 @bot.tree.command(name="clearwarnings", description="Löscht ALLE Verwarnungen eines Nutzers")
 @app_commands.describe(member="Nutzer")
 @app_commands.default_permissions(manage_messages=True)
@@ -3527,7 +3555,6 @@ async def slash_clearwarnings(interaction: discord.Interaction, member: discord.
     await bot.log_action(interaction.guild, f"{E.DELETE} Clear-Warnings",
                          f"{interaction.user.mention} hat {deleted} Verwarnungen von {member.mention} gelöscht.",
                          COLOR_INFO, user=member, module="moderation")
-
 
 @bot.tree.command(name="clearwarning", description="Löscht eine einzelne Verwarnung (Index aus /warnings)")
 @app_commands.describe(member="Nutzer", index="Index aus /warnings (#0, #1, ...)")
@@ -3544,7 +3571,6 @@ async def slash_clearwarning(interaction: discord.Interaction, member: discord.M
         embed = create_embed(f"{E.FAIL} Nicht gefunden",
                              f"Index {index} existiert nicht.", COLOR_DANGER)
     await interaction.response.send_message(embed=embed)
-
 
 @bot.tree.command(name="nick", description="Ändert den Nickname eines Nutzers")
 @app_commands.describe(member="Nutzer", nickname="Neuer Nickname (leer = zurücksetzen)")
@@ -3565,12 +3591,10 @@ async def slash_nick(interaction: discord.Interaction, member: discord.Member,
                          f"{member.mention} → **{nickname or 'Standard'}** durch {interaction.user.mention}",
                          COLOR_INFO, user=member, module="moderation")
 
-
 # ═══════════════════════════════════════════════════════════════
 # SECURITY GROUP
 # ═══════════════════════════════════════════════════════════════
 security_group = app_commands.Group(name="security", description="Security-Einstellungen verwalten")
-
 
 @security_group.command(name="view", description="Zeigt die aktuelle Security-Konfiguration")
 @app_commands.default_permissions(administrator=True)
@@ -3588,7 +3612,6 @@ async def security_view(interaction: discord.Interaction) -> None:
                          COLOR_PRIMARY, fields,
                          thumbnail=interaction.guild.icon.url if interaction.guild.icon else None)
     await interaction.response.send_message(embed=embed)
-
 
 @security_group.command(name="toggle", description="Aktiviert/Deaktiviert ein Modul")
 @app_commands.describe(module="Modul-Name (z.B. anti_spam)")
@@ -3608,7 +3631,6 @@ async def security_toggle(interaction: discord.Interaction, module: str) -> None
                          COLOR_SUCCESS if not current else COLOR_WARNING)
     await interaction.response.send_message(embed=embed)
 
-
 @security_group.command(name="set", description="Setzt einen Wert in einem Modul")
 @app_commands.describe(module="Modul", setting="Einstellung", value="Wert")
 @app_commands.default_permissions(administrator=True)
@@ -3622,7 +3644,6 @@ async def security_set(interaction: discord.Interaction, module: str, setting: s
     embed = create_embed(f"{E.OK} Einstellung gespeichert",
                          f"`{module}.{setting}` = `{parsed}`", COLOR_SUCCESS)
     await interaction.response.send_message(embed=embed)
-
 
 @security_group.command(name="punishment", description="Setzt die Strafe für ein Modul")
 @app_commands.describe(module="Modul", punishment_type="warn / timeout / kick / ban")
@@ -3639,7 +3660,6 @@ async def security_punishment(interaction: discord.Interaction, module: str,
     embed = create_embed(f"{E.OK} Strafe gesetzt",
                          f"Strafe für **{module}** auf **{punishment_type}** gesetzt.", COLOR_SUCCESS)
     await interaction.response.send_message(embed=embed)
-
 
 @security_group.command(name="reset", description="Setzt ein Modul auf Standardwerte zurück")
 @app_commands.describe(module="Modul-Name")
@@ -3658,9 +3678,7 @@ async def security_reset(interaction: discord.Interaction, module: str) -> None:
                          f"**{module}** wurde auf Standardwerte zurückgesetzt.", COLOR_INFO)
     await interaction.response.send_message(embed=embed)
 
-
 bot.tree.add_command(security_group)
-
 
 # ═══════════════════════════════════════════════════════════════
 # WHITELIST GROUP
@@ -3674,7 +3692,6 @@ WL_CATEGORIES = [
     app_commands.Choice(name="Bypass Anti-Spam", value="bypass_antispam"),
     app_commands.Choice(name="Bypass Anti-Nuke", value="bypass_antinuke"),
 ]
-
 
 @whitelist_group.command(name="add", description="Fügt einen Eintrag zur Whitelist hinzu")
 @app_commands.describe(category="Kategorie wählen", entry_id="ID des Eintrags")
@@ -3691,7 +3708,6 @@ async def whitelist_add(interaction: discord.Interaction,
                          f"ID `{entry_id}` zur Kategorie **{category.name}** hinzugefügt.",
                          COLOR_SUCCESS)
     await interaction.response.send_message(embed=embed)
-
 
 @whitelist_group.command(name="bulk_add", description="Fügt viele IDs gleichzeitig hinzu")
 @app_commands.describe(category="Kategorie wählen",
@@ -3711,7 +3727,6 @@ async def whitelist_bulk_add(interaction: discord.Interaction,
                          COLOR_SUCCESS)
     await interaction.response.send_message(embed=embed)
 
-
 @whitelist_group.command(name="remove", description="Entfernt einen Eintrag aus der Whitelist")
 @app_commands.describe(category="Kategorie", entry_id="ID")
 @app_commands.choices(category=WL_CATEGORIES)
@@ -3727,7 +3742,6 @@ async def whitelist_remove(interaction: discord.Interaction,
                          f"ID `{entry_id}` aus **{category.name}** entfernt.", COLOR_SUCCESS)
     await interaction.response.send_message(embed=embed)
 
-
 @whitelist_group.command(name="add_user", description="Fügt einen Nutzer bequem zur Whitelist hinzu")
 @app_commands.describe(user="Nutzer")
 @app_commands.default_permissions(administrator=True)
@@ -3737,7 +3751,6 @@ async def whitelist_add_user(interaction: discord.Interaction, user: discord.Use
                          f"{user.mention} wurde zur Whitelist hinzugefügt.", COLOR_SUCCESS)
     await interaction.response.send_message(embed=embed)
 
-
 @whitelist_group.command(name="add_role", description="Fügt eine Rolle bequem zur Whitelist hinzu")
 @app_commands.describe(role="Rolle")
 @app_commands.default_permissions(administrator=True)
@@ -3746,7 +3759,6 @@ async def whitelist_add_role(interaction: discord.Interaction, role: discord.Rol
     embed = create_embed(f"{E.OK} Rolle hinzugefügt",
                          f"{role.mention} wurde zur Whitelist hinzugefügt.", COLOR_SUCCESS)
     await interaction.response.send_message(embed=embed)
-
 
 @whitelist_group.command(name="add_channel", description="Fügt einen Kanal bequem zur Whitelist hinzu")
 @app_commands.describe(channel="Kanal")
@@ -3758,7 +3770,6 @@ async def whitelist_add_channel(interaction: discord.Interaction,
                          f"{channel.mention} wurde zur Whitelist hinzugefügt.", COLOR_SUCCESS)
     await interaction.response.send_message(embed=embed)
 
-
 @whitelist_group.command(name="remove_role", description="Entfernt eine Rolle bequem aus der Whitelist")
 @app_commands.describe(role="Rolle")
 @app_commands.default_permissions(administrator=True)
@@ -3767,7 +3778,6 @@ async def whitelist_remove_role(interaction: discord.Interaction, role: discord.
     embed = create_embed(f"{E.OK} Rolle entfernt",
                          f"{role.mention} wurde aus der Whitelist entfernt.", COLOR_SUCCESS)
     await interaction.response.send_message(embed=embed)
-
 
 @whitelist_group.command(name="clear", description="Leert eine Whitelist-Kategorie komplett")
 @app_commands.describe(category="Kategorie")
@@ -3781,7 +3791,6 @@ async def whitelist_clear(interaction: discord.Interaction,
     embed = create_embed(f"{E.OK} Geleert",
                          f"Kategorie **{category.name}** wurde komplett geleert.", COLOR_SUCCESS)
     await interaction.response.send_message(embed=embed)
-
 
 @whitelist_group.command(name="list", description="Zeigt die aktuelle Whitelist")
 @app_commands.default_permissions(administrator=True)
@@ -3803,15 +3812,12 @@ async def whitelist_list(interaction: discord.Interaction) -> None:
                          f"Whitelist für **{interaction.guild.name}**", COLOR_INFO, fields)
     await interaction.response.send_message(embed=embed)
 
-
 bot.tree.add_command(whitelist_group)
-
 
 # ═══════════════════════════════════════════════════════════════
 # AUTOMOD GROUP
 # ═══════════════════════════════════════════════════════════════
 automod_group = app_commands.Group(name="automod", description="AutoMod verwalten")
-
 
 @automod_group.command(name="badword_add", description="Fügt ein verbotenes Wort hinzu")
 @app_commands.describe(word="Das verbotene Wort")
@@ -3826,7 +3832,6 @@ async def automod_badword_add(interaction: discord.Interaction, word: str) -> No
                          f"`{word}` zur Wortliste hinzugefügt.", COLOR_SUCCESS)
     await interaction.response.send_message(embed=embed)
 
-
 @automod_group.command(name="badword_remove", description="Entfernt ein verbotenes Wort")
 @app_commands.describe(word="Das Wort")
 @app_commands.default_permissions(manage_guild=True)
@@ -3838,7 +3843,6 @@ async def automod_badword_remove(interaction: discord.Interaction, word: str) ->
     embed = create_embed(f"{E.OK} Wort entfernt",
                          f"`{word}` aus der Wortliste entfernt.", COLOR_SUCCESS)
     await interaction.response.send_message(embed=embed)
-
 
 @automod_group.command(name="badword_list", description="Zeigt alle verbotenen Wörter")
 @app_commands.default_permissions(manage_guild=True)
@@ -3854,7 +3858,6 @@ async def automod_badword_list(interaction: discord.Interaction) -> None:
                              f"**{len(bad_words)}** verbotene Wörter:\n{word_list}",
                              COLOR_WARNING)
     await interaction.response.send_message(embed=embed, ephemeral=True)
-
 
 @automod_group.command(name="regex_add", description="Fügt eine Custom Regex-Regel hinzu")
 @app_commands.describe(pattern="Regex-Pattern (Python re)")
@@ -3875,7 +3878,6 @@ async def automod_regex_add(interaction: discord.Interaction, pattern: str) -> N
                          f"Regel hinzugefügt:\n`{pattern[:200]}`", COLOR_SUCCESS)
     await interaction.response.send_message(embed=embed)
 
-
 @automod_group.command(name="regex_remove", description="Entfernt eine Regex-Regel per Index")
 @app_commands.describe(index="Index aus /automod regex_list")
 @app_commands.default_permissions(manage_guild=True)
@@ -3893,7 +3895,6 @@ async def automod_regex_remove(interaction: discord.Interaction, index: int) -> 
                          f"Entfernt: `{removed[:200]}`", COLOR_SUCCESS)
     await interaction.response.send_message(embed=embed)
 
-
 @automod_group.command(name="regex_list", description="Zeigt alle Custom Regex-Regeln")
 @app_commands.default_permissions(manage_guild=True)
 async def automod_regex_list(interaction: discord.Interaction) -> None:
@@ -3908,7 +3909,6 @@ async def automod_regex_list(interaction: discord.Interaction) -> None:
                              f"**{len(rules)}** Regeln aktiv.", COLOR_WARNING, fields)
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
-
 @automod_group.command(name="domain_allow", description="Erlaubt eine Domain im Link-Filter")
 @app_commands.describe(domain="Domain (z.B. youtube.com)")
 @app_commands.default_permissions(manage_guild=True)
@@ -3922,9 +3922,7 @@ async def automod_domain_allow(interaction: discord.Interaction, domain: str) ->
                          f"`{domain}` zur Whitelist hinzugefügt.", COLOR_SUCCESS)
     await interaction.response.send_message(embed=embed)
 
-
 bot.tree.add_command(automod_group)
-
 
 # ═══════════════════════════════════════════════════════════════
 # SETUP & SYSTEM COMMANDS
@@ -3939,7 +3937,6 @@ async def slash_setup(interaction: discord.Interaction) -> None:
                          thumbnail=interaction.guild.icon.url if interaction.guild.icon else None)
     await interaction.response.send_message(embed=embed, view=SetupView())
 
-
 @bot.tree.command(name="status", description="Zeigt den Bot-Status")
 async def slash_status(interaction: discord.Interaction) -> None:
     uptime = get_uptime(bot.start_time)
@@ -3952,7 +3949,6 @@ async def slash_status(interaction: discord.Interaction) -> None:
         ("Version", "3.0.0", True)
     ], thumbnail=bot.user.display_avatar.url)
     await interaction.response.send_message(embed=embed)
-
 
 @bot.tree.command(name="stats", description="Zeigt Server-Statistiken")
 async def slash_stats(interaction: discord.Interaction) -> None:
@@ -3967,7 +3963,6 @@ async def slash_stats(interaction: discord.Interaction) -> None:
     ], thumbnail=guild.icon.url if guild.icon else None)
     await interaction.response.send_message(embed=embed)
 
-
 # ═══════════════════════════════════════════════════════════════
 # CASE-SYSTEM SLASH COMMANDS
 # ═══════════════════════════════════════════════════════════════
@@ -3981,7 +3976,6 @@ def _format_duration(seconds: Optional[int]) -> str:
     if seconds < 86400:
         return f"{seconds // 3600}h"
     return f"{seconds // 86400}d"
-
 
 @bot.tree.command(name="case", description="Zeigt einen Case (Mod-Vorgang) per ID an")
 @app_commands.describe(case_id="Die Case-ID (z. B. 42)")
@@ -4037,7 +4031,6 @@ async def slash_case(interaction: discord.Interaction, case_id: int) -> None:
     )
     await interaction.response.send_message(embed=embed)
 
-
 @bot.tree.command(name="reason", description="Ändert/ergänzt den Grund eines Cases")
 @app_commands.describe(case_id="Die Case-ID", grund="Der neue oder ergänzende Grund")
 @app_commands.default_permissions(manage_messages=True)
@@ -4072,7 +4065,6 @@ async def slash_reason(
                            f"Neuer Grund:\n```\n{grund[:500]}\n```",
                            COLOR_SUCCESS),
         ephemeral=True)
-
 
 @bot.tree.command(name="addproof", description="Fügt einem Case einen Beweis (URL/Screenshot) hinzu")
 @app_commands.describe(
@@ -4125,7 +4117,6 @@ async def slash_addproof(
                            COLOR_SUCCESS),
         ephemeral=True)
 
-
 @bot.tree.command(name="setarchive",
                   description="Aktiviert/deaktiviert das 48h-Nachrichten-Archiv (für Pre-Ban Snapshot)")
 @app_commands.describe(enabled="An/Aus")
@@ -4150,7 +4141,6 @@ async def slash_setarchive(interaction: discord.Interaction, enabled: bool) -> N
             COLOR_SUCCESS if enabled else COLOR_WARNING,
         ),
         ephemeral=True)
-
 
 # ═══════════════════════════════════════════════════════════════
 # PERMISSIONS-AUDITOR  (/audit-perms)
@@ -4298,7 +4288,6 @@ async def slash_audit_perms(interaction: discord.Interaction) -> None:
     )
     await interaction.followup.send(embed=embed, ephemeral=True)
 
-
 @bot.tree.command(name="help", description="Zeigt alle verfügbaren Commands")
 async def slash_help(interaction: discord.Interaction) -> None:
     view = HelpView()
@@ -4307,7 +4296,6 @@ async def slash_help(interaction: discord.Interaction) -> None:
                          "Jeder Eintrag zeigt **Beschreibung**, **Berechtigung** und ein **Beispiel**.",
                          COLOR_PRIMARY, thumbnail=bot.user.display_avatar.url)
     await interaction.response.send_message(embed=embed, view=view)
-
 
 # ═══════════════════════════════════════════════════════════════
 # LOG-KANAL COMMANDS (pro Modul)
@@ -4326,10 +4314,8 @@ async def slash_logs(interaction: discord.Interaction, channel: discord.TextChan
                          COLOR_SUCCESS)
     await interaction.followup.send(embed=embed)        # ← statt response.send_message
 
-
 def _module_choices() -> List[app_commands.Choice[str]]:
     return [app_commands.Choice(name=m, value=m) for m in LOG_MODULES]
-
 
 @bot.tree.command(name="logset", description="Setzt den Log-Kanal für ein bestimmtes Modul")
 @app_commands.describe(module="Modul wählen", channel="Kanal für dieses Modul")
@@ -4348,7 +4334,6 @@ async def slash_logset(interaction: discord.Interaction,
                          COLOR_SUCCESS)
     await interaction.response.send_message(embed=embed)
 
-
 @bot.tree.command(name="logreset", description="Setzt den Log-Kanal für ein Modul zurück (auf Standard)")
 @app_commands.describe(module="Modul wählen")
 @app_commands.choices(module=_module_choices())
@@ -4364,7 +4349,6 @@ async def slash_logreset(interaction: discord.Interaction,
                          f"**{module.value}** nutzt jetzt wieder den Standard-Log-Kanal.",
                          COLOR_SUCCESS)
     await interaction.response.send_message(embed=embed)
-
 
 @bot.tree.command(name="logview", description="Zeigt alle konfigurierten Log-Kanäle")
 @app_commands.default_permissions(administrator=True)
@@ -4384,7 +4368,6 @@ async def slash_logview(interaction: discord.Interaction) -> None:
                          COLOR_INFO, fields)
     await interaction.response.send_message(embed=embed)
 
-
 @bot.tree.command(name="logmodules", description="Listet alle verfügbaren Log-Module")
 @app_commands.default_permissions(administrator=True)
 async def slash_logmodules(interaction: discord.Interaction) -> None:
@@ -4393,7 +4376,6 @@ async def slash_logmodules(interaction: discord.Interaction) -> None:
     embed = create_embed(f"{E.CHANNEL} Verfügbare Log-Module",
                          text, COLOR_INFO)
     await interaction.response.send_message(embed=embed, ephemeral=True)
-
 
 # ═══════════════════════════════════════════════════════════════
 # OWNER / ADMIN PRO COMMANDS
@@ -4420,7 +4402,6 @@ async def slash_security_level(interaction: discord.Interaction,
                          COLOR_DANGER if level.value > 0 else COLOR_SUCCESS)
     await interaction.response.send_message(embed=embed)
 
-
 @bot.tree.command(name="panic", description="Aktiviert sofort den Lockdown (Level 3)")
 @app_commands.default_permissions(administrator=True)
 async def slash_panic(interaction: discord.Interaction) -> None:
@@ -4435,7 +4416,6 @@ async def slash_panic(interaction: discord.Interaction) -> None:
                          COLOR_DANGER, [("Ausgeführt von", interaction.user.mention, True)])
     await interaction.followup.send(embed=embed)
 
-
 @bot.tree.command(name="unlockdown", description="Hebt den Lockdown auf")
 @app_commands.default_permissions(administrator=True)
 async def slash_unlockdown(interaction: discord.Interaction) -> None:
@@ -4444,7 +4424,6 @@ async def slash_unlockdown(interaction: discord.Interaction) -> None:
     embed = create_embed(f"{E.LOCK} Lockdown aufgehoben",
                          "Alle Kanäle wurden entsperrt.", COLOR_SUCCESS)
     await interaction.followup.send(embed=embed)
-
 
 @bot.tree.command(name="massunban", description="Entbannt alle gebannten Nutzer (Rate-Limit-geschützt)")
 @app_commands.default_permissions(administrator=True)
@@ -4472,7 +4451,6 @@ async def slash_massunban(interaction: discord.Interaction) -> None:
                          f"{interaction.user.mention} hat {count} Nutzer entbannt.",
                          COLOR_SUCCESS, module="moderation")
 
-
 @bot.tree.command(name="massrole_remove", description="Entfernt eine Rolle von allen Mitgliedern (Rate-Limit-geschützt)")
 @app_commands.describe(role="Die zu entfernende Rolle")
 @app_commands.default_permissions(administrator=True)
@@ -4496,7 +4474,6 @@ async def slash_massrole_remove(interaction: discord.Interaction, role: discord.
                          f"{interaction.user.mention} entfernte {role.mention} von {count} Mitgliedern.",
                          COLOR_INFO, module="moderation")
 
-
 @bot.tree.command(name="forcereset", description="Setzt die gesamte Server-Konfiguration zurück")
 @app_commands.default_permissions(administrator=True)
 async def slash_forcereset(interaction: discord.Interaction) -> None:
@@ -4507,12 +4484,10 @@ async def slash_forcereset(interaction: discord.Interaction) -> None:
                          COLOR_WARNING)
     await interaction.response.send_message(embed=embed)
 
-
 @bot.tree.command(name="warnsetup", description="Konfiguriert Warn-Schwellen interaktiv")
 @app_commands.default_permissions(administrator=True)
 async def slash_warnsetup(interaction: discord.Interaction) -> None:
     await interaction.response.send_modal(WarnSetupModal())
-
 
 # ─────────────────────────────────────────────────────────────────
 # APPEAL SETUP COMMAND
@@ -4531,7 +4506,6 @@ async def slash_logban(interaction: discord.Interaction, channel: discord.TextCh
         COLOR_SUCCESS
     )
     await interaction.response.send_message(embed=embed)
-
 
 # ═══════════════════════════════════════════════════════════════
 # ERROR HANDLING
@@ -4558,7 +4532,6 @@ async def on_command_error(ctx: commands.Context, error: Exception) -> None:
         return
     else:
         log.error(f"Command-Fehler: {error}")
-
 
 @bot.tree.error
 async def on_app_command_error(interaction: discord.Interaction,
@@ -5293,7 +5266,6 @@ async def auto_backup_loop() -> None:
         except Exception as e:
             log.error(f"Auto-Backup Loop Fehler für {guild.name}: {e}")
 
-
 # ═══════════════════════════════════════════════════════════════════
 # 1) WELCOME & LEAVE SYSTEM
 # ═══════════════════════════════════════════════════════════════════
@@ -5472,7 +5444,6 @@ async def slash_leave_channel(interaction: discord.Interaction, channel: discord
     await bot.db.set_config(interaction.guild.id, cfg)
     await interaction.response.send_message(embed=create_embed(f"{E.OK} Leave-Kanal", f"Leave-Nachrichten in {channel.mention}.", COLOR_SUCCESS))
 
-
 # ═══════════════════════════════════════════════════════════════════
 # 2) AUTO-ROLE SYSTEM
 # ═══════════════════════════════════════════════════════════════════
@@ -5530,7 +5501,6 @@ async def slash_autorole_remove(interaction: discord.Interaction, role: discord.
         await interaction.response.send_message(embed=create_embed(f"{E.OK} Entfernt", f"{role.mention} ist keine Auto-Role mehr.", COLOR_SUCCESS))
     else:
         await interaction.response.send_message(embed=create_embed(f"{E.FAIL} Nicht gefunden", f"{role.mention} war keine Auto-Role.", COLOR_WARNING), ephemeral=True)
-
 
 # ═══════════════════════════════════════════════════════════════════
 # 3) CASES-LIST mit Pagination & Dropdown
@@ -5598,7 +5568,6 @@ async def slash_cases(interaction: discord.Interaction, user: Optional[discord.U
         return
     view = CasesPageView(cases, interaction.guild)
     await interaction.followup.send(embed=view._get_embed(), view=view, ephemeral=True)
-
 
 # ═══════════════════════════════════════════════════════════════════
 # 4) STICKY ROLES
@@ -5684,7 +5653,6 @@ async def slash_stickyrole_remove(interaction: discord.Interaction, role: discor
     else:
         await interaction.response.send_message(embed=create_embed(f"{E.FAIL} Nicht gefunden", f"{role.mention} ist keine Sticky-Role.", COLOR_WARNING), ephemeral=True)
 
-
 # ═══════════════════════════════════════════════════════════════════
 # 5) TEMPORARY VOICE CHANNELS
 # ═══════════════════════════════════════════════════════════════════
@@ -5731,7 +5699,6 @@ async def slash_tempvoice_setup(interaction: discord.Interaction, channel: disco
     embed = create_embed(f"{E.OK} Temp-Voice eingerichtet", f"Join-to-Create: {channel.mention}\nKategorie: {category.mention if category else 'Automatisch'}", COLOR_SUCCESS)
     await interaction.response.send_message(embed=embed)
     await bot.log_action(interaction.guild, f"{E.OK} Temp-Voice Setup", f"{channel.mention} als Join-to-Create von {interaction.user.mention}.", COLOR_SUCCESS, user=interaction.user, module="moderation")
-
 
 # ═══════════════════════════════════════════════════════════════════
 # 8) MASS-BAN COMMAND
@@ -5789,7 +5756,6 @@ async def slash_massban(interaction: discord.Interaction, user_ids: str, reason:
     embed = create_embed("⚠️ Mass-Ban bestätigen", f"**{len(id_list)} Nutzer** werden gebannt.\nGrund: {reason}\nIDs: {id_text}", COLOR_DANGER)
     await interaction.response.send_message(embed=embed, view=MassBanConfirmView(id_list, reason, interaction.user))
 
-
 # ═══════════════════════════════════════════════════════════════════
 # 10) REACTION ROLES
 # ═══════════════════════════════════════════════════════════════════
@@ -5842,7 +5808,6 @@ async def slash_reactionrole(interaction: discord.Interaction, channel: discord.
         await bot.log_action(interaction.guild, f"{E.OK} Reaction-Role", f"Dropdown in {channel.mention} von {interaction.user.mention}.", COLOR_SUCCESS, user=interaction.user, module="moderation")
     except discord.Forbidden:
         await interaction.response.send_message(embed=create_embed(f"{E.FAIL} Keine Rechte", "Ich darf dort keine Nachrichten senden.", COLOR_DANGER), ephemeral=True)
-
 
 # ═══════════════════════════════════════════════════════════════════
 # 11) USERINFO (Slash + Prefix)
@@ -6059,7 +6024,6 @@ async def slash_invites_lb(interaction: discord.Interaction) -> None:
     except discord.Forbidden:
         await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", "Keine Berechtigung.", COLOR_DANGER), ephemeral=True)
 
-
 # ═══════════════════════════════════════════════════════════════════
 # 17) LOCKALL / UNLOCKALL (Slash + Prefix)
 # ═══════════════════════════════════════════════════════════════════
@@ -6102,7 +6066,6 @@ async def slash_ar_del(interaction: discord.Interaction, index: int) -> None:
     cfg["auto_responses"] = ars
     await bot.db.set_config(interaction.guild.id, cfg)
     await interaction.response.send_message(embed=create_embed(f"{E.OK} Gelöscht", f"Trigger `{removed['trigger']}` entfernt.", COLOR_SUCCESS))
-
 
 # ═══════════════════════════════════════════════════════════════════
 # 19) WARN-DECAY SYSTEM
@@ -6172,7 +6135,6 @@ async def extra_on_message(message: discord.Message):
             message.content = f"{prefix}{content}"
             await bot.process_commands(message)
 
-
 # ═══════════════════════════════════════════════════════════════════
 # 21) NO-PREFIX SETUP
 # ═══════════════════════════════════════════════════════════════════
@@ -6226,24 +6188,8 @@ async def slash_noprefix_list(interaction: discord.Interaction) -> None:
 # ═══════════════════════════════════════════════════════════════════
 # NEW: /note — Interne Moderator-Notizen
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="delnote", description="Löscht eine Notiz (Index aus /notes)")
-@app_commands.describe(member="User", index="Notiz-Nummer")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_delnote(interaction: discord.Interaction, member: discord.Member, index: int) -> None:
-    try:
-        notes = await bot.db.notes.find({"guild_id": str(interaction.guild.id), "user_id": str(member.id)}).sort("timestamp", -1).to_list(50)
-        if index < 1 or index > len(notes):
-            return await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", "Ungültiger Index.", COLOR_DANGER), ephemeral=True)
-        await bot.db.notes.delete_one({"_id": notes[index - 1]["_id"]})
-        await interaction.response.send_message(embed=create_embed(f"{E.OK}", f"Notiz #{index} gelöscht.", COLOR_SUCCESS), ephemeral=True)
-    except Exception as e:
-        await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", f"Fehler: {e}", COLOR_DANGER), ephemeral=True)
-
-# ═══════════════════════════════════════════════════════════════════
-# NEW: /snipe & /editsnipe
 # ═══════════════════════════════════════════════════════════════════
 _snipe_cache = {}  # guild_id -> {channel_id: (message, timestamp)}
-_editsnipe_cache = {}
 
 @bot.listen("on_message_delete")
 async def snipe_on_delete(message: discord.Message):
@@ -6260,12 +6206,6 @@ async def snipe_on_delete(message: discord.Message):
 async def snipe_on_edit(before: discord.Message, after: discord.Message):
     if before.author.bot or not before.guild or before.content == after.content:
         return
-    _editsnipe_cache.setdefault(before.guild.id, {})[before.channel.id] = {
-        "before": before.content[:1000],
-        "after": after.content[:1000],
-        "author": before.author,
-        "timestamp": time.time(),
-    }
 
 # ═══════════════════════════════════════════════════════════════════
 # NEW: /poll — Abstimmung
@@ -6345,40 +6285,8 @@ async def prefix_purge(ctx, target: str = None, amount: int = 50):
     except Exception:
         pass
 
-
 # ═══════════════════════════════════════════════════════════════════
-# NEW: /afk — AFK System
 # ═══════════════════════════════════════════════════════════════════
-_afk_users = {}  # guild_id -> {user_id: {"reason": str, "since": float}}
-
-@bot.listen("on_message")
-async def afk_listener(message: discord.Message):
-    if message.author.bot or not message.guild:
-        return
-    guild_afk = _afk_users.get(message.guild.id, {})
-    # Unafk when they send a message
-    if message.author.id in guild_afk:
-        afk_data = guild_afk.pop(message.author.id)
-        duration = int(time.time() - afk_data["since"])
-        mins = duration // 60
-        try:
-            await message.channel.send(f"👋 **{message.author.display_name}** ist zurück! (War {mins}m AFK)", delete_after=8)
-        except Exception:
-            pass
-        return
-    # Notify when mentioned AFK user
-    for mention in message.mentions:
-        if mention.id in guild_afk:
-            data = guild_afk[mention.id]
-            mins = int((time.time() - data["since"]) / 60)
-            try:
-                await message.channel.send(
-                    f"💤 **{mention.display_name}** ist AFK: {data['reason']} (seit {mins}m)", delete_after=10)
-            except Exception:
-                pass
-
-
-
 # ═══════════════════════════════════════════════════════════════════
 # NEW: ANTI-VPN — VPN/Proxy-Erkennung bei Join
 # ═══════════════════════════════════════════════════════════════════
@@ -6409,25 +6317,12 @@ async def _check_vpn(ip: str) -> bool:
         log.debug(f"VPN check error for {ip}: {e}")
     return False
 
-
 # ═══════════════════════════════════════════════════════════════════
 # MODFORGE CUSTOM FEATURES
 # ═══════════════════════════════════════════════════════════════════
 from collections import defaultdict as _dd
 
 _dm_sent = {}
-async def safe_dm(user, embed, cooldown_key=None, cooldown_seconds=30):
-    if user.bot: return False
-    key = cooldown_key or f"{user.id}:{embed.title or 'dm'}"
-    now = time.time()
-    if key in _dm_sent and now - _dm_sent[key] < cooldown_seconds: return False
-    try:
-        await user.send(embed=embed)
-        _dm_sent[key] = now
-        for k in [k for k,v in _dm_sent.items() if now - v > 300]: _dm_sent.pop(k, None)
-        return True
-    except (discord.Forbidden, discord.HTTPException): return False
-
 # ── USERINFO ──
 async def _userinfo(guild, target, requester):
     if not target: target = requester
@@ -6596,18 +6491,48 @@ async def prefix_report(ctx, member: discord.Member = None, *, reason="Kein Grun
     except Exception as e: await ctx.send(f"Fehler: {e}")
 
 # ── INVITES ──
-@bot.tree.command(name="invites", description="Invite-Statistiken")
-@app_commands.describe(member="User")
+@bot.tree.command(name="invites", description="Invite-Statistiken eines Users")
+@app_commands.describe(member="User dessen Invites angezeigt werden")
 async def slash_invites(interaction: discord.Interaction, member: discord.Member = None):
     try:
         target = member or interaction.user
         invites = await interaction.guild.invites()
-        ui = [i for i in invites if i.inviter and i.inviter.id == target.id]
-        total = sum(i.uses for i in ui)
-        lines = "\n".join(f"`{i.code}` — **{i.uses}** Uses" for i in sorted(ui,key=lambda x:x.uses,reverse=True)[:10]) or "Keine Invites."
-        await interaction.response.send_message(embed=create_embed(f"📨 {target.display_name}",f"**{total}** Einladungen\n\n{lines}",COLOR_INFO,thumbnail=target.display_avatar.url))
+        user_invites = [i for i in invites if i.inviter and i.inviter.id == target.id]
+        total_uses = sum(i.uses for i in user_invites)
+
+        if not user_invites:
+            return await interaction.response.send_message(embed=create_embed(
+                f"📨 Invites – {target.display_name}",
+                f"{target.mention} hat **keine aktiven Einladungen**.",
+                COLOR_INFO, thumbnail=target.display_avatar.url), ephemeral=True)
+
+        lines = []
+        for inv in sorted(user_invites, key=lambda x: x.uses, reverse=True)[:10]:
+            created = f"<t:{int(inv.created_at.timestamp())}:R>" if inv.created_at else "?"
+            expires = ""
+            if inv.max_age:
+                exp_ts = int(inv.created_at.timestamp() + inv.max_age) if inv.created_at else 0
+                if exp_ts > time.time():
+                    expires = f" · ⏰ läuft ab <t:{exp_ts}:R>"
+                else:
+                    expires = " · ❌ abgelaufen"
+            max_uses = f"/{inv.max_uses}" if inv.max_uses else "/∞"
+            channel = f"#{inv.channel.name}" if inv.channel else "?"
+            lines.append(
+                f"**`{inv.code}`** — **{inv.uses}**{max_uses} Uses · {channel} · {created}{expires}"
+            )
+
+        embed = create_embed(
+            f"📨 Invites – {target.display_name}",
+            f"**{total_uses}** Einladungen über **{len(user_invites)}** Links\n\n" + "\n".join(lines),
+            COLOR_INFO, thumbnail=target.display_avatar.url
+        )
+        embed.set_footer(text=f"Gesamt: {total_uses} Einladungen · {interaction.guild.name}")
+        await interaction.response.send_message(embed=embed)
+    except discord.Forbidden:
+        await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", "Keine Berechtigung für Invite-Zugriff.", COLOR_DANGER), ephemeral=True)
     except Exception as e:
-        try: await interaction.response.send_message(f"Fehler: {e}",ephemeral=True)
+        try: await interaction.response.send_message(f"Fehler: {e}", ephemeral=True)
         except: pass
 
 # prefix only: invite_track
@@ -6727,63 +6652,13 @@ async def prefix_history(ctx, member: discord.Member = None):
         await ctx.send(embed=create_embed(f"📜 History ({len(lines)})","\n".join(lines) or "Keine.",COLOR_INFO))
     except Exception as e: await ctx.send(f"Fehler: {e}")
 
-# ── NOTE / SNIPE / POLL / AFK / PURGE / RAIDMODE / SERVERTAG / ROLEINFO / AUTOSLOWMODE / ANTIVPN ──
+# ── SNIPE / POLL / PURGE / RAIDMODE / ROLEINFO / AUTOSLOWMODE ──FO / AUTOSLOWMODE / ANTIVPN ──
 # (keeping them shorter but all with try/except)
 
-@bot.tree.command(name="note", description="Interne Mod-Notiz")
-@app_commands.describe(member="User",text="Notiz")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_note(interaction: discord.Interaction, member: discord.Member, text: str):
-    try:
-        await bot.db.notes.insert_one({"guild_id":str(interaction.guild.id),"user_id":str(member.id),"mod_id":str(interaction.user.id),"text":text,"timestamp":datetime.datetime.utcnow()})
-        await interaction.response.send_message(embed=create_embed(f"{E.OK}",f"Notiz für {member.mention}: {text}",COLOR_SUCCESS),ephemeral=True)
-    except Exception as e:
-        try: await interaction.response.send_message(f"Fehler: {e}",ephemeral=True)
-        except: pass
-
-@bot.tree.command(name="notes", description="Zeigt Notizen")
-@app_commands.describe(member="User")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_notes(interaction: discord.Interaction, member: discord.Member):
-    try:
-        notes = await bot.db.notes.find({"guild_id":str(interaction.guild.id),"user_id":str(member.id)}).sort("timestamp",-1).to_list(20) or []
-        if not notes: return await interaction.response.send_message(embed=create_embed("📝","Keine Notizen.",COLOR_INFO),ephemeral=True)
-        lines = [f"`{i}.` {n['text'][:80]} — <@{n['mod_id']}>" for i,n in enumerate(notes,1)]
-        await interaction.response.send_message(embed=create_embed(f"📝 Notizen ({len(notes)})","\n".join(lines),COLOR_INFO),ephemeral=True)
-    except Exception as e:
-        try: await interaction.response.send_message(f"Fehler: {e}",ephemeral=True)
-        except: pass
-
-@bot.command(name="note")
-@commands.has_permissions(manage_messages=True)
-async def prefix_note(ctx, member: discord.Member = None, *, text=""):
-    if not member or not text: return await ctx.send("Nutze: `!note @User Text`")
-    try:
-        await bot.db.notes.insert_one({"guild_id":str(ctx.guild.id),"user_id":str(member.id),"mod_id":str(ctx.author.id),"text":text,"timestamp":datetime.datetime.utcnow()})
-        await ctx.send(embed=create_embed(f"{E.OK}",f"Notiz gespeichert.",COLOR_SUCCESS))
-    except Exception as e: await ctx.send(f"Fehler: {e}")
-
-@bot.command(name="notes")
-@commands.has_permissions(manage_messages=True)
-async def prefix_notes(ctx, member: discord.Member = None):
-    if not member: return await ctx.send("Nutze: `!notes @User`")
-    try:
-        notes = await bot.db.notes.find({"guild_id":str(ctx.guild.id),"user_id":str(member.id)}).to_list(10) or []
-        lines = [f"`{i}.` {n['text'][:80]}" for i,n in enumerate(notes,1)]
-        await ctx.send(embed=create_embed(f"📝 ({len(notes)})","\n".join(lines) or "Keine.",COLOR_INFO))
-    except Exception as e: await ctx.send(f"Fehler: {e}")
-
-_snipe_cache = {}
-_editsnipe_cache = {}
 @bot.listen("on_message_delete")
 async def snipe_del(msg):
     if msg.author.bot or not msg.guild: return
     _snipe_cache.setdefault(msg.guild.id,{})[msg.channel.id] = {"content":msg.content[:1500],"author":msg.author,"ts":time.time(),"attachments":[a.url for a in msg.attachments][:3]}
-
-@bot.listen("on_message_edit")
-async def snipe_edit(before,after):
-    if before.author.bot or not before.guild or before.content==after.content: return
-    _editsnipe_cache.setdefault(before.guild.id,{})[before.channel.id] = {"before":before.content[:1000],"after":after.content[:1000],"author":before.author,"ts":time.time()}
 
 @bot.tree.command(name="snipe", description="Letzte gelöschte Nachricht")
 @app_commands.default_permissions(manage_messages=True)
@@ -6798,21 +6673,6 @@ async def slash_snipe(interaction: discord.Interaction):
         try: await interaction.response.send_message(f"Fehler: {ex}",ephemeral=True)
         except: pass
 
-@bot.tree.command(name="editsnipe", description="Letzte bearbeitete Nachricht")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_editsnipe(interaction: discord.Interaction):
-    try:
-        d = _editsnipe_cache.get(interaction.guild.id,{}).get(interaction.channel.id)
-        if not d or time.time()-d["ts"]>300: return await interaction.response.send_message("Nichts.",ephemeral=True)
-        e = create_embed("✏️ Editsnipe","",COLOR_INFO)
-        e.set_author(name=str(d["author"]),icon_url=d["author"].display_avatar.url)
-        e.add_field(name="Vorher",value=d["before"][:1000],inline=False)
-        e.add_field(name="Nachher",value=d["after"][:1000],inline=False)
-        await interaction.response.send_message(embed=e,ephemeral=True)
-    except Exception as ex:
-        try: await interaction.response.send_message(f"Fehler: {ex}",ephemeral=True)
-        except: pass
-
 @bot.command(name="snipe")
 @commands.has_permissions(manage_messages=True)
 async def prefix_snipe(ctx):
@@ -6820,16 +6680,6 @@ async def prefix_snipe(ctx):
     if not d or time.time()-d["ts"]>300: return await ctx.send("Nichts zu snipen.")
     e = create_embed("🔍",d["content"] or "*Leer*",COLOR_WARNING)
     e.set_author(name=str(d["author"]),icon_url=d["author"].display_avatar.url)
-    await ctx.send(embed=e)
-
-@bot.command(name="editsnipe",aliases=["esnipe"])
-@commands.has_permissions(manage_messages=True)
-async def prefix_editsnipe(ctx):
-    d = _editsnipe_cache.get(ctx.guild.id,{}).get(ctx.channel.id)
-    if not d or time.time()-d["ts"]>300: return await ctx.send("Nichts.")
-    e = create_embed("✏️","",COLOR_INFO)
-    e.add_field(name="Vorher",value=d["before"][:1000],inline=False)
-    e.add_field(name="Nachher",value=d["after"][:1000],inline=False)
     await ctx.send(embed=e)
 
 @bot.tree.command(name="poll", description="Abstimmung erstellen")
@@ -6855,32 +6705,6 @@ async def prefix_poll(ctx, *, args=""):
     desc = "\n".join(f"{emojis[i]} {o}" for i,o in enumerate(parts[1:5]))
     msg = await ctx.send(embed=create_embed(f"📊 {parts[0]}",desc,COLOR_PRIMARY))
     for i in range(min(len(parts)-1,4)): await msg.add_reaction(emojis[i])
-
-_afk = {}
-@bot.tree.command(name="afk", description="AFK-Status setzen")
-@app_commands.describe(grund="Grund")
-async def slash_afk(interaction: discord.Interaction, grund: str = "AFK"):
-    _afk.setdefault(interaction.guild.id,{})[interaction.user.id] = {"reason":grund,"since":time.time()}
-    await interaction.response.send_message(embed=create_embed("💤",f"{interaction.user.mention} ist AFK: {grund}",COLOR_INFO))
-
-@bot.command(name="afk")
-async def prefix_afk(ctx, *, grund="AFK"):
-    _afk.setdefault(ctx.guild.id,{})[ctx.author.id] = {"reason":grund,"since":time.time()}
-    await ctx.send(embed=create_embed("💤",f"{ctx.author.mention} ist AFK: {grund}",COLOR_INFO))
-
-@bot.listen("on_message")
-async def afk_handler(msg):
-    if msg.author.bot or not msg.guild: return
-    ga = _afk.get(msg.guild.id,{})
-    if msg.author.id in ga:
-        d = ga.pop(msg.author.id)
-        try: await msg.channel.send(f"👋 **{msg.author.display_name}** ist zurück! (War {int((time.time()-d['since'])/60)}m AFK)",delete_after=8)
-        except: pass
-    for m in msg.mentions:
-        if m.id in ga:
-            d = ga[m.id]
-            try: await msg.channel.send(f"💤 **{m.display_name}** ist AFK: {d['reason']}",delete_after=10)
-            except: pass
 
 @bot.tree.command(name="roleinfo", description="Rollen-Info")
 @app_commands.describe(role="Rolle")
@@ -6967,63 +6791,6 @@ async def prefix_raidmode(ctx, action="status"):
     else:
         await ctx.send(embed=create_embed("🚨",f"Status: {'AKTIV 🔴' if cfg.get('raidmode_active') else '🟢'}",COLOR_INFO))
 
-# ── SERVERTAG ──
-@bot.tree.command(name="servertag_setup", description="Server-Tag einrichten")
-@app_commands.describe(tag="Tag-Text",reward_role="Belohnungsrolle")
-@app_commands.default_permissions(administrator=True)
-async def slash_servertag(interaction: discord.Interaction, tag: str, reward_role: discord.Role):
-    try:
-        cfg = bot.db.get_config(interaction.guild.id)
-        cfg["server_tag"] = {"enabled":True,"tag":tag,"reward_role":reward_role.id}
-        await bot.db.set_config(interaction.guild.id, cfg)
-        await interaction.response.send_message(embed=create_embed(f"{E.OK} Server-Tag",f"Tag: `{tag}`\nRolle: {reward_role.mention}\n\nUser mit dem Tag im Namen bekommen die Rolle automatisch.",COLOR_SUCCESS))
-    except Exception as e:
-        try: await interaction.response.send_message(f"Fehler: {e}",ephemeral=True)
-        except: pass
-
-# prefix only: servertag_off
-@app_commands.default_permissions(administrator=True)
-async def slash_servertag_off(interaction: discord.Interaction):
-    try:
-        cfg = bot.db.get_config(interaction.guild.id)
-        cfg["server_tag"] = {"enabled":False}
-        await bot.db.set_config(interaction.guild.id, cfg)
-        await interaction.response.send_message(embed=create_embed(f"{E.OK}","Server-Tag deaktiviert.",COLOR_WARNING))
-    except Exception as e:
-        try: await interaction.response.send_message(f"Fehler: {e}",ephemeral=True)
-        except: pass
-
-# prefix only: servertag_check
-@app_commands.default_permissions(manage_guild=True)
-async def slash_servertag_check(interaction: discord.Interaction):
-    try:
-        cfg = bot.db.get_config(interaction.guild.id)
-        st = cfg.get("server_tag",{})
-        if not st.get("enabled"): return await interaction.response.send_message("Kein Tag aktiv.",ephemeral=True)
-        tag = st["tag"].lower()
-        has = [m for m in interaction.guild.members if not m.bot and tag in (m.display_name or "").lower()]
-        await interaction.response.send_message(embed=create_embed("🏷️",f"**{len(has)}** User haben `{st['tag']}`:\n"+"\n".join(f"> {m.mention}" for m in has[:15]),COLOR_INFO),ephemeral=True)
-    except Exception as e:
-        try: await interaction.response.send_message(f"Fehler: {e}",ephemeral=True)
-        except: pass
-
-@bot.listen("on_presence_update")
-async def tag_check(before, after):
-    if after.bot: return
-    try:
-        cfg = bot.db.get_config(after.guild.id)
-        st = cfg.get("server_tag",{})
-        if not st.get("enabled") or not st.get("tag") or not st.get("reward_role"): return
-        tag = st["tag"].lower()
-        role = after.guild.get_role(st["reward_role"])
-        if not role: return
-        has_tag = tag in (after.display_name or "").lower() or tag in (after.name or "").lower()
-        if has_tag and role not in after.roles:
-            await after.add_roles(role,reason=f"Server-Tag: {st['tag']}")
-        elif not has_tag and role in after.roles:
-            await after.remove_roles(role,reason=f"Tag entfernt: {st['tag']}")
-    except: pass
-
 # ── NOPREFIX ──
 @bot.tree.command(name="noprefix", description="No-Prefix-Modus")
 @app_commands.describe(enabled="An/Aus")
@@ -7087,21 +6854,7 @@ async def slash_antivpn(interaction: discord.Interaction, enabled: bool, action:
         try: await interaction.response.send_message(f"Fehler: {e}",ephemeral=True)
         except: pass
 
-# prefix only: webhook_log
-@app_commands.describe(module="Modul",webhook_url="Webhook-URL")
-@app_commands.default_permissions(administrator=True)
-async def slash_webhook_log(interaction: discord.Interaction, module: str, webhook_url: str):
-    try:
-        cfg = bot.db.get_config(interaction.guild.id)
-        wl = cfg.get("webhook_logging",{"enabled":False,"webhooks":{}})
-        wl["enabled"] = True
-        wl.setdefault("webhooks",{})[module] = webhook_url
-        cfg["webhook_logging"] = wl
-        await bot.db.set_config(interaction.guild.id, cfg)
-        await interaction.response.send_message(embed=create_embed(f"{E.OK}",f"Webhook für `{module}` gesetzt.",COLOR_SUCCESS),ephemeral=True)
-    except Exception as e:
-        try: await interaction.response.send_message(f"Fehler: {e}",ephemeral=True)
-        except: pass
+
 
 # ── PREFIX MIRRORS ──
 @bot.command(name="tempban",aliases=["tb"])
@@ -7280,4 +7033,139 @@ async def ar_handler(msg):
             try: await msg.channel.send(ar["response"])
             except: pass
             break
+
+
+# ═══════════════════════════════════════════════════════════════════
+# SERVER-TAG + BOOST SYSTEM
+# ═══════════════════════════════════════════════════════════════════
+@bot.tree.command(name="servertag", description="Server-Tag System einrichten")
+@app_commands.describe(enabled="An/Aus", reward_role="Belohnungsrolle für Tag-Nutzer", tag="Tag-Text im Namen (z.B. '| MyServer')")
+@app_commands.default_permissions(administrator=True)
+async def slash_servertag(interaction: discord.Interaction, enabled: bool, reward_role: discord.Role = None, tag: str = None) -> None:
+    try:
+        cfg = bot.db.get_config(interaction.guild.id)
+        old_st = cfg.get("server_tag", {})
+
+        if not enabled:
+            # Deaktivieren — Rolle von allen entfernen die sie haben
+            old_role_id = old_st.get("reward_role")
+            removed = 0
+            if old_role_id:
+                old_role = interaction.guild.get_role(old_role_id)
+                if old_role:
+                    for m in old_role.members:
+                        try:
+                            await m.remove_roles(old_role, reason="Server-Tag deaktiviert")
+                            removed += 1
+                        except: pass
+            cfg["server_tag"] = {"enabled": False, "tag": None, "reward_role": None}
+            await bot.db.set_config(interaction.guild.id, cfg)
+            await interaction.response.send_message(embed=create_embed(
+                f"{E.OK} Server-Tag deaktiviert",
+                f"Tag-System ist jetzt **aus**.\n{f'Rolle von {removed} Usern entfernt.' if removed else ''}",
+                COLOR_WARNING))
+            return
+
+        if not reward_role or not tag:
+            return await interaction.response.send_message(embed=create_embed(
+                f"{E.FAIL}", "Bitte gib Tag und Rolle an:\n`/servertag true @Rolle | MyServer`", COLOR_DANGER), ephemeral=True)
+
+        cfg["server_tag"] = {"enabled": True, "tag": tag, "reward_role": reward_role.id}
+        await bot.db.set_config(interaction.guild.id, cfg)
+
+        await interaction.response.send_message(embed=create_embed(
+            f"{E.OK} Server-Tag eingerichtet",
+            f"**Tag:** `{tag}`\n"
+            f"**Rolle:** {reward_role.mention}\n\n"
+            f"**So funktioniert es:**\n"
+            f"> 🏷️ User setzt `{tag}` in seinen **Discord-Namen**\n"
+            f"> 💎 Oder User **boostet** den Server UND hat den Tag\n"
+            f"> ✅ → Bekommt automatisch {reward_role.mention}\n"
+            f"> ❌ Tag entfernt → Rolle wird **sofort entzogen**\n\n"
+            f"Der Bot prüft bei jedem Status-Update.",
+            COLOR_SUCCESS))
+        await bot.log_action(interaction.guild, "🏷️ Server-Tag eingerichtet",
+            f"Tag: `{tag}` · Rolle: {reward_role.mention} · Von: {interaction.user.mention}",
+            COLOR_SUCCESS, user=interaction.user, module="moderation")
+    except Exception as e:
+        try: await interaction.response.send_message(f"Fehler: {e}", ephemeral=True)
+        except: pass
+
+@bot.command(name="servertag")
+@commands.has_permissions(administrator=True)
+async def prefix_servertag(ctx, action: str = "status", role: discord.Role = None, *, tag: str = ""):
+    try:
+        cfg = bot.db.get_config(ctx.guild.id)
+        st = cfg.get("server_tag", {})
+        if action.lower() in ("on", "true"):
+            if not role or not tag:
+                return await ctx.send(embed=create_embed(f"{E.FAIL}", "`!servertag on @Rolle | MeinTag`", COLOR_DANGER))
+            cfg["server_tag"] = {"enabled": True, "tag": tag, "reward_role": role.id}
+            await bot.db.set_config(ctx.guild.id, cfg)
+            await ctx.send(embed=create_embed(f"{E.OK} Server-Tag", f"Tag: `{tag}` · Rolle: {role.mention}", COLOR_SUCCESS))
+        elif action.lower() in ("off", "false"):
+            cfg["server_tag"] = {"enabled": False, "tag": None, "reward_role": None}
+            await bot.db.set_config(ctx.guild.id, cfg)
+            await ctx.send(embed=create_embed(f"{E.OK}", "Server-Tag deaktiviert.", COLOR_WARNING))
+        else:
+            if st.get("enabled"):
+                r = ctx.guild.get_role(st.get("reward_role"))
+                await ctx.send(embed=create_embed("🏷️ Server-Tag",
+                    f"**Status:** ✅ Aktiv\n**Tag:** `{st['tag']}`\n**Rolle:** {r.mention if r else '?'}\n"
+                    f"**User mit Rolle:** {len(r.members) if r else 0}", COLOR_SUCCESS))
+            else:
+                await ctx.send(embed=create_embed("🏷️", "Server-Tag ist **inaktiv**.\n`!servertag on @Rolle | MeinTag`", COLOR_WARNING))
+    except Exception as e:
+        await ctx.send(f"Fehler: {e}")
+
+# Server-Tag Prüfung bei Member-Update (Name/Status/Boost)
+@bot.listen("on_member_update")
+async def servertag_check(before: discord.Member, after: discord.Member):
+    if after.bot:
+        return
+    try:
+        cfg = bot.db.get_config(after.guild.id)
+        st = cfg.get("server_tag", {})
+        if not st.get("enabled") or not st.get("tag") or not st.get("reward_role"):
+            return
+
+        tag = st["tag"]
+        tag_lower = tag.lower()
+        role = after.guild.get_role(st["reward_role"])
+        if not role:
+            return
+
+        # Prüfe: Hat der User den Tag im Namen?
+        has_tag = (
+            tag_lower in (after.display_name or "").lower() or
+            tag_lower in (after.name or "").lower()
+        )
+
+        # Prüfe: Hat der User den Server geboostet?
+        is_booster = after.premium_since is not None
+
+        # Regel: Tag UND (optional Boost) → Rolle
+        # Kein Tag → Rolle weg (egal ob Boost oder nicht)
+        should_have_role = has_tag
+
+        if should_have_role and role not in after.roles:
+            await after.add_roles(role, reason=f"Server-Tag erkannt: {tag}")
+            await bot.log_action(after.guild, "🏷️ Server-Tag — Rolle gegeben",
+                f"{after.mention} hat den Tag `{tag}` im Namen → {role.mention}\n"
+                f"{'💎 Server-Booster' if is_booster else ''}",
+                COLOR_SUCCESS, user=after, module="members")
+
+        elif not should_have_role and role in after.roles:
+            await after.remove_roles(role, reason=f"Server-Tag entfernt: {tag}")
+            await bot.log_action(after.guild, "🏷️ Server-Tag — Rolle entzogen",
+                f"{after.mention} hat den Tag `{tag}` **nicht mehr** im Namen → {role.mention} entzogen",
+                COLOR_WARNING, user=after, module="members")
+
+    except (discord.Forbidden, discord.HTTPException):
+        pass
+    except Exception as e:
+        log.debug(f"Server-Tag check error: {e}")
+
+# Auch bei Nickname-Änderung prüfen (on_member_update feuert dafür)
+# Und bei Boost-Status-Änderung (premium_since ändert sich)
 

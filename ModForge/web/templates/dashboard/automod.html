@@ -5,10 +5,10 @@
 {% block content %}
 <div class="dash-section">
   <h2>🔗 Filter</h2>
-  <div class="cfg-row"><div><span class="cfg-label">Invite-Filter</span><div class="cfg-desc">Discord-Invites automatisch löschen</div></div><label class="toggle"><input type="checkbox" id="inv_f" {% if cfg.get('automod',{}).get('invite_filter') %}checked{% endif %}><span class="slider"></span></label></div>
-  <div class="cfg-row"><div><span class="cfg-label">Link-Filter</span><div class="cfg-desc">Unbekannte Links blockieren</div></div><label class="toggle"><input type="checkbox" id="link_f" {% if cfg.get('automod',{}).get('link_filter') %}checked{% endif %}><span class="slider"></span></label></div>
-  <div class="cfg-row"><div><span class="cfg-label">Zalgo-Filter</span><div class="cfg-desc">Zalgo-Text entfernen</div></div><label class="toggle"><input type="checkbox" id="zalgo_f" {% if cfg.get('automod',{}).get('zalgo_filter') %}checked{% endif %}><span class="slider"></span></label></div>
-  <div class="cfg-row"><div><span class="cfg-label">Phishing-Check</span><div class="cfg-desc">Bekannte Scam-URLs prüfen</div></div><label class="toggle"><input type="checkbox" id="phish_f" {% if cfg.get('automod',{}).get('phishing_check') %}checked{% endif %}><span class="slider"></span></label></div>
+  <div class="cfg-row"><div><span class="cfg-label">Invite-Filter</span><div class="cfg-desc">Discord-Invites (discord.gg/...) automatisch löschen und loggen</div></div><label class="toggle"><input type="checkbox" id="inv_f" {% if cfg.get('automod',{}).get('invite_filter') %}checked{% endif %}><span class="slider"></span></label></div>
+  <div class="cfg-row"><div><span class="cfg-label">Link-Filter</span><div class="cfg-desc">Nicht-whitelistete URLs werden gelöscht und geloggt</div></div><label class="toggle"><input type="checkbox" id="link_f" {% if cfg.get('automod',{}).get('link_filter') %}checked{% endif %}><span class="slider"></span></label></div>
+  <div class="cfg-row"><div><span class="cfg-label">Zalgo-Filter</span><div class="cfg-desc">Z̷̧a̶̛l̶̥g̶̰o̷̪ Text und Unicode-Missbrauch erkennen</div></div><label class="toggle"><input type="checkbox" id="zalgo_f" {% if cfg.get('automod',{}).get('zalgo_filter') %}checked{% endif %}><span class="slider"></span></label></div>
+  <div class="cfg-row"><div><span class="cfg-label">Phishing-Check</span><div class="cfg-desc">Fake-Nitro, Phishing-Links und bekannte Scam-Domains erkennen</div></div><label class="toggle"><input type="checkbox" id="phish_f" {% if cfg.get('automod',{}).get('phishing_check') %}checked{% endif %}><span class="slider"></span></label></div>
 </div>
 <div class="dash-section">
   <h2>🚫 Verbotene Wörter</h2>

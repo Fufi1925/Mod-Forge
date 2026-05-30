@@ -4,4 +4,37 @@
 {% block page_title %}📊 Server-Übersicht{% endblock %}
 {% block content %}
 {{ overview|safe }}
+
+<div class="db-grid" style="margin-top:20px">
+  <a href="/dashboard/{{ guild.id }}/security" class="db-card" style="text-decoration:none;cursor:pointer">
+    <div style="font-size:1.3rem;margin-bottom:6px">🛡️</div>
+    <div class="db-card-title" style="color:var(--fg)">Security Center</div>
+    <p style="color:var(--muted);font-size:.75rem;margin-top:4px">Anti-Nuke, Anti-Raid, Spam-Filter konfigurieren</p>
+  </a>
+  <a href="/dashboard/{{ guild.id }}/logs" class="db-card" style="text-decoration:none;cursor:pointer">
+    <div style="font-size:1.3rem;margin-bottom:6px">📢</div>
+    <div class="db-card-title" style="color:var(--fg)">Log-Kanäle</div>
+    <p style="color:var(--muted);font-size:.75rem;margin-top:4px">25+ Module individuell konfigurieren</p>
+  </a>
+  <a href="/dashboard/{{ guild.id }}/cases" class="db-card" style="text-decoration:none;cursor:pointer">
+    <div style="font-size:1.3rem;margin-bottom:6px">📋</div>
+    <div class="db-card-title" style="color:var(--fg)">Cases</div>
+    <p style="color:var(--muted);font-size:.75rem;margin-top:4px">Moderation-Cases durchsuchen</p>
+  </a>
+  <a href="/dashboard/{{ guild.id }}/automod" class="db-card" style="text-decoration:none;cursor:pointer">
+    <div style="font-size:1.3rem;margin-bottom:6px">🤖</div>
+    <div class="db-card-title" style="color:var(--fg)">AutoMod</div>
+    <p style="color:var(--muted);font-size:.75rem;margin-top:4px">Bad-Words, Regex, Filter verwalten</p>
+  </a>
+  <a href="/dashboard/{{ guild.id }}/settings" class="db-card" style="text-decoration:none;cursor:pointer">
+    <div style="font-size:1.3rem;margin-bottom:6px">⚙️</div>
+    <div class="db-card-title" style="color:var(--fg)">Einstellungen</div>
+    <p style="color:var(--muted);font-size:.75rem;margin-top:4px">Prefix, Webhooks, Server-Tag, No-Prefix</p>
+  </a>
+  <a href="/dashboard/{{ guild.id }}/embed" class="db-card" style="text-decoration:none;cursor:pointer">
+    <div style="font-size:1.3rem;margin-bottom:6px">🎨</div>
+    <div class="db-card-title" style="color:var(--fg)">Embed Builder</div>
+    <p style="color:var(--muted);font-size:.75rem;margin-top:4px">Custom Embeds mit Live-Vorschau</p>
+  </a>
+</div>
 {% endblock %}

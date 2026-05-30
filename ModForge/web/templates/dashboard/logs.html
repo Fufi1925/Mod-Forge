@@ -2,35 +2,52 @@
 {% set active = 'logs' %}
 {% block title %}Logs{% endblock %}
 {% block page_title %}📢 Log-Konfiguration{% endblock %}
+{% block page_desc %}Kanal + Webhook für jedes Modul{% endblock %}
 {% block content %}
-<p style="color:var(--muted);font-size:.85rem;margin-bottom:24px">Weise jedem Modul einen Log-Kanal zu. Module ohne Kanal nutzen den Standard-Log.</p>
-<div class="cfg-row" style="background:rgba(124,58,237,0.06);border-color:rgba(124,58,237,0.2)">
-  <div><span class="cfg-label">📌 Standard-Log-Kanal</span><div class="cfg-desc">Fallback für alle Module ohne eigenen Kanal</div></div>
-  <select class="cfg-select" id="default_log" style="min-width:180px">
+<div class="cfg-row" style="background:rgba(124,58,237,0.04);border-color:rgba(124,58,237,0.15);margin-bottom:16px">
+  <div><span class="cfg-label">🔌 Auto-Webhook Logging</span><div class="cfg-desc">Bot erstellt Webhooks automatisch — schneller, kein Rate-Limit, eigener Name pro Modul</div></div>
+  <label class="toggle"><input type="checkbox" id="wh_global" {% if cfg.get('webhook_logging',{}).get('enabled') %}checked{% endif %} onchange="showSaveBar()"><span class="slider"></span></label>
+</div>
+
+<div class="cfg-row" style="background:rgba(74,222,128,0.04);border-color:rgba(74,222,128,0.12);margin-bottom:20px">
+  <div><span class="cfg-label">📌 Standard-Log-Kanal</span><div class="cfg-desc">Fallback wenn kein Modul-Kanal gesetzt</div></div>
+  <select class="cfg-select" id="default_log" style="min-width:180px" onchange="showSaveBar()">
     <option value="">— Nicht gesetzt —</option>
-    {% for ch in channels %}<option value="{{ ch.id }}" {% if ch.id == cfg.get('log_channel') %}selected{% endif %}>#{{ ch.name }}</option>{% endfor %}
+    {% for ch in channels %}<option value="{{ ch.id }}" {% if ch.id|string == (cfg.get('log_channel','')|string) %}selected{% endif %}>#{{ ch.name }}</option>{% endfor %}
   </select>
 </div>
-<div class="dash-section" style="margin-top:20px">
-  <h2>📋 Module</h2>
+
+<div class="dash-section">
+  <h2>📋 Module — Kanal-Zuweisung</h2>
+  <p style="color:var(--muted);font-size:.78rem;margin-bottom:14px">Jedes Modul kann in einen eigenen Kanal loggen. Leer = Standard-Kanal.</p>
   {% for mod in log_modules %}
   <div class="cfg-row">
-    <div><span class="cfg-label">{{ mod.icon }} {{ mod.label }}</span></div>
-    <select class="cfg-select log-ch" data-mod="{{ mod.key }}" style="min-width:180px">
-      <option value="">Standard</option>
+    <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">
+      <span style="font-size:1rem">{{ mod.icon }}</span>
+      <div><span class="cfg-label">{{ mod.label }}</span></div>
+    </div>
+    <select class="cfg-select log-ch" data-mod="{{ mod.key }}" style="min-width:160px" onchange="showSaveBar()">
+      <option value="">📌 Standard</option>
       {% for ch in channels %}<option value="{{ ch.id }}" {% if ch.id|string == log_channels.get(mod.key,'')|string %}selected{% endif %}>#{{ ch.name }}</option>{% endfor %}
     </select>
   </div>
   {% endfor %}
 </div>
+
 {% block scripts %}
 <script>
 async function saveConfig(){
   const channels={};
   document.querySelectorAll('.log-ch').forEach(el=>{if(el.value)channels[el.dataset.mod]=el.value});
-  const def=document.getElementById('default_log').value;
-  await fetch('/api/guild/{{ guild.id }}/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({_log_channel:def||null,_log_channels:channels})});
-  document.getElementById('saveBar').classList.remove('visible');location.reload();
+  const def_log=document.getElementById('default_log').value;
+  const wh=document.getElementById('wh_global').checked;
+  await fetch('/api/guild/{{ guild.id }}/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+    _log_channel:def_log||null,
+    _log_channels:channels,
+    _webhook_logging:{enabled:wh}
+  })});
+  document.getElementById('saveBar').classList.remove('visible');
+  location.reload();
 }
 </script>
 {% endblock %}

@@ -1014,32 +1014,50 @@ def guild_security(guild_id):
     if err: return err
     modules = []
     mod_defs = [
-        ("anti_spam", "⚡", "Anti-Spam", "Spam, CAPS, Duplikate erkennen", [
+        ("anti_spam", "⚡", "Anti-Spam", "Spam, CAPS, Emoji-Spam und Duplikate erkennen", [
             {"key":"msg_limit","label":"Nachrichten-Limit","type":"number","min":2,"max":30},
             {"key":"msg_window","label":"Zeitfenster (s)","type":"number","min":3,"max":60},
             {"key":"caps_pct","label":"CAPS-Schwelle (%)","type":"number","min":50,"max":100},
             {"key":"emoji_max","label":"Max Emojis","type":"number","min":3,"max":50},
+            {"key":"duplicate_max","label":"Max Duplikate","type":"number","min":1,"max":10},
+            {"key":"timeout_duration","label":"Timeout (s)","type":"number","min":10,"max":86400},
             {"key":"punishment","label":"Bestrafung","type":"select","options":["warn","timeout","kick","ban"]},
         ]),
-        ("anti_nuke", "💥", "Anti-Nuke", "Massenaktionen erkennen und stoppen", [
-            {"key":"threshold","label":"Schwelle","type":"number","min":2,"max":20},
+        ("anti_nuke", "💥", "Anti-Nuke", "Massen-Bans, Channel-Löschungen, Rollen-Änderungen. Auto-Lockdown + Owner-DM", [
+            {"key":"threshold","label":"Aktions-Schwelle","type":"number","min":2,"max":20},
             {"key":"window","label":"Zeitfenster (s)","type":"number","min":5,"max":120},
+            {"key":"remove_roles","label":"Rollen entfernen","type":"select","options":["true","false"]},
             {"key":"punishment","label":"Bestrafung","type":"select","options":["warn","timeout","kick","ban"]},
         ]),
-        ("anti_raid", "🚨", "Anti-Raid", "Massenjoins erkennen", [
+        ("anti_raid", "🚨", "Anti-Raid", "Massen-Joins erkennen, neue Accounts filtern, Lockdown", [
             {"key":"join_threshold","label":"Join-Schwelle","type":"number","min":3,"max":50},
             {"key":"window","label":"Zeitfenster (s)","type":"number","min":5,"max":120},
             {"key":"min_account_age","label":"Min Account-Alter (Tage)","type":"number","min":0,"max":90},
+            {"key":"auto_kick","label":"Auto-Kick neue Accounts","type":"select","options":["true","false"]},
+            {"key":"lockdown","label":"Auto-Lockdown","type":"select","options":["true","false"]},
+            {"key":"suspicious_name_check","label":"Verdächtige Namen prüfen","type":"select","options":["true","false"]},
         ]),
-        ("anti_mention", "🔔", "Anti-Mention", "Mass-Mentions blockieren", [
+        ("anti_mention", "🔔", "Anti-Mention", "Mass-Mentions und @everyone-Missbrauch", [
             {"key":"mention_limit","label":"Max Mentions","type":"number","min":2,"max":30},
             {"key":"window","label":"Zeitfenster (s)","type":"number","min":3,"max":60},
+            {"key":"timeout_duration","label":"Timeout (s)","type":"number","min":10,"max":86400},
             {"key":"punishment","label":"Bestrafung","type":"select","options":["warn","timeout","kick","ban"]},
         ]),
-        ("anti_scam", "🎣", "Anti-Scam", "KI-Phishing-Erkennung", [
+        ("anti_scam", "🎣", "Anti-Scam", "Phishing, Fake-Nitro, bekannte Scam-Domains", [
             {"key":"punishment","label":"Bestrafung","type":"select","options":["warn","timeout","kick","ban"]},
         ]),
-        ("automod", "🤖", "AutoMod", "Automatische Moderation", [
+        ("anti_webhook", "🔌", "Anti-Webhook", "Erkennt verdächtige Webhook-Erstellungen", [
+            {"key":"threshold","label":"Schwelle","type":"number","min":1,"max":10},
+            {"key":"window","label":"Zeitfenster (s)","type":"number","min":5,"max":120},
+        ]),
+        ("anti_ghost_ping", "👻", "Anti-Ghost-Ping", "Erkennt gelöschte Mentions (Ghost-Pings)", []),
+        ("anti_url_shortener", "🔗", "Anti-URL-Shortener", "Blockiert URL-Shortener (bit.ly, tinyurl etc.)", [
+            {"key":"punishment","label":"Bestrafung","type":"select","options":["warn","timeout","kick","ban"]},
+        ]),
+        ("anti_vpn", "🌐", "Anti-VPN", "Verdächtige Accounts (VPN/Proxy-Heuristik) erkennen", [
+            {"key":"action","label":"Aktion","type":"select","options":["kick","ban","log"]},
+        ]),
+        ("automod", "🤖", "AutoMod", "Wortfilter, Regex, Link/Invite-Filter", [
             {"key":"punishment","label":"Bestrafung","type":"select","options":["warn","timeout","kick","ban"]},
         ]),
     ]
@@ -1051,6 +1069,7 @@ def guild_security(guild_id):
     wl = bot.db.get_whitelist(int(guild_id)) if bot_ready() else {}
     wl_count = sum(len(v) for v in wl.values() if isinstance(v, list))
     active_count = sum(1 for m in modules if m["enabled"])
+    total_modules = len(modules)
     return render_template("dashboard/security.html", guild=g, cfg=cfg, user=us["user"],
                            modules=modules, active_count=active_count, wl_count=wl_count, active="security")
 
@@ -1255,6 +1274,15 @@ def api_guild_config(guild_id):
         ma = cfg.get("message_archive",{})
         ma["enabled"] = data["_message_archive"].get("enabled", False)
         cfg["message_archive"] = ma
+    if "_webhook_logging" in data:
+        wl = cfg.get("webhook_logging", {"enabled": False, "webhooks": {}})
+        wl["enabled"] = data["_webhook_logging"].get("enabled", False)
+        cfg["webhook_logging"] = wl
+    if "_server_tag" in data:
+        st = cfg.get("server_tag", {})
+        st["enabled"] = data["_server_tag"].get("enabled", False)
+        if data["_server_tag"].get("tag"): st["tag"] = data["_server_tag"]["tag"]
+        cfg["server_tag"] = st
     if "_warn_thresholds" in data:
         ws = cfg.get("warn_system",{})
         ws["thresholds"] = data["_warn_thresholds"]
@@ -1614,17 +1642,170 @@ def api_guild_whitelist(guild_id):
 # =========================================================
 
 @flask_app.route("/admin/server/<guild_id>")
+@flask_app.route("/admin/server/<guild_id>/<path:subpage>")
 @admin_required
-def admin_server_dashboard(guild_id):
-    """Admin can open ANY server's full dashboard."""
+def admin_server_dashboard(guild_id, subpage=""):
+    """Admin kann JEDEN Server im vollen Dashboard öffnen — ohne OAuth."""
     g = get_guild(guild_id)
     if not g:
         abort(404)
     cfg = _get_guild_config(guild_id)
+    admin_user = {"id":"0","username":"Admin","avatar_url":"https://cdn.discordapp.com/embed/avatars/0.png"}
+
+    # Route to the correct sub-page
+    if not subpage or subpage == "overview":
+        overview = _build_overview(cfg, guild_id)
+        return render_template("dashboard/overview.html", guild=g, cfg=cfg, user=admin_user, overview=overview, active="overview")
+
+    elif subpage == "security":
+        # Security page needs full module list — reuse guild_security logic
+        modules = []
+        mod_defs = [
+            ("anti_spam","⚡","Anti-Spam","Spam erkennen",[{"key":"msg_limit","label":"Limit","type":"number","min":2,"max":30},{"key":"punishment","label":"Strafe","type":"select","options":["warn","timeout","kick","ban"]}]),
+            ("anti_nuke","💥","Anti-Nuke","Massenaktionen",[{"key":"threshold","label":"Schwelle","type":"number","min":2,"max":20},{"key":"punishment","label":"Strafe","type":"select","options":["warn","timeout","kick","ban"]}]),
+            ("anti_raid","🚨","Anti-Raid","Massenjoins",[{"key":"join_threshold","label":"Join-Limit","type":"number","min":3,"max":50}]),
+            ("anti_mention","🔔","Anti-Mention","Mass-Mentions",[{"key":"mention_limit","label":"Max","type":"number","min":2,"max":30}]),
+            ("anti_scam","🎣","Anti-Scam","Phishing",[{"key":"punishment","label":"Strafe","type":"select","options":["warn","timeout","kick","ban"]}]),
+            ("anti_webhook","🔌","Anti-Webhook","Webhooks",[]),
+            ("anti_ghost_ping","👻","Ghost-Ping","Ghost-Pings",[]),
+            ("anti_vpn","🌐","Anti-VPN","VPN-Erkennung",[]),
+            ("automod","🤖","AutoMod","Filter",[{"key":"punishment","label":"Strafe","type":"select","options":["warn","timeout","kick","ban"]}]),
+        ]
+        for key,icon,label,desc,params in mod_defs:
+            mcfg = cfg.get(key,{})
+            for p in params: p["value"] = mcfg.get(p["key"],"")
+            modules.append({"key":key,"icon":icon,"label":label,"desc":desc,"enabled":mcfg.get("enabled",False),"params":params})
+        wl_count = 0
+        try:
+            wl = bot.db.get_whitelist(int(guild_id)) if bot_ready() else {}
+            wl_count = sum(len(v) for v in wl.values() if isinstance(v,list))
+        except: pass
+        return render_template("dashboard/security.html", guild=g, cfg=cfg, user=admin_user,
+            modules=modules, active_count=sum(1 for m in modules if m["enabled"]), wl_count=wl_count, active="security")
+
+    elif subpage == "automod":
+        return render_template("dashboard/automod.html", guild=g, cfg=cfg, user=admin_user, active="automod")
+
+    elif subpage == "logs":
+        channels = [{"id":str(ch.id),"name":ch.name} for ch in g.text_channels] if g else []
+        log_channels = cfg.get("log_channels",{})
+        from bot.config import LOG_MODULES, LOG_MODULES_EXTRA
+        icons = {"default":"📌","moderation":"🛡️","antispam":"⚡","antinuke":"💥","antiraid":"🚨","voice":"🎤","members":"👥","channels":"📁","roles":"🏷️","tickets":"🎫","cases":"📋","warns":"⚠️","welcome":"👋","errors":"❌","backup":"💾"}
+        all_mods = list(LOG_MODULES) + list(LOG_MODULES_EXTRA)
+        log_module_defs = [{"key":m,"icon":icons.get(m,"⚙️"),"label":m.replace("_"," ").title()} for m in all_mods]
+        return render_template("dashboard/logs.html", guild=g, cfg=cfg, user=admin_user,
+            channels=channels, log_channels=log_channels, log_modules=log_module_defs, active="logs")
+
+    elif subpage == "cases":
+        cases = []
+        db = get_db()
+        if db:
+            try:
+                raw = safe_async(db.cases.find({"guild_id":str(guild_id)}).sort("case_id",-1).to_list(200),[]) or []
+                for cc in raw: cc["timestamp"] = str(cc.get("timestamp",""))[:19]
+                cases = raw
+            except: pass
+        return render_template("dashboard/cases.html", guild=g, cfg=cfg, user=admin_user, cases=cases, active="cases")
+
+    elif subpage == "warns":
+        return render_template("dashboard/warns.html", guild=g, cfg=cfg, user=admin_user, active="warns")
+
+    elif subpage == "settings":
+        channels = [{"id":str(ch.id),"name":ch.name} for ch in g.text_channels] if g else []
+        return render_template("dashboard/settings.html", guild=g, cfg=cfg, user=admin_user, channels=channels, active="settings")
+
+    elif subpage == "roles":
+        guild_roles = [{"id":str(r.id),"name":r.name} for r in g.roles if not r.is_default() and not r.managed] if g else []
+        return render_template("dashboard/roles.html", guild=g, cfg=cfg, user=admin_user,
+            guild_roles=guild_roles, auto_roles=cfg.get("auto_role",{}).get("roles",[]), sticky_roles=cfg.get("sticky_roles",[]), active="roles")
+
+    elif subpage == "welcome":
+        content = _build_welcome_content(cfg, guild_id)
+        return render_template("dashboard/welcome.html", guild=g, cfg=cfg, user=admin_user, content=content, active="welcome")
+
+    elif subpage == "modules":
+        section = request.args.get("section","antispam")
+        form = _build_module_form(section, cfg, guild_id)
+        return render_template("dashboard/modules.html", guild=g, cfg=cfg, user=admin_user, form=form, active="modules")
+
+    elif subpage == "tickets":
+        channels = [{"id":str(ch.id),"name":ch.name} for ch in g.text_channels] if g else []
+        categories = [{"id":str(ct.id),"name":ct.name} for ct in g.categories] if g else []
+        return render_template("dashboard/tickets.html", guild=g, cfg=cfg, user=admin_user, channels=channels, categories=categories, active="tickets")
+
+    elif subpage == "backup":
+        backups = []
+        db = get_db()
+        if db:
+            try: backups = safe_async(db.backups.find({"guild_id":str(guild_id)}).sort("created_at",-1).to_list(20),[]) or []
+            except: pass
+        return render_template("dashboard/backup.html", guild=g, cfg=cfg, user=admin_user, backups=backups, active="backup")
+
+    elif subpage == "autoresponse":
+        return render_template("dashboard/autoresponse.html", guild=g, cfg=cfg, user=admin_user, auto_responses=cfg.get("auto_responses",[]), active="autoresponse")
+
+    elif subpage == "embed":
+        channels = [{"id":str(ch.id),"name":ch.name} for ch in g.text_channels] if g else []
+        return render_template("dashboard/embed.html", guild=g, cfg=cfg, user=admin_user, channels=channels, active="embed")
+
+    elif subpage == "whitelist":
+        wl = {}
+        if bot_ready():
+            try: wl = bot.db.get_whitelist(int(guild_id))
+            except: pass
+        return render_template("dashboard/whitelist.html", guild=g, cfg=cfg, user=admin_user, whitelist=wl, active="whitelist")
+
+    elif subpage == "stats":
+        import datetime as _dt
+        cases_count = 0; case_types = {}; top_mods = []; days_labels = []; days_data = []
+        db = get_db()
+        if db:
+            try:
+                all_cases = safe_async(db.cases.find({"guild_id":str(guild_id)}).to_list(500),[]) or []
+                cases_count = len(all_cases)
+                for cs in all_cases: a=cs.get("action","other"); case_types[a]=case_types.get(a,0)+1
+                from collections import Counter
+                mc = Counter(cs.get("moderator_id") for cs in all_cases if cs.get("moderator_id"))
+                top_mods = [{"id":mid,"count":cnt} for mid,cnt in mc.most_common(10)]
+                now = _dt.datetime.utcnow()
+                for i in range(6,-1,-1):
+                    day = now - _dt.timedelta(days=i)
+                    days_labels.append(day.strftime("%a"))
+                    days_data.append(sum(1 for cs in all_cases if cs.get("timestamp") and cs["timestamp"].date()==day.date()))
+            except: pass
+        active_mods = sum(1 for k in ["anti_spam","anti_nuke","anti_raid","anti_mention","anti_scam","automod"] if cfg.get(k,{}).get("enabled"))
+        return render_template("dashboard/stats.html", guild=g, cfg=cfg, user=admin_user,
+            cases_count=cases_count, case_types=case_types, top_mods=top_mods,
+            active_mods=active_mods, channels_count=len(g.channels) if g else 0,
+            days_labels=days_labels, days_data=days_data, active="stats")
+
+    elif subpage == "members":
+        members = []
+        if g and bot_ready():
+            import datetime as _dt
+            now = _dt.datetime.utcnow()
+            for m in g.members[:200]:
+                age = (now - m.created_at.replace(tzinfo=None)).days if m.created_at else 999
+                rc = len([r for r in m.roles if r != g.default_role])
+                risk = min((30 if age<7 else 10 if age<30 else 0) + (10 if not m.avatar else 0) + (15 if rc==0 and not m.bot else 0), 100)
+                members.append({"id":str(m.id),"name":str(m),"bot":m.bot,"avatar":m.display_avatar.url,
+                    "risk":risk,"new_account":age<7,"role_count":rc,
+                    "roles_str":", ".join([r.name for r in m.roles if r!=g.default_role][:5]) or "Keine"})
+            members.sort(key=lambda x:x["risk"],reverse=True)
+        return render_template("dashboard/members.html", guild=g, cfg=cfg, user=admin_user, members=members, active="members")
+
+    elif subpage == "livefeed":
+        activities = []
+        try:
+            from bot.config import ACTIVITY
+            raw = ACTIVITY.snapshot(30)
+            if isinstance(raw,list): activities = [a for a in raw if str(a.get("guild_id",""))==str(guild_id)][:20]
+        except: pass
+        return render_template("dashboard/livefeed.html", guild=g, cfg=cfg, user=admin_user, activities=activities, active="livefeed")
+
+    # Default: overview
     overview = _build_overview(cfg, guild_id)
-    return render_template("dashboard/overview.html", guild=g, cfg=cfg,
-        user={"id":"0","username":"Admin","avatar_url":"https://cdn.discordapp.com/embed/avatars/0.png"},
-        overview=overview, active="overview")
+    return render_template("dashboard/overview.html", guild=g, cfg=cfg, user=admin_user, overview=overview, active="overview")
 
 
 # 404 / 403 / 500 HANDLER

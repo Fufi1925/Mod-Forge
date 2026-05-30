@@ -30,12 +30,28 @@
   <div class="cfg-row"><div><span class="cfg-label">Nachrichtenarchiv</span><div class="cfg-desc">Nachrichten archivieren für Case-Beweise</div></div><label class="toggle"><input type="checkbox" id="msgArchive" {% if cfg.get('message_archive',{}).get('enabled') %}checked{% endif %}><span class="slider"></span></label></div>
 </div>
 <div class="dash-section">
+  <h2>🔌 Auto-Webhook Logging</h2>
+  <p style="color:var(--muted);font-size:.82rem;margin-bottom:12px">Wenn aktiviert, erstellt der Bot automatisch Webhooks in jedem Log-Kanal. Logs werden dann über Webhooks gesendet — schneller, kein Rate-Limit, eigener Name+Avatar pro Modul.</p>
+  <div class="cfg-row"><div><span class="cfg-label">Auto-Webhook Logging</span><div class="cfg-desc">Bot erstellt Webhooks automatisch</div></div><label class="toggle"><input type="checkbox" id="webhookLog" {% if cfg.get('webhook_logging',{}).get('enabled') %}checked{% endif %}><span class="slider"></span></label></div>
+</div>
+
+<div class="dash-section">
+  <h2>🏷️ Server-Tag</h2>
+  <p style="color:var(--muted);font-size:.82rem;margin-bottom:12px">User die den Tag im Namen haben bekommen automatisch eine Rolle. Tag entfernt → Rolle weg.</p>
+  <div class="cfg-row"><div><span class="cfg-label">Server-Tag aktiv</span></div><label class="toggle"><input type="checkbox" id="tagEnabled" {% if cfg.get('server_tag',{}).get('enabled') %}checked{% endif %}><span class="slider"></span></label></div>
+  <div class="cfg-row"><div><span class="cfg-label">Tag-Text</span><div class="cfg-desc">z.B. "| MyServer"</div></div><input type="text" class="cfg-input" id="tagText" value="{{ cfg.get('server_tag',{}).get('tag','') or '' }}" placeholder="| MyServer" style="max-width:200px"></div>
+  <div class="cfg-row"><div><span class="cfg-label">Belohnungsrolle</span></div>
+    <select class="cfg-select" id="tagRole" style="min-width:180px"><option value="">— Keine —</option>{% for ch in channels %}<option value="{{ ch.id }}">{{ ch.name }}</option>{% endfor %}</select>
+  </div>
+</div>
+
+<div class="dash-section">
   <h2 style="color:var(--red)">⚠️ Gefahrenzone</h2>
   <div class="cfg-row" style="border-color:rgba(239,68,68,0.2)"><div><span class="cfg-label">Config zurücksetzen</span><div class="cfg-desc">Setzt ALLE Einstellungen auf Standard zurück</div></div><button class="btn-glass btn-glass-danger btn-sm" onclick="if(confirm('Wirklich ALLES zurücksetzen?'))resetConfig()">Zurücksetzen</button></div>
 </div>
 {% block scripts %}<script>
 async function saveConfig(){
-  const d={_prefix:document.getElementById('prefix').value,_no_prefix:document.getElementById('noPrefix').checked,_report_channel:document.getElementById('reportCh').value||null,_appeal_log_channel:document.getElementById('appealCh').value||null,_auto_ban_appeal:{enabled:document.getElementById('autoAppeal').checked},_invite_tracking:{enabled:document.getElementById('invTrack').checked},_message_archive:{enabled:document.getElementById('msgArchive').checked}};
+  const d={_prefix:document.getElementById('prefix').value,_no_prefix:document.getElementById('noPrefix').checked,_report_channel:document.getElementById('reportCh').value||null,_appeal_log_channel:document.getElementById('appealCh').value||null,_auto_ban_appeal:{enabled:document.getElementById('autoAppeal').checked},_invite_tracking:{enabled:document.getElementById('invTrack').checked},_message_archive:{enabled:document.getElementById('msgArchive').checked},_webhook_logging:{enabled:document.getElementById('webhookLog').checked},_server_tag:{enabled:document.getElementById('tagEnabled').checked,tag:document.getElementById('tagText').value||null}};
   await fetch('/api/guild/{{ guild.id }}/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});
   document.getElementById('saveBar').classList.remove('visible');location.reload();
 }
