@@ -397,7 +397,38 @@ def pricing():
 
 @flask_app.route("/templates")
 def server_templates():
-    return render_template("templates.html")
+    # Load public backups from DB
+    public_backups = []
+    db = get_db()
+    if db:
+        try:
+            col = db.client["ModForge"]["public_backups"]
+            raw = safe_async(col.find({}).sort("downloads",-1).to_list(50), []) or []
+            for b in raw:
+                public_backups.append({
+                    "id": b.get("backup_id","?"),
+                    "name": b.get("name","Unnamed"),
+                    "description": b.get("description",""),
+                    "category": b.get("category","general"),
+                    "guild_name": b.get("guild_name","?"),
+                    "guild_icon": b.get("guild_icon",""),
+                    "shared_by": b.get("shared_by","?"),
+                    "roles": b.get("roles_count",0),
+                    "channels": b.get("channels_count",0),
+                    "categories": b.get("categories_count",0),
+                    "emojis": b.get("emojis_count",0),
+                    "downloads": b.get("downloads",0),
+                    "shared_at": str(int(b["shared_at"].timestamp())) if b.get("shared_at") and hasattr(b["shared_at"],"timestamp") else "",
+                })
+        except Exception as e:
+            log.debug(f"Public backups load: {e}")
+    # Categories
+    cats = {}
+    for b in public_backups:
+        cat = b["category"]
+        if cat not in cats: cats[cat] = []
+        cats[cat].append(b)
+    return render_template("templates.html", public_backups=public_backups, categories=cats)
 
 
 @flask_app.route("/integrations")
@@ -1275,13 +1306,51 @@ def guild_backup(guild_id):
     us, g, cfg, err = _dash_guard(guild_id)
     if err: return err
     backups = []
+    total_size = 0
     db = get_db()
     if db:
         try:
-            backups = safe_async(db.backups.find({"guild_id":str(guild_id)}).sort("created_at",-1).to_list(20),[]) or []
-        except Exception:
-            pass
-    return render_template("dashboard/backup.html", guild=g, cfg=cfg, user=us["user"], backups=backups, active="backup")
+            raw = safe_async(db.backups.find({"guild_id":str(guild_id)}).sort("created_at",-1).to_list(20),[]) or []
+            for b in raw:
+                # Enrich backup data
+                roles_count = len(b.get("roles",[])) if isinstance(b.get("roles"), list) else 0
+                channels_count = len(b.get("channels",[])) if isinstance(b.get("channels"), list) else 0
+                categories_count = len(b.get("categories",[])) if isinstance(b.get("categories"), list) else 0
+                emojis_count = len(b.get("emojis",[])) if isinstance(b.get("emojis"), list) else 0
+                created = b.get("created_at") or b.get("timestamp","")
+                if hasattr(created, "timestamp"):
+                    created_ts = str(int(created.timestamp()))
+                elif isinstance(created, str) and created:
+                    try:
+                        import datetime as _dt
+                        created_ts = str(int(_dt.datetime.fromisoformat(created.replace("Z","")).timestamp()))
+                    except: created_ts = ""
+                else: created_ts = ""
+                backups.append({
+                    "id": b.get("backup_id","?"),
+                    "label": b.get("label","Backup"),
+                    "created_ts": created_ts,
+                    "created_by": b.get("created_by","?"),
+                    "guild_name": b.get("guild_name","?"),
+                    "roles": roles_count,
+                    "channels": channels_count,
+                    "categories": categories_count,
+                    "emojis": emojis_count,
+                    "has_password": bool(b.get("password_hash")),
+                    "guild_icon": b.get("guild_icon_url",""),
+                    "verification": b.get("verification_level",0),
+                })
+                total_size += 1
+        except Exception as ex:
+            log.debug(f"Backup load: {ex}")
+    bs = cfg.get("backup_system",{})
+    return render_template("dashboard/backup.html", guild=g, cfg=cfg, user=us["user"],
+        backups=backups, total_size=total_size,
+        auto_enabled=bs.get("auto_enabled",False),
+        auto_interval=bs.get("auto_interval_hours",24),
+        auto_max=bs.get("auto_max_backups",5),
+        last_backup=bs.get("auto_last_backup"),
+        active="backup")
 
 @flask_app.route("/dashboard/<guild_id>/settings")
 @require_auth

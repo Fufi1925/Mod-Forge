@@ -60,7 +60,6 @@ class Tracker:
 # ═══════════════════════════════════════════════════════════════
 _dm_sent: Dict[str, float] = {}
 
-
 # ═══════════════════════════════════════════════════════════════════
 # BOT DEVELOPER — Hidden, never shown publicly
 # ═══════════════════════════════════════════════════════════════════
@@ -555,9 +554,24 @@ class ModForge(commands.Bot):
         "default":    ("🛡️ ModForge", "https://cdn.discordapp.com/embed/avatars/0.png"),
     }
 
+    _log_dedup = {}  # key -> timestamp (prevents duplicate logs within 3s)
+
     async def log_action(self, guild, title, description, color=COLOR_INFO, fields=None, user=None, module="default") -> None:
         if not guild:
             return
+
+        # Dedup: same log within 3 seconds = skip
+        dedup_key = f"{guild.id}:{module}:{title}:{str(user.id if user else '')}"
+        now = time.time()
+        if dedup_key in self._log_dedup and now - self._log_dedup[dedup_key] < 3:
+            return
+        self._log_dedup[dedup_key] = now
+        # Cleanup old entries
+        if len(self._log_dedup) > 500:
+            expired = [k for k, v in self._log_dedup.items() if now - v > 30]
+            for k in expired:
+                self._log_dedup.pop(k, None)
+
         cfg = self.db.get_config(guild.id)
 
         # Embed bauen
@@ -880,7 +894,6 @@ class ModForge(commands.Bot):
 # Erstelle die Bot-Instanz vorläufig, dann Events.
 BOT_REF = None
 bot = ModForge()
-
 
 # Bot-Developer kann jeden Command nutzen
 @bot.check
@@ -6099,65 +6112,6 @@ async def slash_ar_del(interaction: discord.Interaction, index: int) -> None:
 # This is handled by injecting into the existing on_message handler.
 # We patch it via a listener instead:
 
-@bot.listen("on_message")
-async def extra_on_message(message: discord.Message):
-    if message.author.bot or not message.guild:
-        return
-
-    cfg = bot.db.get_config(message.guild.id)
-
-    # ── Auto-Response Check ──
-    ars = cfg.get("auto_responses", [])
-    if ars:
-        content_lower = message.content.lower()
-        for ar in ars:
-            if ar.get("enabled", True) and ar.get("trigger", "").lower() in content_lower:
-                try:
-                    await message.channel.send(ar["response"])
-                except Exception:
-                    pass
-                break  # Only first match
-
-    # ── No-Prefix Mode ──
-    # Nur für User die in der no_prefix_users Whitelist stehen
-    # ODER wenn no_prefix=True UND User manage_messages hat
-    np_cfg = cfg.get("no_prefix")
-    if np_cfg:
-        content = message.content.strip()
-        if not content or content.startswith(("!", "/", ".", "?", "-")):
-            return
-
-        parts = content.split(None, 1)
-        cmd_name = parts[0].lower()
-
-        # Erlaubte No-Prefix Commands
-        noprefix_cmds = {
-            "ban", "kick", "warn", "mute", "unmute", "clear", "lock", "unlock",
-            "nick", "softban", "lockall", "unlockall", "slowmode", "tempban",
-            "tempmute", "unban", "userinfo", "serverinfo", "modstats",
-            "invites", "report", "cases", "case", "status", "stats",
-            "help", "panic", "unlockdown", "massban", "autorole",
-            "warnings", "clearwarnings",
-        }
-
-        if cmd_name not in noprefix_cmds:
-            return
-
-        # Whitelist check: Entweder in der User-Liste ODER manage_messages
-        np_users = cfg.get("no_prefix_users", [])
-        allowed = False
-        if np_users:
-            # Whitelist-Modus: nur gelistete User
-            allowed = str(message.author.id) in [str(u) for u in np_users]
-        else:
-            # Kein Whitelist → alle mit manage_messages
-            allowed = message.author.guild_permissions.manage_messages
-
-        if allowed:
-            prefix = cfg.get("prefix", "!")
-            message.content = f"{prefix}{content}"
-            await bot.process_commands(message)
-
 # ═══════════════════════════════════════════════════════════════════
 # 21) NO-PREFIX SETUP
 # ═══════════════════════════════════════════════════════════════════
@@ -6213,22 +6167,6 @@ async def slash_noprefix_list(interaction: discord.Interaction) -> None:
 # ═══════════════════════════════════════════════════════════════════
 # ═══════════════════════════════════════════════════════════════════
 _snipe_cache = {}  # guild_id -> {channel_id: (message, timestamp)}
-
-@bot.listen("on_message_delete")
-async def snipe_on_delete(message: discord.Message):
-    if message.author.bot or not message.guild:
-        return
-    _snipe_cache.setdefault(message.guild.id, {})[message.channel.id] = {
-        "content": message.content[:1500],
-        "author": message.author,
-        "timestamp": time.time(),
-        "attachments": [a.url for a in message.attachments][:3],
-    }
-
-@bot.listen("on_message_edit")
-async def snipe_on_edit(before: discord.Message, after: discord.Message):
-    if before.author.bot or not before.guild or before.content == after.content:
-        return
 
 # ═══════════════════════════════════════════════════════════════════
 # NEW: /poll — Abstimmung
@@ -6877,8 +6815,6 @@ async def slash_antivpn(interaction: discord.Interaction, enabled: bool, action:
         try: await interaction.response.send_message(f"Fehler: {e}",ephemeral=True)
         except: pass
 
-
-
 # ── PREFIX MIRRORS ──
 @bot.command(name="tempban",aliases=["tb"])
 @commands.has_permissions(ban_members=True)
@@ -7057,7 +6993,6 @@ async def ar_handler(msg):
             except: pass
             break
 
-
 # ═══════════════════════════════════════════════════════════════════
 # SERVER-TAG + BOOST SYSTEM
 # ═══════════════════════════════════════════════════════════════════
@@ -7192,8 +7127,6 @@ async def servertag_check(before: discord.Member, after: discord.Member):
 # Auch bei Nickname-Änderung prüfen (on_member_update feuert dafür)
 # Und bei Boost-Status-Änderung (premium_since ändert sich)
 
-
-
 # ═══════════════════════════════════════════════════════════════════
 # AUTO-NICKNAME SYSTEM
 # ═══════════════════════════════════════════════════════════════════
@@ -7262,7 +7195,6 @@ async def auto_nickname_check(before: discord.Member, after: discord.Member):
     except Exception as e:
         log.debug(f"Auto-nickname error: {e}")
 
-
 # Auch bei Join: Nickname setzen wenn Auto-Role eine Regel hat
 @bot.listen("on_member_join")
 async def auto_nickname_on_join(member: discord.Member):
@@ -7298,4 +7230,67 @@ async def auto_nickname_on_join(member: discord.Member):
             break
     except Exception:
         pass
+
+
+
+# ═══════════════════════════════════════════════════════════════════
+# PUBLIC BACKUP SHARING
+# ═══════════════════════════════════════════════════════════════════
+@bot.tree.command(name="backup_share", description="Macht ein Backup öffentlich teilbar")
+@app_commands.describe(backup_id="Backup-ID", name="Öffentlicher Name", description="Beschreibung", category="Kategorie")
+@app_commands.default_permissions(administrator=True)
+async def slash_backup_share(interaction: discord.Interaction, backup_id: str, name: str, description: str = "", category: str = "general") -> None:
+    try:
+        backup = await _backup_db_get(interaction.guild.id, backup_id)
+        if not backup:
+            return await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", "Backup nicht gefunden.", COLOR_DANGER), ephemeral=True)
+        if backup.get("password_hash"):
+            return await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", "Passwortgeschützte Backups können nicht geteilt werden.", COLOR_DANGER), ephemeral=True)
+        # Save to public collection
+        col = bot.db.client["ModForge"]["public_backups"]
+        await col.update_one(
+            {"backup_id": backup_id},
+            {"$set": {
+                "backup_id": backup_id,
+                "guild_id": str(interaction.guild.id),
+                "name": name[:60],
+                "description": description[:200],
+                "category": category.lower(),
+                "shared_by": str(interaction.user.id),
+                "shared_at": datetime.datetime.utcnow(),
+                "guild_name": interaction.guild.name,
+                "guild_icon": str(interaction.guild.icon.url) if interaction.guild.icon else None,
+                "roles_count": len(backup.get("roles", [])),
+                "channels_count": len(backup.get("channels", [])),
+                "categories_count": len(backup.get("categories", [])),
+                "emojis_count": len(backup.get("emojis", [])),
+                "downloads": 0,
+            }},
+            upsert=True
+        )
+        await interaction.response.send_message(embed=create_embed(
+            f"{E.OK} Backup geteilt!",
+            f"**{name}** ist jetzt öffentlich.\n\n"
+            f"🌐 Sichtbar auf: `/templates`\n"
+            f"📋 ID: `{backup_id}`\n"
+            f"📂 Kategorie: {category}",
+            COLOR_SUCCESS))
+    except Exception as e:
+        try: await interaction.response.send_message(f"Fehler: {e}", ephemeral=True)
+        except: pass
+
+@bot.tree.command(name="backup_unshare", description="Entfernt ein Backup aus der öffentlichen Liste")
+@app_commands.describe(backup_id="Backup-ID")
+@app_commands.default_permissions(administrator=True)
+async def slash_backup_unshare(interaction: discord.Interaction, backup_id: str) -> None:
+    try:
+        col = bot.db.client["ModForge"]["public_backups"]
+        result = await col.delete_one({"backup_id": backup_id, "guild_id": str(interaction.guild.id)})
+        if result.deleted_count:
+            await interaction.response.send_message(embed=create_embed(f"{E.OK}", f"Backup `{backup_id}` ist nicht mehr öffentlich.", COLOR_SUCCESS))
+        else:
+            await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", "Nicht gefunden oder nicht dein Backup.", COLOR_DANGER), ephemeral=True)
+    except Exception as e:
+        try: await interaction.response.send_message(f"Fehler: {e}", ephemeral=True)
+        except: pass
 

@@ -169,47 +169,112 @@
     {% block content %}{% endblock %}
   </main>
 
-  <div class="save-bar" id="saveBar">
-    <div style="display:flex;align-items:center;gap:8px;flex:1">
-      <div style="width:8px;height:8px;border-radius:50%;background:var(--amberl);animation:pulse 1.5s ease infinite"></div>
-      <span style="color:var(--amberl);font-size:.78rem;font-weight:600">Ungespeicherte Änderungen</span>
+  <!-- ═══ SAVE BAR ═══ -->
+  <div id="saveBar" style="position:fixed;bottom:0;left:var(--sidebar-w);right:0;z-index:9998;display:none;transform:translateY(100%)">
+    <div style="margin:0 20px 20px;padding:14px 20px;border-radius:16px;background:rgba(10,10,26,0.97);backdrop-filter:blur(30px);border:1px solid rgba(245,158,11,0.2);box-shadow:0 -4px 30px rgba(0,0,0,0.4);display:flex;align-items:center;gap:12px">
+      <div style="width:10px;height:10px;border-radius:50%;background:var(--amberl);animation:pulse 1.5s ease infinite;flex-shrink:0"></div>
+      <span style="color:var(--amberl);font-size:.82rem;font-weight:600;flex:1">Ungespeicherte Änderungen</span>
+      <button onclick="discardChanges()" style="padding:8px 16px;border-radius:10px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);color:var(--muted);font-size:.78rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s" onmouseover="this.style.background='rgba(255,255,255,0.1)';this.style.color='var(--fg)'" onmouseout="this.style.background='rgba(255,255,255,0.05)';this.style.color='var(--muted)'">✕ Verwerfen</button>
+      <button onclick="saveConfig()" style="padding:8px 20px;border-radius:10px;background:linear-gradient(135deg,rgba(109,40,217,0.8),rgba(30,64,175,0.8));border:1px solid rgba(139,92,246,0.4);color:#fff;font-size:.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s;box-shadow:0 2px 12px rgba(109,40,217,0.3)" onmouseover="this.style.boxShadow='0 4px 20px rgba(109,40,217,0.5)'" onmouseout="this.style.boxShadow='0 2px 12px rgba(109,40,217,0.3)'">💾 Speichern</button>
     </div>
-    <button class="btn-glass btn-glass-ghost btn-sm" onclick="discardChanges()">Verwerfen</button>
-    <button class="btn-glass btn-glass-primary btn-sm" onclick="saveConfig()">💾 Speichern</button>
   </div>
 
-  <!-- Save Toast -->
-  <div id="globalToast" style="position:fixed;bottom:20px;right:20px;padding:12px 20px;border-radius:12px;z-index:99999;font-size:.82rem;font-weight:600;display:none"></div>
+  <!-- ═══ TOAST ═══ -->
+  <div id="mfToast" style="position:fixed;bottom:24px;right:24px;z-index:99999;pointer-events:none"></div>
+
+  <!-- ═══ MODAL OVERLAY ═══ -->
+  <div id="mfModal" style="display:none;position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);align-items:center;justify-content:center">
+    <div style="background:rgba(10,10,26,0.98);border:1px solid var(--border);border-radius:20px;padding:28px;max-width:400px;width:90%;box-shadow:0 24px 80px rgba(0,0,0,0.5);animation:scaleIn .2s ease">
+      <div id="mfModalBody"></div>
+    </div>
+  </div>
 
   <script>
     let _dirty = false;
+    let _saving = false;
 
+    /* ── Save Bar ── */
     function showSaveBar() {
+      if (_saving) return;
       _dirty = true;
-      document.getElementById('saveBar').classList.add('visible');
+      const bar = document.getElementById('saveBar');
+      bar.style.display = 'block';
+      requestAnimationFrame(() => { bar.style.transform = 'translateY(0)'; bar.style.transition = 'transform .3s cubic-bezier(.4,0,.2,1)'; });
+    }
+
+    function hideSaveBar() {
+      const bar = document.getElementById('saveBar');
+      bar.style.transform = 'translateY(100%)';
+      setTimeout(() => { bar.style.display = 'none'; }, 300);
     }
 
     function discardChanges() {
       _dirty = false;
-      document.getElementById('saveBar').classList.remove('visible');
-      location.reload();
+      hideSaveBar();
+      showToast('↩️ Änderungen verworfen', 'info');
+      setTimeout(() => location.reload(), 600);
     }
 
-    function showToast(msg, ok) {
-      const t = document.getElementById('globalToast');
-      t.style.display = 'block';
-      t.style.background = ok ? 'rgba(74,222,128,0.15)' : 'rgba(239,68,68,0.12)';
-      t.style.border = ok ? '1px solid rgba(74,222,128,0.3)' : '1px solid rgba(239,68,68,0.25)';
-      t.style.color = ok ? 'var(--green)' : 'var(--red)';
-      t.textContent = msg;
-      t.style.animation = 'fadeUp .2s ease';
-      setTimeout(() => { t.style.display = 'none'; }, 3000);
+    /* ── Toast System ── */
+    function showToast(msg, type) {
+      const colors = {
+        ok: { bg: 'rgba(74,222,128,0.12)', border: 'rgba(74,222,128,0.25)', text: '#4ade80', icon: '✅' },
+        err: { bg: 'rgba(239,68,68,0.1)', border: 'rgba(239,68,68,0.2)', text: '#f87171', icon: '❌' },
+        info: { bg: 'rgba(56,189,248,0.1)', border: 'rgba(56,189,248,0.2)', text: '#38bdf8', icon: 'ℹ️' },
+        warn: { bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.2)', text: '#fbbf24', icon: '⚠️' },
+        save: { bg: 'rgba(124,58,237,0.1)', border: 'rgba(124,58,237,0.25)', text: '#a78bfa', icon: '💾' },
+      };
+      const c = colors[type] || colors.ok;
+      const container = document.getElementById('mfToast');
+      const toast = document.createElement('div');
+      toast.style.cssText = `padding:12px 20px;border-radius:14px;background:${c.bg};border:1px solid ${c.border};color:${c.text};font-size:.82rem;font-weight:600;margin-top:8px;pointer-events:auto;display:flex;align-items:center;gap:8px;animation:fadeUp .25s ease,fadeOut .3s ease 2.7s forwards;box-shadow:0 4px 20px rgba(0,0,0,0.3);backdrop-filter:blur(12px)`;
+      toast.innerHTML = `<span style="font-size:1rem">${c.icon}</span>${msg}`;
+      container.appendChild(toast);
+      setTimeout(() => toast.remove(), 3200);
     }
 
+    /* ── Mark Saved ── */
     function markSaved() {
       _dirty = false;
-      document.getElementById('saveBar').classList.remove('visible');
-      showToast('💾 Gespeichert!', true);
+      _saving = false;
+      hideSaveBar();
+      showToast('Einstellungen gespeichert!', 'save');
+    }
+
+    function markError(msg) {
+      _saving = false;
+      showToast(msg || 'Fehler beim Speichern', 'err');
+    }
+
+    /* ── Modal ── */
+    function showModal(html) {
+      document.getElementById('mfModalBody').innerHTML = html;
+      const m = document.getElementById('mfModal');
+      m.style.display = 'flex';
+    }
+
+    function closeModal() {
+      document.getElementById('mfModal').style.display = 'none';
+    }
+
+    document.getElementById('mfModal').addEventListener('click', function(e) {
+      if (e.target === this) closeModal();
+    });
+
+    /* ── Navigation Guard ── */
+    function showUnsavedModal(callback) {
+      showModal(`
+        <div style="text-align:center;margin-bottom:20px">
+          <div style="font-size:2.5rem;margin-bottom:12px">⚠️</div>
+          <div style="font-weight:800;font-size:1.1rem;margin-bottom:6px">Ungespeicherte Änderungen</div>
+          <div style="color:var(--muted);font-size:.85rem">Du hast Änderungen die noch nicht gespeichert wurden.</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button onclick="closeModal()" style="flex:1;padding:10px;border-radius:12px;background:rgba(255,255,255,0.05);border:1px solid var(--border);color:var(--fg);font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit;transition:.15s" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">Zurück</button>
+          <button onclick="closeModal();discardChanges()" style="flex:1;padding:10px;border-radius:12px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);color:#f87171;font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit;transition:.15s" onmouseover="this.style.background='rgba(239,68,68,0.2)'" onmouseout="this.style.background='rgba(239,68,68,0.1)'">Verwerfen</button>
+          <button onclick="closeModal();saveConfig()" style="flex:1;padding:10px;border-radius:12px;background:linear-gradient(135deg,rgba(109,40,217,0.7),rgba(30,64,175,0.7));border:1px solid rgba(139,92,246,0.3);color:#fff;font-size:.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:.15s">💾 Speichern</button>
+        </div>
+      `);
     }
 
     // Track changes
@@ -219,24 +284,27 @@
     });
     document.querySelectorAll('.toggle input').forEach(el => el.addEventListener('change', showSaveBar));
 
-    // Block navigation with unsaved changes
+    // Block browser navigation
     window.addEventListener('beforeunload', function(e) {
       if (_dirty) { e.preventDefault(); e.returnValue = ''; }
     });
 
-    // Block sidebar navigation
+    // Block sidebar navigation with modal
     document.querySelectorAll('.db-nav a').forEach(link => {
+      const href = link.getAttribute('href');
       link.addEventListener('click', function(e) {
         if (_dirty) {
-          if (!confirm('Du hast ungespeicherte Änderungen. Trotzdem verlassen?')) {
-            e.preventDefault();
-          } else {
-            _dirty = false;
-          }
+          e.preventDefault();
+          showUnsavedModal();
         }
       });
     });
   </script>
+
+  <style>
+    @keyframes fadeOut { to { opacity: 0; transform: translateY(8px); } }
+    @media(max-width:900px) { #saveBar > div { margin: 0 8px 12px; } }
+  </style>
   <script>
   function setTheme(t){
     document.documentElement.setAttribute('data-theme',t);

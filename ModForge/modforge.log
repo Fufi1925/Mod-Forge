@@ -118,3 +118,15 @@
 2026-05-30 20:22:17,482 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
 2026-05-30 20:22:17,482 [WARNING] discord.client: davey is not installed, voice will NOT be supported
 2026-05-30 20:22:17,533 [ERROR] ModForge.Web.Routes: [COUNT ERROR] Collection objects do not implement truth value testing or bool(). Please compare with None instead: collection is not None
+2026-05-30 20:54:22,979 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-05-30 20:54:22,980 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-05-30 20:54:23,033 [ERROR] ModForge.Web.Routes: [COUNT ERROR] Collection objects do not implement truth value testing or bool(). Please compare with None instead: collection is not None
+2026-05-30 20:56:56,626 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-05-30 20:56:56,626 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-05-30 20:56:56,676 [ERROR] ModForge.Web.Routes: [COUNT ERROR] Collection objects do not implement truth value testing or bool(). Please compare with None instead: collection is not None
+2026-05-30 21:12:43,397 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-05-30 21:12:43,397 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-05-30 21:12:43,446 [ERROR] ModForge.Web.Routes: [COUNT ERROR] Collection objects do not implement truth value testing or bool(). Please compare with None instead: collection is not None
+2026-05-30 21:17:55,265 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-05-30 21:17:55,265 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-05-30 21:17:55,383 [ERROR] ModForge.Web.Routes: [COUNT ERROR] Collection objects do not implement truth value testing or bool(). Please compare with None instead: collection is not None
