@@ -2,30 +2,193 @@
 {% set active = 'members' %}
 {% block title %}Mitglieder{% endblock %}
 {% block page_title %}👥 Mitglieder{% endblock %}
-{% block page_desc %}{{ members|length }} Mitglieder{% endblock %}
+{% block page_desc %}{{ members|length }} Mitglieder geladen{% endblock %}
+{% block head %}
+<style>
+  .m-card{display:flex;align-items:center;gap:12px;padding:12px 16px;background:rgba(255,255,255,0.025);border:1px solid var(--border);border-radius:14px;margin-bottom:6px;transition:all .15s;cursor:pointer;position:relative}
+  .m-card:hover{border-color:rgba(139,92,246,0.25);background:rgba(255,255,255,0.045)}
+  .m-card.selected{border-color:rgba(124,58,237,0.4);background:rgba(124,58,237,0.04);box-shadow:0 0 0 1px rgba(124,58,237,0.2)}
+  .m-avatar{width:38px;height:38px;border-radius:50%;object-fit:cover;flex-shrink:0;position:relative}
+  .m-status-dot{position:absolute;bottom:0;right:0;width:12px;height:12px;border-radius:50%;border:2px solid var(--bg)}
+  .m-status-dot.online{background:#22c55e}.m-status-dot.idle{background:#f59e0b}.m-status-dot.dnd{background:#ef4444}.m-status-dot.offline{background:#64748b}
+  .m-tag{display:inline-block;padding:2px 8px;border-radius:999px;font-size:.52rem;font-weight:800;margin-left:5px;letter-spacing:.04em;text-transform:uppercase}
+  .m-risk{padding:3px 8px;border-radius:999px;font-size:.58rem;font-weight:700;font-family:'Geist Mono',monospace;flex-shrink:0}
+  .m-panel{display:none;position:fixed;top:0;right:0;bottom:0;width:380px;background:rgba(8,8,20,0.98);backdrop-filter:blur(30px);border-left:1px solid var(--border);z-index:10000;overflow-y:auto;animation:panelIn .2s ease}
+  .m-panel.open{display:block}
+  @keyframes panelIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+  .m-panel-header{padding:20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+  .m-panel-body{padding:20px}
+  .m-panel-close{cursor:pointer;font-size:1.2rem;color:var(--muted);transition:color .15s}
+  .m-panel-close:hover{color:var(--fg)}
+  .m-panel-avatar{width:72px;height:72px;border-radius:50%;object-fit:cover;margin:0 auto 12px;display:block;border:3px solid var(--border)}
+  .m-field{padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.03)}
+  .m-field-label{font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px}
+  .m-field-value{font-size:.85rem}
+  .m-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+  @media(max-width:900px){.m-panel{width:100%}}
+</style>
+{% endblock %}
 {% block content %}
-<div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
-  <input type="text" id="mSearch" class="cfg-input" placeholder="🔍 Suchen…" style="max-width:300px;width:100%" oninput="filterM()">
-  <select class="cfg-select" id="mFilter" onchange="filterM()"><option value="">Alle</option><option value="bot">Bots</option><option value="new">Neu (&lt;7d)</option><option value="noroles">Keine Rollen</option></select>
+<!-- Search & Filter -->
+<div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
+  <input type="text" id="mSearch" class="cfg-input" placeholder="🔍 Name oder ID suchen…" style="max-width:280px;width:100%" oninput="filterM()">
+  <select class="cfg-select" id="mFilter" onchange="filterM()">
+    <option value="">Alle</option>
+    <option value="humans">Nur Menschen</option>
+    <option value="bots">Nur Bots</option>
+    <option value="new">Neue Accounts (&lt;7d)</option>
+    <option value="noroles">Keine Rollen</option>
+    <option value="timeout">Getimeoutet</option>
+    <option value="voice">Im Voice</option>
+  </select>
+  <span style="font-size:.72rem;color:var(--muted);margin-left:auto">{{ members|length }} Mitglieder</span>
 </div>
+
+<!-- Member List -->
 <div id="memberList">
 {% for m in members %}
-<div class="cfg-row member-row" data-bot="{{ 'bot' if m.bot else '' }}" data-new="{{ 'new' if m.new_account else '' }}" data-noroles="{{ 'noroles' if m.role_count == 0 else '' }}">
-  <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
-    <img src="{{ m.avatar }}" style="width:32px;height:32px;border-radius:50%">
-    <div style="min-width:0"><div class="cfg-label" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ m.name }}{% if m.tag %}<span style="display:inline-block;padding:2px 8px;border-radius:999px;font-size:.5rem;font-weight:700;background:{{ m.tag_color }}22;color:{{ m.tag_color }};border:1px solid {{ m.tag_color }}44;margin-left:4px">{{ m.tag }}</span>{% endif %}</div>
-    <div class="cfg-desc">{{ m.roles_str }}</div></div>
+<div class="m-card member-row" onclick="openPanel({{ loop.index0 }})"
+     data-idx="{{ loop.index0 }}"
+     data-bot="{{ '1' if m.bot else '0' }}"
+     data-new="{{ '1' if m.new_account else '0' }}"
+     data-noroles="{{ '1' if m.role_count == 0 else '0' }}"
+     data-timeout="{{ '1' if m.timeout else '0' }}"
+     data-voice="{{ '1' if m.voice else '0' }}"
+     data-search="{{ m.name|lower }} {{ m.id }} {{ m.display_name|lower }}">
+  <div style="position:relative;flex-shrink:0">
+    <img src="{{ m.avatar }}" class="m-avatar">
+    <div class="m-status-dot {{ m.status }}"></div>
   </div>
-  <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
-    <span style="padding:3px 8px;border-radius:999px;font-size:.6rem;font-weight:700;background:{% if m.risk < 25 %}rgba(74,222,128,0.1);color:var(--green){% elif m.risk < 50 %}rgba(234,179,8,0.1);color:var(--amberl){% elif m.risk < 75 %}rgba(251,146,60,0.1);color:var(--orange){% else %}rgba(239,68,68,0.1);color:var(--red){% endif %}">{{ m.risk }}%</span>
-    <span style="font-size:.72rem;color:var(--muted);font-family:'Geist Mono',monospace">{{ m.id }}</span>
+  <div style="flex:1;min-width:0">
+    <div style="display:flex;align-items:center;flex-wrap:wrap;gap:2px">
+      <span style="font-weight:700;font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ m.display_name }}</span>
+      {% if m.tag %}
+      <span class="m-tag" style="background:{{ m.tag_color }}18;color:{{ m.tag_color }};border:1px solid {{ m.tag_color }}33">{{ m.tag }}</span>
+      {% endif %}
+      {% if m.timeout %}
+      <span class="m-tag" style="background:rgba(239,68,68,0.1);color:var(--red);border:1px solid rgba(239,68,68,0.2)">⏳ Timeout</span>
+      {% endif %}
+      {% if m.voice %}
+      <span class="m-tag" style="background:rgba(74,222,128,0.1);color:var(--green);border:1px solid rgba(74,222,128,0.2)">{{ m.voice }}</span>
+      {% endif %}
+    </div>
+    <div style="font-size:.68rem;color:var(--muted);margin-top:2px">{{ m.roles_str }}</div>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+    <span class="m-risk" style="background:{% if m.risk < 25 %}rgba(74,222,128,0.08);color:var(--green){% elif m.risk < 50 %}rgba(234,179,8,0.08);color:var(--amberl){% elif m.risk < 75 %}rgba(251,146,60,0.08);color:var(--orange){% else %}rgba(239,68,68,0.08);color:var(--red){% endif %}">{{ m.risk }}%</span>
   </div>
 </div>
 {% endfor %}
 </div>
-{% if not members %}<div class="db-card" style="text-align:center;padding:40px"><p style="color:var(--muted)">Keine Mitglieder geladen (Bot muss online sein).</p></div>{% endif %}
+
+{% if not members %}
+<div class="db-card" style="text-align:center;padding:48px">
+  <div style="font-size:2.5rem;margin-bottom:12px">👥</div>
+  <p style="color:var(--muted);font-size:.88rem">Keine Mitglieder geladen.<br>Bot muss online und auf dem Server sein.</p>
+</div>
+{% endif %}
+
+<!-- Member Detail Panel (Slide-in) -->
+<div class="m-panel" id="memberPanel">
+  <div class="m-panel-header">
+    <span style="font-weight:700;font-size:.95rem">👤 User-Details</span>
+    <span class="m-panel-close" onclick="closePanel()">✕</span>
+  </div>
+  <div class="m-panel-body" id="panelBody"></div>
+</div>
+
+<!-- Member data as JSON for the panel -->
 <script>
-function filterM(){const q=document.getElementById('mSearch').value.toLowerCase(),f=document.getElementById('mFilter').value;
-document.querySelectorAll('.member-row').forEach(r=>{const mq=!q||r.textContent.toLowerCase().includes(q);const mf=!f||r.dataset[f]===f;r.style.display=mq&&mf?'':'none'})}
+const MEMBERS = {{ members|tojson }};
+const GUILD_ID = "{{ guild.id }}";
+
+function openPanel(idx) {
+  const m = MEMBERS[idx];
+  if (!m) return;
+  
+  document.querySelectorAll('.m-card').forEach(c => c.classList.remove('selected'));
+  document.querySelector(`[data-idx="${idx}"]`)?.classList.add('selected');
+  
+  const tagHTML = m.tag ? `<span class="m-tag" style="background:${m.tag_color}18;color:${m.tag_color};border:1px solid ${m.tag_color}33">${m.tag}</span>` : '';
+  const timeoutHTML = m.timeout ? `<div class="m-field"><div class="m-field-label">⏳ Timeout</div><div class="m-field-value" style="color:var(--red)">${m.timeout}</div></div>` : '';
+  const voiceHTML = m.voice ? `<div class="m-field"><div class="m-field-label">🎤 Voice</div><div class="m-field-value" style="color:var(--green)">${m.voice}</div></div>` : '';
+
+  const riskColor = m.risk < 25 ? 'var(--green)' : m.risk < 50 ? 'var(--amberl)' : m.risk < 75 ? 'var(--orange)' : 'var(--red)';
+  const riskEmoji = m.risk < 25 ? '🟢' : m.risk < 50 ? '🟡' : m.risk < 75 ? '🟠' : '🔴';
+
+  document.getElementById('panelBody').innerHTML = `
+    <div style="text-align:center;margin-bottom:20px">
+      <img src="${m.avatar}" class="m-panel-avatar">
+      <div style="font-weight:800;font-size:1.1rem">${m.display_name} ${tagHTML}</div>
+      <div style="font-size:.75rem;color:var(--muted);font-family:'Geist Mono',monospace;margin-top:4px">${m.id}</div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+      <div style="text-align:center;padding:12px;border-radius:12px;background:var(--glass2);border:1px solid var(--border)">
+        <div style="font-size:1.2rem;font-weight:900;color:${riskColor}">${m.risk}%</div>
+        <div style="font-size:.62rem;color:var(--muted)">RISK SCORE</div>
+      </div>
+      <div style="text-align:center;padding:12px;border-radius:12px;background:var(--glass2);border:1px solid var(--border)">
+        <div style="font-size:1.2rem;font-weight:900;color:var(--vl)">${m.role_count}</div>
+        <div style="font-size:.62rem;color:var(--muted)">ROLLEN</div>
+      </div>
+    </div>
+
+    <div class="m-field"><div class="m-field-label">📅 Account-Alter</div><div class="m-field-value">${m.age_days} Tage</div></div>
+    <div class="m-field"><div class="m-field-label">📥 Beigetreten</div><div class="m-field-value">${m.joined || '?'}</div></div>
+    <div class="m-field"><div class="m-field-label">🏷️ Rollen</div><div class="m-field-value">${m.roles_str}</div></div>
+    <div class="m-field"><div class="m-field-label">🤖 Typ</div><div class="m-field-value">${m.bot ? 'Bot' : 'Mensch'}</div></div>
+    ${timeoutHTML}
+    ${voiceHTML}
+
+    ${!m.bot && !m.tag ? `
+    <div class="m-actions">
+      <button class="btn-glass btn-sm btn-glass-ghost" onclick="modAction('warn','${m.id}')">⚠️ Warn</button>
+      <button class="btn-glass btn-sm btn-glass-ghost" onclick="modAction('kick','${m.id}')">👢 Kick</button>
+      <button class="btn-glass btn-sm btn-glass-danger" onclick="modAction('ban','${m.id}')">🔨 Ban</button>
+      <button class="btn-glass btn-sm btn-glass-ghost" onclick="modAction('timeout','${m.id}')">🔇 Timeout</button>
+    </div>
+    ` : ''}
+  `;
+  
+  document.getElementById('memberPanel').classList.add('open');
+}
+
+function closePanel() {
+  document.getElementById('memberPanel').classList.remove('open');
+  document.querySelectorAll('.m-card').forEach(c => c.classList.remove('selected'));
+}
+
+// Close panel on Escape
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closePanel(); });
+
+// Close panel on click outside
+document.getElementById('memberPanel').addEventListener('click', function(e) {
+  if (e.target === this) closePanel();
+});
+
+function modAction(action, userId) {
+  const reason = prompt(`${action.toUpperCase()} — Grund eingeben:`);
+  if (reason === null) return;
+  
+  // Send to the bot's API (this would need the bot to be running)
+  alert(`${action} für User ${userId} mit Grund: "${reason}" wird ausgeführt.\n\nHinweis: Mod-Aktionen vom Dashboard werden in einer zukünftigen Version unterstützt.`);
+}
+
+function filterM() {
+  const q = document.getElementById('mSearch').value.toLowerCase();
+  const f = document.getElementById('mFilter').value;
+  document.querySelectorAll('.member-row').forEach(r => {
+    const matchQ = !q || r.dataset.search.includes(q);
+    let matchF = true;
+    if (f === 'humans') matchF = r.dataset.bot === '0';
+    else if (f === 'bots') matchF = r.dataset.bot === '1';
+    else if (f === 'new') matchF = r.dataset.new === '1';
+    else if (f === 'noroles') matchF = r.dataset.noroles === '1';
+    else if (f === 'timeout') matchF = r.dataset.timeout === '1';
+    else if (f === 'voice') matchF = r.dataset.voice === '1';
+    r.style.display = matchQ && matchF ? '' : 'none';
+  });
+}
 </script>
 {% endblock %}

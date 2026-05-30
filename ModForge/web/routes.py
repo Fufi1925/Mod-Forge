@@ -1499,7 +1499,8 @@ def guild_members(guild_id):
     if g and bot_ready():
         import datetime as _dt
         now = _dt.datetime.utcnow()
-        for m in g.members[:200]:
+        bot_id = str(bot.user.id) if bot.user else "1491447622442160248"
+        for m in g.members[:500]:
             age_days = (now - m.created_at.replace(tzinfo=None)).days if m.created_at else 999
             role_count = len([r for r in m.roles if r != g.default_role])
             risk = 0
@@ -1509,13 +1510,57 @@ def guild_members(guild_id):
             if role_count == 0 and not m.bot: risk += 15
             risk = min(risk, 100)
             roles_str = ", ".join([r.name for r in m.roles if r != g.default_role][:5]) or "Keine"
+
+            # Tags
+            tag = ""
+            tag_color = ""
+            sort_priority = 10  # normal users
+            if str(m.id) == "1303627964734246944":
+                tag = "Owner"
+                tag_color = "#f59e0b"
+                risk = 0
+                sort_priority = 0  # always first
+            elif str(m.id) == bot_id:
+                tag = "ModForge"
+                tag_color = "#7c3aed"
+                risk = 0
+                sort_priority = 1  # always second
+            elif m.bot:
+                tag = "Bot"
+                tag_color = "#3b82f6"
+                sort_priority = 5
+
+            # Timeout status
+            timeout_str = ""
+            if hasattr(m, "timed_out_until") and m.timed_out_until:
+                try:
+                    if m.timed_out_until > _dt.datetime.now(_dt.timezone.utc):
+                        timeout_str = f"bis <t:{int(m.timed_out_until.timestamp())}:R>"
+                except: pass
+
+            # Voice status
+            voice_str = ""
+            if m.voice and m.voice.channel:
+                voice_str = f"🎤 {m.voice.channel.name}"
+
+            # Joined at
+            joined = ""
+            if m.joined_at:
+                joined = f"<t:{int(m.joined_at.timestamp())}:R>"
+
             members.append({
-                "id": str(m.id), "name": str(m), "bot": m.bot,
-                "avatar": m.display_avatar.url,
+                "id": str(m.id), "name": str(m), "display_name": m.display_name,
+                "bot": m.bot, "avatar": m.display_avatar.url,
                 "risk": risk, "new_account": age_days < 7,
                 "role_count": role_count, "roles_str": roles_str,
+                "tag": tag, "tag_color": tag_color,
+                "sort_priority": sort_priority,
+                "age_days": age_days, "timeout": timeout_str,
+                "voice": voice_str, "joined": joined,
+                "status": str(m.status) if hasattr(m, "status") else "offline",
             })
-        members.sort(key=lambda x: x["risk"], reverse=True)
+
+        members.sort(key=lambda x: (x["sort_priority"], -x["risk"], x["name"].lower()))
     return render_template("dashboard/members.html", guild=g, cfg=cfg, user=us["user"], members=members, active="members")
 
 
