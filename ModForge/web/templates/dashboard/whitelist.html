@@ -1,0 +1,28 @@
+{% extends "dashboard/_base.html" %}
+{% set active = 'whitelist' %}
+{% block title %}Whitelist{% endblock %}
+{% block page_title %}🔐 Whitelist-Manager{% endblock %}
+{% block page_desc %}Anti-Nuke Whitelist verwalten{% endblock %}
+{% block content %}
+<p style="color:var(--muted);font-size:.82rem;margin-bottom:20px">Whitelistete User/Rollen/Channels werden von Security-Modulen ignoriert.</p>
+{% for cat_key, cat_label, cat_icon in [('users','User','👤'),('roles','Rollen','🏷️'),('channels','Kanäle','📁'),('bypass_antinuke','Bypass Anti-Nuke','💥'),('bypass_antispam','Bypass Anti-Spam','⚡')] %}
+<div class="db-card" style="margin-bottom:16px">
+  <div class="db-card-header"><span class="db-card-title">{{ cat_icon }} {{ cat_label }} ({{ whitelist.get(cat_key,[])|length }})</span></div>
+  <div class="tag-list" style="margin-bottom:10px">
+    {% for item_id in whitelist.get(cat_key,[]) %}
+    <div class="tag">{{ item_id }} <span class="tag-del" onclick="wlDel('{{ cat_key }}','{{ item_id }}')">×</span></div>
+    {% endfor %}
+    {% if not whitelist.get(cat_key) %}<span style="color:var(--muted);font-size:.78rem">Leer</span>{% endif %}
+  </div>
+  <div style="display:flex;gap:8px">
+    <input type="text" class="cfg-input" id="wl-{{ cat_key }}" placeholder="ID eingeben…" style="max-width:200px">
+    <button class="btn-glass btn-sm btn-glass-primary" onclick="wlAdd('{{ cat_key }}')">+</button>
+  </div>
+</div>
+{% endfor %}
+{% block scripts %}<script>
+const gid='{{ guild.id }}';
+async function wlAdd(cat){const v=document.getElementById('wl-'+cat).value.trim();if(!v)return;await fetch('/api/guild/'+gid+'/whitelist',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'add',category:cat,id:v})});location.reload()}
+async function wlDel(cat,id){await fetch('/api/guild/'+gid+'/whitelist',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'del',category:cat,id:id})});location.reload()}
+</script>{% endblock %}
+{% endblock %}

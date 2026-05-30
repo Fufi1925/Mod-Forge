@@ -1,0 +1,31 @@
+{% extends "dashboard/_base.html" %}
+{% set active = 'members' %}
+{% block title %}Mitglieder{% endblock %}
+{% block page_title %}👥 Mitglieder{% endblock %}
+{% block page_desc %}{{ members|length }} Mitglieder{% endblock %}
+{% block content %}
+<div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+  <input type="text" id="mSearch" class="cfg-input" placeholder="🔍 Suchen…" style="max-width:300px;width:100%" oninput="filterM()">
+  <select class="cfg-select" id="mFilter" onchange="filterM()"><option value="">Alle</option><option value="bot">Bots</option><option value="new">Neu (&lt;7d)</option><option value="noroles">Keine Rollen</option></select>
+</div>
+<div id="memberList">
+{% for m in members %}
+<div class="cfg-row member-row" data-bot="{{ 'bot' if m.bot else '' }}" data-new="{{ 'new' if m.new_account else '' }}" data-noroles="{{ 'noroles' if m.role_count == 0 else '' }}">
+  <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
+    <img src="{{ m.avatar }}" style="width:32px;height:32px;border-radius:50%">
+    <div style="min-width:0"><div class="cfg-label" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ m.name }}{% if m.bot %} <span class="badge badge-cyan" style="font-size:.5rem">BOT</span>{% endif %}</div>
+    <div class="cfg-desc">{{ m.roles_str }}</div></div>
+  </div>
+  <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+    <span style="padding:3px 8px;border-radius:999px;font-size:.6rem;font-weight:700;background:{% if m.risk < 25 %}rgba(74,222,128,0.1);color:var(--green){% elif m.risk < 50 %}rgba(234,179,8,0.1);color:var(--amberl){% elif m.risk < 75 %}rgba(251,146,60,0.1);color:var(--orange){% else %}rgba(239,68,68,0.1);color:var(--red){% endif %}">{{ m.risk }}%</span>
+    <span style="font-size:.72rem;color:var(--muted);font-family:'Geist Mono',monospace">{{ m.id }}</span>
+  </div>
+</div>
+{% endfor %}
+</div>
+{% if not members %}<div class="db-card" style="text-align:center;padding:40px"><p style="color:var(--muted)">Keine Mitglieder geladen (Bot muss online sein).</p></div>{% endif %}
+<script>
+function filterM(){const q=document.getElementById('mSearch').value.toLowerCase(),f=document.getElementById('mFilter').value;
+document.querySelectorAll('.member-row').forEach(r=>{const mq=!q||r.textContent.toLowerCase().includes(q);const mf=!f||r.dataset[f]===f;r.style.display=mq&&mf?'':'none'})}
+</script>
+{% endblock %}

@@ -5912,18 +5912,6 @@ async def _userinfo_logic(guild, target, requester):
         embed.set_image(url=target.banner.url)
     return embed
 
-@bot.tree.command(name="userinfo", description="Zeigt detaillierte Infos über einen User")
-@app_commands.describe(member="Der User (optional, Standard: du selbst)")
-async def slash_userinfo(interaction: discord.Interaction, member: discord.Member = None) -> None:
-    embed = await _userinfo_logic(interaction.guild, member or interaction.user, interaction.user)
-    await interaction.response.send_message(embed=embed)
-
-@bot.command(name="userinfo", aliases=["ui", "whois"])
-async def prefix_userinfo(ctx, member: discord.Member = None):
-    embed = await _userinfo_logic(ctx.guild, member or ctx.author, ctx.author)
-    await ctx.send(embed=embed)
-
-
 # ═══════════════════════════════════════════════════════════════════
 # 12) SERVERINFO (Slash + Prefix)
 # ═══════════════════════════════════════════════════════════════════
@@ -5967,17 +5955,6 @@ async def _serverinfo_logic(guild):
     if guild.banner:
         embed.set_image(url=guild.banner.url)
     return embed
-
-@bot.tree.command(name="serverinfo", description="Zeigt Server-Informationen")
-async def slash_serverinfo(interaction: discord.Interaction) -> None:
-    embed = await _serverinfo_logic(interaction.guild)
-    await interaction.response.send_message(embed=embed)
-
-@bot.command(name="serverinfo", aliases=["si", "guildinfo"])
-async def prefix_serverinfo(ctx):
-    embed = await _serverinfo_logic(ctx.guild)
-    await ctx.send(embed=embed)
-
 
 # ═══════════════════════════════════════════════════════════════════
 # 13) MODSTATS (Slash + Prefix)
@@ -6039,19 +6016,6 @@ async def _modstats_logic(guild, moderator=None):
             COLOR_PRIMARY
         )
 
-@bot.tree.command(name="modstats", description="Zeigt Moderator-Statistiken")
-@app_commands.describe(moderator="Spezifischer Moderator (optional)")
-async def slash_modstats(interaction: discord.Interaction, moderator: discord.Member = None) -> None:
-    await interaction.response.defer()
-    embed = await _modstats_logic(interaction.guild, moderator)
-    await interaction.followup.send(embed=embed)
-
-@bot.command(name="modstats", aliases=["ms"])
-async def prefix_modstats(ctx, member: discord.Member = None):
-    embed = await _modstats_logic(ctx.guild, member)
-    await ctx.send(embed=embed)
-
-
 # ═══════════════════════════════════════════════════════════════════
 # 14) SOFTBAN (Slash + Prefix)
 # ═══════════════════════════════════════════════════════════════════
@@ -6069,113 +6033,12 @@ async def _softban_logic(guild, moderator, target, reason, days=1):
     except discord.HTTPException as ex:
         return create_embed(f"{E.FAIL} Fehler", f"Discord-Fehler: {ex}", COLOR_DANGER)
 
-@bot.tree.command(name="softban", description="Bannt + Entbannt sofort (löscht Nachrichten)")
-@app_commands.describe(member="Nutzer", reason="Grund", days="Tage an Nachrichten löschen (1-7)")
-@app_commands.default_permissions(ban_members=True)
-async def slash_softban(interaction: discord.Interaction, member: discord.Member, reason: str = "Softban", days: int = 1) -> None:
-    days = max(1, min(days, 7))
-    embed = await _softban_logic(interaction.guild, interaction.user, member, reason, days)
-    await interaction.response.send_message(embed=embed)
-
-@bot.command(name="softban", aliases=["sb"])
-@commands.has_permissions(ban_members=True)
-async def prefix_softban(ctx, member: discord.Member = None, *, reason="Softban"):
-    if not member:
-        return await ctx.send(embed=create_embed(f"{E.FAIL}", "Nutze: `!softban @User [Grund]`", COLOR_DANGER))
-    embed = await _softban_logic(ctx.guild, ctx.author, member, reason)
-    await ctx.send(embed=embed)
-
-
 # ═══════════════════════════════════════════════════════════════════
 # 15) REPORT SYSTEM (Slash + Prefix)
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="report", description="Meldet einen User ans Mod-Team")
-@app_commands.describe(member="Der zu meldende User", reason="Grund der Meldung")
-async def slash_report(interaction: discord.Interaction, member: discord.Member, reason: str) -> None:
-    cfg = bot.db.get_config(interaction.guild.id)
-    report_ch_id = cfg.get("report_channel") or cfg.get("log_channel")
-    if not report_ch_id:
-        return await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", "Kein Report-Kanal konfiguriert. Admins: `/report_setup`", COLOR_DANGER), ephemeral=True)
-
-    report_ch = interaction.guild.get_channel(int(report_ch_id))
-    if not report_ch:
-        return await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", "Report-Kanal nicht gefunden.", COLOR_DANGER), ephemeral=True)
-
-    embed = create_embed(
-        "🚨 Neuer Report",
-        f"**Gemeldet:** {member.mention} (`{member.id}`)\n**Von:** {interaction.user.mention}\n**Grund:** {reason}\n**Kanal:** {interaction.channel.mention}",
-        COLOR_DANGER,
-        thumbnail=member.display_avatar.url
-    )
-    embed.set_footer(text=f"Report · {interaction.user.id}")
-    await report_ch.send(embed=embed)
-    await interaction.response.send_message(embed=create_embed(f"{E.OK}", "Report wurde gesendet. Das Mod-Team wird sich darum kümmern.", COLOR_SUCCESS), ephemeral=True)
-
-@bot.command(name="report")
-async def prefix_report(ctx, member: discord.Member = None, *, reason="Kein Grund angegeben"):
-    if not member:
-        return await ctx.send(embed=create_embed(f"{E.FAIL}", "Nutze: `!report @User Grund`", COLOR_DANGER))
-    cfg = bot.db.get_config(ctx.guild.id)
-    report_ch_id = cfg.get("report_channel") or cfg.get("log_channel")
-    if not report_ch_id:
-        return await ctx.send(embed=create_embed(f"{E.FAIL}", "Kein Report-Kanal konfiguriert.", COLOR_DANGER))
-    report_ch = ctx.guild.get_channel(int(report_ch_id))
-    if report_ch:
-        embed = create_embed("🚨 Neuer Report", f"**Gemeldet:** {member.mention}\n**Von:** {ctx.author.mention}\n**Grund:** {reason}\n**Kanal:** {ctx.channel.mention}", COLOR_DANGER, thumbnail=member.display_avatar.url)
-        await report_ch.send(embed=embed)
-        await ctx.send(embed=create_embed(f"{E.OK}", "Report gesendet.", COLOR_SUCCESS))
-    try:
-        await ctx.message.delete()
-    except Exception:
-        pass
-
-@bot.tree.command(name="report_setup", description="Setzt den Report-Kanal")
-@app_commands.describe(channel="Der Kanal für Reports")
-@app_commands.default_permissions(administrator=True)
-async def slash_report_setup(interaction: discord.Interaction, channel: discord.TextChannel) -> None:
-    cfg = bot.db.get_config(interaction.guild.id)
-    cfg["report_channel"] = channel.id
-    await bot.db.set_config(interaction.guild.id, cfg)
-    await interaction.response.send_message(embed=create_embed(f"{E.OK}", f"Report-Kanal: {channel.mention}", COLOR_SUCCESS))
-
-
 # ═══════════════════════════════════════════════════════════════════
 # 16) INVITE TRACKER (Slash + Prefix)
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="invites", description="Zeigt Invite-Statistiken")
-@app_commands.describe(member="User dessen Invites angezeigt werden")
-async def slash_invites(interaction: discord.Interaction, member: discord.Member = None) -> None:
-    target = member or interaction.user
-    try:
-        invites = await interaction.guild.invites()
-        user_invites = [i for i in invites if i.inviter and i.inviter.id == target.id]
-        total_uses = sum(i.uses for i in user_invites)
-        invite_list = "\n".join(
-            f"`{i.code}` — **{i.uses}** Uses (max: {i.max_uses or '∞'})"
-            for i in sorted(user_invites, key=lambda x: x.uses, reverse=True)[:10]
-        ) or "Keine aktiven Invites."
-
-        embed = create_embed(
-            f"📨 Invites – {target.display_name}",
-            f"Insgesamt **{total_uses}** Einladungen\n\n{invite_list}",
-            COLOR_INFO, thumbnail=target.display_avatar.url
-        )
-        await interaction.response.send_message(embed=embed)
-    except discord.Forbidden:
-        await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", "Keine Berechtigung für Invite-Zugriff.", COLOR_DANGER), ephemeral=True)
-
-@bot.command(name="invites", aliases=["inv"])
-async def prefix_invites(ctx, member: discord.Member = None):
-    target = member or ctx.author
-    try:
-        invites = await ctx.guild.invites()
-        user_invites = [i for i in invites if i.inviter and i.inviter.id == target.id]
-        total = sum(i.uses for i in user_invites)
-        embed = create_embed(f"📨 Invites – {target.display_name}", f"Insgesamt **{total}** Einladungen", COLOR_INFO, thumbnail=target.display_avatar.url)
-        await ctx.send(embed=embed)
-    except discord.Forbidden:
-        await ctx.send(embed=create_embed(f"{E.FAIL}", "Keine Berechtigung.", COLOR_DANGER))
-
 @bot.tree.command(name="invites_leaderboard", description="Zeigt Invite-Leaderboard")
 @app_commands.default_permissions(manage_guild=True)
 async def slash_invites_lb(interaction: discord.Interaction) -> None:
@@ -6200,68 +6063,6 @@ async def slash_invites_lb(interaction: discord.Interaction) -> None:
 # ═══════════════════════════════════════════════════════════════════
 # 17) LOCKALL / UNLOCKALL (Slash + Prefix)
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="lockall", description="Sperrt ALLE Text-Kanäle")
-@app_commands.describe(reason="Grund für den Lockdown")
-@app_commands.default_permissions(administrator=True)
-async def slash_lockall(interaction: discord.Interaction, reason: str = "Server Lockdown") -> None:
-    await interaction.response.defer()
-    locked = 0
-    for ch in interaction.guild.text_channels:
-        try:
-            await ch.set_permissions(interaction.guild.default_role, send_messages=False, reason=reason)
-            locked += 1
-        except (discord.Forbidden, discord.HTTPException):
-            pass
-        await asyncio.sleep(0.3)
-    await bot.log_action(interaction.guild, f"{E.LOCK} Server Lockdown", f"{interaction.user.mention} hat **{locked}** Kanäle gesperrt.\nGrund: {reason}", COLOR_DANGER, user=interaction.user, module="moderation")
-    await interaction.followup.send(embed=create_embed(f"{E.LOCK} Lockdown", f"**{locked}** Kanäle gesperrt.\nGrund: {reason}", COLOR_DANGER))
-
-@bot.tree.command(name="unlockall", description="Entsperrt ALLE Text-Kanäle")
-@app_commands.default_permissions(administrator=True)
-async def slash_unlockall(interaction: discord.Interaction) -> None:
-    await interaction.response.defer()
-    unlocked = 0
-    for ch in interaction.guild.text_channels:
-        try:
-            await ch.set_permissions(interaction.guild.default_role, send_messages=None, reason="Lockdown aufgehoben")
-            unlocked += 1
-        except (discord.Forbidden, discord.HTTPException):
-            pass
-        await asyncio.sleep(0.3)
-    await bot.log_action(interaction.guild, f"{E.UNLOCK} Lockdown aufgehoben", f"{interaction.user.mention} hat **{unlocked}** Kanäle entsperrt.", COLOR_SUCCESS, user=interaction.user, module="moderation")
-    await interaction.followup.send(embed=create_embed(f"{E.UNLOCK} Entsperrt", f"**{unlocked}** Kanäle entsperrt.", COLOR_SUCCESS))
-
-@bot.command(name="lockall")
-@commands.has_permissions(administrator=True)
-async def prefix_lockall(ctx, *, reason="Lockdown"):
-    locked = 0
-    msg = await ctx.send(embed=create_embed(f"{E.LOCK}", "Sperre alle Kanäle...", COLOR_WARNING))
-    for ch in ctx.guild.text_channels:
-        try:
-            await ch.set_permissions(ctx.guild.default_role, send_messages=False, reason=reason)
-            locked += 1
-        except Exception:
-            pass
-        await asyncio.sleep(0.3)
-    await msg.edit(embed=create_embed(f"{E.LOCK} Lockdown", f"**{locked}** Kanäle gesperrt.", COLOR_DANGER))
-    await bot.log_action(ctx.guild, f"{E.LOCK} Server Lockdown", f"{ctx.author.mention} hat {locked} Kanäle gesperrt.\nGrund: {reason}", COLOR_DANGER, user=ctx.author, module="moderation")
-
-@bot.command(name="unlockall")
-@commands.has_permissions(administrator=True)
-async def prefix_unlockall(ctx):
-    unlocked = 0
-    msg = await ctx.send(embed=create_embed(f"{E.UNLOCK}", "Entsperre alle Kanäle...", COLOR_WARNING))
-    for ch in ctx.guild.text_channels:
-        try:
-            await ch.set_permissions(ctx.guild.default_role, send_messages=None, reason="Lockdown aufgehoben")
-            unlocked += 1
-        except Exception:
-            pass
-        await asyncio.sleep(0.3)
-    await msg.edit(embed=create_embed(f"{E.UNLOCK} Entsperrt", f"**{unlocked}** Kanäle entsperrt.", COLOR_SUCCESS))
-    await bot.log_action(ctx.guild, f"{E.UNLOCK} Lockdown aufgehoben", f"{ctx.author.mention} hat {unlocked} Kanäle entsperrt.", COLOR_SUCCESS, user=ctx.author, module="moderation")
-
-
 # ═══════════════════════════════════════════════════════════════════
 # 18) AUTO-RESPONSE SYSTEM
 # ═══════════════════════════════════════════════════════════════════
@@ -6306,32 +6107,6 @@ async def slash_ar_del(interaction: discord.Interaction, index: int) -> None:
 # ═══════════════════════════════════════════════════════════════════
 # 19) WARN-DECAY SYSTEM
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="warndecay", description="Konfiguriert automatisches Warn-Verfall")
-@app_commands.describe(days="Nach wie vielen Tagen Warns verfallen (0 = aus)")
-@app_commands.default_permissions(administrator=True)
-async def slash_warndecay(interaction: discord.Interaction, days: int) -> None:
-    cfg = bot.db.get_config(interaction.guild.id)
-    if days <= 0:
-        cfg["warn_decay"] = {"enabled": False, "decay_days": 0}
-        await bot.db.set_config(interaction.guild.id, cfg)
-        return await interaction.response.send_message(embed=create_embed(f"{E.OK}", "Warn-Decay **deaktiviert**.", COLOR_WARNING))
-    cfg["warn_decay"] = {"enabled": True, "decay_days": days}
-    await bot.db.set_config(interaction.guild.id, cfg)
-    await interaction.response.send_message(embed=create_embed(f"{E.OK} Warn-Decay aktiviert", f"Warns verfallen nach **{days} Tagen** automatisch.", COLOR_SUCCESS))
-
-@bot.command(name="warndecay")
-@commands.has_permissions(administrator=True)
-async def prefix_warndecay(ctx, days: int = 0):
-    cfg = bot.db.get_config(ctx.guild.id)
-    if days <= 0:
-        cfg["warn_decay"] = {"enabled": False, "decay_days": 0}
-        await bot.db.set_config(ctx.guild.id, cfg)
-        return await ctx.send(embed=create_embed(f"{E.OK}", "Warn-Decay deaktiviert.", COLOR_WARNING))
-    cfg["warn_decay"] = {"enabled": True, "decay_days": days}
-    await bot.db.set_config(ctx.guild.id, cfg)
-    await ctx.send(embed=create_embed(f"{E.OK}", f"Warns verfallen nach **{days} Tagen**.", COLOR_SUCCESS))
-
-
 # ═══════════════════════════════════════════════════════════════════
 # 20) NO-PREFIX MODE + AUTO-RESPONSE IN on_message
 # ═══════════════════════════════════════════════════════════════════
@@ -6401,27 +6176,6 @@ async def extra_on_message(message: discord.Message):
 # ═══════════════════════════════════════════════════════════════════
 # 21) NO-PREFIX SETUP
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="noprefix", description="Aktiviert/Deaktiviert den No-Prefix-Modus")
-@app_commands.describe(enabled="An oder Aus")
-@app_commands.default_permissions(administrator=True)
-async def slash_noprefix(interaction: discord.Interaction, enabled: bool) -> None:
-    cfg = bot.db.get_config(interaction.guild.id)
-    cfg["no_prefix"] = enabled
-    await bot.db.set_config(interaction.guild.id, cfg)
-    np_users = cfg.get("no_prefix_users", [])
-    status = "**aktiviert** ✅" if enabled else "**deaktiviert** ❌"
-    desc = f"No-Prefix-Modus {status}\n"
-    if enabled:
-        if np_users:
-            user_list = ", ".join(f"<@{u}>" for u in np_users[:10])
-            desc += f"\n**Whitelist:** {user_list}"
-            desc += f"\n\nNur diese User können `ban @user` ohne Prefix nutzen."
-            desc += f"\n`/noprefix_add @User` zum Hinzufügen."
-        else:
-            desc += f"\nAlle Mods (Manage Messages) können ohne Prefix moderieren."
-            desc += f"\n`/noprefix_add @User` für eine Whitelist."
-    await interaction.response.send_message(embed=create_embed(f"{E.OK} No-Prefix", desc, COLOR_SUCCESS if enabled else COLOR_WARNING))
-
 @bot.tree.command(name="noprefix_add", description="Fügt einen User zur No-Prefix-Whitelist hinzu")
 @app_commands.describe(member="User der No-Prefix nutzen darf")
 @app_commands.default_permissions(administrator=True)
@@ -6462,296 +6216,16 @@ async def slash_noprefix_list(interaction: discord.Interaction) -> None:
         desc = f"**Modus:** Whitelist ({len(np_users)} User)\n\n{user_list}"
     await interaction.response.send_message(embed=create_embed("⚙️ No-Prefix Whitelist", desc, COLOR_INFO))
 
-@bot.command(name="noprefix")
-@commands.has_permissions(administrator=True)
-async def prefix_noprefix(ctx, action: str = None, member: discord.Member = None):
-    cfg = bot.db.get_config(ctx.guild.id)
-    if action in ("add",) and member:
-        np_users = cfg.get("no_prefix_users", [])
-        if member.id not in np_users:
-            np_users.append(member.id)
-        cfg["no_prefix_users"] = np_users
-        cfg["no_prefix"] = True
-        await bot.db.set_config(ctx.guild.id, cfg)
-        return await ctx.send(embed=create_embed(f"{E.OK}", f"{member.mention} zu No-Prefix hinzugefügt.", COLOR_SUCCESS))
-    elif action in ("remove", "del") and member:
-        np_users = cfg.get("no_prefix_users", [])
-        np_users = [u for u in np_users if u != member.id]
-        cfg["no_prefix_users"] = np_users
-        await bot.db.set_config(ctx.guild.id, cfg)
-        return await ctx.send(embed=create_embed(f"{E.OK}", f"{member.mention} entfernt.", COLOR_WARNING))
-    elif action == "list":
-        np_users = cfg.get("no_prefix_users", [])
-        if np_users:
-            desc = "\n".join(f"• <@{u}>" for u in np_users)
-        else:
-            desc = "Keine Whitelist → alle Mods"
-        return await ctx.send(embed=create_embed("⚙️ No-Prefix", desc, COLOR_INFO))
-    else:
-        enabled = not cfg.get("no_prefix", False)
-        cfg["no_prefix"] = enabled
-        await bot.db.set_config(ctx.guild.id, cfg)
-        status = "aktiviert ✅" if enabled else "deaktiviert ❌"
-        await ctx.send(embed=create_embed(f"{E.OK}", f"No-Prefix {status}\n`!noprefix add @User` · `!noprefix list`", COLOR_SUCCESS if enabled else COLOR_WARNING))
-
-
-
 # ═══════════════════════════════════════════════════════════════════
 # PREFIX MIRRORS — Fehlende Prefix-Pendants für wichtige Commands
 # ═══════════════════════════════════════════════════════════════════
 
-@bot.command(name="tempban", aliases=["tb"])
-@commands.has_permissions(ban_members=True)
-async def prefix_tempban(ctx, member: discord.Member = None, duration: str = "1d", *, reason="Temporärer Ban"):
-    if not member:
-        return await ctx.send(embed=create_embed(f"{E.FAIL}", "`!tempban @User 7d Grund`", COLOR_DANGER))
-    dur_seconds = parse_duration(duration)
-    if not dur_seconds:
-        return await ctx.send(embed=create_embed(f"{E.FAIL}", "Ungültige Dauer. z.B. `1h`, `7d`, `30m`", COLOR_DANGER))
-    if not can_moderate(ctx.author, member):
-        return await ctx.send(embed=create_embed(f"{E.FAIL}", "Keine Berechtigung.", COLOR_DANGER))
-    try:
-        await member.ban(reason=f"Tempban ({duration}): {reason} (durch {ctx.author})", delete_message_seconds=86400)
-        case_id = await bot.db.acreate_case(ctx.guild.id, member.id, ctx.author.id, "tempban", reason, duration=dur_seconds)
-        await bot.log_action(ctx.guild, f"{E.BAN} Tempban", f"{member.mention} für {duration}\nGrund: {reason}\nVon: {ctx.author.mention}", COLOR_DANGER, user=member, module="moderation")
-        await ctx.send(embed=create_embed(f"{E.OK} Tempban", f"{member.mention} für {duration} gebannt. Case #{case_id}", COLOR_SUCCESS))
-    except discord.Forbidden:
-        await ctx.send(embed=create_embed(f"{E.FAIL}", "Keine Berechtigung.", COLOR_DANGER))
-
-@bot.command(name="tempmute", aliases=["tm"])
-@commands.has_permissions(moderate_members=True)
-async def prefix_tempmute(ctx, member: discord.Member = None, duration: str = "1h", *, reason="Timeout"):
-    if not member:
-        return await ctx.send(embed=create_embed(f"{E.FAIL}", "`!tempmute @User 2h Grund`", COLOR_DANGER))
-    dur_seconds = parse_duration(duration)
-    if not dur_seconds:
-        return await ctx.send(embed=create_embed(f"{E.FAIL}", "Ungültige Dauer.", COLOR_DANGER))
-    try:
-        until = discord.utils.utcnow() + datetime.timedelta(seconds=dur_seconds)
-        await member.timeout(until, reason=f"{reason} (durch {ctx.author})")
-        case_id = await bot.db.acreate_case(ctx.guild.id, member.id, ctx.author.id, "tempmute", reason, duration=dur_seconds)
-        await bot.log_action(ctx.guild, f"{E.MUTE} Tempmute", f"{member.mention} für {duration}\nGrund: {reason}", COLOR_WARNING, user=member, module="moderation")
-        await ctx.send(embed=create_embed(f"{E.OK} Tempmute", f"{member.mention} für {duration} gemutet. Case #{case_id}", COLOR_SUCCESS))
-    except discord.Forbidden:
-        await ctx.send(embed=create_embed(f"{E.FAIL}", "Keine Berechtigung.", COLOR_DANGER))
-
-@bot.command(name="case")
-@commands.has_permissions(manage_messages=True)
-async def prefix_case(ctx, case_id: int = None):
-    if not case_id:
-        return await ctx.send(embed=create_embed(f"{E.FAIL}", "`!case <ID>`", COLOR_DANGER))
-    try:
-        case = await bot.db.cases.find_one({"guild_id": str(ctx.guild.id), "case_id": case_id})
-        if not case:
-            return await ctx.send(embed=create_embed(f"{E.FAIL}", f"Case #{case_id} nicht gefunden.", COLOR_DANGER))
-        embed = create_embed(f"📋 Case #{case_id}", f"**Aktion:** {case.get('action','?')}\n**User:** <@{case.get('user_id','?')}>\n**Mod:** <@{case.get('moderator_id','?')}>\n**Grund:** {case.get('reason','Kein Grund')}", COLOR_INFO)
-        await ctx.send(embed=embed)
-    except Exception as e:
-        await ctx.send(embed=create_embed(f"{E.FAIL}", f"Fehler: {e}", COLOR_DANGER))
-
-@bot.command(name="cases")
-@commands.has_permissions(manage_messages=True)
-async def prefix_cases(ctx, member: discord.Member = None):
-    query = {"guild_id": str(ctx.guild.id)}
-    if member:
-        query["user_id"] = str(member.id)
-    try:
-        raw = await bot.db.cases.find(query).sort("case_id", -1).to_list(15) or []
-        if not raw:
-            return await ctx.send(embed=create_embed("📋 Cases", "Keine Cases gefunden.", COLOR_INFO))
-        lines = []
-        for c in raw:
-            lines.append(f"**#{c.get('case_id','?')}** {c.get('action','?')} — <@{c.get('user_id','?')}> — {c.get('reason','—')[:40]}")
-        await ctx.send(embed=create_embed(f"📋 Cases ({len(raw)})", "\n".join(lines), COLOR_INFO))
-    except Exception as e:
-        await ctx.send(embed=create_embed(f"{E.FAIL}", f"Fehler: {e}", COLOR_DANGER))
-
-@bot.command(name="status")
-async def prefix_status(ctx):
-    gc, mc, up, lat = len(bot.guilds), sum(g.member_count or 0 for g in bot.guilds), 0, 0
-    try:
-        from bot.config import get_uptime, BOT_START_TIME
-        up = get_uptime(bot.start_time)
-        lat = round(bot.latency * 1000)
-    except Exception:
-        pass
-    embed = create_embed(f"{E.BOT} Bot Status", f"**Server:** {gc}\n**Mitglieder:** {mc:,}\n**Latenz:** {lat}ms\n**Uptime:** {up}s", COLOR_PRIMARY)
-    await ctx.send(embed=embed)
-
-@bot.command(name="stats")
-async def prefix_stats(ctx):
-    g = ctx.guild
-    bots = sum(1 for m in g.members if m.bot)
-    humans = g.member_count - bots
-    embed = create_embed(f"{E.SERVER} {g.name}", f"**Mitglieder:** {humans:,} Humans + {bots} Bots\n**Kanäle:** {len(g.channels)}\n**Rollen:** {len(g.roles)}\n**Boosts:** {g.premium_subscription_count or 0}", COLOR_PRIMARY)
-    await ctx.send(embed=embed)
-
-@bot.command(name="help")
-async def prefix_help(ctx):
-    from bot.config import HELP_DATA
-    embed = create_embed(f"{E.HELP} ModForge – Hilfe", "Nutze die Buttons oder `/help` für die interaktive Hilfe.\n\n**Kategorien:**", COLOR_PRIMARY)
-    for key, (title, cmds) in HELP_DATA.items():
-        cmd_list = " · ".join(c[0].split(" ")[0] for c in cmds[:6])
-        embed.add_field(name=title, value=f"{cmd_list} …", inline=False)
-    embed.set_footer(text="Nutze /help für die volle interaktive Hilfe mit Dropdown")
-    await ctx.send(embed=embed)
-
-@bot.command(name="panic")
-@commands.has_permissions(administrator=True)
-async def prefix_panic(ctx):
-    cfg = bot.db.get_config(ctx.guild.id)
-    cfg["security_level"] = 3
-    await bot.db.set_config(ctx.guild.id, cfg)
-    locked = 0
-    for ch in ctx.guild.text_channels:
-        try:
-            await ch.set_permissions(ctx.guild.default_role, send_messages=False, reason="PANIC LOCKDOWN")
-            locked += 1
-        except Exception:
-            pass
-        await asyncio.sleep(0.2)
-    await bot.log_action(ctx.guild, f"🚨 PANIC LOCKDOWN", f"{ctx.author.mention} hat Lockdown aktiviert. {locked} Kanäle gesperrt.", COLOR_DANGER, user=ctx.author, module="moderation")
-    await ctx.send(embed=create_embed("🚨 LOCKDOWN AKTIV", f"{locked} Kanäle gesperrt. Security Level: 3\n`!unlockdown` zum Aufheben.", COLOR_DANGER))
-
-@bot.command(name="unlockdown")
-@commands.has_permissions(administrator=True)
-async def prefix_unlockdown(ctx):
-    cfg = bot.db.get_config(ctx.guild.id)
-    cfg["security_level"] = 0
-    await bot.db.set_config(ctx.guild.id, cfg)
-    unlocked = 0
-    for ch in ctx.guild.text_channels:
-        try:
-            await ch.set_permissions(ctx.guild.default_role, send_messages=None, reason="Lockdown aufgehoben")
-            unlocked += 1
-        except Exception:
-            pass
-        await asyncio.sleep(0.2)
-    await ctx.send(embed=create_embed(f"{E.OK} Lockdown aufgehoben", f"{unlocked} Kanäle entsperrt.", COLOR_SUCCESS))
-
-@bot.command(name="autorole")
-@commands.has_permissions(administrator=True)
-async def prefix_autorole(ctx, role: discord.Role = None):
-    if not role:
-        return await ctx.send(embed=create_embed(f"{E.FAIL}", "`!autorole @Rolle`", COLOR_DANGER))
-    cfg = bot.db.get_config(ctx.guild.id)
-    ar = cfg.get("auto_role", {"enabled": True, "roles": []})
-    if role.id not in ar.get("roles", []):
-        ar.setdefault("roles", []).append(role.id)
-        ar["enabled"] = True
-    cfg["auto_role"] = ar
-    await bot.db.set_config(ctx.guild.id, cfg)
-    await ctx.send(embed=create_embed(f"{E.OK}", f"Auto-Role {role.mention} hinzugefügt.", COLOR_SUCCESS))
-
-@bot.command(name="massban")
-@commands.has_permissions(ban_members=True)
-async def prefix_massban(ctx, *, user_ids: str = ""):
-    if not user_ids:
-        return await ctx.send(embed=create_embed(f"{E.FAIL}", "`!massban 123,456,789 [Grund]`", COLOR_DANGER))
-    parts = re.split(r'[,;\s]+', user_ids.strip())
-    ids = [int(p) for p in parts if p.isdigit()]
-    if not ids:
-        return await ctx.send(embed=create_embed(f"{E.FAIL}", "Keine gültigen IDs.", COLOR_DANGER))
-    banned = 0
-    for uid in ids[:50]:
-        try:
-            await ctx.guild.ban(discord.Object(uid), reason=f"Massban durch {ctx.author}")
-            banned += 1
-        except Exception:
-            pass
-        await asyncio.sleep(0.5)
-    await ctx.send(embed=create_embed(f"{E.BAN} Massban", f"**{banned}/{len(ids)}** gebannt.", COLOR_DANGER))
-    await bot.log_action(ctx.guild, f"{E.BAN} Massban", f"{ctx.author.mention} hat {banned} User gebannt.", COLOR_DANGER, user=ctx.author, module="moderation")
-
-@bot.command(name="report_setup")
-@commands.has_permissions(administrator=True)
-async def prefix_report_setup(ctx, channel: discord.TextChannel = None):
-    if not channel:
-        return await ctx.send(embed=create_embed(f"{E.FAIL}", "`!report_setup #channel`", COLOR_DANGER))
-    cfg = bot.db.get_config(ctx.guild.id)
-    cfg["report_channel"] = channel.id
-    await bot.db.set_config(ctx.guild.id, cfg)
-    await ctx.send(embed=create_embed(f"{E.OK}", f"Report-Kanal: {channel.mention}", COLOR_SUCCESS))
-
-
-
 # ═══════════════════════════════════════════════════════════════════
 # AUTO BAN-APPEAL SYSTEM
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="autobanappeal", description="Aktiviert/deaktiviert automatische Ban-Appeal DMs")
-@app_commands.describe(enabled="An oder Aus")
-@app_commands.default_permissions(administrator=True)
-async def slash_autobanappeal(interaction: discord.Interaction, enabled: bool) -> None:
-    cfg = bot.db.get_config(interaction.guild.id)
-    cfg["auto_ban_appeal"] = {"enabled": enabled}
-    await bot.db.set_config(interaction.guild.id, cfg)
-    if enabled:
-        desc = (
-            "**Automatische Ban-Appeals aktiviert** ✅\n\n"
-            "Gebannte User erhalten eine DM mit:\n"
-            "> • Grund des Bans\n"
-            "> • Servername\n"
-            "> • Möglichkeit einen Appeal zu starten\n\n"
-            "Der Appeal-Kanal muss mit `/logban #channel` gesetzt sein."
-        )
-    else:
-        desc = "Automatische Ban-Appeals **deaktiviert** ❌"
-    await interaction.response.send_message(embed=create_embed(f"{E.OK} Auto-Ban-Appeal", desc, COLOR_SUCCESS if enabled else COLOR_WARNING))
-
-@bot.command(name="autobanappeal")
-@commands.has_permissions(administrator=True)
-async def prefix_autobanappeal(ctx, enabled: bool = None):
-    cfg = bot.db.get_config(ctx.guild.id)
-    if enabled is None:
-        enabled = not cfg.get("auto_ban_appeal", {}).get("enabled", False)
-    cfg["auto_ban_appeal"] = {"enabled": enabled}
-    await bot.db.set_config(ctx.guild.id, cfg)
-    status = "aktiviert ✅" if enabled else "deaktiviert ❌"
-    await ctx.send(embed=create_embed(f"{E.OK}", f"Auto-Ban-Appeal {status}", COLOR_SUCCESS if enabled else COLOR_WARNING))
-
-
-
 # ═══════════════════════════════════════════════════════════════════
 # NEW: /note — Interne Moderator-Notizen
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="note", description="Speichert eine interne Notiz zu einem User")
-@app_commands.describe(member="User", text="Notiz-Text")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_note(interaction: discord.Interaction, member: discord.Member, text: str) -> None:
-    try:
-        await bot.db.notes.insert_one({
-            "guild_id": str(interaction.guild.id),
-            "user_id": str(member.id),
-            "mod_id": str(interaction.user.id),
-            "text": text,
-            "timestamp": datetime.datetime.utcnow(),
-        })
-        count = await bot.db.notes.count_documents({"guild_id": str(interaction.guild.id), "user_id": str(member.id)})
-        await interaction.response.send_message(embed=create_embed(
-            f"{E.OK} Notiz gespeichert",
-            f"Notiz für {member.mention} ({count} gesamt):\n> {text}",
-            COLOR_SUCCESS), ephemeral=True)
-    except Exception as e:
-        await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", f"Fehler: {e}", COLOR_DANGER), ephemeral=True)
-
-@bot.tree.command(name="notes", description="Zeigt alle Notizen zu einem User")
-@app_commands.describe(member="User")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_notes(interaction: discord.Interaction, member: discord.Member) -> None:
-    try:
-        notes = await bot.db.notes.find({"guild_id": str(interaction.guild.id), "user_id": str(member.id)}).sort("timestamp", -1).to_list(20)
-        if not notes:
-            return await interaction.response.send_message(embed=create_embed("📝 Notizen", f"Keine Notizen für {member.mention}.", COLOR_INFO), ephemeral=True)
-        lines = []
-        for i, n in enumerate(notes, 1):
-            ts = f"<t:{int(n['timestamp'].timestamp())}:R>" if n.get('timestamp') else "?"
-            lines.append(f"`{i}.` {n['text'][:80]} — <@{n['mod_id']}> {ts}")
-        await interaction.response.send_message(embed=create_embed(
-            f"📝 Notizen – {member.display_name} ({len(notes)})",
-            "\n".join(lines), COLOR_INFO, thumbnail=member.display_avatar.url), ephemeral=True)
-    except Exception as e:
-        await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", f"Fehler: {e}", COLOR_DANGER), ephemeral=True)
-
 @bot.tree.command(name="delnote", description="Löscht eine Notiz (Index aus /notes)")
 @app_commands.describe(member="User", index="Notiz-Nummer")
 @app_commands.default_permissions(manage_messages=True)
@@ -6764,32 +6238,6 @@ async def slash_delnote(interaction: discord.Interaction, member: discord.Member
         await interaction.response.send_message(embed=create_embed(f"{E.OK}", f"Notiz #{index} gelöscht.", COLOR_SUCCESS), ephemeral=True)
     except Exception as e:
         await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", f"Fehler: {e}", COLOR_DANGER), ephemeral=True)
-
-@bot.command(name="note")
-@commands.has_permissions(manage_messages=True)
-async def prefix_note(ctx, member: discord.Member = None, *, text: str = ""):
-    if not member or not text:
-        return await ctx.send(embed=create_embed(f"{E.FAIL}", "`!note @User Text`", COLOR_DANGER))
-    try:
-        await bot.db.notes.insert_one({"guild_id": str(ctx.guild.id), "user_id": str(member.id), "mod_id": str(ctx.author.id), "text": text, "timestamp": datetime.datetime.utcnow()})
-        await ctx.send(embed=create_embed(f"{E.OK}", f"Notiz für {member.mention} gespeichert.", COLOR_SUCCESS))
-    except Exception as e:
-        await ctx.send(embed=create_embed(f"{E.FAIL}", str(e), COLOR_DANGER))
-
-@bot.command(name="notes")
-@commands.has_permissions(manage_messages=True)
-async def prefix_notes(ctx, member: discord.Member = None):
-    if not member:
-        return await ctx.send(embed=create_embed(f"{E.FAIL}", "`!notes @User`", COLOR_DANGER))
-    try:
-        notes = await bot.db.notes.find({"guild_id": str(ctx.guild.id), "user_id": str(member.id)}).sort("timestamp", -1).to_list(10)
-        if not notes:
-            return await ctx.send(embed=create_embed("📝", f"Keine Notizen für {member.mention}.", COLOR_INFO))
-        lines = [f"`{i}.` {n['text'][:80]} — <@{n['mod_id']}>" for i, n in enumerate(notes, 1)]
-        await ctx.send(embed=create_embed(f"📝 Notizen ({len(notes)})", "\n".join(lines), COLOR_INFO))
-    except Exception as e:
-        await ctx.send(embed=create_embed(f"{E.FAIL}", str(e), COLOR_DANGER))
-
 
 # ═══════════════════════════════════════════════════════════════════
 # NEW: /snipe & /editsnipe
@@ -6819,173 +6267,12 @@ async def snipe_on_edit(before: discord.Message, after: discord.Message):
         "timestamp": time.time(),
     }
 
-@bot.tree.command(name="snipe", description="Zeigt die letzte gelöschte Nachricht")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_snipe(interaction: discord.Interaction) -> None:
-    data = _snipe_cache.get(interaction.guild.id, {}).get(interaction.channel.id)
-    if not data or time.time() - data["timestamp"] > 300:
-        return await interaction.response.send_message(embed=create_embed("🔍 Snipe", "Keine gelöschte Nachricht in den letzten 5 Minuten.", COLOR_INFO), ephemeral=True)
-    embed = create_embed(
-        "🔍 Snipe – Gelöschte Nachricht",
-        data["content"] or "*Kein Text*",
-        COLOR_WARNING, thumbnail=data["author"].display_avatar.url
-    )
-    embed.set_author(name=str(data["author"]), icon_url=data["author"].display_avatar.url)
-    embed.set_footer(text=f"Gelöscht vor {int(time.time() - data['timestamp'])}s")
-    if data.get("attachments"):
-        embed.add_field(name="📎 Anhänge", value="\n".join(data["attachments"]), inline=False)
-    await interaction.response.send_message(embed=embed, ephemeral=True)
-
-@bot.tree.command(name="editsnipe", description="Zeigt die letzte bearbeitete Nachricht")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_editsnipe(interaction: discord.Interaction) -> None:
-    data = _editsnipe_cache.get(interaction.guild.id, {}).get(interaction.channel.id)
-    if not data or time.time() - data["timestamp"] > 300:
-        return await interaction.response.send_message(embed=create_embed("✏️ Editsnipe", "Keine bearbeitete Nachricht in den letzten 5 Minuten.", COLOR_INFO), ephemeral=True)
-    embed = create_embed("✏️ Editsnipe", "", COLOR_INFO)
-    embed.set_author(name=str(data["author"]), icon_url=data["author"].display_avatar.url)
-    embed.add_field(name="Vorher", value=data["before"][:1000] or "*Leer*", inline=False)
-    embed.add_field(name="Nachher", value=data["after"][:1000] or "*Leer*", inline=False)
-    await interaction.response.send_message(embed=embed, ephemeral=True)
-
-@bot.command(name="snipe")
-@commands.has_permissions(manage_messages=True)
-async def prefix_snipe(ctx):
-    data = _snipe_cache.get(ctx.guild.id, {}).get(ctx.channel.id)
-    if not data or time.time() - data["timestamp"] > 300:
-        return await ctx.send(embed=create_embed("🔍", "Nichts zu snipen.", COLOR_INFO))
-    embed = create_embed("🔍 Snipe", data["content"] or "*Kein Text*", COLOR_WARNING)
-    embed.set_author(name=str(data["author"]), icon_url=data["author"].display_avatar.url)
-    await ctx.send(embed=embed)
-
-@bot.command(name="editsnipe", aliases=["esnipe"])
-@commands.has_permissions(manage_messages=True)
-async def prefix_editsnipe(ctx):
-    data = _editsnipe_cache.get(ctx.guild.id, {}).get(ctx.channel.id)
-    if not data or time.time() - data["timestamp"] > 300:
-        return await ctx.send(embed=create_embed("✏️", "Nichts zu snipen.", COLOR_INFO))
-    embed = create_embed("✏️ Editsnipe", "", COLOR_INFO)
-    embed.set_author(name=str(data["author"]), icon_url=data["author"].display_avatar.url)
-    embed.add_field(name="Vorher", value=data["before"][:1000], inline=False)
-    embed.add_field(name="Nachher", value=data["after"][:1000], inline=False)
-    await ctx.send(embed=embed)
-
-
 # ═══════════════════════════════════════════════════════════════════
 # NEW: /poll — Abstimmung
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="poll", description="Erstellt eine Abstimmung")
-@app_commands.describe(frage="Die Frage", opt1="Option 1", opt2="Option 2", opt3="Option 3 (optional)", opt4="Option 4 (optional)")
-async def slash_poll(interaction: discord.Interaction, frage: str, opt1: str, opt2: str, opt3: str = None, opt4: str = None) -> None:
-    options = [opt1, opt2]
-    if opt3: options.append(opt3)
-    if opt4: options.append(opt4)
-    emojis = ["1️⃣", "2️⃣", "3️⃣", "4️⃣"]
-    desc = "\n".join(f"{emojis[i]} {opt}" for i, opt in enumerate(options))
-    embed = create_embed(f"📊 {frage}", desc, COLOR_PRIMARY)
-    embed.set_footer(text=f"Abstimmung von {interaction.user.display_name}")
-    await interaction.response.send_message(embed=embed)
-    msg = await interaction.original_response()
-    for i in range(len(options)):
-        await msg.add_reaction(emojis[i])
-
-@bot.command(name="poll")
-async def prefix_poll(ctx, *, args: str = ""):
-    parts = [p.strip() for p in args.split("|") if p.strip()]
-    if len(parts) < 3:
-        return await ctx.send(embed=create_embed(f"{E.FAIL}", "`!poll Frage | Option 1 | Option 2 | ...`", COLOR_DANGER))
-    frage = parts[0]
-    options = parts[1:5]
-    emojis = ["1️⃣", "2️⃣", "3️⃣", "4️⃣"]
-    desc = "\n".join(f"{emojis[i]} {opt}" for i, opt in enumerate(options))
-    embed = create_embed(f"📊 {frage}", desc, COLOR_PRIMARY)
-    msg = await ctx.send(embed=embed)
-    for i in range(len(options)):
-        await msg.add_reaction(emojis[i])
-
-
 # ═══════════════════════════════════════════════════════════════════
 # NEW: /raidmode — Manueller Raid-Modus
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="raidmode", description="Aktiviert/Deaktiviert den Raid-Modus")
-@app_commands.describe(enabled="An oder Aus", dauer="Dauer in Minuten (0=manuell)")
-@app_commands.default_permissions(administrator=True)
-async def slash_raidmode(interaction: discord.Interaction, enabled: bool, dauer: int = 0) -> None:
-    cfg = bot.db.get_config(interaction.guild.id)
-    if enabled:
-        cfg["raidmode_active"] = True
-        await bot.db.set_config(interaction.guild.id, cfg)
-        # Lock server
-        locked = 0
-        for ch in interaction.guild.text_channels:
-            try:
-                await ch.set_permissions(interaction.guild.default_role, send_messages=False, reason="Raid-Modus aktiviert")
-                locked += 1
-            except Exception:
-                pass
-        await bot.log_action(interaction.guild, "🚨 RAID-MODUS AKTIVIERT",
-                             f"{interaction.user.mention} hat den Raid-Modus aktiviert.\n{locked} Kanäle gesperrt." +
-                             (f"\nDauer: {dauer} Minuten" if dauer > 0 else "\nManuell deaktivieren: `/raidmode false`"),
-                             COLOR_DANGER, user=interaction.user, module="antiraid")
-        await interaction.response.send_message(embed=create_embed(
-            "🚨 Raid-Modus AKTIV",
-            f"**{locked}** Kanäle gesperrt.\nNeue Member erhalten eine DM.\n" +
-            (f"Automatische Deaktivierung in {dauer}m." if dauer > 0 else "`/raidmode false` zum Deaktivieren."),
-            COLOR_DANGER))
-        if dauer > 0:
-            await asyncio.sleep(dauer * 60)
-            cfg = bot.db.get_config(interaction.guild.id)
-            if cfg.get("raidmode_active"):
-                cfg["raidmode_active"] = False
-                await bot.db.set_config(interaction.guild.id, cfg)
-                for ch in interaction.guild.text_channels:
-                    try:
-                        await ch.set_permissions(interaction.guild.default_role, send_messages=None, reason="Raid-Modus abgelaufen")
-                    except Exception:
-                        pass
-                await bot.log_action(interaction.guild, "✅ Raid-Modus beendet", "Automatisch nach Ablauf deaktiviert.", COLOR_SUCCESS, module="antiraid")
-    else:
-        cfg["raidmode_active"] = False
-        await bot.db.set_config(interaction.guild.id, cfg)
-        for ch in interaction.guild.text_channels:
-            try:
-                await ch.set_permissions(interaction.guild.default_role, send_messages=None, reason="Raid-Modus deaktiviert")
-            except Exception:
-                pass
-        await interaction.response.send_message(embed=create_embed("✅ Raid-Modus deaktiviert", "Alle Kanäle entsperrt.", COLOR_SUCCESS))
-        await bot.log_action(interaction.guild, "✅ Raid-Modus beendet", f"{interaction.user.mention} hat den Raid-Modus deaktiviert.", COLOR_SUCCESS, module="antiraid")
-
-@bot.command(name="raidmode")
-@commands.has_permissions(administrator=True)
-async def prefix_raidmode(ctx, enabled: str = ""):
-    if enabled.lower() in ("on", "true", "1", "an"):
-        cfg = bot.db.get_config(ctx.guild.id)
-        cfg["raidmode_active"] = True
-        await bot.db.set_config(ctx.guild.id, cfg)
-        locked = 0
-        for ch in ctx.guild.text_channels:
-            try:
-                await ch.set_permissions(ctx.guild.default_role, send_messages=False, reason="Raid-Modus")
-                locked += 1
-            except Exception:
-                pass
-        await ctx.send(embed=create_embed("🚨 RAID-MODUS", f"{locked} Kanäle gesperrt. `!raidmode off` zum Deaktivieren.", COLOR_DANGER))
-    elif enabled.lower() in ("off", "false", "0", "aus"):
-        cfg = bot.db.get_config(ctx.guild.id)
-        cfg["raidmode_active"] = False
-        await bot.db.set_config(ctx.guild.id, cfg)
-        for ch in ctx.guild.text_channels:
-            try:
-                await ch.set_permissions(ctx.guild.default_role, send_messages=None, reason="Raid-Modus aus")
-            except Exception:
-                pass
-        await ctx.send(embed=create_embed("✅ Raid-Modus aus", "Kanäle entsperrt.", COLOR_SUCCESS))
-    else:
-        cfg = bot.db.get_config(ctx.guild.id)
-        active = cfg.get("raidmode_active", False)
-        await ctx.send(embed=create_embed("🚨 Raid-Modus", f"Status: **{'AKTIV 🔴' if active else 'Inaktiv 🟢'}**\n`!raidmode on` / `!raidmode off`", COLOR_DANGER if active else COLOR_SUCCESS))
-
-
 # ═══════════════════════════════════════════════════════════════════
 # NEW: Erweiterte /purge Varianten
 # ═══════════════════════════════════════════════════════════════════
@@ -7064,20 +6351,6 @@ async def prefix_purge(ctx, target: str = None, amount: int = 50):
 # ═══════════════════════════════════════════════════════════════════
 _afk_users = {}  # guild_id -> {user_id: {"reason": str, "since": float}}
 
-@bot.tree.command(name="afk", description="Setzt deinen AFK-Status")
-@app_commands.describe(grund="Grund (optional)")
-async def slash_afk(interaction: discord.Interaction, grund: str = "AFK") -> None:
-    _afk_users.setdefault(interaction.guild.id, {})[interaction.user.id] = {
-        "reason": grund, "since": time.time()
-    }
-    await interaction.response.send_message(embed=create_embed(
-        "💤 AFK gesetzt", f"{interaction.user.mention} ist jetzt AFK: {grund}", COLOR_INFO))
-
-@bot.command(name="afk")
-async def prefix_afk(ctx, *, grund="AFK"):
-    _afk_users.setdefault(ctx.guild.id, {})[ctx.author.id] = {"reason": grund, "since": time.time()}
-    await ctx.send(embed=create_embed("💤 AFK", f"{ctx.author.mention} ist AFK: {grund}", COLOR_INFO))
-
 @bot.listen("on_message")
 async def afk_listener(message: discord.Message):
     if message.author.bot or not message.guild:
@@ -7137,34 +6410,874 @@ async def _check_vpn(ip: str) -> bool:
     return False
 
 
-@bot.tree.command(name="antivpn", description="Aktiviert/Deaktiviert die VPN/Proxy-Erkennung")
-@app_commands.describe(enabled="An oder Aus", action="Aktion bei VPN-Erkennung")
+# ═══════════════════════════════════════════════════════════════════
+# MODFORGE CUSTOM FEATURES
+# ═══════════════════════════════════════════════════════════════════
+from collections import defaultdict as _dd
+
+_dm_sent = {}
+async def safe_dm(user, embed, cooldown_key=None, cooldown_seconds=30):
+    if user.bot: return False
+    key = cooldown_key or f"{user.id}:{embed.title or 'dm'}"
+    now = time.time()
+    if key in _dm_sent and now - _dm_sent[key] < cooldown_seconds: return False
+    try:
+        await user.send(embed=embed)
+        _dm_sent[key] = now
+        for k in [k for k,v in _dm_sent.items() if now - v > 300]: _dm_sent.pop(k, None)
+        return True
+    except (discord.Forbidden, discord.HTTPException): return False
+
+# ── USERINFO ──
+async def _userinfo(guild, target, requester):
+    if not target: target = requester
+    joined = f"<t:{int(target.joined_at.timestamp())}:R>" if target.joined_at else "?"
+    created = f"<t:{int(target.created_at.timestamp())}:R>"
+    age = (discord.utils.utcnow() - target.created_at).days
+    roles = [r.mention for r in target.roles if r != guild.default_role][:15]
+    risk = 0
+    if age < 7: risk += 30
+    elif age < 30: risk += 15
+    if not target.avatar: risk += 10
+    risk = min(risk, 100)
+    rc = "🟢" if risk < 25 else "🟡" if risk < 50 else "🟠" if risk < 75 else "🔴"
+    timeout_str = "Nein"
+    if target.timed_out_until and target.timed_out_until > discord.utils.utcnow():
+        timeout_str = f"Bis <t:{int(target.timed_out_until.timestamp())}:R>"
+    voice_str = "—"
+    if target.voice and target.voice.channel:
+        v = target.voice
+        flags = []
+        if v.mute or v.self_mute: flags.append("🔇")
+        if v.deaf or v.self_deaf: flags.append("🔇D")
+        if v.self_stream: flags.append("📺")
+        voice_str = f"{v.channel.mention}" + (f" ({' '.join(flags)})" if flags else "")
+    e = create_embed(f"{E.USERS} {target.display_name}", f"{target.mention} (`{target.id}`)", COLOR_INFO,
+        [("📅 Erstellt",created,True),("📥 Beigetreten",joined,True),(f"{rc} Risk",f"{risk}/100",True),
+         ("⏳ Timeout",timeout_str,True),("🎤 Voice",voice_str,True),
+         (f"🏷️ Rollen ({len(roles)})",", ".join(roles) or "Keine",False)],
+        thumbnail=target.display_avatar.url)
+    return e
+
+@bot.tree.command(name="userinfo", description="Zeigt User-Infos + Risk-Score")
+@app_commands.describe(member="User (optional)")
+async def slash_userinfo(interaction: discord.Interaction, member: discord.Member = None):
+    try:
+        await interaction.response.send_message(embed=await _userinfo(interaction.guild, member or interaction.user, interaction.user))
+    except Exception as e:
+        log.error(f"userinfo: {e}")
+        try: await interaction.response.send_message(f"Fehler: {e}", ephemeral=True)
+        except: pass
+
+@bot.command(name="userinfo", aliases=["ui","whois"])
+async def prefix_userinfo(ctx, member: discord.Member = None):
+    try: await ctx.send(embed=await _userinfo(ctx.guild, member or ctx.author, ctx.author))
+    except Exception as e: await ctx.send(f"Fehler: {e}")
+
+# ── SERVERINFO ──
+@bot.tree.command(name="serverinfo", description="Server-Statistiken")
+async def slash_serverinfo(interaction: discord.Interaction):
+    try:
+        g = interaction.guild
+        bots = sum(1 for m in g.members if m.bot)
+        e = create_embed(f"{E.SERVER} {g.name}", f"ID: `{g.id}`", COLOR_PRIMARY,
+            [("👑 Owner",g.owner.mention if g.owner else "?",True),("📅 Erstellt",f"<t:{int(g.created_at.timestamp())}:R>",True),
+             ("👥 Members",f"{g.member_count-bots} + {bots} Bots",True),("💎 Boosts",f"{g.premium_subscription_count or 0} (T{g.premium_tier})",True),
+             ("📁 Kanäle",str(len(g.channels)),True),("🏷️ Rollen",str(len(g.roles)-1),True)],
+            thumbnail=g.icon.url if g.icon else None)
+        await interaction.response.send_message(embed=e)
+    except Exception as e:
+        try: await interaction.response.send_message(f"Fehler: {e}", ephemeral=True)
+        except: pass
+
+@bot.command(name="serverinfo", aliases=["si"])
+async def prefix_serverinfo(ctx):
+    try:
+        g = ctx.guild
+        await ctx.send(embed=create_embed(f"{E.SERVER} {g.name}", f"Members: {g.member_count} · Kanäle: {len(g.channels)} · Boosts: {g.premium_subscription_count or 0}", COLOR_PRIMARY, thumbnail=g.icon.url if g.icon else None))
+    except Exception as e: await ctx.send(f"Fehler: {e}")
+
+# ── MODSTATS ──
+@bot.tree.command(name="modstats", description="Moderator-Statistiken")
+@app_commands.describe(moderator="Spezifischer Mod (optional)")
+async def slash_modstats(interaction: discord.Interaction, moderator: discord.Member = None):
+    try:
+        await interaction.response.defer()
+        cases = await bot.db.cases.find({"guild_id": str(interaction.guild.id)} | ({"moderator_id": str(moderator.id)} if moderator else {})).sort("timestamp", -1).to_list(500) or []
+        if moderator:
+            bans = sum(1 for c in cases if c.get("action")=="ban")
+            kicks = sum(1 for c in cases if c.get("action")=="kick")
+            warns = sum(1 for c in cases if c.get("action")=="warn")
+            await interaction.followup.send(embed=create_embed(f"📊 {moderator.display_name}",f"🔨 Bans: {bans} · 👢 Kicks: {kicks} · ⚠️ Warns: {warns} · 📋 Total: {len(cases)}",COLOR_INFO,thumbnail=moderator.display_avatar.url))
+        else:
+            counts = _dd(int)
+            for c in cases: counts[c.get("moderator_id","?")] += 1
+            top = sorted(counts.items(), key=lambda x:x[1], reverse=True)[:10]
+            ranking = "\n".join(f"{'🥇🥈🥉'[i] if i<3 else f'`{i+1}.'} <@{mid}> — **{cnt}**" for i,(mid,cnt) in enumerate(top)) or "Keine Daten."
+            await interaction.followup.send(embed=create_embed(f"📊 Mod-Ranking ({len(cases)} Cases)",ranking,COLOR_PRIMARY))
+    except Exception as e:
+        try: await interaction.followup.send(f"Fehler: {e}")
+        except: pass
+
+@bot.command(name="modstats",aliases=["ms"])
+async def prefix_modstats(ctx, member: discord.Member = None):
+    try:
+        cases = await bot.db.cases.find({"guild_id":str(ctx.guild.id)} | ({"moderator_id":str(member.id)} if member else {})).to_list(200) or []
+        await ctx.send(embed=create_embed(f"📊 Mod-Stats",f"Total: {len(cases)} Cases",COLOR_INFO))
+    except Exception as e: await ctx.send(f"Fehler: {e}")
+
+# ── SOFTBAN ──
+@bot.tree.command(name="softban", description="Ban+Unban (löscht Nachrichten)")
+@app_commands.describe(member="User",reason="Grund",days="Tage Nachrichten löschen")
+@app_commands.default_permissions(ban_members=True)
+async def slash_softban(interaction: discord.Interaction, member: discord.Member, reason: str = "Softban", days: int = 1):
+    try:
+        days = max(1,min(days,7))
+        dm_e = create_embed(f"{E.BAN} Softban",f"Du wurdest von **{interaction.guild.name}** softgebannt.\n**Grund:** {reason}",COLOR_DANGER,thumbnail=interaction.guild.icon.url if interaction.guild.icon else None)
+        await safe_dm(member, dm_e, cooldown_key=f"softban:{interaction.guild.id}:{member.id}")
+        await member.ban(reason=f"Softban: {reason}",delete_message_seconds=days*86400)
+        await interaction.guild.unban(member,reason="Softban auto-unban")
+        case_id = await bot.db.acreate_case(interaction.guild.id,member.id,interaction.user.id,"softban",reason)
+        await bot.log_action(interaction.guild,f"🔨 Softban",f"{member.mention} von {interaction.user.mention}\nGrund: {reason}",COLOR_DANGER,user=member,module="moderation")
+        await interaction.response.send_message(embed=create_embed(f"{E.OK} Softban",f"{member.mention} softgebannt. Case #{case_id}",COLOR_SUCCESS))
+    except Exception as e:
+        try: await interaction.response.send_message(f"Fehler: {e}",ephemeral=True)
+        except: pass
+
+@bot.command(name="softban",aliases=["sb"])
+@commands.has_permissions(ban_members=True)
+async def prefix_softban(ctx, member: discord.Member = None, *, reason="Softban"):
+    if not member: return await ctx.send("Nutze: `!softban @User [Grund]`")
+    try:
+        await member.ban(reason=f"Softban: {reason}",delete_message_seconds=86400)
+        await ctx.guild.unban(member,reason="Softban")
+        await ctx.send(embed=create_embed(f"{E.OK}",f"{member.mention} softgebannt.",COLOR_SUCCESS))
+    except Exception as e: await ctx.send(f"Fehler: {e}")
+
+# ── REPORT ──
+@bot.tree.command(name="report", description="Meldet einen User")
+@app_commands.describe(member="User",reason="Grund")
+async def slash_report(interaction: discord.Interaction, member: discord.Member, reason: str):
+    try:
+        cfg = bot.db.get_config(interaction.guild.id)
+        ch_id = cfg.get("report_channel") or cfg.get("log_channel")
+        if not ch_id: return await interaction.response.send_message("Kein Report-Kanal.",ephemeral=True)
+        ch = interaction.guild.get_channel(int(ch_id))
+        if ch:
+            await ch.send(embed=create_embed("🚨 Report",f"**User:** {member.mention}\n**Von:** {interaction.user.mention}\n**Grund:** {reason}",COLOR_DANGER,thumbnail=member.display_avatar.url))
+        await interaction.response.send_message(embed=create_embed(f"{E.OK}","Report gesendet.",COLOR_SUCCESS),ephemeral=True)
+    except Exception as e:
+        try: await interaction.response.send_message(f"Fehler: {e}",ephemeral=True)
+        except: pass
+
+@bot.tree.command(name="report_setup", description="Setzt Report-Kanal")
+@app_commands.describe(channel="Kanal")
 @app_commands.default_permissions(administrator=True)
-async def slash_antivpn(interaction: discord.Interaction, enabled: bool, action: str = "kick") -> None:
-    if action not in ("kick", "ban", "log"):
-        action = "kick"
-    cfg = bot.db.get_config(interaction.guild.id)
-    cfg["anti_vpn"] = {"enabled": enabled, "action": action, "whitelist_ids": cfg.get("anti_vpn", {}).get("whitelist_ids", [])}
-    await bot.db.set_config(interaction.guild.id, cfg)
-    status = "**aktiviert** ✅" if enabled else "**deaktiviert** ❌"
-    desc = f"Anti-VPN {status}\nAktion: `{action}`"
-    if enabled:
-        desc += "\n\nNeue Member mit VPN/Proxy werden automatisch erkannt."
-    await interaction.response.send_message(embed=create_embed(f"{E.SHIELD} Anti-VPN", desc, COLOR_SUCCESS if enabled else COLOR_WARNING))
+async def slash_report_setup(interaction: discord.Interaction, channel: discord.TextChannel):
+    try:
+        cfg = bot.db.get_config(interaction.guild.id)
+        cfg["report_channel"] = channel.id
+        await bot.db.set_config(interaction.guild.id, cfg)
+        await interaction.response.send_message(embed=create_embed(f"{E.OK}",f"Report-Kanal: {channel.mention}",COLOR_SUCCESS))
+    except Exception as e:
+        try: await interaction.response.send_message(f"Fehler: {e}",ephemeral=True)
+        except: pass
+
+@bot.command(name="report")
+async def prefix_report(ctx, member: discord.Member = None, *, reason="Kein Grund"):
+    if not member: return await ctx.send("Nutze: `!report @User Grund`")
+    try:
+        cfg = bot.db.get_config(ctx.guild.id)
+        ch_id = cfg.get("report_channel") or cfg.get("log_channel")
+        if ch_id:
+            ch = ctx.guild.get_channel(int(ch_id))
+            if ch: await ch.send(embed=create_embed("🚨 Report",f"**User:** {member.mention}\n**Von:** {ctx.author.mention}\n**Grund:** {reason}",COLOR_DANGER))
+        await ctx.send(embed=create_embed(f"{E.OK}","Report gesendet.",COLOR_SUCCESS))
+    except Exception as e: await ctx.send(f"Fehler: {e}")
+
+# ── INVITES ──
+@bot.tree.command(name="invites", description="Invite-Statistiken")
+@app_commands.describe(member="User")
+async def slash_invites(interaction: discord.Interaction, member: discord.Member = None):
+    try:
+        target = member or interaction.user
+        invites = await interaction.guild.invites()
+        ui = [i for i in invites if i.inviter and i.inviter.id == target.id]
+        total = sum(i.uses for i in ui)
+        lines = "\n".join(f"`{i.code}` — **{i.uses}** Uses" for i in sorted(ui,key=lambda x:x.uses,reverse=True)[:10]) or "Keine Invites."
+        await interaction.response.send_message(embed=create_embed(f"📨 {target.display_name}",f"**{total}** Einladungen\n\n{lines}",COLOR_INFO,thumbnail=target.display_avatar.url))
+    except Exception as e:
+        try: await interaction.response.send_message(f"Fehler: {e}",ephemeral=True)
+        except: pass
+
+# prefix only: invite_track
+@app_commands.describe(enabled="An/Aus")
+@app_commands.default_permissions(administrator=True)
+async def slash_invite_track(interaction: discord.Interaction, enabled: bool):
+    try:
+        cfg = bot.db.get_config(interaction.guild.id)
+        cfg["invite_tracking"] = {"enabled": enabled}
+        await bot.db.set_config(interaction.guild.id, cfg)
+        if enabled:
+            invites = await interaction.guild.invites()
+            bot._invite_cache = getattr(bot, "_invite_cache", {})
+            bot._invite_cache[interaction.guild.id] = {i.code: i.uses for i in invites}
+        await interaction.response.send_message(embed=create_embed(f"{E.OK}",f"Invite-Tracking {'aktiviert' if enabled else 'deaktiviert'}",COLOR_SUCCESS if enabled else COLOR_WARNING))
+    except Exception as e:
+        try: await interaction.response.send_message(f"Fehler: {e}",ephemeral=True)
+        except: pass
+
+@bot.command(name="invites",aliases=["inv"])
+async def prefix_invites(ctx, member: discord.Member = None):
+    try:
+        target = member or ctx.author
+        invites = await ctx.guild.invites()
+        total = sum(i.uses for i in invites if i.inviter and i.inviter.id == target.id)
+        await ctx.send(embed=create_embed(f"📨 {target.display_name}",f"**{total}** Einladungen",COLOR_INFO))
+    except Exception as e: await ctx.send(f"Fehler: {e}")
+
+# ── LOCKALL / UNLOCKALL ──
+@bot.tree.command(name="lockall", description="Sperrt ALLE Kanäle")
+@app_commands.describe(reason="Grund")
+@app_commands.default_permissions(administrator=True)
+async def slash_lockall(interaction: discord.Interaction, reason: str = "Lockdown"):
+    try:
+        await interaction.response.defer()
+        locked = 0
+        for ch in interaction.guild.text_channels:
+            try: await ch.set_permissions(interaction.guild.default_role,send_messages=False,reason=reason); locked += 1
+            except: pass
+            await asyncio.sleep(0.3)
+        await bot.log_action(interaction.guild,f"{E.LOCK} Lockdown",f"{interaction.user.mention}: {locked} Kanäle gesperrt\nGrund: {reason}",COLOR_DANGER,user=interaction.user,module="moderation")
+        await interaction.followup.send(embed=create_embed(f"{E.LOCK}",f"**{locked}** Kanäle gesperrt.",COLOR_DANGER))
+    except Exception as e:
+        try: await interaction.followup.send(f"Fehler: {e}")
+        except: pass
+
+@bot.tree.command(name="unlockall", description="Entsperrt ALLE Kanäle")
+@app_commands.default_permissions(administrator=True)
+async def slash_unlockall(interaction: discord.Interaction):
+    try:
+        await interaction.response.defer()
+        ul = 0
+        for ch in interaction.guild.text_channels:
+            try: await ch.set_permissions(interaction.guild.default_role,send_messages=None,reason="Unlock"); ul += 1
+            except: pass
+            await asyncio.sleep(0.3)
+        await interaction.followup.send(embed=create_embed(f"{E.UNLOCK}",f"**{ul}** Kanäle entsperrt.",COLOR_SUCCESS))
+    except Exception as e:
+        try: await interaction.followup.send(f"Fehler: {e}")
+        except: pass
+
+@bot.command(name="lockall")
+@commands.has_permissions(administrator=True)
+async def prefix_lockall(ctx, *, reason="Lockdown"):
+    try:
+        locked = 0
+        for ch in ctx.guild.text_channels:
+            try: await ch.set_permissions(ctx.guild.default_role,send_messages=False,reason=reason); locked += 1
+            except: pass
+        await ctx.send(embed=create_embed(f"{E.LOCK}",f"{locked} Kanäle gesperrt.",COLOR_DANGER))
+    except Exception as e: await ctx.send(f"Fehler: {e}")
+
+@bot.command(name="unlockall")
+@commands.has_permissions(administrator=True)
+async def prefix_unlockall(ctx):
+    try:
+        ul = 0
+        for ch in ctx.guild.text_channels:
+            try: await ch.set_permissions(ctx.guild.default_role,send_messages=None); ul += 1
+            except: pass
+        await ctx.send(embed=create_embed(f"{E.UNLOCK}",f"{ul} Kanäle entsperrt.",COLOR_SUCCESS))
+    except Exception as e: await ctx.send(f"Fehler: {e}")
+
+# ── HISTORY ──
+@bot.tree.command(name="history", description="Komplette Mod-History eines Users")
+@app_commands.describe(member="User")
+@app_commands.default_permissions(manage_messages=True)
+async def slash_history(interaction: discord.Interaction, member: discord.Member):
+    try:
+        await interaction.response.defer()
+        entries = []
+        try:
+            cases = await bot.db.cases.find({"guild_id":str(interaction.guild.id),"user_id":str(member.id)}).sort("timestamp",-1).to_list(20) or []
+            for c in cases:
+                ts = f"<t:{int(c['timestamp'].timestamp())}:R>" if c.get('timestamp') else ""
+                entries.append(f"📋 **#{c.get('case_id','?')}** {c.get('action','?')} — {c.get('reason','—')[:40]} {ts}")
+        except: pass
+        try:
+            notes = await bot.db.notes.find({"guild_id":str(interaction.guild.id),"user_id":str(member.id)}).to_list(10) or []
+            for n in notes: entries.append(f"📝 Notiz: {n.get('text','')[:40]}")
+        except: pass
+        risk = min(len(entries)*8, 100)
+        rc = "🟢" if risk<25 else "🟡" if risk<50 else "🟠" if risk<75 else "🔴"
+        await interaction.followup.send(embed=create_embed(f"📜 History – {member.display_name} ({len(entries)})","\n".join(entries[:20]) or "Keine Einträge.",COLOR_INFO,
+            [(f"{rc} Risk",f"{risk}/100",True)],thumbnail=member.display_avatar.url))
+    except Exception as e:
+        try: await interaction.followup.send(f"Fehler: {e}")
+        except: pass
+
+@bot.command(name="history")
+@commands.has_permissions(manage_messages=True)
+async def prefix_history(ctx, member: discord.Member = None):
+    if not member: return await ctx.send("Nutze: `!history @User`")
+    try:
+        cases = await bot.db.cases.find({"guild_id":str(ctx.guild.id),"user_id":str(member.id)}).sort("timestamp",-1).to_list(10) or []
+        lines = [f"📋 #{c.get('case_id','?')} {c.get('action','?')} — {c.get('reason','—')[:40]}" for c in cases]
+        await ctx.send(embed=create_embed(f"📜 History ({len(lines)})","\n".join(lines) or "Keine.",COLOR_INFO))
+    except Exception as e: await ctx.send(f"Fehler: {e}")
+
+# ── NOTE / SNIPE / POLL / AFK / PURGE / RAIDMODE / SERVERTAG / ROLEINFO / AUTOSLOWMODE / ANTIVPN ──
+# (keeping them shorter but all with try/except)
+
+@bot.tree.command(name="note", description="Interne Mod-Notiz")
+@app_commands.describe(member="User",text="Notiz")
+@app_commands.default_permissions(manage_messages=True)
+async def slash_note(interaction: discord.Interaction, member: discord.Member, text: str):
+    try:
+        await bot.db.notes.insert_one({"guild_id":str(interaction.guild.id),"user_id":str(member.id),"mod_id":str(interaction.user.id),"text":text,"timestamp":datetime.datetime.utcnow()})
+        await interaction.response.send_message(embed=create_embed(f"{E.OK}",f"Notiz für {member.mention}: {text}",COLOR_SUCCESS),ephemeral=True)
+    except Exception as e:
+        try: await interaction.response.send_message(f"Fehler: {e}",ephemeral=True)
+        except: pass
+
+@bot.tree.command(name="notes", description="Zeigt Notizen")
+@app_commands.describe(member="User")
+@app_commands.default_permissions(manage_messages=True)
+async def slash_notes(interaction: discord.Interaction, member: discord.Member):
+    try:
+        notes = await bot.db.notes.find({"guild_id":str(interaction.guild.id),"user_id":str(member.id)}).sort("timestamp",-1).to_list(20) or []
+        if not notes: return await interaction.response.send_message(embed=create_embed("📝","Keine Notizen.",COLOR_INFO),ephemeral=True)
+        lines = [f"`{i}.` {n['text'][:80]} — <@{n['mod_id']}>" for i,n in enumerate(notes,1)]
+        await interaction.response.send_message(embed=create_embed(f"📝 Notizen ({len(notes)})","\n".join(lines),COLOR_INFO),ephemeral=True)
+    except Exception as e:
+        try: await interaction.response.send_message(f"Fehler: {e}",ephemeral=True)
+        except: pass
+
+@bot.command(name="note")
+@commands.has_permissions(manage_messages=True)
+async def prefix_note(ctx, member: discord.Member = None, *, text=""):
+    if not member or not text: return await ctx.send("Nutze: `!note @User Text`")
+    try:
+        await bot.db.notes.insert_one({"guild_id":str(ctx.guild.id),"user_id":str(member.id),"mod_id":str(ctx.author.id),"text":text,"timestamp":datetime.datetime.utcnow()})
+        await ctx.send(embed=create_embed(f"{E.OK}",f"Notiz gespeichert.",COLOR_SUCCESS))
+    except Exception as e: await ctx.send(f"Fehler: {e}")
+
+@bot.command(name="notes")
+@commands.has_permissions(manage_messages=True)
+async def prefix_notes(ctx, member: discord.Member = None):
+    if not member: return await ctx.send("Nutze: `!notes @User`")
+    try:
+        notes = await bot.db.notes.find({"guild_id":str(ctx.guild.id),"user_id":str(member.id)}).to_list(10) or []
+        lines = [f"`{i}.` {n['text'][:80]}" for i,n in enumerate(notes,1)]
+        await ctx.send(embed=create_embed(f"📝 ({len(notes)})","\n".join(lines) or "Keine.",COLOR_INFO))
+    except Exception as e: await ctx.send(f"Fehler: {e}")
+
+_snipe_cache = {}
+_editsnipe_cache = {}
+@bot.listen("on_message_delete")
+async def snipe_del(msg):
+    if msg.author.bot or not msg.guild: return
+    _snipe_cache.setdefault(msg.guild.id,{})[msg.channel.id] = {"content":msg.content[:1500],"author":msg.author,"ts":time.time(),"attachments":[a.url for a in msg.attachments][:3]}
+
+@bot.listen("on_message_edit")
+async def snipe_edit(before,after):
+    if before.author.bot or not before.guild or before.content==after.content: return
+    _editsnipe_cache.setdefault(before.guild.id,{})[before.channel.id] = {"before":before.content[:1000],"after":after.content[:1000],"author":before.author,"ts":time.time()}
+
+@bot.tree.command(name="snipe", description="Letzte gelöschte Nachricht")
+@app_commands.default_permissions(manage_messages=True)
+async def slash_snipe(interaction: discord.Interaction):
+    try:
+        d = _snipe_cache.get(interaction.guild.id,{}).get(interaction.channel.id)
+        if not d or time.time()-d["ts"]>300: return await interaction.response.send_message("Nichts zu snipen.",ephemeral=True)
+        e = create_embed("🔍 Snipe",d["content"] or "*Leer*",COLOR_WARNING)
+        e.set_author(name=str(d["author"]),icon_url=d["author"].display_avatar.url)
+        await interaction.response.send_message(embed=e,ephemeral=True)
+    except Exception as ex:
+        try: await interaction.response.send_message(f"Fehler: {ex}",ephemeral=True)
+        except: pass
+
+@bot.tree.command(name="editsnipe", description="Letzte bearbeitete Nachricht")
+@app_commands.default_permissions(manage_messages=True)
+async def slash_editsnipe(interaction: discord.Interaction):
+    try:
+        d = _editsnipe_cache.get(interaction.guild.id,{}).get(interaction.channel.id)
+        if not d or time.time()-d["ts"]>300: return await interaction.response.send_message("Nichts.",ephemeral=True)
+        e = create_embed("✏️ Editsnipe","",COLOR_INFO)
+        e.set_author(name=str(d["author"]),icon_url=d["author"].display_avatar.url)
+        e.add_field(name="Vorher",value=d["before"][:1000],inline=False)
+        e.add_field(name="Nachher",value=d["after"][:1000],inline=False)
+        await interaction.response.send_message(embed=e,ephemeral=True)
+    except Exception as ex:
+        try: await interaction.response.send_message(f"Fehler: {ex}",ephemeral=True)
+        except: pass
+
+@bot.command(name="snipe")
+@commands.has_permissions(manage_messages=True)
+async def prefix_snipe(ctx):
+    d = _snipe_cache.get(ctx.guild.id,{}).get(ctx.channel.id)
+    if not d or time.time()-d["ts"]>300: return await ctx.send("Nichts zu snipen.")
+    e = create_embed("🔍",d["content"] or "*Leer*",COLOR_WARNING)
+    e.set_author(name=str(d["author"]),icon_url=d["author"].display_avatar.url)
+    await ctx.send(embed=e)
+
+@bot.command(name="editsnipe",aliases=["esnipe"])
+@commands.has_permissions(manage_messages=True)
+async def prefix_editsnipe(ctx):
+    d = _editsnipe_cache.get(ctx.guild.id,{}).get(ctx.channel.id)
+    if not d or time.time()-d["ts"]>300: return await ctx.send("Nichts.")
+    e = create_embed("✏️","",COLOR_INFO)
+    e.add_field(name="Vorher",value=d["before"][:1000],inline=False)
+    e.add_field(name="Nachher",value=d["after"][:1000],inline=False)
+    await ctx.send(embed=e)
+
+@bot.tree.command(name="poll", description="Abstimmung erstellen")
+@app_commands.describe(frage="Frage",opt1="Option 1",opt2="Option 2",opt3="Option 3",opt4="Option 4")
+async def slash_poll(interaction: discord.Interaction, frage: str, opt1: str, opt2: str, opt3: str=None, opt4: str=None):
+    try:
+        opts = [opt1,opt2]+(([opt3] if opt3 else [])+([opt4] if opt4 else []))
+        emojis = ["1️⃣","2️⃣","3️⃣","4️⃣"]
+        desc = "\n".join(f"{emojis[i]} {o}" for i,o in enumerate(opts))
+        e = create_embed(f"📊 {frage}",desc,COLOR_PRIMARY)
+        await interaction.response.send_message(embed=e)
+        msg = await interaction.original_response()
+        for i in range(len(opts)): await msg.add_reaction(emojis[i])
+    except Exception as ex:
+        try: await interaction.response.send_message(f"Fehler: {ex}",ephemeral=True)
+        except: pass
+
+@bot.command(name="poll")
+async def prefix_poll(ctx, *, args=""):
+    parts = [p.strip() for p in args.split("|") if p.strip()]
+    if len(parts)<3: return await ctx.send("`!poll Frage | Opt1 | Opt2`")
+    emojis = ["1️⃣","2️⃣","3️⃣","4️⃣"]
+    desc = "\n".join(f"{emojis[i]} {o}" for i,o in enumerate(parts[1:5]))
+    msg = await ctx.send(embed=create_embed(f"📊 {parts[0]}",desc,COLOR_PRIMARY))
+    for i in range(min(len(parts)-1,4)): await msg.add_reaction(emojis[i])
+
+_afk = {}
+@bot.tree.command(name="afk", description="AFK-Status setzen")
+@app_commands.describe(grund="Grund")
+async def slash_afk(interaction: discord.Interaction, grund: str = "AFK"):
+    _afk.setdefault(interaction.guild.id,{})[interaction.user.id] = {"reason":grund,"since":time.time()}
+    await interaction.response.send_message(embed=create_embed("💤",f"{interaction.user.mention} ist AFK: {grund}",COLOR_INFO))
+
+@bot.command(name="afk")
+async def prefix_afk(ctx, *, grund="AFK"):
+    _afk.setdefault(ctx.guild.id,{})[ctx.author.id] = {"reason":grund,"since":time.time()}
+    await ctx.send(embed=create_embed("💤",f"{ctx.author.mention} ist AFK: {grund}",COLOR_INFO))
+
+@bot.listen("on_message")
+async def afk_handler(msg):
+    if msg.author.bot or not msg.guild: return
+    ga = _afk.get(msg.guild.id,{})
+    if msg.author.id in ga:
+        d = ga.pop(msg.author.id)
+        try: await msg.channel.send(f"👋 **{msg.author.display_name}** ist zurück! (War {int((time.time()-d['since'])/60)}m AFK)",delete_after=8)
+        except: pass
+    for m in msg.mentions:
+        if m.id in ga:
+            d = ga[m.id]
+            try: await msg.channel.send(f"💤 **{m.display_name}** ist AFK: {d['reason']}",delete_after=10)
+            except: pass
+
+@bot.tree.command(name="roleinfo", description="Rollen-Info")
+@app_commands.describe(role="Rolle")
+async def slash_roleinfo(interaction: discord.Interaction, role: discord.Role):
+    try:
+        perms = ", ".join(p[0].replace("_"," ").title() for p in role.permissions if p[1])[:200] or "Keine"
+        await interaction.response.send_message(embed=create_embed(f"🏷️ {role.name}",f"Members: {len(role.members)} · Pos: {role.position} · Farbe: {role.color}",role.color.value or COLOR_INFO,
+            [("Berechtigungen",perms,False)]))
+    except Exception as e:
+        try: await interaction.response.send_message(f"Fehler: {e}",ephemeral=True)
+        except: pass
+
+@bot.tree.command(name="channelinfo", description="Channel-Info")
+@app_commands.describe(channel="Channel")
+async def slash_channelinfo(interaction: discord.Interaction, channel: discord.TextChannel):
+    try:
+        await interaction.response.send_message(embed=create_embed(f"📁 #{channel.name}",
+            f"Typ: {channel.type} · Slowmode: {channel.slowmode_delay}s · NSFW: {channel.nsfw}\nTopic: {channel.topic or '—'}",COLOR_INFO))
+    except Exception as e:
+        try: await interaction.response.send_message(f"Fehler: {e}",ephemeral=True)
+        except: pass
+
+@bot.command(name="roleinfo")
+async def prefix_roleinfo(ctx, role: discord.Role = None):
+    if not role: return await ctx.send("`!roleinfo @Rolle`")
+    await ctx.send(embed=create_embed(f"🏷️ {role.name}",f"Members: {len(role.members)} · Pos: {role.position}",role.color.value or COLOR_INFO))
+
+@bot.command(name="channelinfo")
+async def prefix_channelinfo(ctx, channel: discord.TextChannel = None):
+    ch = channel or ctx.channel
+    await ctx.send(embed=create_embed(f"📁 #{ch.name}",f"Slowmode: {ch.slowmode_delay}s · NSFW: {ch.nsfw}",COLOR_INFO))
+
+# ── RAIDMODE ──
+@bot.tree.command(name="raidmode", description="Manueller Raid-Modus")
+@app_commands.describe(enabled="An/Aus",dauer="Minuten (0=manuell)")
+@app_commands.default_permissions(administrator=True)
+async def slash_raidmode(interaction: discord.Interaction, enabled: bool, dauer: int = 0):
+    try:
+        cfg = bot.db.get_config(interaction.guild.id)
+        cfg["raidmode_active"] = enabled
+        await bot.db.set_config(interaction.guild.id, cfg)
+        if enabled:
+            locked = 0
+            for ch in interaction.guild.text_channels:
+                try: await ch.set_permissions(interaction.guild.default_role,send_messages=False,reason="Raidmode"); locked += 1
+                except: pass
+            await interaction.response.send_message(embed=create_embed("🚨 RAID-MODUS",f"{locked} Kanäle gesperrt."+( f"\nAuto-off in {dauer}m" if dauer else ""),COLOR_DANGER))
+            if dauer > 0:
+                await asyncio.sleep(dauer*60)
+                cfg2 = bot.db.get_config(interaction.guild.id)
+                if cfg2.get("raidmode_active"):
+                    cfg2["raidmode_active"] = False
+                    await bot.db.set_config(interaction.guild.id, cfg2)
+                    for ch in interaction.guild.text_channels:
+                        try: await ch.set_permissions(interaction.guild.default_role,send_messages=None)
+                        except: pass
+        else:
+            for ch in interaction.guild.text_channels:
+                try: await ch.set_permissions(interaction.guild.default_role,send_messages=None)
+                except: pass
+            await interaction.response.send_message(embed=create_embed("✅","Raid-Modus aus.",COLOR_SUCCESS))
+    except Exception as e:
+        try: await interaction.response.send_message(f"Fehler: {e}",ephemeral=True)
+        except: pass
+
+@bot.command(name="raidmode")
+@commands.has_permissions(administrator=True)
+async def prefix_raidmode(ctx, action="status"):
+    cfg = bot.db.get_config(ctx.guild.id)
+    if action in ("on","true","1"):
+        cfg["raidmode_active"] = True
+        await bot.db.set_config(ctx.guild.id, cfg)
+        for ch in ctx.guild.text_channels:
+            try: await ch.set_permissions(ctx.guild.default_role,send_messages=False)
+            except: pass
+        await ctx.send(embed=create_embed("🚨","Raid-Modus AKTIV.",COLOR_DANGER))
+    elif action in ("off","false","0"):
+        cfg["raidmode_active"] = False
+        await bot.db.set_config(ctx.guild.id, cfg)
+        for ch in ctx.guild.text_channels:
+            try: await ch.set_permissions(ctx.guild.default_role,send_messages=None)
+            except: pass
+        await ctx.send(embed=create_embed("✅","Raid-Modus aus.",COLOR_SUCCESS))
+    else:
+        await ctx.send(embed=create_embed("🚨",f"Status: {'AKTIV 🔴' if cfg.get('raidmode_active') else '🟢'}",COLOR_INFO))
+
+# ── SERVERTAG ──
+@bot.tree.command(name="servertag_setup", description="Server-Tag einrichten")
+@app_commands.describe(tag="Tag-Text",reward_role="Belohnungsrolle")
+@app_commands.default_permissions(administrator=True)
+async def slash_servertag(interaction: discord.Interaction, tag: str, reward_role: discord.Role):
+    try:
+        cfg = bot.db.get_config(interaction.guild.id)
+        cfg["server_tag"] = {"enabled":True,"tag":tag,"reward_role":reward_role.id}
+        await bot.db.set_config(interaction.guild.id, cfg)
+        await interaction.response.send_message(embed=create_embed(f"{E.OK} Server-Tag",f"Tag: `{tag}`\nRolle: {reward_role.mention}\n\nUser mit dem Tag im Namen bekommen die Rolle automatisch.",COLOR_SUCCESS))
+    except Exception as e:
+        try: await interaction.response.send_message(f"Fehler: {e}",ephemeral=True)
+        except: pass
+
+# prefix only: servertag_off
+@app_commands.default_permissions(administrator=True)
+async def slash_servertag_off(interaction: discord.Interaction):
+    try:
+        cfg = bot.db.get_config(interaction.guild.id)
+        cfg["server_tag"] = {"enabled":False}
+        await bot.db.set_config(interaction.guild.id, cfg)
+        await interaction.response.send_message(embed=create_embed(f"{E.OK}","Server-Tag deaktiviert.",COLOR_WARNING))
+    except Exception as e:
+        try: await interaction.response.send_message(f"Fehler: {e}",ephemeral=True)
+        except: pass
+
+# prefix only: servertag_check
+@app_commands.default_permissions(manage_guild=True)
+async def slash_servertag_check(interaction: discord.Interaction):
+    try:
+        cfg = bot.db.get_config(interaction.guild.id)
+        st = cfg.get("server_tag",{})
+        if not st.get("enabled"): return await interaction.response.send_message("Kein Tag aktiv.",ephemeral=True)
+        tag = st["tag"].lower()
+        has = [m for m in interaction.guild.members if not m.bot and tag in (m.display_name or "").lower()]
+        await interaction.response.send_message(embed=create_embed("🏷️",f"**{len(has)}** User haben `{st['tag']}`:\n"+"\n".join(f"> {m.mention}" for m in has[:15]),COLOR_INFO),ephemeral=True)
+    except Exception as e:
+        try: await interaction.response.send_message(f"Fehler: {e}",ephemeral=True)
+        except: pass
+
+@bot.listen("on_presence_update")
+async def tag_check(before, after):
+    if after.bot: return
+    try:
+        cfg = bot.db.get_config(after.guild.id)
+        st = cfg.get("server_tag",{})
+        if not st.get("enabled") or not st.get("tag") or not st.get("reward_role"): return
+        tag = st["tag"].lower()
+        role = after.guild.get_role(st["reward_role"])
+        if not role: return
+        has_tag = tag in (after.display_name or "").lower() or tag in (after.name or "").lower()
+        if has_tag and role not in after.roles:
+            await after.add_roles(role,reason=f"Server-Tag: {st['tag']}")
+        elif not has_tag and role in after.roles:
+            await after.remove_roles(role,reason=f"Tag entfernt: {st['tag']}")
+    except: pass
+
+# ── NOPREFIX ──
+@bot.tree.command(name="noprefix", description="No-Prefix-Modus")
+@app_commands.describe(enabled="An/Aus")
+@app_commands.default_permissions(administrator=True)
+async def slash_noprefix(interaction: discord.Interaction, enabled: bool):
+    try:
+        cfg = bot.db.get_config(interaction.guild.id)
+        cfg["no_prefix"] = enabled
+        await bot.db.set_config(interaction.guild.id, cfg)
+        await interaction.response.send_message(embed=create_embed(f"{E.OK}",f"No-Prefix {'aktiviert' if enabled else 'deaktiviert'}",COLOR_SUCCESS if enabled else COLOR_WARNING))
+    except Exception as e:
+        try: await interaction.response.send_message(f"Fehler: {e}",ephemeral=True)
+        except: pass
+
+@bot.command(name="noprefix")
+@commands.has_permissions(administrator=True)
+async def prefix_noprefix(ctx, enabled: str = None):
+    cfg = bot.db.get_config(ctx.guild.id)
+    if enabled in ("on","true"): cfg["no_prefix"] = True
+    elif enabled in ("off","false"): cfg["no_prefix"] = False
+    else: cfg["no_prefix"] = not cfg.get("no_prefix",False)
+    await bot.db.set_config(ctx.guild.id, cfg)
+    await ctx.send(embed=create_embed(f"{E.OK}",f"No-Prefix {'AN' if cfg['no_prefix'] else 'AUS'}",COLOR_SUCCESS if cfg["no_prefix"] else COLOR_WARNING))
+
+# prefix only: autobanappeal
+@app_commands.describe(enabled="An/Aus")
+@app_commands.default_permissions(administrator=True)
+async def slash_autobanappeal(interaction: discord.Interaction, enabled: bool):
+    try:
+        cfg = bot.db.get_config(interaction.guild.id)
+        cfg["auto_ban_appeal"] = {"enabled":enabled}
+        await bot.db.set_config(interaction.guild.id, cfg)
+        await interaction.response.send_message(embed=create_embed(f"{E.OK}",f"Auto-Ban-Appeal {'aktiviert' if enabled else 'deaktiviert'}",COLOR_SUCCESS if enabled else COLOR_WARNING))
+    except Exception as e:
+        try: await interaction.response.send_message(f"Fehler: {e}",ephemeral=True)
+        except: pass
+
+# prefix only: warndecay
+@app_commands.describe(days="Tage (0=aus)")
+@app_commands.default_permissions(administrator=True)
+async def slash_warndecay(interaction: discord.Interaction, days: int):
+    try:
+        cfg = bot.db.get_config(interaction.guild.id)
+        cfg["warn_decay"] = {"enabled":days>0,"decay_days":days}
+        await bot.db.set_config(interaction.guild.id, cfg)
+        await interaction.response.send_message(embed=create_embed(f"{E.OK}",f"Warn-Decay: {days} Tage" if days>0 else "Warn-Decay deaktiviert.",COLOR_SUCCESS if days>0 else COLOR_WARNING))
+    except Exception as e:
+        try: await interaction.response.send_message(f"Fehler: {e}",ephemeral=True)
+        except: pass
+
+# prefix only: antivpn
+@app_commands.describe(enabled="An/Aus",action="kick/ban/log")
+@app_commands.default_permissions(administrator=True)
+async def slash_antivpn(interaction: discord.Interaction, enabled: bool, action: str = "kick"):
+    try:
+        cfg = bot.db.get_config(interaction.guild.id)
+        cfg["anti_vpn"] = {"enabled":enabled,"action":action if action in ("kick","ban","log") else "kick"}
+        await bot.db.set_config(interaction.guild.id, cfg)
+        await interaction.response.send_message(embed=create_embed(f"{E.SHIELD}",f"Anti-VPN {'aktiviert' if enabled else 'deaktiviert'} · Aktion: {action}",COLOR_SUCCESS if enabled else COLOR_WARNING))
+    except Exception as e:
+        try: await interaction.response.send_message(f"Fehler: {e}",ephemeral=True)
+        except: pass
+
+# prefix only: webhook_log
+@app_commands.describe(module="Modul",webhook_url="Webhook-URL")
+@app_commands.default_permissions(administrator=True)
+async def slash_webhook_log(interaction: discord.Interaction, module: str, webhook_url: str):
+    try:
+        cfg = bot.db.get_config(interaction.guild.id)
+        wl = cfg.get("webhook_logging",{"enabled":False,"webhooks":{}})
+        wl["enabled"] = True
+        wl.setdefault("webhooks",{})[module] = webhook_url
+        cfg["webhook_logging"] = wl
+        await bot.db.set_config(interaction.guild.id, cfg)
+        await interaction.response.send_message(embed=create_embed(f"{E.OK}",f"Webhook für `{module}` gesetzt.",COLOR_SUCCESS),ephemeral=True)
+    except Exception as e:
+        try: await interaction.response.send_message(f"Fehler: {e}",ephemeral=True)
+        except: pass
+
+# ── PREFIX MIRRORS ──
+@bot.command(name="tempban",aliases=["tb"])
+@commands.has_permissions(ban_members=True)
+async def prefix_tempban(ctx, member: discord.Member=None, duration: str="1d", *, reason="Tempban"):
+    if not member: return await ctx.send("`!tempban @User 7d Grund`")
+    try:
+        dur = parse_duration(duration)
+        if not dur: return await ctx.send("Ungültige Dauer.")
+        await member.ban(reason=f"Tempban: {reason}",delete_message_seconds=86400)
+        await ctx.send(embed=create_embed(f"{E.OK}",f"{member.mention} für {duration} gebannt.",COLOR_SUCCESS))
+    except Exception as e: await ctx.send(f"Fehler: {e}")
+
+@bot.command(name="tempmute",aliases=["tm"])
+@commands.has_permissions(moderate_members=True)
+async def prefix_tempmute(ctx, member: discord.Member=None, duration: str="1h", *, reason="Timeout"):
+    if not member: return await ctx.send("`!tempmute @User 2h Grund`")
+    try:
+        dur = parse_duration(duration)
+        if not dur: return await ctx.send("Ungültige Dauer.")
+        until = discord.utils.utcnow() + datetime.timedelta(seconds=dur)
+        await member.timeout(until,reason=reason)
+        await ctx.send(embed=create_embed(f"{E.OK}",f"{member.mention} für {duration} gemutet.",COLOR_SUCCESS))
+    except Exception as e: await ctx.send(f"Fehler: {e}")
+
+@bot.command(name="case")
+@commands.has_permissions(manage_messages=True)
+async def prefix_case(ctx, case_id: int = None):
+    if not case_id: return await ctx.send("`!case <ID>`")
+    try:
+        c = await bot.db.cases.find_one({"guild_id":str(ctx.guild.id),"case_id":case_id})
+        if not c: return await ctx.send("Case nicht gefunden.")
+        await ctx.send(embed=create_embed(f"📋 #{case_id}",f"Aktion: {c.get('action')}\nUser: <@{c.get('user_id')}>\nMod: <@{c.get('moderator_id')}>\nGrund: {c.get('reason','—')}",COLOR_INFO))
+    except Exception as e: await ctx.send(f"Fehler: {e}")
+
+@bot.command(name="cases")
+@commands.has_permissions(manage_messages=True)
+async def prefix_cases(ctx, member: discord.Member = None):
+    try:
+        q = {"guild_id":str(ctx.guild.id)}
+        if member: q["user_id"] = str(member.id)
+        raw = await bot.db.cases.find(q).sort("case_id",-1).to_list(15) or []
+        lines = [f"**#{c.get('case_id')}** {c.get('action')} — {c.get('reason','—')[:40]}" for c in raw]
+        await ctx.send(embed=create_embed(f"📋 Cases ({len(raw)})","\n".join(lines) or "Keine.",COLOR_INFO))
+    except Exception as e: await ctx.send(f"Fehler: {e}")
+
+@bot.command(name="status")
+async def prefix_status(ctx):
+    try:
+        lat = round(bot.latency*1000) if bot.latency else 0
+        await ctx.send(embed=create_embed(f"{E.BOT} Status",f"Server: {len(bot.guilds)} · Latenz: {lat}ms",COLOR_PRIMARY))
+    except Exception as e: await ctx.send(f"Fehler: {e}")
+
+@bot.command(name="stats")
+async def prefix_stats(ctx):
+    g = ctx.guild
+    await ctx.send(embed=create_embed(f"{E.SERVER} {g.name}",f"Members: {g.member_count} · Kanäle: {len(g.channels)} · Rollen: {len(g.roles)}",COLOR_PRIMARY))
+
+@bot.command(name="help")
+async def prefix_help(ctx):
+    from bot.config import HELP_DATA
+    e = create_embed(f"{E.HELP} ModForge Hilfe","Nutze `/help` für die interaktive Hilfe.\n\n**Kategorien:**",COLOR_PRIMARY)
+    for key,(title,cmds) in HELP_DATA.items():
+        e.add_field(name=title,value=" · ".join(c[0].split(" ")[0] for c in cmds[:5])+" …",inline=False)
+    await ctx.send(embed=e)
+
+@bot.command(name="panic")
+@commands.has_permissions(administrator=True)
+async def prefix_panic(ctx):
+    try:
+        cfg = bot.db.get_config(ctx.guild.id)
+        cfg["security_level"] = 3
+        await bot.db.set_config(ctx.guild.id, cfg)
+        for ch in ctx.guild.text_channels:
+            try: await ch.set_permissions(ctx.guild.default_role,send_messages=False,reason="PANIC")
+            except: pass
+        await ctx.send(embed=create_embed("🚨 LOCKDOWN","Security Level 3. `!unlockdown` zum Aufheben.",COLOR_DANGER))
+    except Exception as e: await ctx.send(f"Fehler: {e}")
+
+@bot.command(name="unlockdown")
+@commands.has_permissions(administrator=True)
+async def prefix_unlockdown(ctx):
+    try:
+        cfg = bot.db.get_config(ctx.guild.id)
+        cfg["security_level"] = 0
+        await bot.db.set_config(ctx.guild.id, cfg)
+        for ch in ctx.guild.text_channels:
+            try: await ch.set_permissions(ctx.guild.default_role,send_messages=None)
+            except: pass
+        await ctx.send(embed=create_embed(f"{E.OK}","Lockdown aufgehoben.",COLOR_SUCCESS))
+    except Exception as e: await ctx.send(f"Fehler: {e}")
+
+@bot.command(name="report_setup")
+@commands.has_permissions(administrator=True)
+async def prefix_report_setup(ctx, channel: discord.TextChannel = None):
+    if not channel: return await ctx.send("`!report_setup #channel`")
+    cfg = bot.db.get_config(ctx.guild.id)
+    cfg["report_channel"] = channel.id
+    await bot.db.set_config(ctx.guild.id, cfg)
+    await ctx.send(embed=create_embed(f"{E.OK}",f"Report-Kanal: {channel.mention}",COLOR_SUCCESS))
+
+@bot.command(name="autorole")
+@commands.has_permissions(administrator=True)
+async def prefix_autorole(ctx, role: discord.Role = None):
+    if not role: return await ctx.send("`!autorole @Rolle`")
+    cfg = bot.db.get_config(ctx.guild.id)
+    ar = cfg.get("auto_role",{"enabled":True,"roles":[]})
+    if role.id not in ar.get("roles",[]): ar.setdefault("roles",[]).append(role.id)
+    ar["enabled"] = True
+    cfg["auto_role"] = ar
+    await bot.db.set_config(ctx.guild.id, cfg)
+    await ctx.send(embed=create_embed(f"{E.OK}",f"Auto-Role {role.mention} hinzugefügt.",COLOR_SUCCESS))
+
+@bot.command(name="massban")
+@commands.has_permissions(ban_members=True)
+async def prefix_massban(ctx, *, ids=""):
+    if not ids: return await ctx.send("`!massban 123,456,789`")
+    id_list = [int(p) for p in re.split(r'[,;\s]+',ids) if p.strip().isdigit()][:50]
+    banned = 0
+    for uid in id_list:
+        try: await ctx.guild.ban(discord.Object(uid),reason=f"Massban durch {ctx.author}"); banned += 1
+        except: pass
+    await ctx.send(embed=create_embed(f"{E.BAN}",f"{banned}/{len(id_list)} gebannt.",COLOR_DANGER))
+
+@bot.command(name="autobanappeal")
+@commands.has_permissions(administrator=True)
+async def prefix_autobanappeal(ctx, enabled: str = None):
+    cfg = bot.db.get_config(ctx.guild.id)
+    on = enabled in ("on","true") if enabled else not cfg.get("auto_ban_appeal",{}).get("enabled",False)
+    cfg["auto_ban_appeal"] = {"enabled":on}
+    await bot.db.set_config(ctx.guild.id, cfg)
+    await ctx.send(embed=create_embed(f"{E.OK}",f"Auto-Ban-Appeal {'AN' if on else 'AUS'}",COLOR_SUCCESS if on else COLOR_WARNING))
+
+@bot.command(name="warndecay")
+@commands.has_permissions(administrator=True)
+async def prefix_warndecay(ctx, days: int = 0):
+    cfg = bot.db.get_config(ctx.guild.id)
+    cfg["warn_decay"] = {"enabled":days>0,"decay_days":days}
+    await bot.db.set_config(ctx.guild.id, cfg)
+    await ctx.send(embed=create_embed(f"{E.OK}",f"Warn-Decay: {days}d" if days>0 else "Warn-Decay aus.",COLOR_SUCCESS if days>0 else COLOR_WARNING))
 
 @bot.command(name="antivpn")
 @commands.has_permissions(administrator=True)
-async def prefix_antivpn(ctx, enabled: str = ""):
+async def prefix_antivpn(ctx, action="status"):
     cfg = bot.db.get_config(ctx.guild.id)
-    if enabled.lower() in ("on", "true", "1", "an"):
-        cfg["anti_vpn"] = {"enabled": True, "action": "kick", "whitelist_ids": cfg.get("anti_vpn", {}).get("whitelist_ids", [])}
-        await bot.db.set_config(ctx.guild.id, cfg)
-        await ctx.send(embed=create_embed(f"{E.SHIELD}", "Anti-VPN aktiviert. Aktion: kick", COLOR_SUCCESS))
-    elif enabled.lower() in ("off", "false", "0", "aus"):
-        cfg["anti_vpn"] = {"enabled": False, "action": "kick"}
-        await bot.db.set_config(ctx.guild.id, cfg)
-        await ctx.send(embed=create_embed(f"{E.SHIELD}", "Anti-VPN deaktiviert.", COLOR_WARNING))
-    else:
-        active = cfg.get("anti_vpn", {}).get("enabled", False)
-        await ctx.send(embed=create_embed(f"{E.SHIELD} Anti-VPN", f"Status: **{'Aktiv' if active else 'Inaktiv'}**\n`!antivpn on` / `!antivpn off`", COLOR_INFO))
+    if action in ("on","true"): cfg["anti_vpn"]={"enabled":True,"action":"kick"}
+    elif action in ("off","false"): cfg["anti_vpn"]={"enabled":False}
+    else: return await ctx.send(embed=create_embed(f"{E.SHIELD}",f"Anti-VPN: {'AN' if cfg.get('anti_vpn',{}).get('enabled') else 'AUS'}",COLOR_INFO))
+    await bot.db.set_config(ctx.guild.id, cfg)
+    await ctx.send(embed=create_embed(f"{E.OK}",f"Anti-VPN {'AN' if cfg.get('anti_vpn',{}).get('enabled') else 'AUS'}",COLOR_SUCCESS))
+
+# No-prefix handler
+@bot.listen("on_message")
+async def noprefix_handler(msg):
+    if msg.author.bot or not msg.guild: return
+    cfg = bot.db.get_config(msg.guild.id)
+    if not cfg.get("no_prefix"): return
+    content = msg.content.strip()
+    if not content or content[0] in "!/?.": return
+    cmd = content.split(None,1)[0].lower()
+    allowed = {"ban","kick","warn","mute","unmute","clear","lock","unlock","nick","softban","lockall","unlockall","slowmode","tempban","tempmute","unban","userinfo","serverinfo","modstats","invites","report","cases","case","status","stats","help","panic","unlockdown","massban","autorole","warnings","clearwarnings","history","snipe","raidmode"}
+    if cmd not in allowed: return
+    np_users = cfg.get("no_prefix_users",[])
+    ok = (str(msg.author.id) in [str(u) for u in np_users]) if np_users else msg.author.guild_permissions.manage_messages
+    if ok:
+        msg.content = f"{cfg.get('prefix','!')}{content}"
+        await bot.process_commands(msg)
+
+# Auto-response handler
+@bot.listen("on_message")
+async def ar_handler(msg):
+    if msg.author.bot or not msg.guild: return
+    cfg = bot.db.get_config(msg.guild.id)
+    for ar in cfg.get("auto_responses",[]):
+        if ar.get("enabled",True) and ar.get("trigger","").lower() in msg.content.lower():
+            try: await msg.channel.send(ar["response"])
+            except: pass
+            break
 

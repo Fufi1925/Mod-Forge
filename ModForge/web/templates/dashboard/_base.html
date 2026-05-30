@@ -133,7 +133,12 @@
       <a href="/dashboard/{{ guild.id }}/welcome" {% if active=='welcome' %}class="active"{% endif %}><span class="nav-icon">👋</span><span>Welcome</span></a>
       <a href="/dashboard/{{ guild.id }}/roles" {% if active=='roles' %}class="active"{% endif %}><span class="nav-icon">🏷️</span><span>Rollen</span></a>
       <a href="/dashboard/{{ guild.id }}/autoresponse" {% if active=='autoresponse' %}class="active"{% endif %}><span class="nav-icon">💬</span><span>Auto-Antwort</span></a>
+      <div class="db-nav-label">Analyse</div>
+      <a href="/dashboard/{{ guild.id }}/stats" {% if active=='stats' %}class="active"{% endif %}><span class="nav-icon">📊</span><span>Statistiken</span></a>
+      <a href="/dashboard/{{ guild.id }}/livefeed" {% if active=='livefeed' %}class="active"{% endif %}><span class="nav-icon">⚡</span><span>Live-Feed</span></a>
+      <a href="/dashboard/{{ guild.id }}/whitelist" {% if active=='whitelist' %}class="active"{% endif %}><span class="nav-icon">🔐</span><span>Whitelist</span></a>
       <div class="db-nav-label">System</div>
+      <a href="/dashboard/{{ guild.id }}/members" {% if active=='members' %}class="active"{% endif %}><span class="nav-icon">👥</span><span>Mitglieder</span></a>
       <a href="/dashboard/{{ guild.id }}/tickets" {% if active=='tickets' %}class="active"{% endif %}><span class="nav-icon">🎫</span><span>Tickets</span></a>
       <a href="/dashboard/{{ guild.id }}/backup" {% if active=='backup' %}class="active"{% endif %}><span class="nav-icon">💾</span><span>Backup</span></a>
       <a href="/dashboard/{{ guild.id }}/embed" {% if active=='embed' %}class="active"{% endif %}><span class="nav-icon">🎨</span><span>Embed Builder</span></a>

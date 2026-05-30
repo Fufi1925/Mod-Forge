@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}{{ server.name }} – ModForge{% endblock %}
+{% block content %}
+<div class="container" style="max-width:700px;padding-top:40px;padding-bottom:80px;text-align:center">
+  <div class="reveal">
+    {% if server.icon %}<img src="{{ server.icon }}" style="width:96px;height:96px;border-radius:50%;margin-bottom:16px;border:3px solid var(--border)">{% else %}<div style="width:96px;height:96px;border-radius:50%;background:rgba(124,58,237,0.2);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:2.5rem;font-weight:900;color:var(--vl)">{{ server.name[0] }}</div>{% endif %}
+    <h1 style="font-size:1.8rem;font-weight:800;margin-bottom:4px">{{ server.name }}</h1>
+    <p style="color:var(--muted);font-size:.88rem;margin-bottom:20px">{{ server.members }} Mitglieder · Geschützt von ModForge</p>
+    <div style="display:inline-flex;align-items:center;gap:8px;padding:8px 20px;border-radius:999px;background:rgba(74,222,128,0.08);border:1px solid rgba(74,222,128,0.2);margin-bottom:24px">
+      <div style="width:8px;height:8px;border-radius:50%;background:var(--green);animation:sPulse 2s ease-in-out infinite"></div>
+      <span style="font-size:.82rem;color:var(--green);font-weight:600">Security Score: {{ server.security }}/100</span>
+    </div>
+  </div>
+  <div class="reveal" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px">
+    <div class="db-stat"><div class="db-stat-val" style="color:var(--vl);font-size:1.2rem">{{ server.active_modules }}</div><div class="db-stat-label">Module aktiv</div></div>
+    <div class="db-stat"><div class="db-stat-val" style="color:var(--cl);font-size:1.2rem">{{ server.members }}</div><div class="db-stat-label">Mitglieder</div></div>
+    <div class="db-stat"><div class="db-stat-val" style="color:var(--green);font-size:1.2rem">{{ server.security }}%</div><div class="db-stat-label">Sicherheit</div></div>
+  </div>
+  <div class="reveal">
+    <h2 style="font-size:1.1rem;font-weight:700;margin-bottom:12px">🛡️ Aktive Schutzmodule</h2>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:24px">
+      {% for mod in server.modules %}<span style="padding:6px 14px;border-radius:999px;background:rgba(74,222,128,0.08);border:1px solid rgba(74,222,128,0.2);font-size:.78rem;color:var(--green)">✅ {{ mod }}</span>{% endfor %}
+    </div>
+  </div>
+  {% if server.invite %}
+  <a href="{{ server.invite }}" class="btn-glass btn-glass-discord btn-lg" target="_blank">Discord beitreten →</a>
+  {% endif %}
+</div>
+{% endblock %}

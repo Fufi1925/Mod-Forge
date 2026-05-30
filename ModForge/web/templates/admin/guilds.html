@@ -10,7 +10,7 @@
 
 <div id="guildList" style="display:flex;flex-direction:column;gap:10px">
   {% for g in guilds %}
-  <a href="/admin/guilds/{{ g.id }}" class="cfg-row guild-item" style="text-decoration:none;cursor:pointer">
+  <a href="/admin/server/{{ g.id }}" class="cfg-row guild-item" style="text-decoration:none;cursor:pointer">
     <div style="display:flex;align-items:center;gap:12px;flex:1;min-width:0">
       {% if g.icon %}
       <img src="{{ g.icon }}" style="width:40px;height:40px;border-radius:50%;object-fit:cover" alt="">

@@ -258,7 +258,12 @@ DEFAULT_CONFIG = {
     "log_filters": {},
     "auto_ban_appeal": {"enabled": False},
     "anti_vpn": {"enabled": False, "action": "kick", "whitelist_ids": []},
-    "dashboard_theme": "purple"
+    "dashboard_theme": "purple",
+    "auto_slowmode": {"enabled": False, "channels": []},
+    "server_tag": {"enabled": False, "tag": None, "reward_role": None},
+    "webhook_logging": {"enabled": False, "webhooks": {}},
+    "public_page": {"enabled": False, "invite_url": None},
+    "birthday": {"enabled": False, "channel_id": None, "role_id": None}
 }
 
 # ═══════════════════════════════════════════════════════════════
@@ -376,7 +381,7 @@ HELP_DATA = {
         ("/massrole_remove <role>", "Rolle von allen entfernen", "Administrator", "/massrole_remove @Old"),
         ("/audit-perms", "Rechte-Audit", "Administrator", "/audit-perms"),
         ("/setarchive <#ch>", "Archiv-Kanal setzen", "Administrator", "/setarchive #archiv"),
-    ]),
+    ])
 }
 
 # ═══════════════════════════════════════════════════════════════
@@ -486,7 +491,7 @@ class ActivityStream:
             "user_id": user_id,
             "user_name": user_name,
             "extra": extra or {},
-            "ts": datetime.datetime.utcnow().isoformat() + "Z",
+            "ts": datetime.datetime.utcnow().isoformat() + "Z"
         }
         with self._lock:
             self.events.append(evt)

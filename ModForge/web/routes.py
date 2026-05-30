@@ -1433,6 +1433,200 @@ def api_guild_embed(guild_id):
         log.error(f"[EMBED API ERROR] {e}")
         return jsonify({"error": str(e)}), 500
 
+
+
+# =========================================================
+# DASHBOARD: MEMBERS PAGE
+# =========================================================
+
+@flask_app.route("/dashboard/<guild_id>/members")
+@require_auth
+def guild_members(guild_id):
+    us, g, cfg, err = _dash_guard(guild_id)
+    if err: return err
+    members = []
+    if g and bot_ready():
+        import datetime as _dt
+        now = _dt.datetime.utcnow()
+        for m in g.members[:200]:
+            age_days = (now - m.created_at.replace(tzinfo=None)).days if m.created_at else 999
+            role_count = len([r for r in m.roles if r != g.default_role])
+            risk = 0
+            if age_days < 7: risk += 30
+            elif age_days < 30: risk += 10
+            if not m.avatar: risk += 10
+            if role_count == 0 and not m.bot: risk += 15
+            risk = min(risk, 100)
+            roles_str = ", ".join([r.name for r in m.roles if r != g.default_role][:5]) or "Keine"
+            members.append({
+                "id": str(m.id), "name": str(m), "bot": m.bot,
+                "avatar": m.display_avatar.url,
+                "risk": risk, "new_account": age_days < 7,
+                "role_count": role_count, "roles_str": roles_str,
+            })
+        members.sort(key=lambda x: x["risk"], reverse=True)
+    return render_template("dashboard/members.html", guild=g, cfg=cfg, user=us["user"], members=members, active="members")
+
+
+# =========================================================
+# PUBLIC SERVER PAGE
+# =========================================================
+
+@flask_app.route("/server/<guild_id>")
+def public_server_page(guild_id):
+    g = get_guild(guild_id)
+    if not g:
+        abort(404)
+    cfg = _get_guild_config(guild_id)
+    pp = cfg.get("public_page", {})
+    # Build server info
+    mods = ["anti_spam","anti_nuke","anti_raid","anti_mention","anti_scam","automod"]
+    active_modules = [m.replace("_"," ").title() for m in mods if cfg.get(m,{}).get("enabled")]
+    sec = min(85 + len(active_modules) * 2, 100)
+    server = {
+        "name": g.name,
+        "icon": g.icon.url if g.icon else None,
+        "members": g.member_count or 0,
+        "security": sec,
+        "active_modules": len(active_modules),
+        "modules": active_modules,
+        "invite": pp.get("invite_url"),
+    }
+    return render_template("server_public.html", server=server)
+
+
+
+
+# =========================================================
+# DASHBOARD: STATS / WHITELIST / LIVEFEED
+# =========================================================
+
+@flask_app.route("/dashboard/<guild_id>/stats")
+@require_auth
+def guild_stats_page(guild_id):
+    us, g, cfg, err = _dash_guard(guild_id)
+    if err: return err
+    import datetime as _dt
+    cases_count = 0
+    case_types = {}
+    top_mods = []
+    days_labels = []
+    days_data = []
+    db = get_db()
+    if db:
+        try:
+            all_cases = safe_async(db.cases.find({"guild_id": str(guild_id)}).sort("case_id", -1).to_list(500), []) or []
+            cases_count = len(all_cases)
+            # Case types
+            for cs in all_cases:
+                a = cs.get("action", "other")
+                case_types[a] = case_types.get(a, 0) + 1
+            # Top mods
+            from collections import Counter
+            mod_counter = Counter(cs.get("moderator_id") for cs in all_cases if cs.get("moderator_id"))
+            top_mods = [{"id": mid, "count": cnt} for mid, cnt in mod_counter.most_common(10)]
+            # Cases per day (last 7 days)
+            now = _dt.datetime.utcnow()
+            for i in range(6, -1, -1):
+                day = now - _dt.timedelta(days=i)
+                label = day.strftime("%a")
+                count = sum(1 for cs in all_cases if cs.get("timestamp") and
+                    cs["timestamp"].date() == day.date())
+                days_labels.append(label)
+                days_data.append(count)
+        except Exception as e:
+            log.debug(f"Stats page error: {e}")
+    active_mods = sum(1 for k in ["anti_spam","anti_nuke","anti_raid","anti_mention","anti_scam","automod"]
+                      if cfg.get(k, {}).get("enabled"))
+    channels_count = len(g.channels) if g else 0
+    return render_template("dashboard/stats.html", guild=g, cfg=cfg, user=us["user"],
+        cases_count=cases_count, case_types=case_types, top_mods=top_mods,
+        active_mods=active_mods, channels_count=channels_count,
+        days_labels=days_labels, days_data=days_data, active="stats")
+
+@flask_app.route("/dashboard/<guild_id>/whitelist")
+@require_auth
+def guild_whitelist(guild_id):
+    us, g, cfg, err = _dash_guard(guild_id)
+    if err: return err
+    wl = {}
+    if bot_ready():
+        try: wl = bot.db.get_whitelist(int(guild_id))
+        except: pass
+    return render_template("dashboard/whitelist.html", guild=g, cfg=cfg, user=us["user"],
+        whitelist=wl, active="whitelist")
+
+@flask_app.route("/dashboard/<guild_id>/livefeed")
+@require_auth
+def guild_livefeed(guild_id):
+    us, g, cfg, err = _dash_guard(guild_id)
+    if err: return err
+    activities = []
+    try:
+        from bot.config import ACTIVITY
+        raw = ACTIVITY.snapshot(30)
+        if isinstance(raw, list):
+            activities = [a for a in raw if str(a.get("guild_id","")) == str(guild_id)][:20]
+    except: pass
+    return render_template("dashboard/livefeed.html", guild=g, cfg=cfg, user=us["user"],
+        activities=activities, active="livefeed")
+
+# =========================================================
+# WHITELIST API
+# =========================================================
+
+@flask_app.route("/api/guild/<guild_id>/whitelist", methods=["POST"])
+@require_auth
+def api_guild_whitelist(guild_id):
+    user_session = get_session()
+    if not user_session or not _user_can_manage_guild_in_session(user_session, guild_id):
+        return jsonify({"error": "forbidden"}), 403
+    data = request.json or {}
+    action = data.get("action")
+    cat = data.get("category", "users")
+    item_id = data.get("id")
+    if not action or not item_id:
+        return jsonify({"error": "missing params"}), 400
+    from bot.utils import _run_async
+    try:
+        wl = bot.db.get_whitelist(int(guild_id))
+        if action == "add":
+            items = wl.get(cat, [])
+            try: item_id = int(item_id)
+            except: pass
+            if item_id not in items:
+                items.append(item_id)
+            wl[cat] = items
+        elif action == "del":
+            try: item_id = int(item_id)
+            except: pass
+            wl[cat] = [x for x in wl.get(cat, []) if str(x) != str(item_id)]
+        _run_async(bot.db.aset_whitelist(int(guild_id), wl))
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+
+
+# =========================================================
+# ADMIN: Full Server Dashboard (same as user, no perm check)
+# =========================================================
+
+@flask_app.route("/admin/server/<guild_id>")
+@admin_required
+def admin_server_dashboard(guild_id):
+    """Admin can open ANY server's full dashboard."""
+    g = get_guild(guild_id)
+    if not g:
+        abort(404)
+    cfg = _get_guild_config(guild_id)
+    overview = _build_overview(cfg, guild_id)
+    return render_template("dashboard/overview.html", guild=g, cfg=cfg,
+        user={"id":"0","username":"Admin","avatar_url":"https://cdn.discordapp.com/embed/avatars/0.png"},
+        overview=overview, active="overview")
+
+
 # 404 / 403 / 500 HANDLER
 # =========================================================
 
