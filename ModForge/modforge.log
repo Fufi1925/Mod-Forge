@@ -61,3 +61,10 @@
 2026-05-30 12:39:56,819 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
 2026-05-30 12:39:56,820 [WARNING] discord.client: davey is not installed, voice will NOT be supported
 2026-05-30 12:39:57,014 [INFO] ModForge.Auth: OAuth2 login redirect → https://discord.com/oauth2/authorize?client_id=1491447622442160248&redirect_uri=http%3A%2F%2Fmod-forge.up.railway.app%2F...
+2026-05-30 13:28:33,299 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-05-30 13:28:33,299 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-05-30 13:30:30,401 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-05-30 13:30:30,401 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-05-30 13:30:30,664 [ERROR] ModForge.Web.Routes: [ASYNC ERROR] cannot import name 'bot_ref' from 'bot.bot' (/home/user/ModForge/bot/bot.py)
+2026-05-30 13:30:30,729 [ERROR] ModForge.Web.Routes: [ASYNC ERROR] cannot import name 'bot_ref' from 'bot.bot' (/home/user/ModForge/bot/bot.py)
+2026-05-30 13:30:30,924 [ERROR] ModForge.Auth: Discord API 401: {"message": "401: Unauthorized", "code": 0}

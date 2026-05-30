@@ -2276,3 +2276,155 @@ details.reveal summary::after {
 .theme-dot[data-t="blue"] { background: #2563eb; }
 .theme-dot[data-t="amoled"] { background: #000; border: 2px solid rgba(255,255,255,0.2); }
 .theme-dot[data-t="green"] { background: #059669; }
+
+/* ═══════════════════════════════════════════════════
+   DASHBOARD IMPROVEMENTS
+═══════════════════════════════════════════════════ */
+
+/* Module detail cards */
+.mod-detail-card {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px;
+  transition: all .2s;
+}
+.mod-detail-card:hover {
+  border-color: rgba(139,92,246,0.2);
+}
+.mod-detail-card.active {
+  border-color: rgba(74,222,128,0.3);
+  background: rgba(74,222,128,0.02);
+}
+.mod-detail-card.inactive {
+  opacity: 0.6;
+}
+
+/* Parameter rows */
+.param-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: rgba(255,255,255,0.02);
+  border-radius: 10px;
+  margin-bottom: 6px;
+  gap: 12px;
+}
+.param-row:hover {
+  background: rgba(255,255,255,0.04);
+}
+.param-label {
+  font-size: .82rem;
+  font-weight: 600;
+  min-width: 140px;
+}
+.param-desc {
+  font-size: .68rem;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+/* Range slider */
+input[type="range"] {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255,255,255,0.1);
+  outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--vl);
+  cursor: pointer;
+  box-shadow: 0 0 8px rgba(124,58,237,0.4);
+}
+
+/* Number input with stepper */
+.num-input {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.num-input button {
+  width: 28px !important;
+  height: 28px !important;
+  padding: 0 !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  font-size: .85rem !important;
+  border-radius: 8px !important;
+}
+
+/* Save notification toast */
+.save-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  padding: 14px 24px;
+  border-radius: 14px;
+  background: rgba(74,222,128,0.15);
+  border: 1px solid rgba(74,222,128,0.3);
+  color: var(--green);
+  font-size: .85rem;
+  font-weight: 600;
+  z-index: 99999;
+  animation: fadeUp .3s ease;
+  display: none;
+}
+.save-toast.show { display: block; }
+
+/* Tab system for modules */
+.module-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 8px;
+  background: rgba(255,255,255,0.02);
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  margin-bottom: 20px;
+  overflow-x: auto;
+  flex-wrap: nowrap;
+}
+.module-tab {
+  padding: 8px 16px;
+  border-radius: 10px;
+  font-size: .78rem;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all .15s;
+  white-space: nowrap;
+  border: none;
+  background: none;
+  font-family: inherit;
+}
+.module-tab:hover {
+  color: var(--fg);
+  background: rgba(255,255,255,0.04);
+}
+.module-tab.active {
+  color: var(--vl);
+  background: rgba(124,58,237,0.1);
+}
+
+/* Server card in dashboard home */
+.server-card::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--v), var(--c));
+  opacity: 0;
+  transition: opacity .2s;
+}
+.server-card:hover::after {
+  opacity: 1;
+}

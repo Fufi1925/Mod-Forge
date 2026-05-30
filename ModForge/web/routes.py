@@ -643,22 +643,19 @@ def logout():
 
 
 def _user_can_manage_guild_in_session(user_session, guild_id):
-    if not user_session or not bot_ready():
+    if not user_session:
         return False
     try:
-        bot_guild_ids = {str(g.id) for g in bot.guilds}
         for g in user_session.get("guilds", []):
             if str(g["id"]) != str(guild_id):
                 continue
             permissions = int(g.get("permissions", 0))
             has_access = (
                 g.get("owner")
-                or (permissions & 0x8)
-                or (permissions & 0x20)
+                or (permissions & 0x8)   # ADMINISTRATOR
+                or (permissions & 0x20)  # MANAGE_GUILD
             )
-            if not has_access:
-                return False
-            return str(g["id"]) in bot_guild_ids
+            return bool(has_access)
     except Exception as e:
         log.error(f"[PERMISSION CHECK ERROR] {e}")
     return False
@@ -674,32 +671,33 @@ def user_dash_home():
     user = user_session["user"]
     manageable = []
 
+    bot_guild_ids = set()
     if bot_ready():
         bot_guild_ids = {str(g.id) for g in bot.guilds}
-        for g in user_session.get("guilds", []):
-            try:
-                permissions = int(g.get("permissions", 0))
-                allowed = (
-                    g.get("owner")
-                    or (permissions & 0x8)
-                    or (permissions & 0x20)
-                )
-                if not allowed:
-                    continue
-                if str(g["id"]) not in bot_guild_ids:
-                    continue
-                manageable.append({
-                    "id": str(g["id"]),
-                    "name": g["name"],
-                    "icon": (
-                        f"https://cdn.discordapp.com/icons/"
-                        f"{g['id']}/{g.get('icon')}.png?size=128"
-                        if g.get("icon")
-                        else "https://cdn.discordapp.com/embed/avatars/0.png"
-                    ),
-                })
-            except Exception as e:
-                log.error(f"[MANAGEABLE ERROR] {e}")
+    for g in user_session.get("guilds", []):
+        try:
+            permissions = int(g.get("permissions", 0))
+            allowed = (
+                g.get("owner")
+                or (permissions & 0x8)
+                or (permissions & 0x20)
+            )
+            if not allowed:
+                continue
+            is_bot_guild = str(g["id"]) in bot_guild_ids
+            manageable.append({
+                "id": str(g["id"]),
+                "name": g["name"],
+                "icon": (
+                    f"https://cdn.discordapp.com/icons/"
+                    f"{g['id']}/{g.get('icon')}.png?size=128"
+                    if g.get("icon")
+                    else "https://cdn.discordapp.com/embed/avatars/0.png"
+                ),
+                "bot_active": is_bot_guild,
+            })
+        except Exception as e:
+            log.error(f"[MANAGEABLE ERROR] {e}")
 
     return render_template(
         "dashboard_home.html",
@@ -1002,6 +1000,28 @@ def _dash_guard(guild_id):
     if not _user_can_manage_guild_in_session(user_session, guild_id):
         return None, None, None, abort(403)
     g = get_guild(guild_id)
+    # If bot is offline, create a mock guild from session data
+    if not g:
+        for sg in user_session.get("guilds", []):
+            if str(sg["id"]) == str(guild_id):
+                class _MockGuild:
+                    def __init__(self, data):
+                        self.id = int(data["id"])
+                        self.name = data.get("name", "Server")
+                        self.member_count = 0
+                        self.icon = None
+                        self.channels = []
+                        self.text_channels = []
+                        self.voice_channels = []
+                        self.categories = []
+                        self.roles = []
+                        self.members = []
+                        self.owner = None
+                        self.owner_id = 0
+                    def __getattr__(self, name):
+                        return None
+                g = _MockGuild(sg)
+                break
     if not g:
         return None, None, None, abort(404)
     cfg = _get_guild_config(guild_id)
@@ -1807,6 +1827,32 @@ def admin_server_dashboard(guild_id, subpage=""):
     overview = _build_overview(cfg, guild_id)
     return render_template("dashboard/overview.html", guild=g, cfg=cfg, user=admin_user, overview=overview, active="overview")
 
+
+
+@flask_app.route("/dashboard/refresh")
+@require_auth
+def dashboard_refresh():
+    """Re-fetches guild list from Discord API without full re-login."""
+    user_session = get_session()
+    if not user_session:
+        return redirect("/dashboard/login")
+    try:
+        from web.auth import _api_request, DISCORD_API
+        token = user_session.get("access_token")
+        if token:
+            guilds = _api_request(
+                f"{DISCORD_API}/users/@me/guilds",
+                headers={"Authorization": f"Bearer {token}"}
+            )
+            if isinstance(guilds, list):
+                # Update session
+                from web.auth import sessions, SESSION_COOKIE
+                sid = request.cookies.get(SESSION_COOKIE)
+                if sid and sid in sessions:
+                    sessions[sid]["guilds"] = guilds
+    except Exception as e:
+        log.debug(f"Refresh error: {e}")
+    return redirect("/dashboard")
 
 # 404 / 403 / 500 HANDLER
 # =========================================================
