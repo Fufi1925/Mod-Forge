@@ -1219,7 +1219,26 @@ def guild_modules(guild_id):
     if err: return err
     section = request.args.get("section", "antispam")
     form = _build_module_form(section, cfg, guild_id)
-    return render_template("dashboard/modules.html", guild=g, cfg=cfg, form=form, user=us["user"], active="modules")
+
+    # Liste aller verfügbaren Sektionen (für Dropdown / Tab-Liste)
+    sections = [
+        {"key": "antispam",     "icon": "⚡", "label": "Anti-Spam"},
+        {"key": "antinuke",     "icon": "💥", "label": "Anti-Nuke"},
+        {"key": "antiraid",     "icon": "🚨", "label": "Anti-Raid"},
+        {"key": "antimention",  "icon": "🔔", "label": "Anti-Mention"},
+        {"key": "antiscam",     "icon": "🎣", "label": "Anti-Scam"},
+        {"key": "automod",      "icon": "🤖", "label": "AutoMod"},
+        {"key": "verify",       "icon": "✅", "label": "Verify"},
+        {"key": "tickets",      "icon": "🎫", "label": "Tickets"},
+        {"key": "autorole",     "icon": "🏷️", "label": "Auto-Rolle"},
+        {"key": "warns",        "icon": "⚠️", "label": "Warn-System"},
+        {"key": "logs",         "icon": "📢", "label": "Logging"},
+    ]
+    return render_template(
+        "dashboard/modules.html",
+        guild=g, cfg=cfg, form=form, user=us["user"], active="modules",
+        sections=sections, current_section=section,
+    )
 
 
 @flask_app.route("/dashboard/<guild_id>/welcome")
@@ -1228,7 +1247,26 @@ def guild_welcome(guild_id):
     us, g, cfg, err = _dash_guard(guild_id)
     if err: return err
     content = _build_welcome_content(cfg, guild_id)
-    return render_template("dashboard/welcome.html", guild=g, cfg=cfg, content=content, user=us["user"], active="welcome")
+
+    # Echte Daten für das überarbeitete Template
+    channels = [{"id": str(ch.id), "name": ch.name} for ch in g.text_channels] if g and hasattr(g, "text_channels") else []
+    guild_roles = [
+        {"id": str(r.id), "name": r.name}
+        for r in (g.roles if g and hasattr(g, "roles") and g.roles else [])
+        if not r.is_default() and not getattr(r, "managed", False)
+    ]
+    bot_id = ""
+    try:
+        if bot_ready() and bot.user:
+            bot_id = str(bot.user.id)
+    except Exception:
+        bot_id = ""
+
+    return render_template(
+        "dashboard/welcome.html",
+        guild=g, cfg=cfg, content=content, user=us["user"], active="welcome",
+        channels=channels, guild_roles=guild_roles, bot_id=bot_id,
+    )
 
 
 # =========================================================
@@ -1466,57 +1504,206 @@ def guild_roles(guild_id):
     return render_template("dashboard/roles.html", guild=g, cfg=cfg, user=us["user"],
                            guild_roles=guild_roles, auto_roles=ar, sticky_roles=sr, active="roles")
 
+def _backups_col():
+    """MongoDB-Collection für Server-Backups (Bot + Direct-DB-Fallback)."""
+    db = get_db()
+    if db is not None:
+        try:
+            return db.client["ModForge"]["backups"]
+        except Exception:
+            pass
+    direct = _get_direct_db()
+    if direct is not None:
+        return direct["backups"]
+    return None
+
+
+def _public_backups_col():
+    """MongoDB-Collection für öffentlich geteilte Backups."""
+    db = get_db()
+    if db is not None:
+        try:
+            return db.client["ModForge"]["public_backups"]
+        except Exception:
+            pass
+    direct = _get_direct_db()
+    if direct is not None:
+        return direct["public_backups"]
+    return None
+
+
+def _ts(value):
+    """datetime/str → Unix-Timestamp-String (oder '')."""
+    if not value:
+        return ""
+    if hasattr(value, "timestamp"):
+        try:
+            return str(int(value.timestamp()))
+        except Exception:
+            return ""
+    if isinstance(value, str):
+        try:
+            import datetime as _dt
+            return str(int(_dt.datetime.fromisoformat(value.replace("Z", "")).timestamp()))
+        except Exception:
+            return ""
+    return ""
+
+
+def _enrich_backup_doc(doc):
+    """Macht aus einem rohen Backup-DB-Dokument ein Template-fertiges Dict."""
+    if not doc:
+        return None
+    payload = doc.get("data") or doc
+    roles = payload.get("roles") or []
+    channels = payload.get("channels") or []
+    categories = payload.get("categories") or []
+    emojis = payload.get("emojis") or []
+    return {
+        "id": doc.get("backup_id") or doc.get("id") or "?",
+        "label": doc.get("label") or "Backup",
+        "created_ts": _ts(doc.get("created_at") or doc.get("timestamp")),
+        "created_by": str(doc.get("created_by") or "—"),
+        "guild_name": doc.get("guild_name") or payload.get("guild_name") or "?",
+        "guild_icon": doc.get("guild_icon_url") or payload.get("guild_icon_url") or "",
+        "roles": len(roles) if isinstance(roles, list) else 0,
+        "channels": len(channels) if isinstance(channels, list) else 0,
+        "categories": len(categories) if isinstance(categories, list) else 0,
+        "emojis": len(emojis) if isinstance(emojis, list) else 0,
+        "has_password": bool(doc.get("password_hash") or doc.get("has_password")),
+        "verification": payload.get("verification_level", 0),
+    }
+
+
 @flask_app.route("/dashboard/<guild_id>/backup")
 @require_auth
 def guild_backup(guild_id):
     us, g, cfg, err = _dash_guard(guild_id)
     if err: return err
     backups = []
-    total_size = 0
-    db = get_db()
-    if db:
+    public_ids = set()
+    col = _backups_col()
+    if col is not None:
         try:
-            raw = safe_async(db.backups.find({"guild_id":str(guild_id)}).sort("created_at",-1).to_list(20),[]) or []
-            for b in raw:
-                # Enrich backup data
-                roles_count = len(b.get("roles",[])) if isinstance(b.get("roles"), list) else 0
-                channels_count = len(b.get("channels",[])) if isinstance(b.get("channels"), list) else 0
-                categories_count = len(b.get("categories",[])) if isinstance(b.get("categories"), list) else 0
-                emojis_count = len(b.get("emojis",[])) if isinstance(b.get("emojis"), list) else 0
-                created = b.get("created_at") or b.get("timestamp","")
-                if hasattr(created, "timestamp"):
-                    created_ts = str(int(created.timestamp()))
-                elif isinstance(created, str) and created:
-                    try:
-                        import datetime as _dt
-                        created_ts = str(int(_dt.datetime.fromisoformat(created.replace("Z","")).timestamp()))
-                    except: created_ts = ""
-                else: created_ts = ""
-                backups.append({
-                    "id": b.get("backup_id","?"),
-                    "label": b.get("label","Backup"),
-                    "created_ts": created_ts,
-                    "created_by": b.get("created_by","?"),
-                    "guild_name": b.get("guild_name","?"),
-                    "roles": roles_count,
-                    "channels": channels_count,
-                    "categories": categories_count,
-                    "emojis": emojis_count,
-                    "has_password": bool(b.get("password_hash")),
-                    "guild_icon": b.get("guild_icon_url",""),
-                    "verification": b.get("verification_level",0),
-                })
-                total_size += 1
+            # gilt für Motor (async) UND PyMongo (sync) — wir versuchen async zuerst
+            try:
+                raw = safe_async(
+                    col.find({"guild_id": int(guild_id)}).sort("created_at", -1).to_list(50),
+                    None,
+                )
+                if raw is None:
+                    # PyMongo-Fallback
+                    raw = list(col.find({"guild_id": int(guild_id)}).sort("created_at", -1).limit(50))
+            except Exception:
+                raw = list(col.find({"guild_id": int(guild_id)}).sort("created_at", -1).limit(50))
+
+            for b in raw or []:
+                enriched = _enrich_backup_doc(b)
+                if enriched:
+                    backups.append(enriched)
         except Exception as ex:
             log.debug(f"Backup load: {ex}")
-    bs = cfg.get("backup_system",{})
-    return render_template("dashboard/backup.html", guild=g, cfg=cfg, user=us["user"],
-        backups=backups, total_size=total_size,
-        auto_enabled=bs.get("auto_enabled",False),
-        auto_interval=bs.get("auto_interval_hours",24),
-        auto_max=bs.get("auto_max_backups",5),
-        last_backup=bs.get("auto_last_backup"),
-        active="backup")
+
+    # Welche dieser Backups sind bereits public?
+    pcol = _public_backups_col()
+    if pcol is not None and backups:
+        try:
+            ids = [b["id"] for b in backups]
+            try:
+                pubs = safe_async(pcol.find({"backup_id": {"$in": ids}}).to_list(100), None)
+                if pubs is None:
+                    pubs = list(pcol.find({"backup_id": {"$in": ids}}))
+            except Exception:
+                pubs = list(pcol.find({"backup_id": {"$in": ids}}))
+            public_ids = {p.get("backup_id") for p in (pubs or [])}
+        except Exception:
+            pass
+    for b in backups:
+        b["is_public"] = b["id"] in public_ids
+
+    bs = cfg.get("backup_system", {}) or {}
+    return render_template(
+        "dashboard/backup.html", guild=g, cfg=cfg, user=us["user"],
+        backups=backups, total_size=len(backups),
+        auto_enabled=bs.get("auto_enabled", False),
+        auto_interval=bs.get("auto_interval_hours", 24),
+        auto_max=bs.get("auto_max_backups", 5),
+        last_backup_ts=_ts(bs.get("auto_last_backup")),
+        bot_ready=bot_ready(),
+        active="backup",
+    )
+
+
+@flask_app.route("/dashboard/<guild_id>/templates")
+@require_auth
+def guild_templates(guild_id):
+    """Community-Templates: eigene geteilte Backups + Importieren von anderen."""
+    us, g, cfg, err = _dash_guard(guild_id)
+    if err: return err
+
+    my_shared = []
+    all_public = []
+    pcol = _public_backups_col()
+    if pcol is not None:
+        try:
+            # Eigene geteilte
+            try:
+                mine_raw = safe_async(
+                    pcol.find({"guild_id": str(guild_id)}).sort("shared_at", -1).to_list(50), None,
+                )
+                if mine_raw is None:
+                    mine_raw = list(pcol.find({"guild_id": str(guild_id)}).sort("shared_at", -1).limit(50))
+            except Exception:
+                mine_raw = list(pcol.find({"guild_id": str(guild_id)}).sort("shared_at", -1).limit(50))
+            # Alle öffentlichen (für Galerie)
+            try:
+                public_raw = safe_async(
+                    pcol.find({}).sort([("downloads", -1), ("shared_at", -1)]).to_list(200), None,
+                )
+                if public_raw is None:
+                    public_raw = list(pcol.find({}).sort([("downloads", -1), ("shared_at", -1)]).limit(200))
+            except Exception:
+                public_raw = list(pcol.find({}).sort([("downloads", -1), ("shared_at", -1)]).limit(200))
+        except Exception as e:
+            log.debug(f"templates load: {e}")
+            mine_raw, public_raw = [], []
+    else:
+        mine_raw, public_raw = [], []
+
+    def _shape(p):
+        return {
+            "id": p.get("backup_id", "?"),
+            "name": p.get("name") or "Unbenannt",
+            "description": p.get("description") or "",
+            "category": (p.get("category") or "general").lower(),
+            "guild_name": p.get("guild_name") or "?",
+            "guild_icon": p.get("guild_icon") or "",
+            "shared_by": str(p.get("shared_by") or "—"),
+            "shared_ts": _ts(p.get("shared_at")),
+            "roles": int(p.get("roles_count") or 0),
+            "channels": int(p.get("channels_count") or 0),
+            "categories": int(p.get("categories_count") or 0),
+            "emojis": int(p.get("emojis_count") or 0),
+            "downloads": int(p.get("downloads") or 0),
+            "is_mine": str(p.get("guild_id")) == str(guild_id),
+        }
+
+    my_shared = [_shape(p) for p in (mine_raw or [])]
+    all_public = [_shape(p) for p in (public_raw or [])]
+
+    # Kategorie-Aufteilung für die Galerie
+    categories = {}
+    for tpl in all_public:
+        categories.setdefault(tpl["category"], []).append(tpl)
+
+    return render_template(
+        "dashboard/templates.html",
+        guild=g, cfg=cfg, user=us["user"], active="templates",
+        my_shared=my_shared,
+        all_public=all_public,
+        categories=categories,
+        bot_ready=bot_ready(),
+    )
 
 @flask_app.route("/dashboard/<guild_id>/settings")
 @require_auth
@@ -1525,6 +1712,20 @@ def guild_settings(guild_id):
     if err: return err
     channels = [{"id":str(ch.id),"name":ch.name} for ch in g.text_channels] if g else []
     return render_template("dashboard/settings.html", guild=g, cfg=cfg, user=us["user"], channels=channels, active="settings")
+
+
+@flask_app.route("/dashboard/<guild_id>/design")
+@require_auth
+def guild_design(guild_id):
+    """Dashboard-Design Tab – Theme / Akzentfarbe / Density / Animationen.
+
+    Die Einstellungen leben rein im localStorage des Browsers (pro User/Gerät),
+    es wird also nichts in der MongoDB persistiert. Das ist Absicht: Design ist
+    eine Browser-Präferenz, kein Server-Setting.
+    """
+    us, g, cfg, err = _dash_guard(guild_id)
+    if err: return err
+    return render_template("dashboard/design.html", guild=g, cfg=cfg, user=us["user"], active="design")
 
 # =========================================================
 
@@ -1648,8 +1849,28 @@ def api_guild_config(guild_id):
         th.update(data["_warn_thresholds_add"])
         ws["thresholds"] = th
         cfg["warn_system"] = ws
+    if "_warn_thresholds_remove" in data:
+        # Erwartet eine Liste von Threshold-Keys (z. B. ["3","5"])
+        ws = cfg.get("warn_system", {})
+        th = ws.get("thresholds", {}) or {}
+        for key in (data["_warn_thresholds_remove"] or []):
+            th.pop(str(key), None)
+        ws["thresholds"] = th
+        cfg["warn_system"] = ws
     if "_warn_decay" in data:
         cfg["warn_decay"] = data["_warn_decay"]
+    if "_welcome" in data and isinstance(data["_welcome"], dict):
+        wc = cfg.get("welcome", {}) or {}
+        wc.update(data["_welcome"])
+        cfg["welcome"] = wc
+    if "_leave" in data and isinstance(data["_leave"], dict):
+        lv = cfg.get("leave", {}) or {}
+        lv.update(data["_leave"])
+        cfg["leave"] = lv
+    if "_verify_system" in data and isinstance(data["_verify_system"], dict):
+        vs = cfg.get("verify_system", {}) or {}
+        vs.update(data["_verify_system"])
+        cfg["verify_system"] = vs
     if "_ticket_system" in data:
         ts = cfg.get("ticket_system",{})
         ts.update(data["_ticket_system"])
@@ -2046,6 +2267,78 @@ def guild_stats_page(guild_id):
                 days_data.append(count)
         except Exception as e:
             log.debug(f"Stats page error: {e}")
+
+    # ── Member-Wachstum: kumulativer Verlauf seit Server-Erstellung ──
+    # Wir nutzen die ``joined_at``-Daten aller momentan auf dem Server befindlichen
+    # Mitglieder (das ist die einzige Information, die Discord uns ohne extra Logging
+    # liefert). Das ergibt eine ehrliche Kurve "wie viele heutige Member waren wann
+    # bereits drin?". Verlassene Member sind nicht enthalten – das ist eine bekannte
+    # Discord-API-Limitation.
+    growth_labels: list = []
+    growth_data: list = []
+    growth_total = 0
+    growth_buckets = 0
+    if g and hasattr(g, "members") and g.members and hasattr(g, "created_at") and g.created_at:
+        try:
+            created_at = g.created_at
+            if created_at.tzinfo is not None:
+                created_at = created_at.replace(tzinfo=None)
+            now_utc = _dt.datetime.utcnow()
+
+            # Joins sammeln (datetime.date pro Member)
+            join_dates = []
+            for m in g.members:
+                ja = getattr(m, "joined_at", None)
+                if not ja:
+                    continue
+                if ja.tzinfo is not None:
+                    ja = ja.replace(tzinfo=None)
+                # Bot-Owner / very old accounts trotzdem reinrechnen, aber nicht vor created_at
+                if ja < created_at:
+                    ja = created_at
+                join_dates.append(ja)
+
+            join_dates.sort()
+            total_members = len(join_dates)
+
+            # Bucket-Auflösung wählen: max ~60 Datenpunkte
+            span = now_utc - created_at
+            span_days = max(1, span.days or 1)
+            if span_days <= 60:
+                bucket_seconds = 24 * 3600           # täglich
+                fmt = "%d.%m."
+            elif span_days <= 365 * 2:
+                bucket_seconds = 7 * 24 * 3600        # wöchentlich
+                fmt = "%d.%m.%y"
+            elif span_days <= 365 * 6:
+                bucket_seconds = 30 * 24 * 3600       # monatlich
+                fmt = "%b %y"
+            else:
+                bucket_seconds = 90 * 24 * 3600       # quartalsweise
+                fmt = "Q%m/%y"
+
+            cursor = created_at
+            idx = 0  # Position im sortierten join_dates-Array
+            running = 0
+            # Sicherheitsbremse, damit wir bei kaputten Zeitstempeln nicht endlos laufen
+            max_buckets = 400
+            while cursor <= now_utc and growth_buckets < max_buckets:
+                bucket_end = cursor + _dt.timedelta(seconds=bucket_seconds)
+                while idx < total_members and join_dates[idx] < bucket_end:
+                    running += 1
+                    idx += 1
+                growth_labels.append(cursor.strftime(fmt))
+                growth_data.append(running)
+                growth_buckets += 1
+                cursor = bucket_end
+
+            # Endpunkt = aktueller Member-Count (für den Fall, dass Joins fehlen)
+            if growth_data:
+                growth_data[-1] = max(growth_data[-1], total_members)
+            growth_total = total_members
+        except Exception as ex:
+            log.debug(f"member-growth error: {ex}")
+            growth_labels, growth_data = [], []
     active_mods = sum(1 for k in ["anti_spam","anti_nuke","anti_raid","anti_mention","anti_scam","automod"]
                       if cfg.get(k, {}).get("enabled"))
     channels_count = len(g.channels) if g and hasattr(g,'channels') else 0
@@ -2064,6 +2357,13 @@ def guild_stats_page(guild_id):
     log_channels_count = len(cfg.get("log_channels",{}) or {})
     sec_level = cfg.get("security_level",0)
 
+    server_created_ts = ""
+    try:
+        if g and hasattr(g, "created_at") and g.created_at:
+            server_created_ts = str(int(g.created_at.timestamp()))
+    except Exception:
+        pass
+
     return render_template("dashboard/stats.html", guild=g, cfg=cfg, user=us["user"],
         cases_count=cases_count, case_types=case_types, top_mods=top_mods,
         active_mods=active_mods, channels_count=channels_count,
@@ -2071,7 +2371,10 @@ def guild_stats_page(guild_id):
         roles_count=roles_count, text_ch=text_ch, voice_ch=voice_ch,
         bots=bots, humans=humans, online=online, boosts=boosts,
         warns_count=warns_count, log_channels_count=log_channels_count,
-        sec_level=sec_level, active="stats")
+        sec_level=sec_level,
+        growth_labels=growth_labels, growth_data=growth_data,
+        growth_total=growth_total, server_created_ts=server_created_ts,
+        active="stats")
 
 @flask_app.route("/dashboard/<guild_id>/whitelist")
 @require_auth
@@ -2239,11 +2542,77 @@ def admin_server_dashboard(guild_id, subpage=""):
 
     elif subpage == "backup":
         backups = []
-        db = get_db()
-        if db:
-            try: backups = safe_async(db.backups.find({"guild_id":str(guild_id)}).sort("created_at",-1).to_list(20),[]) or []
-            except: pass
-        return render_template("dashboard/backup.html", guild=g, cfg=cfg, user=admin_user, backups=backups, active="backup")
+        col = _backups_col()
+        if col is not None:
+            try:
+                try:
+                    raw = safe_async(col.find({"guild_id": int(guild_id)}).sort("created_at", -1).to_list(50), None)
+                    if raw is None:
+                        raw = list(col.find({"guild_id": int(guild_id)}).sort("created_at", -1).limit(50))
+                except Exception:
+                    raw = list(col.find({"guild_id": int(guild_id)}).sort("created_at", -1).limit(50))
+                for b in raw or []:
+                    enriched = _enrich_backup_doc(b)
+                    if enriched:
+                        backups.append(enriched)
+            except Exception:
+                pass
+        bs = cfg.get("backup_system", {}) or {}
+        return render_template(
+            "dashboard/backup.html", guild=g, cfg=cfg, user=admin_user,
+            backups=backups, total_size=len(backups),
+            auto_enabled=bs.get("auto_enabled", False),
+            auto_interval=bs.get("auto_interval_hours", 24),
+            auto_max=bs.get("auto_max_backups", 5),
+            last_backup_ts=_ts(bs.get("auto_last_backup")),
+            bot_ready=bot_ready(),
+            active="backup",
+        )
+
+    elif subpage == "templates":
+        my_shared, all_public = [], []
+        pcol = _public_backups_col()
+        if pcol is not None:
+            try:
+                try:
+                    mine_raw = safe_async(pcol.find({"guild_id": str(guild_id)}).sort("shared_at", -1).to_list(50), None)
+                    if mine_raw is None:
+                        mine_raw = list(pcol.find({"guild_id": str(guild_id)}).sort("shared_at", -1).limit(50))
+                except Exception:
+                    mine_raw = list(pcol.find({"guild_id": str(guild_id)}).sort("shared_at", -1).limit(50))
+                try:
+                    pub_raw = safe_async(pcol.find({}).sort([("downloads", -1), ("shared_at", -1)]).to_list(200), None)
+                    if pub_raw is None:
+                        pub_raw = list(pcol.find({}).sort([("downloads", -1), ("shared_at", -1)]).limit(200))
+                except Exception:
+                    pub_raw = list(pcol.find({}).sort([("downloads", -1), ("shared_at", -1)]).limit(200))
+            except Exception:
+                mine_raw, pub_raw = [], []
+            def _shape(p):
+                return {
+                    "id": p.get("backup_id", "?"),
+                    "name": p.get("name") or "Unbenannt",
+                    "description": p.get("description") or "",
+                    "category": (p.get("category") or "general").lower(),
+                    "guild_name": p.get("guild_name") or "?",
+                    "guild_icon": p.get("guild_icon") or "",
+                    "shared_by": str(p.get("shared_by") or "—"),
+                    "shared_ts": _ts(p.get("shared_at")),
+                    "roles": int(p.get("roles_count") or 0),
+                    "channels": int(p.get("channels_count") or 0),
+                    "categories": int(p.get("categories_count") or 0),
+                    "emojis": int(p.get("emojis_count") or 0),
+                    "downloads": int(p.get("downloads") or 0),
+                    "is_mine": str(p.get("guild_id")) == str(guild_id),
+                }
+            my_shared = [_shape(p) for p in (mine_raw or [])]
+            all_public = [_shape(p) for p in (pub_raw or [])]
+        categories = {}
+        for tpl in all_public:
+            categories.setdefault(tpl["category"], []).append(tpl)
+        return render_template("dashboard/templates.html", guild=g, cfg=cfg, user=admin_user,
+            my_shared=my_shared, all_public=all_public, categories=categories,
+            bot_ready=bot_ready(), active="templates")
 
     elif subpage == "autoresponse":
         return render_template("dashboard/autoresponse.html", guild=g, cfg=cfg, user=admin_user, auto_responses=cfg.get("auto_responses",[]), active="autoresponse")
@@ -2337,6 +2706,9 @@ def admin_server_dashboard(guild_id, subpage=""):
             if isinstance(raw,list): activities = [a for a in raw if str(a.get("guild_id",""))==str(guild_id)][:20]
         except: pass
         return render_template("dashboard/livefeed.html", guild=g, cfg=cfg, user=admin_user, activities=activities, active="livefeed")
+
+    elif subpage == "design":
+        return render_template("dashboard/design.html", guild=g, cfg=cfg, user=admin_user, active="design")
 
     # Default: overview
     overview = _build_overview(cfg, guild_id)
@@ -2547,6 +2919,272 @@ def api_guild_autonick(guild_id):
         _direct_save_config(guild_id, cfg)
     except: pass
     return jsonify({"ok": True, "rules": an.get("rules", []), "enabled": an.get("enabled", False)})
+
+# =========================================================
+# BACKUP API – Erstellen / Restore / Löschen / Download
+# =========================================================
+
+@flask_app.route("/api/guild/<guild_id>/backup/create", methods=["POST"])
+@require_auth
+def api_backup_create(guild_id):
+    user_session = get_session()
+    if not user_session or not _user_can_manage_guild_in_session(user_session, guild_id):
+        return jsonify({"error": "forbidden"}), 403
+    if not bot_ready():
+        return jsonify({"error": "Bot ist offline. Backups können nur erstellt werden, wenn der Bot läuft."}), 503
+    data = request.json or {}
+    label = (data.get("label") or "").strip() or None
+    g = get_guild(guild_id)
+    if not g:
+        return jsonify({"error": "Server nicht gefunden"}), 404
+    try:
+        from bot.bot import _collect_backup_data, _backup_db_save
+        payload = _run_async(_collect_backup_data(g))
+        if not payload:
+            return jsonify({"error": "Backup-Daten konnten nicht gesammelt werden"}), 500
+        bid = _run_async(_backup_db_save(payload, int(user_session["user"]["id"]), label))
+        if not bid:
+            return jsonify({"error": "Backup konnte nicht gespeichert werden"}), 500
+        return jsonify({"ok": True, "backup_id": bid})
+    except Exception as e:
+        log.error(f"[BACKUP CREATE] {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@flask_app.route("/api/guild/<guild_id>/backup/<backup_id>/restore", methods=["POST"])
+@require_auth
+def api_backup_restore(guild_id, backup_id):
+    user_session = get_session()
+    if not user_session or not _user_can_manage_guild_in_session(user_session, guild_id):
+        return jsonify({"error": "forbidden"}), 403
+    if not bot_ready():
+        return jsonify({"error": "Bot ist offline. Restore nur möglich wenn der Bot läuft."}), 503
+    g = get_guild(guild_id)
+    if not g:
+        return jsonify({"error": "Server nicht gefunden"}), 404
+    try:
+        from bot.bot import _backup_db_get, _backup_db_get_any, _restore_from_backup
+        # Eigenes Backup bevorzugt, Cross-Server als Fallback
+        doc = _run_async(_backup_db_get(int(guild_id), backup_id)) or _run_async(_backup_db_get_any(backup_id))
+        if not doc or not doc.get("data"):
+            return jsonify({"error": "Backup nicht gefunden"}), 404
+        if doc.get("password_hash"):
+            return jsonify({
+                "error": "Passwortgeschützte Backups bitte mit /backup_restore in Discord wiederherstellen."
+            }), 400
+        report = _run_async(_restore_from_backup(g, doc["data"], None))
+        return jsonify({"ok": True, "report": report or {}})
+    except Exception as e:
+        log.error(f"[BACKUP RESTORE] {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@flask_app.route("/api/guild/<guild_id>/backup/<backup_id>/delete", methods=["POST"])
+@require_auth
+def api_backup_delete(guild_id, backup_id):
+    user_session = get_session()
+    if not user_session or not _user_can_manage_guild_in_session(user_session, guild_id):
+        return jsonify({"error": "forbidden"}), 403
+    col = _backups_col()
+    if col is None:
+        return jsonify({"error": "Keine DB-Verbindung"}), 503
+    try:
+        deleted = 0
+        try:
+            res = safe_async(col.delete_one({"guild_id": int(guild_id), "backup_id": backup_id}), None)
+            if res is None:
+                res = col.delete_one({"guild_id": int(guild_id), "backup_id": backup_id})
+            deleted = getattr(res, "deleted_count", 0) or 0
+        except Exception:
+            res = col.delete_one({"guild_id": int(guild_id), "backup_id": backup_id})
+            deleted = getattr(res, "deleted_count", 0) or 0
+
+        # Auch aus der öffentlichen Liste entfernen, falls geteilt
+        pcol = _public_backups_col()
+        if pcol is not None:
+            try:
+                try:
+                    safe_async(pcol.delete_one({"backup_id": backup_id, "guild_id": str(guild_id)}), None)
+                except Exception:
+                    pcol.delete_one({"backup_id": backup_id, "guild_id": str(guild_id)})
+            except Exception:
+                pass
+
+        if not deleted:
+            return jsonify({"error": "Backup nicht gefunden"}), 404
+        return jsonify({"ok": True})
+    except Exception as e:
+        log.error(f"[BACKUP DELETE] {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@flask_app.route("/api/guild/<guild_id>/backup/<backup_id>/download")
+@require_auth
+def api_backup_download(guild_id, backup_id):
+    user_session = get_session()
+    if not user_session or not _user_can_manage_guild_in_session(user_session, guild_id):
+        return jsonify({"error": "forbidden"}), 403
+    col = _backups_col()
+    if col is None:
+        return jsonify({"error": "Keine DB-Verbindung"}), 503
+    try:
+        try:
+            doc = safe_async(col.find_one({"guild_id": int(guild_id), "backup_id": backup_id}), None)
+            if doc is None:
+                doc = col.find_one({"guild_id": int(guild_id), "backup_id": backup_id})
+        except Exception:
+            doc = col.find_one({"guild_id": int(guild_id), "backup_id": backup_id})
+        if not doc:
+            return jsonify({"error": "Backup nicht gefunden"}), 404
+        # _id und Passwort-Hash NICHT mit ausliefern
+        doc.pop("_id", None)
+        doc.pop("password_hash", None)
+        body = json.dumps(doc, indent=2, default=str, ensure_ascii=False)
+        return Response(
+            body, mimetype="application/json",
+            headers={"Content-Disposition": f'attachment; filename="modforge-backup-{backup_id}.json"'},
+        )
+    except Exception as e:
+        log.error(f"[BACKUP DOWNLOAD] {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+# =========================================================
+# TEMPLATES API – Public-Backup teilen / unshare / importieren
+# =========================================================
+
+@flask_app.route("/api/guild/<guild_id>/templates/share", methods=["POST"])
+@require_auth
+def api_template_share(guild_id):
+    user_session = get_session()
+    if not user_session or not _user_can_manage_guild_in_session(user_session, guild_id):
+        return jsonify({"error": "forbidden"}), 403
+    data = request.json or {}
+    backup_id = (data.get("backup_id") or "").strip()
+    name = (data.get("name") or "").strip()
+    description = (data.get("description") or "").strip()
+    category = (data.get("category") or "general").strip().lower()
+    if not backup_id or not name:
+        return jsonify({"error": "backup_id und name sind erforderlich"}), 400
+
+    col = _backups_col()
+    pcol = _public_backups_col()
+    if col is None or pcol is None:
+        return jsonify({"error": "Keine DB-Verbindung"}), 503
+
+    try:
+        try:
+            backup = safe_async(col.find_one({"guild_id": int(guild_id), "backup_id": backup_id}), None)
+            if backup is None:
+                backup = col.find_one({"guild_id": int(guild_id), "backup_id": backup_id})
+        except Exception:
+            backup = col.find_one({"guild_id": int(guild_id), "backup_id": backup_id})
+        if not backup:
+            return jsonify({"error": "Backup nicht gefunden"}), 404
+        if backup.get("password_hash"):
+            return jsonify({"error": "Passwortgeschützte Backups können nicht öffentlich geteilt werden."}), 400
+
+        payload = backup.get("data") or {}
+        guild_name = backup.get("guild_name") or payload.get("guild_name") or "?"
+        guild_icon = payload.get("guild_icon_url") or ""
+
+        update_doc = {
+            "backup_id": backup_id,
+            "guild_id": str(guild_id),
+            "name": name[:60],
+            "description": description[:500],
+            "category": (category or "general")[:30],
+            "shared_by": str(user_session["user"]["id"]),
+            "shared_at": datetime.datetime.utcnow(),
+            "guild_name": guild_name,
+            "guild_icon": guild_icon,
+            "roles_count": len(payload.get("roles") or []),
+            "channels_count": len(payload.get("channels") or []),
+            "categories_count": len(payload.get("categories") or []),
+            "emojis_count": len(payload.get("emojis") or []),
+        }
+        try:
+            safe_async(pcol.update_one(
+                {"backup_id": backup_id},
+                {"$set": update_doc, "$setOnInsert": {"downloads": 0}},
+                upsert=True,
+            ), None)
+        except Exception:
+            pcol.update_one(
+                {"backup_id": backup_id},
+                {"$set": update_doc, "$setOnInsert": {"downloads": 0}},
+                upsert=True,
+            )
+        return jsonify({"ok": True})
+    except Exception as e:
+        log.error(f"[TEMPLATE SHARE] {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@flask_app.route("/api/guild/<guild_id>/templates/unshare/<backup_id>", methods=["POST"])
+@require_auth
+def api_template_unshare(guild_id, backup_id):
+    user_session = get_session()
+    if not user_session or not _user_can_manage_guild_in_session(user_session, guild_id):
+        return jsonify({"error": "forbidden"}), 403
+    pcol = _public_backups_col()
+    if pcol is None:
+        return jsonify({"error": "Keine DB-Verbindung"}), 503
+    try:
+        try:
+            res = safe_async(pcol.delete_one({"backup_id": backup_id, "guild_id": str(guild_id)}), None)
+            if res is None:
+                res = pcol.delete_one({"backup_id": backup_id, "guild_id": str(guild_id)})
+        except Exception:
+            res = pcol.delete_one({"backup_id": backup_id, "guild_id": str(guild_id)})
+        deleted = getattr(res, "deleted_count", 0) or 0
+        if not deleted:
+            return jsonify({"error": "Template nicht gefunden oder gehört nicht diesem Server"}), 404
+        return jsonify({"ok": True})
+    except Exception as e:
+        log.error(f"[TEMPLATE UNSHARE] {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@flask_app.route("/api/guild/<guild_id>/templates/import/<backup_id>", methods=["POST"])
+@require_auth
+def api_template_import(guild_id, backup_id):
+    """Wendet ein öffentliches Template auf den aktuellen Server an (Restore).
+
+    Inkrementiert den Download-Counter im public_backups-Eintrag.
+    """
+    user_session = get_session()
+    if not user_session or not _user_can_manage_guild_in_session(user_session, guild_id):
+        return jsonify({"error": "forbidden"}), 403
+    if not bot_ready():
+        return jsonify({"error": "Bot ist offline. Import nur möglich wenn der Bot läuft."}), 503
+    g = get_guild(guild_id)
+    if not g:
+        return jsonify({"error": "Server nicht gefunden"}), 404
+    try:
+        from bot.bot import _backup_db_get_any, _restore_from_backup
+        doc = _run_async(_backup_db_get_any(backup_id))
+        if not doc or not doc.get("data"):
+            return jsonify({"error": "Template nicht gefunden"}), 404
+        if doc.get("password_hash"):
+            return jsonify({"error": "Passwortgeschützte Templates können nicht importiert werden."}), 400
+        report = _run_async(_restore_from_backup(g, doc["data"], None))
+
+        # Download-Counter
+        pcol = _public_backups_col()
+        if pcol is not None:
+            try:
+                try:
+                    safe_async(pcol.update_one({"backup_id": backup_id}, {"$inc": {"downloads": 1}}), None)
+                except Exception:
+                    pcol.update_one({"backup_id": backup_id}, {"$inc": {"downloads": 1}})
+            except Exception:
+                pass
+        return jsonify({"ok": True, "report": report or {}})
+    except Exception as e:
+        log.error(f"[TEMPLATE IMPORT] {e}")
+        return jsonify({"error": str(e)}), 500
+
 
 # 404 / 403 / 500 HANDLER
 # =========================================================

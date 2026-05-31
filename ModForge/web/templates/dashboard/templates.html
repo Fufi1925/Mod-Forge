@@ -1,0 +1,234 @@
+{% extends "dashboard/_base.html" %}
+{% set active = 'templates' %}
+{% block title %}Community Templates{% endblock %}
+{% block page_title %}🌐 Community Templates{% endblock %}
+{% block page_desc %}Teile deine Backups mit der Community oder importiere fertige Server-Vorlagen.{% endblock %}
+
+{% block head %}
+<style>
+  .tpl-card{padding:14px 16px;border-radius:14px;background:rgba(255,255,255,0.03);border:1px solid var(--border);transition:all .15s;display:flex;flex-direction:column;gap:10px;height:100%}
+  .tpl-card:hover{border-color:rgba(139,92,246,0.28);background:rgba(255,255,255,0.05);transform:translateY(-2px)}
+  .tpl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+  .tpl-icon{width:42px;height:42px;border-radius:12px;background:rgba(124,58,237,0.12);display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;overflow:hidden}
+  .tpl-icon img{width:100%;height:100%;object-fit:cover}
+  .tpl-cat{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:999px;font-size:.6rem;font-weight:700;background:rgba(34,211,238,0.08);color:var(--cl);border:1px solid rgba(34,211,238,0.18);text-transform:uppercase;letter-spacing:.04em}
+  .tpl-stat{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:999px;font-size:.6rem;font-weight:600;background:rgba(255,255,255,0.03);border:1px solid var(--border)}
+  .tpl-empty{text-align:center;padding:36px;border-radius:14px;background:rgba(255,255,255,0.02);border:1px dashed var(--border)}
+  .cat-pill{padding:6px 14px;border-radius:999px;font-size:.72rem;font-weight:700;border:1px solid var(--border);background:rgba(255,255,255,0.03);color:var(--muted);cursor:pointer;transition:.15s;white-space:nowrap}
+  .cat-pill:hover{background:rgba(255,255,255,0.06);color:var(--fg)}
+  .cat-pill.active{background:rgba(124,58,237,0.12);color:var(--vl);border-color:rgba(124,58,237,0.35)}
+</style>
+{% endblock %}
+
+{% block content %}
+
+{% set cat_labels = {
+  'general':'📦 Allgemein','gaming':'🎮 Gaming','community':'👥 Community',
+  'anime':'🌸 Anime','music':'🎵 Musik','education':'📚 Bildung',
+  'support':'🛟 Support','business':'💼 Business','other':'✨ Sonstiges'
+} %}
+
+<!-- INTRO -->
+<div class="db-card" style="padding:14px 18px;margin-bottom:14px;background:rgba(124,58,237,0.03);border-color:rgba(124,58,237,0.12)">
+  <div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap">
+    <div style="font-size:1.4rem">🌐</div>
+    <div style="flex:1;min-width:240px">
+      <div style="font-weight:700;font-size:.92rem;margin-bottom:4px">Community-Templates</div>
+      <div style="font-size:.75rem;color:var(--muted);line-height:1.6">
+        Veröffentliche deine Backups als <strong style="color:var(--vl)">Server-Vorlage</strong> – andere Owner können sie
+        in ihren Server importieren. Nur <strong>nicht-passwortgeschützte</strong> Backups können geteilt werden.
+        Über <a href="/dashboard/{{ guild.id }}/backup" style="color:var(--cl)">💾 Backup</a> erstellst du neue Backups.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- STATS -->
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-bottom:14px">
+  <div class="ov-stat"><div class="ov-sv" style="color:var(--vl)">{{ my_shared|length }}</div><div class="ov-sl">Von dir geteilt</div></div>
+  <div class="ov-stat"><div class="ov-sv" style="color:var(--cl)">{{ all_public|length }}</div><div class="ov-sl">Verfügbar</div></div>
+  <div class="ov-stat"><div class="ov-sv" style="color:var(--green)">{{ all_public|sum(attribute='downloads') }}</div><div class="ov-sl">Downloads gesamt</div></div>
+</div>
+
+<!-- MEINE TEMPLATES -->
+<div style="font-weight:700;font-size:.92rem;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+  🛡️ Deine veröffentlichten Templates
+  <span class="badge badge-purple" style="font-size:.55rem">{{ my_shared|length }}</span>
+</div>
+
+{% if my_shared %}
+<div class="tpl-grid" style="margin-bottom:18px">
+  {% for t in my_shared %}
+  <div class="tpl-card">
+    <div style="display:flex;align-items:flex-start;gap:10px">
+      <div class="tpl-icon">{% if t.guild_icon %}<img src="{{ t.guild_icon }}">{% else %}🛡️{% endif %}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ t.name }}</div>
+        <div style="display:flex;gap:6px;align-items:center;margin-top:4px;flex-wrap:wrap">
+          <span class="tpl-cat">{{ cat_labels.get(t.category, t.category) }}</span>
+          <span style="font-size:.62rem;color:var(--muted)">⬇️ {{ t.downloads }}</span>
+        </div>
+      </div>
+    </div>
+    {% if t.description %}<div style="font-size:.72rem;color:var(--muted);line-height:1.55;flex:1">{{ t.description }}</div>{% endif %}
+    <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:auto">
+      <span class="tpl-stat">🏷️ {{ t.roles }}</span>
+      <span class="tpl-stat">📁 {{ t.channels }}</span>
+      <span class="tpl-stat">📂 {{ t.categories }}</span>
+      {% if t.emojis %}<span class="tpl-stat">😀 {{ t.emojis }}</span>{% endif %}
+    </div>
+    <div style="display:flex;gap:6px;margin-top:6px">
+      <button class="btn-glass btn-sm btn-glass-ghost" onclick="copyId('{{ t.id }}')" style="flex:1">📋 ID</button>
+      <button class="btn-glass btn-sm btn-glass-danger" onclick="unshare('{{ t.id }}','{{ t.name|e }}')" style="flex:1">🌐 Entfernen</button>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="tpl-empty" style="margin-bottom:18px">
+  <div style="font-size:2rem;margin-bottom:8px">📤</div>
+  <div style="font-weight:700;margin-bottom:4px">Noch nichts geteilt</div>
+  <div style="font-size:.78rem;color:var(--muted)">
+    Gehe in <a href="/dashboard/{{ guild.id }}/backup" style="color:var(--vl)">💾 Backup</a> und klicke
+    bei einem Backup auf <strong>🌐 Teilen</strong>.
+  </div>
+</div>
+{% endif %}
+
+<!-- KATEGORIE-FILTER -->
+<div style="display:flex;align-items:center;justify-content:space-between;margin:18px 0 10px;gap:10px;flex-wrap:wrap">
+  <div style="font-weight:700;font-size:.92rem;display:flex;align-items:center;gap:6px">
+    🛍️ Community-Galerie
+    <span class="badge badge-cyan" style="font-size:.55rem">{{ all_public|length }}</span>
+  </div>
+  <input type="text" id="tplSearch" placeholder="🔍 Suchen …" maxlength="60"
+         style="padding:7px 14px;border-radius:999px;background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--fg);font-size:.78rem;outline:none;min-width:180px"
+         oninput="filterTemplates()">
+</div>
+
+{% if all_public %}
+<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px" id="catFilter">
+  <button class="cat-pill active" data-cat="">Alle ({{ all_public|length }})</button>
+  {% for cat, items in categories.items()|sort %}
+    <button class="cat-pill" data-cat="{{ cat }}">{{ cat_labels.get(cat, cat) }} ({{ items|length }})</button>
+  {% endfor %}
+</div>
+
+<div class="tpl-grid" id="tplList">
+  {% for t in all_public %}
+  <div class="tpl-card" data-cat="{{ t.category }}" data-name="{{ t.name|lower }} {{ t.guild_name|lower }} {{ t.description|lower }}">
+    {% if t.is_mine %}
+    <div style="position:absolute;top:8px;right:8px"><span class="badge badge-green" style="font-size:.5rem">DEINS</span></div>
+    {% endif %}
+    <div style="display:flex;align-items:flex-start;gap:10px">
+      <div class="tpl-icon">{% if t.guild_icon %}<img src="{{ t.guild_icon }}">{% else %}🛡️{% endif %}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ t.name }}</div>
+        <div style="font-size:.62rem;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">aus „{{ t.guild_name }}"</div>
+        <div style="display:flex;gap:6px;align-items:center;margin-top:4px;flex-wrap:wrap">
+          <span class="tpl-cat">{{ cat_labels.get(t.category, t.category) }}</span>
+          <span style="font-size:.62rem;color:var(--muted)">⬇️ {{ t.downloads }}</span>
+        </div>
+      </div>
+    </div>
+    {% if t.description %}<div style="font-size:.72rem;color:var(--muted);line-height:1.55;flex:1">{{ t.description }}</div>{% endif %}
+    <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:auto">
+      <span class="tpl-stat">🏷️ {{ t.roles }}</span>
+      <span class="tpl-stat">📁 {{ t.channels }}</span>
+      <span class="tpl-stat">📂 {{ t.categories }}</span>
+      {% if t.emojis %}<span class="tpl-stat">😀 {{ t.emojis }}</span>{% endif %}
+    </div>
+    <div style="display:flex;gap:6px;margin-top:6px">
+      <button class="btn-glass btn-sm btn-glass-primary" onclick="importTpl('{{ t.id }}','{{ t.name|e }}')" {% if not bot_ready %}disabled style="opacity:.4;cursor:not-allowed" title="Bot offline"{% endif %} style="flex:1">⬇️ Auf meinen Server</button>
+      <button class="btn-glass btn-sm btn-glass-ghost" onclick="copyId('{{ t.id }}')">📋</button>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<div id="tplEmpty" class="tpl-empty" style="display:none;margin-top:12px">
+  <div style="font-size:1.6rem;margin-bottom:6px">🔍</div>
+  <div style="font-size:.85rem;color:var(--muted)">Keine Templates für deine Suche</div>
+</div>
+{% else %}
+<div class="tpl-empty">
+  <div style="font-size:2rem;margin-bottom:8px">🌐</div>
+  <div style="font-weight:700;margin-bottom:4px">Noch keine Community-Templates</div>
+  <div style="font-size:.78rem;color:var(--muted)">Sei der Erste und teile dein Server-Setup!</div>
+</div>
+{% endif %}
+
+<script>
+const GID = "{{ guild.id }}";
+{% raw %}
+async function postJSON(url, body) {
+  const r = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body || {})});
+  let data = {};
+  try { data = await r.json(); } catch (e) {}
+  if (!r.ok) throw new Error(data.error || ('HTTP ' + r.status));
+  return data;
+}
+
+function copyId(id) {
+  navigator.clipboard.writeText(id);
+  showToast('📋 ID kopiert: ' + id, 'ok');
+}
+
+function unshare(id, name) {
+  if (!confirm(`Template "${name}" wirklich aus der Community-Liste entfernen?`)) return;
+  postJSON('/api/guild/' + GID + '/templates/unshare/' + id)
+    .then(() => { showToast('✅ Entfernt', 'ok'); setTimeout(() => location.reload(), 500); })
+    .catch(e => showToast('❌ ' + e.message, 'err'));
+}
+
+function importTpl(id, name) {
+  showModal(`
+    <div style="text-align:center;margin-bottom:18px">
+      <div style="font-size:2.4rem;margin-bottom:10px">⚠️</div>
+      <div style="font-weight:800;font-size:1rem;margin-bottom:6px">Template auf deinen Server anwenden?</div>
+      <div style="color:var(--muted);font-size:.82rem;line-height:1.55">
+        <strong style="color:var(--fg)">${name}</strong><br>
+        Das überschreibt Kanäle, Rollen, Kategorien & Berechtigungen deines Servers.<br>
+        <strong style="color:#fcd34d">Erstelle vorher ein Backup!</strong>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button onclick="closeModal()" style="flex:1;padding:10px;border-radius:10px;background:rgba(255,255,255,0.05);border:1px solid var(--border);color:var(--fg);font-size:.82rem;cursor:pointer;font-family:inherit">Abbrechen</button>
+      <button onclick="closeModal();doImport('${id}')" style="flex:1;padding:10px;border-radius:10px;background:linear-gradient(135deg,rgba(109,40,217,0.8),rgba(30,64,175,0.8));border:1px solid rgba(139,92,246,0.4);color:#fff;font-size:.82rem;cursor:pointer;font-family:inherit;font-weight:700">⬇️ Import starten</button>
+    </div>`);
+}
+
+async function doImport(id) {
+  showToast('⏳ Import läuft – das kann etwas dauern …', 'info');
+  try {
+    const d = await postJSON('/api/guild/' + GID + '/templates/import/' + id);
+    const r = d.report || {};
+    showToast(`✅ Import fertig · Rollen ${r.roles_created || 0}+/${r.roles_updated || 0}~ · Kanäle ${r.channels_created || 0}+/${r.channels_updated || 0}~`, 'ok');
+  } catch (e) { showToast('❌ ' + e.message, 'err'); }
+}
+
+// ── Filter / Search ──
+function filterTemplates() {
+  const q = (document.getElementById('tplSearch').value || '').toLowerCase().trim();
+  const cat = document.querySelector('#catFilter .cat-pill.active')?.dataset.cat || '';
+  let visible = 0;
+  document.querySelectorAll('#tplList .tpl-card').forEach(card => {
+    const matchCat = !cat || card.dataset.cat === cat;
+    const matchQ = !q || (card.dataset.name || '').includes(q);
+    const show = matchCat && matchQ;
+    card.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+  document.getElementById('tplEmpty').style.display = visible ? 'none' : '';
+}
+
+document.querySelectorAll('#catFilter .cat-pill').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#catFilter .cat-pill').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    filterTemplates();
+  });
+});
+{% endraw %}
+</script>
+{% endblock %}

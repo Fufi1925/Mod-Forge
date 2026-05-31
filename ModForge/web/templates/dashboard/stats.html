@@ -35,6 +35,36 @@
   <a href="/dashboard/{{ guild.id }}/security" class="btn-glass btn-sm btn-glass-ghost">Konfigurieren →</a>
 </div>
 
+<!-- MEMBER GROWTH CHART (kumulativ seit Server-Erstellung) -->
+<div class="db-card" style="padding:16px;margin-bottom:14px">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+    <div>
+      <div style="font-weight:700;font-size:.85rem;display:flex;align-items:center;gap:6px">
+        📈 Member-Wachstum
+        <span style="font-size:.6rem;color:var(--muted);font-weight:400">
+          seit
+          {% if server_created_ts %}
+            <span class="ts" data-ts="{{ server_created_ts }}">Server-Erstellung</span>
+          {% else %}Server-Erstellung{% endif %}
+        </span>
+      </div>
+      <div style="font-size:.65rem;color:var(--muted);margin-top:2px">
+        Kumulative Joins der aktuellen Mitglieder. (Verlassene Member sind nicht enthalten – Discord liefert diese Daten nicht.)
+      </div>
+    </div>
+    <div style="display:flex;gap:6px;align-items:center">
+      <span class="badge badge-purple" style="font-family:'Geist Mono',monospace">{{ growth_total or humans + bots }} Member</span>
+    </div>
+  </div>
+  {% if growth_data and growth_data|length > 1 %}
+    <canvas id="growthChart" height="120"></canvas>
+  {% else %}
+    <div style="text-align:center;padding:32px;color:var(--muted);font-size:.78rem">
+      Noch zu wenig Daten – ist der Bot bereits gestartet und hat die Mitglieder gecacht?
+    </div>
+  {% endif %}
+</div>
+
 <!-- CHARTS ROW -->
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
 
@@ -107,6 +137,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <script>
+// Cases pro Tag (Balken)
 const ctx = document.getElementById('casesChart');
 if (ctx) {
   new Chart(ctx, {
@@ -134,5 +165,79 @@ if (ctx) {
     }
   });
 }
+
+// Member-Wachstum (kumulative Area-Linie seit Server-Erstellung)
+const growthCtx = document.getElementById('growthChart');
+const growthLabels = {{ growth_labels|tojson }};
+const growthData   = {{ growth_data|tojson }};
+if (growthCtx && growthLabels.length > 1) {
+  const grad = growthCtx.getContext('2d').createLinearGradient(0, 0, 0, 240);
+  grad.addColorStop(0, 'rgba(124,58,237,0.45)');
+  grad.addColorStop(1, 'rgba(124,58,237,0.00)');
+
+  new Chart(growthCtx, {
+    type: 'line',
+    data: {
+      labels: growthLabels,
+      datasets: [{
+        label: 'Mitglieder',
+        data: growthData,
+        fill: true,
+        backgroundColor: grad,
+        borderColor: 'rgba(167,139,250,0.95)',
+        borderWidth: 2,
+        tension: 0.32,
+        pointRadius: 0,
+        pointHoverRadius: 5,
+        pointHoverBackgroundColor: '#fff',
+        pointHoverBorderColor: 'rgba(167,139,250,1)',
+        pointHoverBorderWidth: 2,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { intersect: false, mode: 'index' },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: 'rgba(10,10,26,0.95)',
+          titleColor: '#fff',
+          bodyColor: '#a78bfa',
+          borderColor: 'rgba(124,58,237,0.4)',
+          borderWidth: 1,
+          padding: 10,
+          displayColors: false,
+          callbacks: {
+            title: (items) => items[0].label,
+            label:  (item) => `  ${item.parsed.y.toLocaleString('de-DE')} Mitglieder`,
+          }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          grid: { color: 'rgba(255,255,255,0.03)' },
+          ticks: { color: '#64748b', font: { size: 10 }, precision: 0 }
+        },
+        x: {
+          grid: { display: false },
+          ticks: {
+            color: '#64748b', font: { size: 10 }, maxRotation: 0, autoSkip: true,
+            maxTicksLimit: 10,
+          }
+        }
+      },
+      animation: { duration: 900, easing: 'easeOutQuart' },
+    }
+  });
+}
+
+// "ts" → lesbares Datum (für den Server-Erstellungs-Hint)
+document.querySelectorAll('.ts').forEach(el => {
+  const ts = Number(el.dataset.ts || 0);
+  if (ts) el.textContent = new Date(ts * 1000).toLocaleDateString('de-DE',
+    { year: 'numeric', month: 'long', day: 'numeric' });
+});
 </script>
 {% endblock %}

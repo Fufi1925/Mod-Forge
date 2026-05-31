@@ -2,7 +2,256 @@
 {% set active = 'welcome' %}
 {% block title %}Welcome & Leave{% endblock %}
 {% block page_title %}👋 Welcome & Leave{% endblock %}
-{% block page_desc %}Begrüßungs- und Abschiedsnachrichten{% endblock %}
+{% block page_desc %}Begrüßung neuer Mitglieder + Abschiedsnachricht inkl. optionalem Embed & DM.{% endblock %}
 {% block content %}
-{{ content|safe }}
+
+{% set wc = cfg.get('welcome', {}) or {} %}
+{% set lv = cfg.get('leave', {}) or {} %}
+{% set wc_col = wc.get('embed_color', '#22c55e') %}
+{% set lv_col = lv.get('embed_color', '#ef4444') %}
+
+<!-- STATUS-ROW -->
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-bottom:14px">
+  <div class="ov-stat"><div class="ov-sv" style="color:{% if wc.get('enabled') %}var(--green){% else %}var(--muted){% endif %}">{% if wc.get('enabled') %}AN{% else %}AUS{% endif %}</div><div class="ov-sl">Welcome</div></div>
+  <div class="ov-stat"><div class="ov-sv" style="color:{% if lv.get('enabled') %}var(--red){% else %}var(--muted){% endif %}">{% if lv.get('enabled') %}AN{% else %}AUS{% endif %}</div><div class="ov-sl">Leave</div></div>
+  <div class="ov-stat"><div class="ov-sv" style="color:{% if wc.get('dm_enabled') %}var(--cl){% else %}var(--muted){% endif %}">{% if wc.get('dm_enabled') %}AN{% else %}AUS{% endif %}</div><div class="ov-sl">Welcome-DM</div></div>
+  <div class="ov-stat"><div class="ov-sv" style="color:var(--vl)">{{ (wc.get('add_roles') or [])|length }}</div><div class="ov-sl">Auto-Rolle(n)</div></div>
+</div>
+
+<!-- PLATZHALTER-INFO -->
+<div class="db-card" style="padding:14px;margin-bottom:14px;background:rgba(124,58,237,0.02);border-color:rgba(124,58,237,0.08)">
+  <div style="font-size:.78rem;color:var(--muted);line-height:1.7">
+    <strong style="color:var(--fg)">Verfügbare Platzhalter:</strong>
+    <code style="color:var(--vl)">{mention}</code>,
+    <code style="color:var(--vl)">{user}</code>,
+    <code style="color:var(--vl)">{server}</code>,
+    <code style="color:var(--vl)">{count}</code> (Member-Anzahl).
+  </div>
+</div>
+
+<!-- WELCOME -->
+<div class="db-card" style="padding:16px;margin-bottom:16px">
+  <div style="font-weight:700;font-size:.9rem;margin-bottom:12px;display:flex;align-items:center;gap:6px">
+    👋 Welcome-Nachricht
+    <span class="badge {% if wc.get('enabled') %}badge-green{% else %}badge-grey{% endif %}" style="font-size:.55rem">
+      {% if wc.get('enabled') %}Aktiv{% else %}Aus{% endif %}
+    </span>
+  </div>
+
+  <div class="cfg-row">
+    <div><span class="cfg-label">Aktiviert</span><div class="cfg-desc">Nachricht im Welcome-Kanal posten</div></div>
+    <label class="toggle"><input type="checkbox" id="wc-en" {% if wc.get('enabled') %}checked{% endif %}><span class="slider"></span></label>
+  </div>
+
+  <div class="cfg-row">
+    <div><span class="cfg-label">Welcome-Kanal</span><div class="cfg-desc">Wo die Nachricht landet</div></div>
+    <select class="cfg-select" id="wc-ch" style="min-width:200px">
+      <option value="">— Kein Kanal —</option>
+      {% for ch in channels %}
+      <option value="{{ ch.id }}" {% if wc.get('channel_id')|string == ch.id %}selected{% endif %}>#{{ ch.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="cfg-row">
+    <div><span class="cfg-label">Titel</span><div class="cfg-desc">Embed-Titel (max 256)</div></div>
+    <input class="cfg-input" id="wc-title" value="{{ wc.get('embed_title','👋 Willkommen auf {server}!') }}" maxlength="256" style="min-width:280px">
+  </div>
+
+  <div class="cfg-row" style="flex-direction:column;align-items:stretch;gap:6px">
+    <div style="display:flex;justify-content:space-between;align-items:baseline">
+      <span class="cfg-label">Beschreibung</span>
+      <span style="font-size:.6rem;color:var(--muted)" id="wc-len">0/2000</span>
+    </div>
+    <div class="cfg-desc">Embed-Beschreibung – Markdown wird unterstützt</div>
+    <textarea id="wc-desc" rows="3" maxlength="2000"
+              style="width:100%;padding:10px 14px;border-radius:10px;background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--fg);font-family:inherit;font-size:.82rem;resize:vertical;outline:none"
+              oninput="updatePreview();showSaveBar()">{{ wc.get('embed_description','Hallo {mention}! Willkommen auf **{server}** – du bist Mitglied #{count}.') }}</textarea>
+  </div>
+
+  <div class="cfg-row">
+    <div><span class="cfg-label">Embed-Farbe</span><div class="cfg-desc">Linker Farbstreifen</div></div>
+    <input type="color" id="wc-col" value="{{ wc_col }}" style="width:46px;height:32px;border:none;border-radius:8px;cursor:pointer;background:transparent" oninput="updatePreview();showSaveBar()">
+  </div>
+
+  <div class="cfg-row">
+    <div><span class="cfg-label">User mit @ erwähnen</span><div class="cfg-desc">Pingt die Person außerhalb des Embeds</div></div>
+    <label class="toggle"><input type="checkbox" id="wc-ment" {% if wc.get('mention', True) %}checked{% endif %}><span class="slider"></span></label>
+  </div>
+
+  <div class="cfg-row">
+    <div><span class="cfg-label">Avatar als Thumbnail</span><div class="cfg-desc">Profilbild rechts oben im Embed</div></div>
+    <label class="toggle"><input type="checkbox" id="wc-thumb" {% if wc.get('embed_thumbnail', True) %}checked{% endif %}><span class="slider"></span></label>
+  </div>
+
+  <div class="cfg-row">
+    <div><span class="cfg-label">Bild-URL</span><div class="cfg-desc">Optional: großes Bild unten im Embed</div></div>
+    <input class="cfg-input" id="wc-img" value="{{ wc.get('embed_image','') }}" placeholder="https://…" style="min-width:280px">
+  </div>
+
+  <!-- DM -->
+  <div class="cfg-row" style="margin-top:14px;border-top:1px dashed rgba(255,255,255,0.05);padding-top:14px">
+    <div><span class="cfg-label">Zusätzliche DM senden</span><div class="cfg-desc">Privatnachricht an den neuen User</div></div>
+    <label class="toggle"><input type="checkbox" id="wc-dm" {% if wc.get('dm_enabled') %}checked{% endif %}><span class="slider"></span></label>
+  </div>
+  <div class="cfg-row" style="flex-direction:column;align-items:stretch;gap:6px">
+    <span class="cfg-label">DM-Text</span>
+    <div class="cfg-desc">Gleiche Platzhalter wie oben</div>
+    <textarea id="wc-dm-text" rows="2"
+              style="width:100%;padding:10px 14px;border-radius:10px;background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--fg);font-family:inherit;font-size:.82rem;resize:vertical;outline:none"
+              oninput="showSaveBar()">{{ wc.get('dm_description','') }}</textarea>
+  </div>
+
+  <!-- LIVE PREVIEW -->
+  <div style="margin-top:16px;padding:12px;border-radius:12px;background:#36393f;border-left:4px solid {{ wc_col }};font-family:'Whitney',-apple-system,sans-serif" id="wc-preview-wrap">
+    <div style="font-size:.6rem;color:#8e9297;text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-bottom:6px">Vorschau im Welcome-Kanal</div>
+    <div style="background:#2f3136;border-left:4px solid {{ wc_col }};border-radius:0 4px 4px 0;padding:10px 14px">
+      <div style="font-weight:700;color:#fff;font-size:.9rem;margin-bottom:4px" id="wc-prev-title">{{ wc.get('embed_title','') }}</div>
+      <div style="color:#dcddde;font-size:.82rem;line-height:1.45;white-space:pre-wrap" id="wc-prev-desc">{{ wc.get('embed_description','') }}</div>
+    </div>
+  </div>
+</div>
+
+<!-- AUTO-ROLLEN -->
+<div class="db-card" style="padding:16px;margin-bottom:16px">
+  <div style="font-weight:700;font-size:.9rem;margin-bottom:10px">🏷️ Auto-Rollen beim Beitritt</div>
+  <div class="cfg-desc" style="margin-bottom:10px">Diese Rollen erhält jeder neue Member automatisch.</div>
+  <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px" id="wc-role-tags">
+    {% for rid in (wc.get('add_roles') or []) %}
+      {% set rname = (guild_roles|selectattr('id','equalto',rid|string)|first or {}).get('name') or rid %}
+      <span style="padding:4px 12px;border-radius:999px;font-size:.7rem;font-weight:600;background:rgba(124,58,237,0.08);color:var(--vl);border:1px solid rgba(124,58,237,0.18);display:inline-flex;align-items:center;gap:6px" data-rid="{{ rid }}">
+        @{{ rname }}
+        <span style="cursor:pointer;color:var(--redl);font-weight:800" onclick="rmRole({{ rid }})">×</span>
+      </span>
+    {% endfor %}
+    {% if not (wc.get('add_roles') or []) %}<span style="color:var(--muted);font-size:.75rem">Noch keine Auto-Rollen</span>{% endif %}
+  </div>
+  <div style="display:flex;gap:6px">
+    <select class="cfg-select" id="wc-role-sel" style="min-width:220px;flex:1">
+      <option value="">— Rolle wählen —</option>
+      {% for r in guild_roles %}<option value="{{ r.id }}">@{{ r.name }}</option>{% endfor %}
+    </select>
+    <button class="btn-glass btn-sm btn-glass-primary" onclick="addRole()">➕ Hinzufügen</button>
+  </div>
+</div>
+
+<!-- LEAVE -->
+<div class="db-card" style="padding:16px">
+  <div style="font-weight:700;font-size:.9rem;margin-bottom:12px;display:flex;align-items:center;gap:6px">
+    🚪 Leave-Nachricht
+    <span class="badge {% if lv.get('enabled') %}badge-red{% else %}badge-grey{% endif %}" style="font-size:.55rem">
+      {% if lv.get('enabled') %}Aktiv{% else %}Aus{% endif %}
+    </span>
+  </div>
+
+  <div class="cfg-row">
+    <div><span class="cfg-label">Aktiviert</span></div>
+    <label class="toggle"><input type="checkbox" id="lv-en" {% if lv.get('enabled') %}checked{% endif %}><span class="slider"></span></label>
+  </div>
+
+  <div class="cfg-row">
+    <div><span class="cfg-label">Leave-Kanal</span></div>
+    <select class="cfg-select" id="lv-ch" style="min-width:200px">
+      <option value="">— Kein Kanal —</option>
+      {% for ch in channels %}
+      <option value="{{ ch.id }}" {% if lv.get('channel_id')|string == ch.id %}selected{% endif %}>#{{ ch.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="cfg-row">
+    <div><span class="cfg-label">Titel</span></div>
+    <input class="cfg-input" id="lv-title" value="{{ lv.get('embed_title','👋 Auf Wiedersehen!') }}" maxlength="256" style="min-width:280px">
+  </div>
+
+  <div class="cfg-row" style="flex-direction:column;align-items:stretch;gap:6px">
+    <span class="cfg-label">Beschreibung</span>
+    <textarea id="lv-desc" rows="2" maxlength="2000"
+              style="width:100%;padding:10px 14px;border-radius:10px;background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--fg);font-family:inherit;font-size:.82rem;resize:vertical;outline:none">{{ lv.get('embed_description','**{user}** hat den Server verlassen. Wir sind jetzt noch {count}.') }}</textarea>
+  </div>
+
+  <div class="cfg-row">
+    <div><span class="cfg-label">Embed-Farbe</span></div>
+    <input type="color" id="lv-col" value="{{ lv_col }}" style="width:46px;height:32px;border:none;border-radius:8px;cursor:pointer;background:transparent">
+  </div>
+</div>
+
+<script>
+const GID = "{{ guild.id }}";
+{% raw %}
+function updatePreview() {
+  const desc = document.getElementById('wc-desc').value;
+  const color = document.getElementById('wc-col').value;
+  document.getElementById('wc-prev-title').textContent = document.getElementById('wc-title').value;
+  document.getElementById('wc-prev-desc').textContent = desc;
+  document.getElementById('wc-len').textContent = desc.length + '/2000';
+  // Farbstreifen
+  const wrap = document.getElementById('wc-preview-wrap');
+  wrap.style.borderLeftColor = color;
+  wrap.querySelector('div[style*="border-left"]').style.borderLeftColor = color;
+}
+updatePreview();
+
+function addRole() {
+  const sel = document.getElementById('wc-role-sel');
+  if (!sel.value) return showToast('❌ Rolle wählen', 'err');
+  // Visuell hinzufügen
+  const wrap = document.getElementById('wc-role-tags');
+  const empty = wrap.querySelector('span:not([data-rid])');
+  if (empty) empty.remove();
+  const tag = document.createElement('span');
+  tag.style.cssText = 'padding:4px 12px;border-radius:999px;font-size:.7rem;font-weight:600;background:rgba(124,58,237,0.08);color:var(--vl);border:1px solid rgba(124,58,237,0.18);display:inline-flex;align-items:center;gap:6px;animation:fadeUp .2s ease';
+  tag.dataset.rid = sel.value;
+  tag.innerHTML = '@' + sel.options[sel.selectedIndex].text.replace(/^@/,'') +
+    ` <span style="cursor:pointer;color:var(--redl);font-weight:800" onclick="rmRole(${sel.value})">×</span>`;
+  wrap.appendChild(tag);
+  sel.value = '';
+  showSaveBar();
+}
+
+function rmRole(rid) {
+  const wrap = document.getElementById('wc-role-tags');
+  const tag = wrap.querySelector(`span[data-rid="${rid}"]`);
+  if (tag) { tag.remove(); showSaveBar(); }
+}
+
+async function saveConfig() {
+  const wc = {
+    enabled: document.getElementById('wc-en').checked,
+    channel_id: document.getElementById('wc-ch').value || null,
+    embed_title: document.getElementById('wc-title').value,
+    embed_description: document.getElementById('wc-desc').value,
+    embed_color: document.getElementById('wc-col').value,
+    embed_image: document.getElementById('wc-img').value,
+    embed_thumbnail: document.getElementById('wc-thumb').checked,
+    mention: document.getElementById('wc-ment').checked,
+    dm_enabled: document.getElementById('wc-dm').checked,
+    dm_description: document.getElementById('wc-dm-text').value,
+    add_roles: Array.from(document.querySelectorAll('#wc-role-tags span[data-rid]')).map(s => Number(s.dataset.rid)),
+  };
+  // channel_id sauber als Number (oder null) übergeben
+  if (wc.channel_id) wc.channel_id = Number(wc.channel_id);
+
+  const lv = {
+    enabled: document.getElementById('lv-en').checked,
+    channel_id: document.getElementById('lv-ch').value ? Number(document.getElementById('lv-ch').value) : null,
+    embed_title: document.getElementById('lv-title').value,
+    embed_description: document.getElementById('lv-desc').value,
+    embed_color: document.getElementById('lv-col').value,
+  };
+
+  try {
+    const r = await fetch('/api/guild/' + GID + '/config', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({_welcome: wc, _leave: lv})
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    markSaved();
+  } catch (e) {
+    markError('Speichern fehlgeschlagen');
+  }
+}
+{% endraw %}
+</script>
 {% endblock %}
