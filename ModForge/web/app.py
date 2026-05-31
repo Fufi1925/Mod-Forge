@@ -1,8 +1,8 @@
 from flask import Flask
 import os
 import threading
-import random
-from datetime import datetime
+import logging
+from datetime import datetime, timezone
 
 # Flask-SocketIO importieren
 from flask_socketio import SocketIO
@@ -10,69 +10,155 @@ from flask_socketio import SocketIO
 from .config import SESSION_SECRET
 from .auth import auth_bp, get_session, require_auth
 
-flask_app = Flask(__name__,
-    template_folder='templates',
-    static_folder='static',
-    static_url_path='/static')
+log = logging.getLogger("ModForge.Web.App")
+
+flask_app = Flask(
+    __name__,
+    template_folder="templates",
+    static_folder="static",
+    static_url_path="/static",
+)
 flask_app.secret_key = SESSION_SECRET
 flask_app.config["PERMANENT_SESSION_LIFETIME"] = 60 * 60 * 6
 
-# SocketIO initialisieren
-socketio = SocketIO(flask_app)
+# SocketIO initialisieren – async_mode wird automatisch erkannt.
+socketio = SocketIO(flask_app, cors_allowed_origins="*")
 
 # Auth-Blueprint (OAuth2) registrieren
 flask_app.register_blueprint(auth_bp)
 
 # Deine bestehenden Routen (Landing, Dashboard, Live …)
-from . import routes
+from . import routes  # noqa: E402,F401  (Seiten-Routen registrieren sich via Import)
 
-# Hintergrund-Thread, der die Live-Daten sendet
+
+# ───────────────────────────────────────────────────────────
+# Live-Status-Emitter
+#
+# Vorher wurden hier *zufällige* Demo-Werte gesendet, was die
+# Live-Seite irreführend gemacht hat. Wir nutzen jetzt:
+#   • den echten Bot-Status (Ready / Latenz / Guild-Count)
+#   • die echte Activity-Queue aus bot.config.ACTIVITY
+#   • einen plausiblen Protection-Score aus der DB-Konfiguration
+# ───────────────────────────────────────────────────────────
+def _module_active(cfg: dict, key: str) -> bool:
+    mod = cfg.get(key, {}) if isinstance(cfg, dict) else {}
+    return bool(isinstance(mod, dict) and mod.get("enabled"))
+
+
+def _collect_status() -> dict:
+    """Sammelt den Live-Status aus den echten ModForge-Quellen."""
+    try:
+        from bot.bot import BOT_REF
+    except Exception:
+        BOT_REF = None
+
+    bot_online = bool(BOT_REF is not None and getattr(BOT_REF, "is_ready", lambda: False)())
+    latency_ms = 0
+    guild_count = 0
+    member_count = 0
+
+    if bot_online:
+        try:
+            latency_ms = round((BOT_REF.latency or 0) * 1000, 1)
+        except Exception:
+            latency_ms = 0
+        try:
+            guild_count = len(BOT_REF.guilds)
+            member_count = sum((g.member_count or 0) for g in BOT_REF.guilds)
+        except Exception:
+            pass
+
+    # Protection-Score: prozentualer Anteil aktiver Module über alle Guilds.
+    # Wenn der Bot offline ist, geben wir 0 zurück – ehrlicher als 95 % aus dem Nichts.
+    protection = {"raid": 0, "spam": 0, "scam": 0, "invite": 0}
+    if bot_online and getattr(BOT_REF, "db", None) is not None:
+        try:
+            guilds = list(BOT_REF.guilds)
+            n = max(1, len(guilds))
+            counters = {"raid": 0, "spam": 0, "scam": 0, "invite": 0}
+            for g in guilds:
+                cfg = BOT_REF.db.get_config(g.id) or {}
+                if _module_active(cfg, "anti_raid"):
+                    counters["raid"] += 1
+                if _module_active(cfg, "anti_spam"):
+                    counters["spam"] += 1
+                if _module_active(cfg, "anti_scam"):
+                    counters["scam"] += 1
+                am = cfg.get("automod", {}) if isinstance(cfg, dict) else {}
+                if isinstance(am, dict) and am.get("invite_filter"):
+                    counters["invite"] += 1
+            protection = {k: int(round(v * 100 / n)) for k, v in counters.items()}
+        except Exception as e:
+            log.debug(f"protection-score error: {e}")
+
+    # Letzte Aktivitäten aus dem Ring-Buffer
+    activity = []
+    try:
+        from bot.config import ACTIVITY
+        activity = ACTIVITY.snapshot(20)
+    except Exception:
+        activity = []
+
+    return {
+        "systems": {
+            "bot": bot_online,
+            "database": bool(BOT_REF is not None and getattr(BOT_REF, "db", None) is not None),
+            "api": True,
+            "raid": bot_online,
+            "automod": bot_online,
+        },
+        "bot": {
+            "ready": bot_online,
+            "latency_ms": latency_ms,
+            "guilds": guild_count,
+            "members": member_count,
+        },
+        "protection": protection,
+        "activity": activity,
+        "ts": datetime.now(timezone.utc).isoformat(),
+    }
+
+
 def background_emitter():
     while True:
         socketio.sleep(3)  # alle 3 Sekunden
-        status = {
-            "systems": {
-                "database": True,
-                "api": True,
-                "raid": True,
-                "automod": True
-            },
-            "protection": {
-                "raid": random.randint(88, 98),
-                "spam": random.randint(80, 95),
-                "scam": random.randint(92, 100),
-                "invite": random.randint(85, 97)
-            },
-            "activity": [
-                {
-                    "kind": "spam",
-                    "text": "Spam-Nachricht von @User gelöscht",
-                    "ts": datetime.now().isoformat()
-                },
-                {
-                    "kind": "invite",
-                    "text": "Discord-Invite gelöscht",
-                    "ts": datetime.now().isoformat()
-                }
-            ]
-        }
-        socketio.emit('status_update', status)
+        try:
+            socketio.emit("status_update", _collect_status())
+        except Exception as e:
+            log.debug(f"status_update emit failed: {e}")
 
 
-@socketio.on('connect')
+@socketio.on("connect")
 def handle_connect():
-    print('Client connected')
+    # Sofortigen Snapshot schicken, damit der Client nicht 3 s warten muss.
+    try:
+        socketio.emit("status_update", _collect_status())
+    except Exception:
+        pass
 
 
-@socketio.on('disconnect')
+@socketio.on("disconnect")
 def handle_disconnect():
-    print('Client disconnected')
+    # Bewusst kein Logging-Spam.
+    pass
+
+
+_emitter_started = False
+_emitter_lock = threading.Lock()
+
+
+def _ensure_emitter():
+    global _emitter_started
+    with _emitter_lock:
+        if _emitter_started:
+            return
+        _emitter_started = True
+        socketio.start_background_task(background_emitter)
 
 
 def run_flask():
     port = int(os.getenv("PORT", "7860"))
-    # Starte den Emitter als Hintergrund-Task
-    socketio.start_background_task(background_emitter)
+    _ensure_emitter()
     socketio.run(flask_app, host="0.0.0.0", port=port, debug=False)
 
 

@@ -16,9 +16,11 @@ from flask import (
 
 import datetime
 import logging
-import json as _json
+import json
+import json as _json  # rückwärtskompatibel, falls Code noch _json benutzt
 import time
 import threading
+import copy as _copy
 
 from collections import defaultdict, deque
 from functools import wraps
@@ -56,101 +58,153 @@ log = logging.getLogger("ModForge.Web.Routes")
 
 # ═══════════════════════════════════════════════════════════
 # DIRECT DB ACCESS (works even when bot is offline)
+#
+# Verwendet die GLEICHE Collection wie die Bot-Datenbank
+# (database/db.py → self.config = self.db["config"]).
+# Frühere Version schrieb in "configs" (Plural) und der Bot
+# hat die Änderungen daher nie gesehen. Behoben.
 # ═══════════════════════════════════════════════════════════
-_direct_db_client = None
+_direct_db_client = None          # MongoDB-Database-Handle (Singleton)
+_direct_db_tried = False          # True, sobald wir einen Verbindungsversuch gemacht haben
+_direct_db_lock = threading.Lock()
+
 
 def _get_direct_db():
-    """Get a direct MongoDB connection for the dashboard."""
-    global _direct_db_client
-    if _direct_db_client is not None:
+    """Liefert das ``ModForge``-MongoDB-Database-Objekt oder ``None``.
+
+    Ergebnis wird gecacht (auch ``None``), damit wir bei fehlendem
+    ``MONGO_URL`` nicht bei jedem Request erneut versuchen zu verbinden.
+    """
+    global _direct_db_client, _direct_db_tried
+    if _direct_db_tried:
         return _direct_db_client
-    import os
-    mongo_url = os.getenv("MONGO_URL")
-    if not mongo_url:
-        return None
-    try:
-        from pymongo import MongoClient
-        client = MongoClient(mongo_url, serverSelectionTimeoutMS=1000, connectTimeoutMS=1000, socketTimeoutMS=1000)
-        _direct_db_client = client["ModForge"]
+
+    with _direct_db_lock:
+        if _direct_db_tried:
+            return _direct_db_client
+        _direct_db_tried = True
+
+        import os
+        mongo_url = os.getenv("MONGO_URL")
+        if not mongo_url:
+            log.debug("Direct DB: MONGO_URL nicht gesetzt – kein Direkt-Zugriff.")
+            return None
+        try:
+            from pymongo import MongoClient
+            client = MongoClient(
+                mongo_url,
+                serverSelectionTimeoutMS=2000,
+                connectTimeoutMS=2000,
+                socketTimeoutMS=4000,
+                tlsAllowInvalidCertificates=True,
+            )
+            # Verbindung sofort prüfen, damit wir Fehler hier abfangen.
+            client.admin.command("ping")
+            _direct_db_client = client["ModForge"]
+            log.info("Direct DB: MongoDB-Verbindung steht (Dashboard-Fallback).")
+        except Exception as e:
+            log.warning(f"Direct DB connect failed: {e}")
+            _direct_db_client = None
         return _direct_db_client
-    except Exception as e:
-        log.debug(f"Direct DB connect failed: {e}")
-        return None
+
+
+def _sanitize_cfg_for_mongo(cfg):
+    """Entfernt nicht-JSON-serialisierbare Felder und Keys mit führendem ``_``."""
+    cleaned = {}
+    for k, v in (cfg or {}).items():
+        if isinstance(k, str) and k.startswith("_") and k != "_id":
+            continue
+        try:
+            json.dumps(v, default=str)
+            cleaned[k] = v
+        except (TypeError, ValueError):
+            cleaned[k] = str(v)
+    return cleaned
+
 
 def _direct_save_config(guild_id, cfg):
-    """Save config directly to MongoDB, bypassing bot."""
-    # Try bot first (if online, uses cache)
-    try:
-        from bot.utils import _run_async
-        result = _direct_save_config(guild_id, cfg)
-        if result is not None:
-            return True
-    except Exception:
-        pass
+    """Speichert die Guild-Konfiguration zuverlässig.
 
-    # Fallback: direct MongoDB write
+    Strategie (Single Source of Truth = MongoDB):
+      1. Schreibe direkt in die Collection ``config`` (Bot nutzt dieselbe).
+      2. Aktualisiere zusätzlich den In-Memory-Cache des laufenden Bots,
+         damit Änderungen sofort wirken (sonst erst nach Cache-TTL = 5 min).
+    Liefert ``True`` bei Erfolg, sonst ``False``.
+    """
+    gid = int(guild_id)
+    cleaned = _sanitize_cfg_for_mongo(cfg)
+    cleaned["_id"] = gid
+
+    db = _get_direct_db()
+    if db is None:
+        # Letzter Versuch: über den Bot (z.B. lokale Entwicklung ohne MONGO_URL für die Web-App)
+        try:
+            from bot.bot import BOT_REF
+            if BOT_REF is not None and getattr(BOT_REF, "db", None) is not None:
+                _run_async(BOT_REF.db.aset_config(gid, {k: v for k, v in cleaned.items() if k != "_id"}))
+                return True
+        except Exception as e:
+            log.error(f"Direct save (bot fallback) failed for {gid}: {e}")
+        return False
+
     try:
-        import sys
-        if sys.getrecursionlimit() < 200:
-            return False
-        db = _get_direct_db()
-        if db is not None:
-            # Clean config for MongoDB (remove non-serializable items)
-            import copy
-            cfg_copy = {}
-            for k, v in cfg.items():
-                if k.startswith('_') and k != '_id':
-                    continue
-                try:
-                    json.dumps(v, default=str)  # Test if serializable
-                    cfg_copy[k] = v
-                except (TypeError, ValueError):
-                    cfg_copy[k] = str(v)
-            cfg_copy["_id"] = int(guild_id)
-            db.configs.update_one(
-                {"_id": int(guild_id)},
-                {"$set": cfg_copy},
-                upsert=True
-            )
-            # Update bot cache if available
-            try:
-                if bot and hasattr(bot, 'db') and hasattr(bot.db, '_config_cache'):
-                    bot.db._config_cache[int(guild_id)] = cfg
-            except Exception:
-                pass
-            return True
-    except RecursionError:
-        pass  # MongoDB driver issue in test env
+        db.config.update_one({"_id": gid}, {"$set": cleaned}, upsert=True)
     except Exception as e:
-        log.error(f"Direct DB save failed for {guild_id}: {e}")
-    return False
+        log.error(f"Direct DB save failed for {gid}: {e}")
+        return False
 
-def _direct_load_config(guild_id):
-    """Load config directly from MongoDB."""
-    # Try bot first
+    # Bot-Cache invalidieren / aktualisieren, falls Bot läuft
     try:
         from bot.bot import BOT_REF
-        if BOT_REF and hasattr(BOT_REF, 'db') and BOT_REF.db:
-            cfg = BOT_REF.db.get_config(int(guild_id))
-            if cfg and isinstance(cfg, dict) and len(cfg) > 3:
-                return cfg
-    except Exception:
-        pass
+        if (
+            BOT_REF is not None
+            and getattr(BOT_REF, "db", None) is not None
+            and hasattr(BOT_REF.db, "_config_cache")
+        ):
+            cache_copy = _copy.deepcopy(cleaned)
+            cache_copy.pop("_id", None)
+            BOT_REF.db._config_cache[gid] = cache_copy
+    except Exception as e:
+        log.debug(f"Bot-Cache-Update nach Save fehlgeschlagen für {gid}: {e}")
 
-    # Fallback: direct MongoDB read
+    return True
+
+
+def _direct_load_config(guild_id):
+    """Lädt die Guild-Konfiguration.
+
+    Reihenfolge: Bot-Cache → MongoDB direkt → DEFAULT_CONFIG.
+    Liefert IMMER ein Dict (nie ``None``), damit Routen sicher arbeiten können.
+    """
+    gid = int(guild_id)
+
+    # 1) Über den Bot (Cache + DB)
+    try:
+        from bot.bot import BOT_REF
+        if BOT_REF is not None and getattr(BOT_REF, "db", None) is not None:
+            cfg = BOT_REF.db.get_config(gid)
+            if isinstance(cfg, dict) and len(cfg) > 3:
+                return cfg
+    except Exception as e:
+        log.debug(f"Direct load via bot failed for {gid}: {e}")
+
+    # 2) Direkter MongoDB-Read – richtige Collection: "config"
     try:
         db = _get_direct_db()
         if db is not None:
-            doc = db.configs.find_one({"_id": int(guild_id)})
-            if doc and isinstance(doc, dict):
+            doc = db.config.find_one({"_id": gid})
+            if isinstance(doc, dict):
                 doc.pop("_id", None)
-                return doc
+                # Defaults auffüllen, damit das Dashboard alle Keys hat
+                from bot.config import DEFAULT_CONFIG
+                merged = _copy.deepcopy(DEFAULT_CONFIG)
+                merged.update(doc)
+                return merged
     except Exception as e:
         log.debug(f"Direct DB load failed: {e}")
 
     from bot.config import DEFAULT_CONFIG
-    import copy
-    return copy.deepcopy(DEFAULT_CONFIG)
+    return _copy.deepcopy(DEFAULT_CONFIG)
 
 
 
@@ -171,7 +225,12 @@ def safe_async(coro, default=None):
 # =========================================================
 
 def bot_ready():
-    return bool(bot and bot.is_ready())
+    # Wichtig: discord.py-Bot überschreibt __bool__ nicht, aber wir bleiben
+    # konsequent bei "is not None" – das löst die [COUNT ERROR]-Warnungen mit aus.
+    try:
+        return bot is not None and bot.is_ready()
+    except Exception:
+        return False
 
 
 def get_bot_user():
@@ -193,11 +252,18 @@ def get_guild(guild_id):
 
 
 def safe_collection_count(collection, query=None):
+    """Zählt Dokumente in einer Motor-/PyMongo-Collection.
+
+    Wichtig: MotorCollection-Objekte werfen bei ``bool(col)``
+    ``NotImplementedError`` (siehe alte Logs:
+    ``Collection objects do not implement truth value testing``).
+    Daher EXPLIZIT mit ``is None`` vergleichen.
+    """
     if query is None:
         query = {}
+    if collection is None:
+        return 0
     try:
-        if not collection:
-            return 0
         return safe_async(collection.count_documents(query), 0) or 0
     except Exception as e:
         log.error(f"[COUNT ERROR] {e}")
