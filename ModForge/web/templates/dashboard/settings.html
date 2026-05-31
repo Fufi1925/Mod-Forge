@@ -1,0 +1,42 @@
+{% extends "dashboard/_base.html" %}
+{% set active = 'settings' %}
+{% block title %}Einstellungen{% endblock %}
+{% block page_title %}⚙️ Server-Einstellungen{% endblock %}
+{% block content %}
+<div class="db-card" style="padding:16px;margin-bottom:14px">
+  <div style="font-weight:700;font-size:.85rem;margin-bottom:10px">🔧 Allgemein</div>
+  <div class="cfg-row"><div><span class="cfg-label">Prefix</span><div class="cfg-desc">Für Text-Commands (z.B. !ban)</div></div><input type="text" class="cfg-input" id="pfx" value="{{ cfg.get('prefix','!') }}" style="max-width:60px;text-align:center" oninput="showSaveBar()"></div>
+  <div class="cfg-row"><div><span class="cfg-label">No-Prefix Modus</span><div class="cfg-desc">Mods können Commands ohne ! oder / nutzen</div></div><label class="toggle"><input type="checkbox" id="noP" {% if cfg.get('no_prefix') %}checked{% endif %} onchange="showSaveBar()"><span class="slider"></span></label></div>
+</div>
+<div class="db-card" style="padding:16px;margin-bottom:14px">
+  <div style="font-weight:700;font-size:.85rem;margin-bottom:10px">📬 Kanäle</div>
+  <div class="cfg-row"><div><span class="cfg-label">Report-Kanal</span><div class="cfg-desc">/report Meldungen landen hier</div></div><select class="cfg-select" id="repCh" style="min-width:180px" onchange="showSaveBar()"><option value="">— Nicht gesetzt —</option>{% for ch in channels %}<option value="{{ ch.id }}" {% if ch.id|string==(cfg.get('report_channel','')|string) %}selected{% endif %}>#{{ ch.name }}</option>{% endfor %}</select></div>
+  <div class="cfg-row"><div><span class="cfg-label">Appeal-Kanal</span><div class="cfg-desc">Ban-Appeals werden hierhin gesendet</div></div><select class="cfg-select" id="appCh" style="min-width:180px" onchange="showSaveBar()"><option value="">— Nicht gesetzt —</option>{% for ch in channels %}<option value="{{ ch.id }}" {% if ch.id|string==(cfg.get('appeal_log_channel','')|string) %}selected{% endif %}>#{{ ch.name }}</option>{% endfor %}</select></div>
+</div>
+<div class="db-card" style="padding:16px;margin-bottom:14px">
+  <div style="font-weight:700;font-size:.85rem;margin-bottom:10px">🤖 Automatisierung</div>
+  <div class="cfg-row"><div><span class="cfg-label">Auto Ban-Appeal</span><div class="cfg-desc">Gebannte User erhalten automatisch eine DM mit Appeal-Möglichkeit</div></div><label class="toggle"><input type="checkbox" id="autoApp" {% if cfg.get('auto_ban_appeal',{}).get('enabled') %}checked{% endif %} onchange="showSaveBar()"><span class="slider"></span></label></div>
+  <div class="cfg-row"><div><span class="cfg-label">Invite-Tracking</span><div class="cfg-desc">Loggt welcher Invite bei jedem Join benutzt wurde</div></div><label class="toggle"><input type="checkbox" id="invT" {% if cfg.get('invite_tracking',{}).get('enabled') %}checked{% endif %} onchange="showSaveBar()"><span class="slider"></span></label></div>
+  <div class="cfg-row"><div><span class="cfg-label">Nachrichtenarchiv</span><div class="cfg-desc">Speichert Nachrichten für Case-Beweise</div></div><label class="toggle"><input type="checkbox" id="msgA" {% if cfg.get('message_archive',{}).get('enabled') %}checked{% endif %} onchange="showSaveBar()"><span class="slider"></span></label></div>
+  <div class="cfg-row"><div><span class="cfg-label">Auto-Webhook Logging</span><div class="cfg-desc">Logs über Webhooks statt Bot-Embeds (schneller)</div></div><label class="toggle"><input type="checkbox" id="whL" {% if cfg.get('webhook_logging',{}).get('enabled') %}checked{% endif %} onchange="showSaveBar()"><span class="slider"></span></label></div>
+</div>
+<div class="db-card" style="padding:16px;border-color:rgba(239,68,68,0.12)">
+  <div style="font-weight:700;font-size:.85rem;margin-bottom:10px;color:var(--red)">⚠️ Gefahrenzone</div>
+  <div class="cfg-row" style="border-color:rgba(239,68,68,0.08)"><div><span class="cfg-label">Config zurücksetzen</span><div class="cfg-desc">Setzt ALLE Einstellungen auf Standard zurück</div></div><button class="btn-glass btn-sm btn-glass-danger" onclick="resetCfg()">Zurücksetzen</button></div>
+</div>
+{% block scripts %}<script>
+async function saveConfig(){
+  const r = await fetch('/api/guild/{{ guild.id }}/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+    _prefix:document.getElementById('pfx').value, _no_prefix:document.getElementById('noP').checked,
+    _report_channel:document.getElementById('repCh').value||null, _appeal_log_channel:document.getElementById('appCh').value||null,
+    _auto_ban_appeal:{enabled:document.getElementById('autoApp').checked}, _invite_tracking:{enabled:document.getElementById('invT').checked},
+    _message_archive:{enabled:document.getElementById('msgA').checked}, _webhook_logging:{enabled:document.getElementById('whL').checked}
+  })});
+  if(r.ok) markSaved(); else markError();
+}
+function resetCfg(){
+  showModal(`<div style="text-align:center;margin-bottom:16px"><div style="font-size:2rem;margin-bottom:8px">⚠️</div><div style="font-weight:700">Wirklich ALLES zurücksetzen?</div><div style="color:var(--muted);font-size:.82rem;margin-top:4px">Alle Module, Kanäle, Einstellungen werden gelöscht.</div></div><div style="display:flex;gap:8px"><button onclick="closeModal()" style="flex:1;padding:10px;border-radius:10px;background:rgba(255,255,255,0.05);border:1px solid var(--border);color:var(--fg);font-size:.82rem;cursor:pointer;font-family:inherit">Abbrechen</button><button onclick="closeModal();doReset()" style="flex:1;padding:10px;border-radius:10px;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.25);color:#f87171;font-size:.82rem;cursor:pointer;font-family:inherit;font-weight:600">🗑️ Zurücksetzen</button></div>`);
+}
+async function doReset(){await fetch('/api/guild/{{ guild.id }}/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({_reset:true})});showToast('🗑️ Zurückgesetzt','ok');setTimeout(()=>location.reload(),800)}
+</script>{% endblock %}
+{% endblock %}

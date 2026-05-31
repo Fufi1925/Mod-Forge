@@ -1,0 +1,8 @@
+{% extends "dashboard/_base.html" %}
+{% set active = 'modules' %}
+{% block title %}Module{% endblock %}
+{% block page_title %}⚙️ Modul-Editor{% endblock %}
+{% block page_desc %}Einzelne Module konfigurieren{% endblock %}
+{% block content %}
+{{ form|safe }}
+{% endblock %}

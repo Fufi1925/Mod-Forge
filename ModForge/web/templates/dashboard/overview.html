@@ -1,0 +1,139 @@
+{% extends "dashboard/_base.html" %}
+{% set active = 'overview' %}
+{% block title %}Übersicht{% endblock %}
+{% block page_title %}📊 Server-Übersicht{% endblock %}
+{% block head %}
+<style>
+  .ov-score{position:relative;width:100px;height:100px;margin:0 auto}
+  .ov-score svg{transform:rotate(-90deg)}
+  .ov-score-val{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:1.4rem;font-weight:900;font-family:'Geist Mono',monospace}
+  .ov-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-bottom:16px}
+  .ov-stat{text-align:center;padding:14px 8px;border-radius:12px;background:rgba(255,255,255,0.02);border:1px solid var(--border)}
+  .ov-sv{font-size:1.2rem;font-weight:900;font-family:'Geist Mono',monospace}
+  .ov-sl{font-size:.52rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:2px}
+  .ov-mod{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:10px;background:rgba(255,255,255,0.02);border:1px solid var(--border);margin-bottom:4px;font-size:.78rem}
+  .ov-mod.on{border-left:3px solid var(--green)}.ov-mod.off{border-left:3px solid rgba(100,116,139,0.2);opacity:.6}
+  .ov-case{display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:10px;margin-bottom:4px;font-size:.78rem}
+  .ov-quick{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-top:16px}
+  .ov-quick a{padding:14px;border-radius:12px;background:rgba(255,255,255,0.02);border:1px solid var(--border);text-decoration:none;transition:all .12s;text-align:center}
+  .ov-quick a:hover{border-color:rgba(139,92,246,0.25);background:rgba(255,255,255,0.04);transform:translateY(-1px)}
+  .ov-quick a .q-icon{font-size:1.3rem;margin-bottom:4px}
+  .ov-quick a .q-title{font-size:.78rem;font-weight:700;color:var(--fg)}
+  .ov-quick a .q-desc{font-size:.6rem;color:var(--muted);margin-top:2px}
+  .ov-feat{display:inline-block;padding:2px 8px;border-radius:999px;font-size:.52rem;font-weight:700;background:rgba(124,58,237,0.06);color:var(--vl);border:1px solid rgba(124,58,237,0.12);margin:2px;text-transform:uppercase;letter-spacing:.03em}
+</style>
+{% endblock %}
+{% block content %}
+
+<!-- TOP: Score + Main Stats -->
+<div style="display:grid;grid-template-columns:200px 1fr;gap:20px;margin-bottom:20px">
+  <!-- Security Score -->
+  <div class="db-card" style="text-align:center;padding:20px">
+    <div class="ov-score">
+      <svg width="100" height="100" viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="8"/>
+        <circle cx="50" cy="50" r="42" fill="none"
+          stroke="{% if score>=80 %}var(--green){% elif score>=50 %}var(--amberl){% else %}var(--red){% endif %}"
+          stroke-width="8" stroke-linecap="round"
+          stroke-dasharray="{{ (score/100)*264 }} 264"/>
+      </svg>
+      <div class="ov-score-val" style="color:{% if score>=80 %}var(--green){% elif score>=50 %}var(--amberl){% else %}var(--red){% endif %}">{{ score }}</div>
+    </div>
+    <div style="font-size:.7rem;font-weight:700;margin-top:8px">Security Score</div>
+    <div style="font-size:.55rem;color:var(--muted)">{% if score>=80 %}Gut geschützt{% elif score>=50 %}Verbesserbar{% else %}Gefährdet{% endif %}</div>
+  </div>
+
+  <!-- Main Stats Grid -->
+  <div>
+    <div class="ov-grid">
+      <div class="ov-stat"><div class="ov-sv" style="color:var(--vl)">{{ humans }}</div><div class="ov-sl">Menschen</div></div>
+      <div class="ov-stat"><div class="ov-sv" style="color:var(--cl)">{{ bots }}</div><div class="ov-sl">Bots</div></div>
+      <div class="ov-stat"><div class="ov-sv" style="color:var(--green)">{{ online_count }}</div><div class="ov-sl">Online</div></div>
+      <div class="ov-stat"><div class="ov-sv" style="color:var(--amberl)">{{ boost_count }}</div><div class="ov-sl">Boosts (T{{ boost_tier }})</div></div>
+      <div class="ov-stat"><div class="ov-sv" style="color:var(--orange)">{{ cases_count }}</div><div class="ov-sl">Cases</div></div>
+      <div class="ov-stat"><div class="ov-sv" style="color:var(--red)">{{ warns_count }}</div><div class="ov-sl">Warns</div></div>
+    </div>
+    <div class="ov-grid">
+      <div class="ov-stat"><div class="ov-sv" style="color:var(--fg)">{{ text_ch }}</div><div class="ov-sl">💬 Text</div></div>
+      <div class="ov-stat"><div class="ov-sv" style="color:var(--fg)">{{ voice_ch }}</div><div class="ov-sl">🔊 Voice</div></div>
+      <div class="ov-stat"><div class="ov-sv" style="color:var(--fg)">{{ cats }}</div><div class="ov-sl">📂 Kategorien</div></div>
+      <div class="ov-stat"><div class="ov-sv" style="color:var(--fg)">{{ roles_count }}</div><div class="ov-sl">🏷️ Rollen</div></div>
+      <div class="ov-stat"><div class="ov-sv" style="color:var(--fg)">{{ emojis_count }}</div><div class="ov-sl">😀 Emojis</div></div>
+      <div class="ov-stat"><div class="ov-sv" style="color:var(--fg)">{{ boosters }}</div><div class="ov-sl">💎 Booster</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- SERVER INFO -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+  <div class="db-card" style="padding:16px">
+    <div style="font-weight:700;font-size:.82rem;margin-bottom:10px">📋 Server-Info</div>
+    <div style="display:flex;flex-direction:column;gap:6px;font-size:.78rem">
+      <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">👑 Owner</span><span>{{ owner_name }}</span></div>
+      <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">📅 Erstellt</span><span>{% if created %}<t:{{ created }}:D>{% else %}?{% endif %}</span></div>
+      <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">🔒 Verifikation</span><span>{{ verification }}</span></div>
+      <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">⚙️ Prefix</span><span style="font-family:'Geist Mono',monospace">{{ prefix }}</span></div>
+      <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">🚫 No-Prefix</span><span>{% if no_prefix %}✅ An{% else %}❌ Aus{% endif %}</span></div>
+      <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">🔌 Webhooks</span><span>{% if webhook_logging %}✅ An{% else %}❌ Aus{% endif %}</span></div>
+      <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">📢 Log-Kanäle</span><span>{{ log_channels_count }}{% if has_default_log %} + Standard{% endif %}</span></div>
+    </div>
+    {% if features_list %}
+    <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:2px">
+      {% for f in features_list %}<span class="ov-feat">{{ f }}</span>{% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- SECURITY MODULES -->
+  <div class="db-card" style="padding:16px">
+    <div style="font-weight:700;font-size:.82rem;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between">
+      <span>🛡️ Security ({{ active_count }}/{{ active_mods|length }})</span>
+      <span style="font-size:.6rem;color:var(--muted)">Level {{ sec_level }}</span>
+    </div>
+    {% for mod_key, enabled in active_mods %}
+    <div class="ov-mod {{ 'on' if enabled else 'off' }}">
+      <span>{{ '✅' if enabled else '❌' }}</span>
+      <span>{{ mod_key.replace('_',' ').title() }}</span>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- RECENT CASES -->
+<div class="db-card" style="padding:16px;margin-bottom:16px">
+  <div style="font-weight:700;font-size:.82rem;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between">
+    <span>📋 Letzte Cases</span>
+    <a href="/dashboard/{{ guild.id }}/cases" style="font-size:.65rem;color:var(--vl)">Alle ansehen →</a>
+  </div>
+  {% if recent_cases %}
+  {% for c in recent_cases %}
+  <div class="ov-case">
+    <span style="color:var(--vl);font-weight:700;font-family:'Geist Mono',monospace;min-width:40px">#{{ c.get('case_id','?') }}</span>
+    <span style="padding:1px 6px;border-radius:5px;font-size:.55rem;font-weight:700;
+      {% if c.get('action')=='ban' %}background:rgba(239,68,68,0.1);color:#fca5a5{% elif c.get('action')=='warn' %}background:rgba(234,179,8,0.1);color:#fcd34d{% elif c.get('action')=='kick' %}background:rgba(251,146,60,0.1);color:#fdba74{% else %}background:rgba(56,189,248,0.08);color:#7dd3fc{% endif %}">{{ c.get('action','?') }}</span>
+    <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.75rem">{{ c.get('reason','—') }}</span>
+    <span style="font-size:.6rem;color:var(--muted);font-family:'Geist Mono',monospace">{{ str(c.get('timestamp',''))[:10] }}</span>
+  </div>
+  {% endfor %}
+  {% else %}
+  <div style="text-align:center;padding:16px;color:var(--muted);font-size:.78rem">Keine Cases</div>
+  {% endif %}
+</div>
+
+<!-- QUICK NAVIGATION -->
+<div style="font-weight:700;font-size:.82rem;margin-bottom:8px">⚡ Schnellzugriff</div>
+<div class="ov-quick">
+  <a href="/dashboard/{{ guild.id }}/security"><div class="q-icon">🛡️</div><div class="q-title">Security</div><div class="q-desc">Module konfigurieren</div></a>
+  <a href="/dashboard/{{ guild.id }}/automod"><div class="q-icon">🤖</div><div class="q-title">AutoMod</div><div class="q-desc">Filter & Regeln</div></a>
+  <a href="/dashboard/{{ guild.id }}/logs"><div class="q-icon">📢</div><div class="q-title">Logs</div><div class="q-desc">29 Module</div></a>
+  <a href="/dashboard/{{ guild.id }}/cases"><div class="q-icon">📋</div><div class="q-title">Cases</div><div class="q-desc">{{ cases_count }} Cases</div></a>
+  <a href="/dashboard/{{ guild.id }}/members"><div class="q-icon">👥</div><div class="q-title">Members</div><div class="q-desc">{{ humans }} User</div></a>
+  <a href="/dashboard/{{ guild.id }}/warns"><div class="q-icon">⚠️</div><div class="q-title">Warns</div><div class="q-desc">{{ warns_count }} Warns</div></a>
+  <a href="/dashboard/{{ guild.id }}/livefeed"><div class="q-icon">⚡</div><div class="q-title">Live-Feed</div><div class="q-desc">Echtzeit</div></a>
+  <a href="/dashboard/{{ guild.id }}/settings"><div class="q-icon">⚙️</div><div class="q-title">Settings</div><div class="q-desc">Alle Einstellungen</div></a>
+  <a href="/dashboard/{{ guild.id }}/embed"><div class="q-icon">🎨</div><div class="q-title">Embed Builder</div><div class="q-desc">Live-Vorschau</div></a>
+  <a href="/dashboard/{{ guild.id }}/roles"><div class="q-icon">🏷️</div><div class="q-title">Rollen</div><div class="q-desc">Auto/Sticky/Verify</div></a>
+  <a href="/dashboard/{{ guild.id }}/whitelist"><div class="q-icon">🔐</div><div class="q-title">Whitelist</div><div class="q-desc">Anti-Nuke WL</div></a>
+  <a href="/dashboard/{{ guild.id }}/stats"><div class="q-icon">📊</div><div class="q-title">Statistiken</div><div class="q-desc">Charts & Ranking</div></a>
+</div>
+{% endblock %}

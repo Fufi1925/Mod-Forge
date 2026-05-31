@@ -1,0 +1,26 @@
+{% extends "dashboard/_base.html" %}
+{% set active = 'tickets' %}
+{% block title %}Tickets{% endblock %}
+{% block page_title %}🎫 Ticket-System{% endblock %}
+{% block content %}
+<div class="cfg-row" style="{% if cfg.get('ticket_system',{}).get('enabled') %}background:rgba(74,222,128,0.03);border-color:rgba(74,222,128,0.12){% endif %};margin-bottom:14px">
+  <div><span class="cfg-label">Ticket-System</span><div class="cfg-desc">User können per Button Support-Tickets erstellen</div></div>
+  <label class="toggle"><input type="checkbox" id="tOn" {% if cfg.get('ticket_system',{}).get('enabled') %}checked{% endif %} onchange="showSaveBar()"><span class="slider"></span></label>
+</div>
+<div class="db-card" style="padding:16px">
+  <div style="font-weight:700;font-size:.85rem;margin-bottom:10px">⚙️ Konfiguration</div>
+  <div class="cfg-row"><div><span class="cfg-label">Ticket-Kategorie</span><div class="cfg-desc">Wo neue Tickets erstellt werden</div></div>
+    <select class="cfg-select" id="tCat" style="min-width:200px" onchange="showSaveBar()"><option value="">— Wählen —</option>{% for cat in categories %}<option value="{{ cat.id }}" {% if cat.id|string==cfg.get('ticket_system',{}).get('category_id','')|string %}selected{% endif %}>{{ cat.name }}</option>{% endfor %}</select></div>
+  <div class="cfg-row"><div><span class="cfg-label">Log-Kanal</span><div class="cfg-desc">Transkripte werden hierhin gesendet</div></div>
+    <select class="cfg-select" id="tLog" style="min-width:200px" onchange="showSaveBar()"><option value="">— Wählen —</option>{% for ch in channels %}<option value="{{ ch.id }}" {% if ch.id|string==cfg.get('ticket_system',{}).get('log_channel_id','')|string %}selected{% endif %}>#{{ ch.name }}</option>{% endfor %}</select></div>
+</div>
+<div class="db-card" style="padding:14px;margin-top:14px;background:rgba(124,58,237,0.02);border-color:rgba(124,58,237,0.08)">
+  <div style="font-size:.72rem;color:var(--muted);line-height:1.6"><strong style="color:var(--fg)">💡</strong> Nach dem Speichern nutze <code style="color:var(--vl)">/setup_tickets</code> in Discord um das Ticket-Panel zu senden.</div>
+</div>
+{% block scripts %}<script>
+async function saveConfig(){
+  const r=await fetch('/api/guild/{{ guild.id }}/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({_ticket_system:{enabled:document.getElementById('tOn').checked,category_id:document.getElementById('tCat').value||null,log_channel_id:document.getElementById('tLog').value||null}})});
+  if(r.ok) markSaved(); else markError();
+}
+</script>{% endblock %}
+{% endblock %}

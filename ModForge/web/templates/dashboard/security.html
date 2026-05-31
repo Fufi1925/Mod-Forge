@@ -1,0 +1,58 @@
+{% extends "dashboard/_base.html" %}
+{% set active = 'security' %}
+{% block title %}Security{% endblock %}
+{% block page_title %}🛡️ Security Center{% endblock %}
+{% block page_desc %}{{ active_count }}/{{ modules|length }} Module aktiv · Level {{ cfg.get('security_level',0) }}{% endblock %}
+{% block content %}
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-bottom:16px">
+  <div class="ov-stat"><div class="ov-sv" style="color:var(--green)">{{ active_count }}</div><div class="ov-sl">Aktiv</div></div>
+  <div class="ov-stat"><div class="ov-sv" style="color:var(--muted)">{{ modules|length - active_count }}</div><div class="ov-sl">Inaktiv</div></div>
+  <div class="ov-stat"><div class="ov-sv" style="color:var(--vl)">{{ cfg.get('security_level',0) }}</div><div class="ov-sl">Level</div></div>
+  <div class="ov-stat"><div class="ov-sv" style="color:var(--cl)">{{ wl_count }}</div><div class="ov-sl">Whitelist</div></div>
+</div>
+<div style="display:flex;gap:4px;margin-bottom:16px">
+  {% for lvl in [0,1,2,3] %}
+  <button class="btn-glass btn-sm {% if cfg.get('security_level',0)==lvl %}btn-glass-primary{% else %}btn-glass-ghost{% endif %}" onclick="setLvl({{ lvl }})">Level {{ lvl }}</button>
+  {% endfor %}
+</div>
+{% for mod in modules %}
+<div class="cfg-row" style="flex-direction:column;align-items:stretch;gap:10px;padding:16px;{% if mod.enabled %}border-left:3px solid var(--green){% endif %};animation:fadeUp .3s ease {{ loop.index * 0.05 }}s both">
+  <div style="display:flex;align-items:center;justify-content:space-between">
+    <div style="display:flex;align-items:center;gap:8px"><span style="font-size:1.1rem">{{ mod.icon }}</span><div><span class="cfg-label">{{ mod.label }}</span><div class="cfg-desc">{{ mod.desc }}</div></div></div>
+    <label class="toggle"><input type="checkbox" data-mod="{{ mod.key }}" data-field="enabled" {% if mod.enabled %}checked{% endif %} onchange="showSaveBar()"><span class="slider"></span></label>
+  </div>
+  {% if mod.params %}
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.03)">
+    {% for p in mod.params %}
+    <div>
+      <label style="font-size:.62rem;color:var(--muted);display:block;margin-bottom:3px">{{ p.label }}</label>
+      {% if p.type == 'select' %}
+      <select class="cfg-select" data-mod="{{ mod.key }}" data-field="{{ p.key }}" style="width:100%;font-size:.72rem" onchange="showSaveBar()">
+        {% for o in p.options %}<option {% if p.value|string == o %}selected{% endif %}>{{ o }}</option>{% endfor %}
+      </select>
+      {% else %}
+      <input type="{{ p.type }}" class="cfg-input" data-mod="{{ mod.key }}" data-field="{{ p.key }}" value="{{ p.value }}" {% if p.min is defined %}min="{{ p.min }}" max="{{ p.max }}"{% endif %} style="width:100%;max-width:100%;font-size:.72rem" oninput="showSaveBar()">
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endfor %}
+{% block scripts %}<script>
+async function saveConfig(){
+  const d={};
+  document.querySelectorAll('[data-mod]').forEach(el=>{
+    const m=el.dataset.mod,f=el.dataset.field;if(!m||!f)return;
+    if(!d[m])d[m]={};
+    d[m][f]=el.type==='checkbox'?el.checked:el.type==='number'?Number(el.value):el.value;
+  });
+  const r=await fetch('/api/guild/{{ guild.id }}/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});
+  if(r.ok)markSaved();else showToast('❌ Fehler',false);
+}
+async function setLvl(l){
+  await fetch('/api/guild/{{ guild.id }}/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({_security_level:l})});
+  showToast('🛡️ Level '+l+' gesetzt',true);setTimeout(()=>location.reload(),800);
+}
+</script>{% endblock %}
+{% endblock %}
