@@ -32,42 +32,129 @@
   });
 
   /* ═══════════════════════════════════════════════════════════
-     TAB SYSTEM
-     ─ <div class="mf-tabs" data-tab-group="mygroup">
-         <button class="mf-tab active" data-tab="t1">Tab 1</button>
-         <button class="mf-tab" data-tab="t2">Tab 2</button>
-       </div>
-       <div class="mf-tab-panel active" data-tab-panel="t1" data-tab-group="mygroup">...</div>
+     TAB SYSTEM v3
+     ARIA-konform, Keyboard-Navigation (◀ ▶ Home End),
+     Hash-Persist mit Group-Prefix damit mehrere Tab-Gruppen
+     gleichzeitig auf einer Seite arbeiten können.
      ═══════════════════════════════════════════════════════════ */
   function initTabs() {
     document.querySelectorAll('.mf-tabs').forEach(group => {
       const groupName = group.dataset.tabGroup || 'default';
+
+      // ARIA setup
+      group.setAttribute('role', 'tablist');
+      const tabs = [...group.querySelectorAll('.mf-tab')];
+      tabs.forEach((t, idx) => {
+        t.setAttribute('role', 'tab');
+        t.setAttribute('tabindex', t.classList.contains('active') ? '0' : '-1');
+        const target = t.dataset.tab;
+        if (target) {
+          t.setAttribute('aria-controls', `panel-${groupName}-${target}`);
+          t.setAttribute('aria-selected', t.classList.contains('active') ? 'true' : 'false');
+          t.id = `tab-${groupName}-${target}`;
+        }
+      });
+
+      // Pair panels with ARIA
+      document.querySelectorAll(`.mf-tab-panel[data-tab-group="${groupName}"], .mf-tab-panel:not([data-tab-group])`).forEach(p => {
+        if (p.dataset.tabGroup && p.dataset.tabGroup !== groupName) return;
+        const tab = p.dataset.tabPanel;
+        if (tab) {
+          p.setAttribute('role', 'tabpanel');
+          p.id = `panel-${groupName}-${tab}`;
+          p.setAttribute('aria-labelledby', `tab-${groupName}-${tab}`);
+        }
+      });
+
+      // Click handler
       group.addEventListener('click', e => {
         const btn = e.target.closest('.mf-tab');
         if (!btn) return;
         const tab = btn.dataset.tab;
         if (!tab) return;
-        // Deactivate siblings
-        group.querySelectorAll('.mf-tab').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        // Switch panels (scoped to group)
-        document.querySelectorAll(`.mf-tab-panel[data-tab-group="${groupName}"], .mf-tab-panel:not([data-tab-group])`).forEach(p => {
-          if (p.dataset.tabGroup && p.dataset.tabGroup !== groupName) return;
-          p.classList.toggle('active', p.dataset.tabPanel === tab);
-        });
-        // Persist active tab per-page in URL hash
-        try { history.replaceState(null, '', '#' + tab); } catch (e) {}
-        // Re-run preview on tab switch
-        if (typeof MF.refreshPreview === 'function') MF.refreshPreview();
+        switchTab(group, groupName, tab, btn);
+      });
+
+      // Keyboard navigation
+      group.addEventListener('keydown', e => {
+        const focused = document.activeElement;
+        if (!focused?.classList?.contains('mf-tab')) return;
+        const tabs = [...group.querySelectorAll('.mf-tab')];
+        let idx = tabs.indexOf(focused);
+        if (idx < 0) return;
+        let next = null;
+        switch (e.key) {
+          case 'ArrowRight': next = tabs[(idx + 1) % tabs.length]; break;
+          case 'ArrowLeft':  next = tabs[(idx - 1 + tabs.length) % tabs.length]; break;
+          case 'Home':       next = tabs[0]; break;
+          case 'End':        next = tabs[tabs.length - 1]; break;
+          case 'Enter':
+          case ' ':
+            e.preventDefault();
+            switchTab(group, groupName, focused.dataset.tab, focused);
+            return;
+        }
+        if (next) {
+          e.preventDefault();
+          next.focus();
+        }
       });
     });
-    // Restore from hash on load
+
+    // Restore from hash on load (Format: #group=tab or simple #tab)
     const hash = location.hash.replace('#', '');
     if (hash) {
-      const btn = document.querySelector(`.mf-tab[data-tab="${hash}"]`);
-      if (btn) btn.click();
+      // Try qualified format first
+      if (hash.includes('=')) {
+        const [g, t] = hash.split('=');
+        const btn = document.querySelector(`.mf-tabs[data-tab-group="${g}"] .mf-tab[data-tab="${t}"]`);
+        if (btn) btn.click();
+      } else {
+        // Find any tab matching this name
+        const btn = document.querySelector(`.mf-tab[data-tab="${hash}"]`);
+        if (btn) btn.click();
+      }
     }
   }
+
+  function switchTab(group, groupName, tab, btn) {
+    // Deactivate all siblings + ARIA
+    group.querySelectorAll('.mf-tab').forEach(b => {
+      b.classList.remove('active');
+      b.setAttribute('aria-selected', 'false');
+      b.setAttribute('tabindex', '-1');
+    });
+    btn.classList.add('active');
+    btn.setAttribute('aria-selected', 'true');
+    btn.setAttribute('tabindex', '0');
+
+    // Switch panels (scoped to group)
+    document.querySelectorAll(`.mf-tab-panel[data-tab-group="${groupName}"], .mf-tab-panel:not([data-tab-group])`).forEach(p => {
+      if (p.dataset.tabGroup && p.dataset.tabGroup !== groupName) return;
+      p.classList.toggle('active', p.dataset.tabPanel === tab);
+    });
+
+    // Smooth-scroll btn into view (when scrolling horizontally on mobile)
+    try { btn.scrollIntoView({inline: 'center', block: 'nearest', behavior: 'smooth'}); } catch (e) {}
+
+    // Persist in URL hash (Format: group=tab) — only if NOT the first/default group
+    try {
+      const url = new URL(location.href);
+      url.hash = `${groupName}=${tab}`;
+      history.replaceState(null, '', url);
+    } catch (e) {}
+
+    // Re-run preview on tab switch
+    if (typeof MF.refreshPreview === 'function') MF.refreshPreview();
+    // Emit event for plugins (e.g. logs.html depends on tab-change for filtering)
+    group.dispatchEvent(new CustomEvent('mf:tab-change', {detail: {group: groupName, tab}}));
+  }
+
+  // Helper: programmatisch Tab wechseln
+  MF.switchTo = function(groupName, tab) {
+    const btn = document.querySelector(`.mf-tabs[data-tab-group="${groupName}"] .mf-tab[data-tab="${tab}"]`);
+    if (btn) btn.click();
+  };
 
   /* ═══════════════════════════════════════════════════════════
      COLLAPSIBLES
@@ -353,6 +440,158 @@
     // First render
     setTimeout(MF.refreshPreview, 50);
   }
+
+  /* ═══════════════════════════════════════════════════════════
+     LIVE BUS — SocketIO + Polling fallback
+     Subscribed automatisch zur aktuellen Guild und feuert
+     `mf:activity` Events auf window damit Seiten reagieren können.
+     ═══════════════════════════════════════════════════════════ */
+  MF.liveListeners = [];
+  MF.onLive = function(handler) {
+    MF.liveListeners.push(handler);
+  };
+
+  function _dispatchLive(evt) {
+    try {
+      window.dispatchEvent(new CustomEvent('mf:activity', {detail: evt}));
+    } catch (e) {}
+    MF.liveListeners.forEach(h => { try { h(evt); } catch (e) { console.error(e); } });
+  }
+
+  MF.lastLiveTs = 0;
+  MF.liveBufferLast = []; // dedup ring
+
+  function _ingest(evt) {
+    if (!evt) return;
+    const key = (evt.kind || '') + ':' + (evt.text || '') + ':' + (evt._ts_unix || evt.ts || '');
+    if (MF.liveBufferLast.includes(key)) return;
+    MF.liveBufferLast.push(key);
+    if (MF.liveBufferLast.length > 200) MF.liveBufferLast.shift();
+    if (evt._ts_unix && evt._ts_unix > MF.lastLiveTs) MF.lastLiveTs = evt._ts_unix;
+    _dispatchLive(evt);
+  }
+
+  function startPolling() {
+    if (!MF.guildId) return;
+    let consecutiveErrors = 0;
+    const tick = async () => {
+      try {
+        const url = `/api/guild/${MF.guildId}/live/feed?limit=20${MF.lastLiveTs ? `&since=${MF.lastLiveTs}` : ''}`;
+        const r = await fetch(url, {cache: 'no-store'});
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const d = await r.json();
+        consecutiveErrors = 0;
+        (d.activity || []).reverse().forEach(_ingest);
+      } catch (e) {
+        consecutiveErrors++;
+        if (consecutiveErrors > 5) console.warn('[MF] live polling errors:', e.message);
+      }
+    };
+    tick();
+    setInterval(tick, 4000);
+  }
+
+  function startSocket() {
+    if (typeof io === 'undefined' || !MF.guildId) {
+      startPolling();
+      return;
+    }
+    try {
+      const sock = io({transports: ['websocket', 'polling'], reconnection: true});
+      MF.socket = sock;
+      sock.on('connect', () => {
+        sock.emit('subscribe_guild', {guild_id: parseInt(MF.guildId)});
+        window.dispatchEvent(new CustomEvent('mf:socket', {detail: {connected: true}}));
+      });
+      sock.on('disconnect', () => {
+        window.dispatchEvent(new CustomEvent('mf:socket', {detail: {connected: false}}));
+      });
+      sock.on('activity', _ingest);
+      sock.on('status_update', d => {
+        window.dispatchEvent(new CustomEvent('mf:status', {detail: d}));
+      });
+      // Polling als Backup für Events die wir verpasst haben
+      setInterval(async () => {
+        try {
+          const url = `/api/guild/${MF.guildId}/live/feed?limit=10${MF.lastLiveTs ? `&since=${MF.lastLiveTs}` : ''}`;
+          const r = await fetch(url, {cache: 'no-store'});
+          if (!r.ok) return;
+          const d = await r.json();
+          (d.activity || []).reverse().forEach(_ingest);
+        } catch (e) {}
+      }, 8000);
+    } catch (e) {
+      console.warn('[MF] socket init failed, polling fallback:', e);
+      startPolling();
+    }
+  }
+
+  function startLive() {
+    if (!MF.guildId) return;
+    // Lade SocketIO falls noch nicht da
+    if (typeof io === 'undefined') {
+      const s = document.createElement('script');
+      s.src = 'https://cdn.socket.io/4.7.5/socket.io.min.js';
+      s.onload = startSocket;
+      s.onerror = startPolling;
+      document.head.appendChild(s);
+    } else {
+      startSocket();
+    }
+  }
+
+  // Auto-start once DOM ready
+  setTimeout(startLive, 200);
+
+  /* ═══════════════════════════════════════════════════════════
+     LIVE STATS — periodisches Fetch von /api/guild/<id>/live/stats
+     Pages können MF.onStats(fn) registrieren
+     ═══════════════════════════════════════════════════════════ */
+  MF.statsListeners = [];
+  MF.lastStats = null;
+  MF.onStats = function(handler) {
+    MF.statsListeners.push(handler);
+    if (MF.lastStats) try { handler(MF.lastStats); } catch (e) {}
+  };
+
+  async function _fetchStats() {
+    if (!MF.guildId) return;
+    try {
+      const r = await fetch(`/api/guild/${MF.guildId}/live/stats`, {cache: 'no-store'});
+      if (!r.ok) return;
+      const d = await r.json();
+      MF.lastStats = d;
+      MF.statsListeners.forEach(h => { try { h(d); } catch (e) { console.error(e); } });
+      window.dispatchEvent(new CustomEvent('mf:stats', {detail: d}));
+    } catch (e) {}
+  }
+
+  function startStatsPoll() {
+    if (!MF.guildId) return;
+    _fetchStats();
+    setInterval(_fetchStats, 10000);
+  }
+  setTimeout(startStatsPoll, 500);
+
+  /* ═══════════════════════════════════════════════════════════
+     CONNECTION INDICATOR — kleiner Live-Status oben rechts
+     ═══════════════════════════════════════════════════════════ */
+  function injectConnIndicator() {
+    if (document.getElementById('mfConnInd') || !MF.guildId) return;
+    const ind = document.createElement('div');
+    ind.id = 'mfConnInd';
+    ind.style.cssText = 'position:fixed;top:14px;right:18px;z-index:9990;display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;background:rgba(8,8,20,0.85);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.06);font-size:.65rem;font-weight:700;color:var(--muted);pointer-events:none;transition:all .3s';
+    ind.innerHTML = '<span id="mfConnDot" style="width:7px;height:7px;border-radius:50%;background:var(--muted)"></span><span id="mfConnTxt">Verbinde…</span>';
+    document.body.appendChild(ind);
+    window.addEventListener('mf:socket', e => {
+      const c = e.detail.connected;
+      document.getElementById('mfConnDot').style.background = c ? 'var(--green)' : 'var(--red)';
+      document.getElementById('mfConnDot').style.boxShadow = c ? '0 0 8px rgba(74,222,128,0.6)' : 'none';
+      document.getElementById('mfConnTxt').textContent = c ? 'Live' : 'Getrennt';
+      ind.style.color = c ? 'var(--green)' : 'var(--red)';
+    });
+  }
+  setTimeout(injectConnIndicator, 800);
 
   /* ═══════════════════════════════════════════════════════════
      HELPER: Discord-Embed builder for previews

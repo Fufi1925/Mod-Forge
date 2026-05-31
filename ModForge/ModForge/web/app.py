@@ -24,8 +24,47 @@ flask_app.config["PERMANENT_SESSION_LIFETIME"] = 60 * 60 * 6
 # SocketIO initialisieren – async_mode wird automatisch erkannt.
 socketio = SocketIO(flask_app, cors_allowed_origins="*")
 
+# ═══════════════════════════════════════════════════════════════
+# Activity-Bus an SocketIO koppeln, damit jeder track() Call
+# automatisch live an alle verbundenen Dashboards gesendet wird.
+# ═══════════════════════════════════════════════════════════════
+try:
+    from bot.activity import register_socketio as _act_register
+    _act_register(socketio)
+except Exception as _e:
+    log.debug(f"activity register failed: {_e}")
+
 # Auth-Blueprint (OAuth2) registrieren
 flask_app.register_blueprint(auth_bp)
+
+
+# ───────────────────────────────────────────────────────────
+# SocketIO Room Management — Clients können per Guild "joinen"
+# damit sie nur Events für IHREN Server bekommen
+# ───────────────────────────────────────────────────────────
+from flask_socketio import join_room, leave_room
+
+
+@socketio.on("subscribe_guild")
+def _on_sub_guild(data):
+    """Client abonniert Events für eine bestimmte Guild."""
+    try:
+        gid = int((data or {}).get("guild_id") or 0)
+        if gid:
+            join_room(f"guild:{gid}")
+            log.debug(f"client subscribed to guild:{gid}")
+    except Exception as e:
+        log.debug(f"subscribe_guild error: {e}")
+
+
+@socketio.on("unsubscribe_guild")
+def _on_unsub_guild(data):
+    try:
+        gid = int((data or {}).get("guild_id") or 0)
+        if gid:
+            leave_room(f"guild:{gid}")
+    except Exception as e:
+        log.debug(f"unsubscribe_guild error: {e}")
 
 # Deine bestehenden Routen (Landing, Dashboard, Live …)
 from . import routes  # noqa: E402,F401  (Seiten-Routen registrieren sich via Import)

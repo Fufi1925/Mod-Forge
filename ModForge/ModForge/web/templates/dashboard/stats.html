@@ -99,46 +99,98 @@ const SS = {
   ]
 };
 
+let CHARTS = {};
+
+function makeCharts(stats) {
+  if (typeof Chart === 'undefined') return;
+  Object.values(CHARTS).forEach(c => { try { c.destroy(); } catch(e){} });
+
+  // === Echte Daten aus Stats ===
+  const live = (stats && stats.live) || {by_kind:{}, per_hour:[]};
+  const db = (stats && stats.db) || {};
+  const byKind = live.by_kind || {};
+
+  // Mod-Breakdown aus echten Cases (30d)
+  const action30 = db.by_action_30d || {};
+  const modData = [
+    action30.warn || 0,
+    action30.mute || 0,
+    action30.kick || 0,
+    action30.ban || 0,
+    action30.timeout || 0,
+  ];
+
+  // Security-Breakdown aus Live-Events (24h)
+  const secData = [
+    byKind.spam || 0, byKind.raid || 0, byKind.nuke || 0,
+    byKind.scam || 0, byKind.automod || 0, byKind.mention || 0,
+  ];
+
+  // Activity per hour aus echten Daten
+  const perHour = live.per_hour || Array(24).fill(0);
+
+  // Overview: Joins/Leaves/Mod über die letzten 7 Tage — aus DB-Cases
+  const sevenDay = SS.mod_per_day && SS.mod_per_day.length === 7 ? SS.mod_per_day : Array(7).fill(0);
+
+  CHARTS.overview = new Chart('overviewChart', {
+    type:'line',
+    data:{
+      labels: genDays(7),
+      datasets:[
+        {label:'Cases', data: sevenDay, borderColor:CHART_COLORS.amber, backgroundColor:'rgba(252,211,77,0.1)', tension:0.4, fill:true},
+      ]
+    }, options: baseOpts
+  });
+
+  CHARTS.growth = new Chart('growthChart', {
+    type:'line',
+    data:{
+      labels: SS.members_history && SS.members_history.length ? SS.members_history.map((_,i)=>'T-'+(SS.members_history.length-i)) : genDays(30),
+      datasets:[{label:'Mitglieder (live)', data: SS.members_history && SS.members_history.length ? SS.members_history : [stats?.bot?.member_count || 0], borderColor:CHART_COLORS.primary, backgroundColor:'rgba(167,139,250,0.1)', tension:0.4, fill:true}]
+    },
+    options: baseOpts
+  });
+
+  CHARTS.activity = new Chart('activityChart', {
+    type:'bar',
+    data:{
+      labels: Array(24).fill(0).map((_,i)=>(23-i)+'h'),
+      datasets:[{label:'Events (24h)', data: perHour, backgroundColor:CHART_COLORS.cyan}]
+    },
+    options: baseOpts
+  });
+
+  CHARTS.mod = new Chart('modChart', {
+    type:'bar',
+    data:{
+      labels:['Warn','Mute','Kick','Ban','Timeout'],
+      datasets:[{label:'Cases (30d)', data: modData, backgroundColor:[CHART_COLORS.amber, CHART_COLORS.cyan, '#fb923c', CHART_COLORS.red, '#67e8f9']}]
+    },
+    options: baseOpts
+  });
+
+  CHARTS.sec = new Chart('secChart', {
+    type:'doughnut',
+    data:{
+      labels:['Anti-Spam','Anti-Raid','Anti-Nuke','Anti-Scam','AutoMod','Anti-Mention'],
+      datasets:[{data: secData, backgroundColor:['#a78bfa','#fca5a5','#ed4245','#fb923c','#67e8f9','#fcd34d']}]
+    },
+    options:{...baseOpts, scales:undefined}
+  });
+}
+
 window.addEventListener('load', () => {
-  setTimeout(() => {
-    if (typeof Chart === 'undefined') return;
+  setTimeout(() => makeCharts(null), 100);
+});
 
-    new Chart('overviewChart', {
-      type:'line',
-      data:{
-        labels: genDays(7),
-        datasets:[
-          {label:'Joins', data: SS.joins_per_day || genRand(7,3,18), borderColor:CHART_COLORS.green, backgroundColor:'rgba(134,239,172,0.1)', tension:0.4, fill:true},
-          {label:'Leaves', data: SS.leaves_per_day || genRand(7,1,8), borderColor:CHART_COLORS.red, backgroundColor:'rgba(252,165,165,0.1)', tension:0.4, fill:true},
-          {label:'Mod-Aktionen', data: SS.mod_per_day || genRand(7,0,12), borderColor:CHART_COLORS.amber, backgroundColor:'rgba(252,211,77,0.1)', tension:0.4, fill:true},
-        ]
-      }, options: baseOpts
-    });
-
-    new Chart('growthChart', {
-      type:'line',
-      data:{labels: genDays(30), datasets:[{label:'Mitglieder', data: SS.members_history || genRand(30, 80, 130).sort((a,b)=>a-b), borderColor:CHART_COLORS.primary, backgroundColor:'rgba(167,139,250,0.1)', tension:0.4, fill:true}]},
-      options: baseOpts
-    });
-
-    new Chart('activityChart', {
-      type:'bar',
-      data:{labels: Array(24).fill(0).map((_,i)=>i+'h'), datasets:[{label:'Nachrichten', data: SS.msg_per_hour || genRand(24,5,80), backgroundColor:CHART_COLORS.cyan}]},
-      options: baseOpts
-    });
-
-    new Chart('modChart', {
-      type:'bar',
-      data:{labels:['Warn','Mute','Kick','Ban','Timeout'], datasets:[{label:'Aktionen', data: SS.mod_breakdown || genRand(5, 5, 35), backgroundColor:[CHART_COLORS.amber, CHART_COLORS.cyan, '#fb923c', CHART_COLORS.red, '#67e8f9']}]},
-      options: baseOpts
-    });
-
-    new Chart('secChart', {
-      type:'doughnut',
-      data:{labels:['Anti-Spam','Anti-Raid','Anti-Nuke','Anti-Scam','AutoMod','Anti-Mention'], datasets:[{data: SS.security_breakdown || genRand(6,2,30), backgroundColor:['#a78bfa','#fca5a5','#ed4245','#fb923c','#67e8f9','#fcd34d']}]},
-      options:{...baseOpts, scales:undefined}
-    });
-  }, 100);
+// Re-build wenn Live-Stats reinkommen
+MF.onStats(stats => {
+  makeCharts(stats);
+  // Update Stat-Cards
+  if (stats.db) {
+    const safe = (el, val) => { const e = document.querySelector(el); if (e) e.textContent = val; };
+    // Cases 7d/30d badges in cards (überschreibe Initial-Render)
+  }
 });
 </script>
 {% endblock %}

@@ -237,7 +237,7 @@
     <span style="font-weight:700" id="livePulseLatency">— ms</span>
   </div>
   <div style="display:flex;justify-content:space-between;font-size:.74rem">
-    <span style="color:var(--muted)">Guilds</span>
+    <span style="color:var(--muted)">Member-Count</span>
     <span style="font-weight:700" id="livePulseGuilds">—</span>
   </div>
 </div>
@@ -257,37 +257,57 @@
 </div>
 
 <script>
-  // Connect to SocketIO (fallback to polling)
-  (function() {
-    function fetchStatus() {
-      fetch('/live/api/activity').then(r => r.json()).then(data => {
-        if (!data) return;
-        const act = document.getElementById('liveActivity');
-        if (act && data.activity) {
-          if (data.activity.length === 0) act.innerHTML = '<em>Keine Aktivität</em>';
-          else act.innerHTML = data.activity.slice(0, 12).map(a =>
-            `<div style="padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.04)">${(a.icon||'•')} ${(a.text||a.msg||'').replace(/[<>]/g,'')}</div>`
-          ).join('');
-        }
-      }).catch(e=>{});
-    }
-    fetchStatus();
-    setInterval(fetchStatus, 5000);
+  // Nutzt das MF Live-Bus (SocketIO + Polling-Fallback)
+  function _esc(s) { return String(s||'').replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'})[c]); }
 
-    // Try socket.io if loaded
-    if (typeof io !== 'undefined') {
-      try {
-        const sock = io();
-        sock.on('status_update', d => {
-          if (d.bot) {
-            document.getElementById('livePulseStatus').textContent = d.bot.ready ? '● Online' : '○ Offline';
-            document.getElementById('livePulseStatus').style.color = d.bot.ready ? 'var(--green)' : 'var(--red)';
-            document.getElementById('livePulseLatency').textContent = (d.bot.latency_ms || 0) + ' ms';
-            document.getElementById('livePulseGuilds').textContent = d.bot.guilds || 0;
-          }
-        });
-      } catch (e) {}
+  function updateActivityList(events) {
+    const act = document.getElementById('liveActivity');
+    if (!act) return;
+    if (!events || events.length === 0) {
+      act.innerHTML = '<em>Noch keine Aktivität</em>';
+      return;
     }
+    act.innerHTML = events.slice(0, 12).map(a => {
+      const t = a.ts ? new Date(a.ts).toLocaleTimeString('de-DE', {hour12:false}).slice(0,5) : '--:--';
+      return `<div style="padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.03);display:flex;gap:6px;align-items:flex-start">
+        <span style="color:var(--muted);font-family:'Geist Mono',monospace;font-size:.62rem;flex-shrink:0">${t}</span>
+        <span style="flex-shrink:0">${a.icon||'•'}</span>
+        <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">${_esc(a.text)}</span>
+      </div>`;
+    }).join('');
+  }
+
+  // Initial Backlog
+  (async () => {
+    try {
+      const r = await fetch(`/api/guild/${MF.guildId}/live/feed?limit=20`);
+      if (r.ok) {
+        const d = await r.json();
+        updateActivityList(d.activity || []);
+      }
+    } catch (e) {}
   })();
+
+  // Live-Updates per Event-Bus
+  const _liveBuf = [];
+  MF.onLive(evt => {
+    _liveBuf.unshift(evt);
+    if (_liveBuf.length > 20) _liveBuf.pop();
+    updateActivityList(_liveBuf);
+  });
+
+  // Bot-Status via Stats-Poller
+  MF.onStats(d => {
+    if (!d?.bot) return;
+    const ps = document.getElementById('livePulseStatus');
+    const pl = document.getElementById('livePulseLatency');
+    const pg = document.getElementById('livePulseGuilds');
+    if (ps) {
+      ps.textContent = d.bot.online ? '● Online' : '○ Offline';
+      ps.style.color = d.bot.online ? 'var(--green)' : 'var(--red)';
+    }
+    if (pl) pl.textContent = (d.bot.latency_ms || 0) + ' ms';
+    if (pg) pg.textContent = (d.bot.member_count || 0) + ' Members';
+  });
 </script>
 {% endblock %}

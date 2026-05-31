@@ -560,6 +560,45 @@ class ModForge(commands.Bot):
         if not guild:
             return
 
+        # ═══════════════════════════════════════════════════════════
+        # NEW: Push to Activity-Bus FIRST (always, no dedup)
+        # damit das Dashboard alles live sieht — auch dedupte Logs
+        # ═══════════════════════════════════════════════════════════
+        try:
+            from bot.activity import track
+            # Map module -> kind für sinnvolle Icons
+            _kind_map = {
+                "antispam": "spam", "antinuke": "nuke", "antiraid": "raid",
+                "antimention": "mention", "antiscam": "scam",
+                "antiwebhook": "webhook", "antighost": "ghost",
+                "automod": "automod", "cases": "case", "warns": "warn",
+                "verify": "verify", "tickets": "ticket", "members": "join",
+                "voice": "voice", "channels": "channel", "roles": "role",
+                "messages": "message", "ghostping": "ghost",
+                "backup": "backup", "appeal": "appeal",
+                "moderation": "case",
+            }
+            kind = _kind_map.get(module, "info")
+            # Strip emojis from title for cleaner text
+            import re as _re
+            clean_title = _re.sub(r'<a?:\w+:\d+>', '', title).strip()
+            # Cut description to keep events lean
+            clean_desc = _re.sub(r'<a?:\w+:\d+>|<@!?\d+>|<@&\d+>|<#\d+>', '', description or '').strip()
+            if len(clean_desc) > 200:
+                clean_desc = clean_desc[:197] + "…"
+            text = f"{clean_title}" + (f" — {clean_desc}" if clean_desc else "")
+            # Persiste nur wichtige Events (case, mod-aktionen, security-hits)
+            _persist = kind in ("case", "ban", "kick", "warn", "timeout",
+                                "raid", "nuke", "scam", "appeal", "verify",
+                                "ticket", "backup", "error")
+            track(
+                kind, text, guild=guild, user=user,
+                extra={"module": module, "title": title},
+                persist=_persist,
+            )
+        except Exception as _e:
+            log.debug(f"[log_action] activity track failed: {_e}")
+
         # Dedup: same log within 3 seconds = skip
         dedup_key = f"{guild.id}:{module}:{title}:{str(user.id if user else '')}"
         now = time.time()
@@ -4568,6 +4607,18 @@ async def on_command_error(ctx: commands.Context, error: Exception) -> None:
         return
     else:
         log.error(f"Command-Fehler: {error}")
+        # ─── Track Error to Activity ───
+        try:
+            from bot.activity import track
+            track(
+                "error",
+                f"Command-Fehler bei !{ctx.command.name if ctx.command else '?'}: {type(error).__name__}: {str(error)[:100]}",
+                guild=ctx.guild, user=ctx.author,
+                severity="critical",
+                extra={"command": str(ctx.command), "error_type": type(error).__name__},
+            )
+        except Exception:
+            pass
 
 @bot.tree.error
 async def on_app_command_error(interaction: discord.Interaction,

@@ -1,34 +1,76 @@
 {% extends "dashboard/_base.html" %}
 {% set active = 'livefeed' %}
 {% block title %}Live-Feed{% endblock %}
-{% block page_title %}⚡ Live Mod-Feed{% endblock %}
-{% block page_desc %}Echtzeit-Stream aller Bot-Aktivitäten · WebSocket + Auto-Polling Fallback{% endblock %}
+{% block page_title %}⚡ Live-Feed{% endblock %}
+{% block page_desc %}Echtzeit-Stream aller Bot-Aktivitäten — via WebSocket{% endblock %}
 
 {% block head %}
 <style>
-  .lf-item { display:flex; align-items:flex-start; gap:10px; padding:10px 14px; border-bottom:1px solid rgba(255,255,255,0.03); transition:background .15s; animation: lfNew .35s ease; }
+  .lf-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; margin-bottom: 14px; }
+  .lf-stat { padding: 12px; border-radius: 12px; background: rgba(255,255,255,0.02); border: 1px solid var(--border); text-align: center; transition: all .15s; }
+  .lf-stat:hover { border-color: rgba(139,92,246,0.2); }
+  .lf-stat-v { font-size: 1.4rem; font-weight: 900; font-family: 'Geist Mono', monospace; line-height: 1; }
+  .lf-stat-l { font-size: .58rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-top: 4px; }
+
+  .lf-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.03); transition: background .15s; }
   .lf-item:hover { background: rgba(255,255,255,0.02); }
-  @keyframes lfNew { from { background: rgba(124,58,237,0.1); transform: translateX(-4px); } to { background: transparent; transform: translateX(0); } }
-  .lf-badge { padding:2px 8px; border-radius:5px; font-size:.6rem; font-weight:800; font-family:'Geist Mono',monospace; text-transform:uppercase; flex-shrink:0; }
-  .lf-time { font-size:.62rem; color:var(--muted); font-family:'Geist Mono',monospace; flex-shrink:0; min-width:48px; }
-  .lf-text { font-size:.8rem; color:var(--fg); flex:1; line-height:1.4; }
-  .lf-pulse { width:8px; height:8px; border-radius:50%; }
-  .lf-pulse.live { background:var(--green); box-shadow:0 0 8px rgba(74,222,128,0.5); animation: pulseLive 2s infinite; }
-  .lf-pulse.paused { background:var(--amberl); }
-  @keyframes pulseLive { 0%,100%{opacity:1} 50%{opacity:.5} }
+  .lf-item.fresh { animation: lfFlash .8s ease; }
+  @keyframes lfFlash {
+    0% { background: rgba(124,58,237,0.18); transform: translateX(-8px); }
+    100% { background: transparent; transform: translateX(0); }
+  }
+  .lf-icon { font-size: 1rem; flex-shrink: 0; width: 24px; text-align: center; line-height: 1.4; }
+  .lf-text { font-size: .8rem; color: var(--fg); flex: 1; line-height: 1.4; word-break: break-word; }
+  .lf-meta { display: flex; align-items: center; gap: 6px; font-size: .58rem; color: var(--muted); margin-top: 3px; font-family: 'Geist Mono', monospace; }
+  .lf-sev { padding: 1px 6px; border-radius: 4px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
+  .lf-sev.info { background: rgba(56,189,248,0.12); color: #7dd3fc; }
+  .lf-sev.ok { background: rgba(74,222,128,0.12); color: #86efac; }
+  .lf-sev.warn { background: rgba(245,158,11,0.12); color: #fbbf24; }
+  .lf-sev.danger { background: rgba(239,68,68,0.12); color: #fca5a5; }
+  .lf-sev.critical { background: rgba(220,38,38,0.2); color: #fca5a5; border: 1px solid rgba(239,68,68,0.3); }
+  .lf-sev.debug { background: rgba(148,163,184,0.1); color: #94a3b8; }
+  .lf-time { color: var(--muted); }
+
+  .lf-empty { padding: 40px; text-align: center; color: var(--muted); }
+
+  .lf-pulse { width: 8px; height: 8px; border-radius: 50%; }
+  .lf-pulse.live { background: var(--green); box-shadow: 0 0 10px rgba(74,222,128,0.6); animation: lfPulse 2s infinite; }
+  .lf-pulse.paused { background: var(--amberl); }
+  .lf-pulse.off { background: var(--red); }
+  @keyframes lfPulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.2)} }
+
+  /* Sparkline */
+  .sparkline { width: 100%; height: 50px; }
 </style>
 {% endblock %}
 
 {% block content %}
 
-{# ─── LIVE STATS ─── #}
-<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-bottom:14px">
-  <div class="db-stat"><div class="db-stat-val" style="color:var(--green)" id="s-total">{{ activities|length }}</div><div class="db-stat-label">Events (24h)</div></div>
-  <div class="db-stat"><div class="db-stat-val" style="color:var(--red)" id="s-bans">0</div><div class="db-stat-label">🔨 Bans</div></div>
-  <div class="db-stat"><div class="db-stat-val" style="color:var(--amberl)" id="s-warns">0</div><div class="db-stat-label">⚠️ Warns</div></div>
-  <div class="db-stat"><div class="db-stat-val" style="color:var(--vl)" id="s-spam">0</div><div class="db-stat-label">⚡ Spam</div></div>
-  <div class="db-stat"><div class="db-stat-val" style="color:var(--cl)" id="s-joins">0</div><div class="db-stat-label">👋 Joins</div></div>
-  <div class="db-stat"><div class="db-stat-val" style="color:var(--orange)" id="s-rate">0/min</div><div class="db-stat-label">Rate</div></div>
+{# ─── STATS BAR ─── #}
+<div class="lf-stats">
+  <div class="lf-stat"><div class="lf-stat-v" style="color:var(--green)" id="s-total">0</div><div class="lf-stat-l">Events 24h</div></div>
+  <div class="lf-stat"><div class="lf-stat-v" style="color:var(--vl)" id="s-rate">0</div><div class="lf-stat-l">Last 60s</div></div>
+  <div class="lf-stat"><div class="lf-stat-v" style="color:var(--red)" id="s-danger">0</div><div class="lf-stat-l">🚨 Danger</div></div>
+  <div class="lf-stat"><div class="lf-stat-v" style="color:var(--amberl)" id="s-warn">0</div><div class="lf-stat-l">⚠️ Warn</div></div>
+  <div class="lf-stat"><div class="lf-stat-v" style="color:var(--cl)" id="s-info">0</div><div class="lf-stat-l">ℹ️ Info</div></div>
+  <div class="lf-stat"><div class="lf-stat-v" style="color:var(--muted)" id="s-buf">0</div><div class="lf-stat-l">Im Puffer</div></div>
+</div>
+
+{# ─── ACTIVITY SPARKLINE ─── #}
+<div class="db-card" style="margin-bottom:14px;padding:14px">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+    <span style="font-size:.78rem;font-weight:700">📊 Aktivität letzte 24h (events/h)</span>
+    <span id="sparkPeak" style="font-size:.66rem;color:var(--muted);font-family:'Geist Mono',monospace"></span>
+  </div>
+  <svg class="sparkline" id="spark" viewBox="0 0 240 50" preserveAspectRatio="none">
+    <defs>
+      <linearGradient id="sparkGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="rgba(124,58,237,0.4)"/>
+        <stop offset="100%" stop-color="rgba(124,58,237,0)"/>
+      </linearGradient>
+    </defs>
+    <path id="sparkPath" d="" fill="url(#sparkGrad)" stroke="#a78bfa" stroke-width="1.5" />
+  </svg>
 </div>
 
 {# ─── CONTROLS ─── #}
@@ -37,10 +79,13 @@
     <span class="lf-pulse live" id="lfPulse"></span>
     <span id="lfStatus" style="font-size:.78rem;font-weight:700;color:var(--green)">LIVE</span>
   </div>
-  <button class="mf-btn mf-btn-sm" id="lfPauseBtn" onclick="togglePause()">⏸️ Pausieren</button>
-  <button class="mf-btn mf-btn-sm" onclick="clearFeed()">🗑️ Feed leeren</button>
-  <input type="text" class="cfg-input" id="lfSearch" placeholder="🔍 Filter…" oninput="filterFeed()" style="flex:1;max-width:300px;min-width:160px">
-  <span style="margin-left:auto;font-size:.72rem;color:var(--muted)">Auto-Scroll: <input type="checkbox" id="lfAutoScroll" checked style="vertical-align:middle"></span>
+  <button class="mf-btn mf-btn-sm" id="lfPauseBtn" onclick="togglePause()">⏸️ Pause</button>
+  <button class="mf-btn mf-btn-sm" onclick="clearFeed()">🗑️ Leeren</button>
+  <button class="mf-btn mf-btn-sm" onclick="exportFeed()">📥 Export JSON</button>
+  <input type="text" class="cfg-input" id="lfSearch" placeholder="🔍 Filter…" oninput="renderFeed()" style="flex:1;max-width:300px;min-width:160px">
+  <label style="margin-left:auto;font-size:.72rem;color:var(--muted);display:flex;align-items:center;gap:4px">
+    <input type="checkbox" id="lfAutoScroll" checked> Auto-Scroll
+  </label>
 </div>
 
 {# ─── TAB FILTER ─── #}
@@ -51,236 +96,270 @@
   <button class="mf-tab" data-tab="member">👥 Members</button>
   <button class="mf-tab" data-tab="voice">🎤 Voice</button>
   <button class="mf-tab" data-tab="server">🏗️ Server</button>
+  <button class="mf-tab" data-tab="danger">🚨 Nur Danger+</button>
 </div>
 
 {# ─── FEED ─── #}
 <div class="db-card" style="padding:0;overflow:hidden">
   <div style="padding:12px 16px;background:rgba(255,255,255,0.02);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
     <span style="font-weight:700;font-size:.85rem">📡 Live-Stream</span>
-    <span style="font-size:.7rem;color:var(--muted)" id="lfCount">0 Events</span>
+    <span style="font-size:.7rem;color:var(--muted);font-family:'Geist Mono',monospace" id="lfCount">0 sichtbar</span>
   </div>
   <div id="lfList" style="max-height:600px;overflow-y:auto">
-    <div class="mf-empty" id="lfEmpty">
-      <div class="mf-empty-icon">📡</div>
-      <div class="mf-empty-title">Verbinde…</div>
-      <div class="mf-empty-desc">Warte auf Live-Events vom Bot</div>
+    <div class="lf-empty" id="lfEmpty">
+      <div style="font-size:3rem;margin-bottom:8px;opacity:.4">📡</div>
+      <div style="font-weight:700;color:var(--fg);margin-bottom:4px">Verbinde…</div>
+      <div style="font-size:.78rem">Sobald der Bot aktiv ist, erscheinen hier Events</div>
     </div>
   </div>
 </div>
 
 <script>
-const BADGE_COLORS = {
-  ban: {bg:'rgba(239,68,68,0.15)', color:'#fca5a5', cat:'mod'},
-  kick: {bg:'rgba(251,146,60,0.12)', color:'#fdba74', cat:'mod'},
-  warn: {bg:'rgba(234,179,8,0.12)', color:'#fcd34d', cat:'mod'},
-  timeout: {bg:'rgba(245,158,11,0.12)', color:'#fcd34d', cat:'mod'},
-  mute: {bg:'rgba(245,158,11,0.12)', color:'#fcd34d', cat:'mod'},
-  case: {bg:'rgba(124,58,237,0.12)', color:'#c4b5fd', cat:'mod'},
-  spam: {bg:'rgba(124,58,237,0.12)', color:'#c4b5fd', cat:'security'},
-  raid: {bg:'rgba(239,68,68,0.15)', color:'#fca5a5', cat:'security'},
-  nuke: {bg:'rgba(239,68,68,0.2)', color:'#fca5a5', cat:'security'},
-  scam: {bg:'rgba(239,68,68,0.15)', color:'#fca5a5', cat:'security'},
-  automod: {bg:'rgba(124,58,237,0.12)', color:'#c4b5fd', cat:'security'},
-  mention: {bg:'rgba(245,158,11,0.12)', color:'#fcd34d', cat:'security'},
-  join: {bg:'rgba(74,222,128,0.12)', color:'#86efac', cat:'member'},
-  leave: {bg:'rgba(148,163,184,0.08)', color:'#94a3b8', cat:'member'},
-  member: {bg:'rgba(74,222,128,0.1)', color:'#86efac', cat:'member'},
-  voice: {bg:'rgba(34,211,238,0.12)', color:'#67e8f9', cat:'voice'},
-  channel: {bg:'rgba(56,189,248,0.1)', color:'#7dd3fc', cat:'server'},
-  role: {bg:'rgba(168,85,247,0.12)', color:'#d8b4fe', cat:'server'},
-  webhook: {bg:'rgba(34,211,238,0.1)', color:'#67e8f9', cat:'server'},
-  ready: {bg:'rgba(56,189,248,0.1)', color:'#7dd3fc', cat:'all'},
-  info: {bg:'rgba(56,189,248,0.1)', color:'#7dd3fc', cat:'all'},
+// ═══════════════ KATEGORIE-MAPPING ═══════════════
+const KIND_CAT = {
+  ban:'mod', kick:'mod', warn:'mod', timeout:'mod', mute:'mod', unmute:'mod',
+  untimeout:'mod', case:'mod', appeal:'mod',
+  spam:'security', raid:'security', nuke:'security', scam:'security',
+  automod:'security', mention:'security', webhook:'security', ghost:'security',
+  join:'member', leave:'member', verify:'member', guild_join:'member', guild_leave:'member',
+  voice:'voice',
+  channel:'server', role:'server', message:'server', backup:'server',
+  ready:'server', error:'server', info:'server',
 };
 
-let feedItems = [];
-let paused = false;
-let lastTotal = 0;
-let rateWindow = [];
+let FEED = [];
+let PAUSED = false;
+let RATE_BUFFER = [];
 
-function detectType(text) {
-  const t = (text||'').toLowerCase();
-  for (const k of Object.keys(BADGE_COLORS)) {
-    if (t.includes(k)) return k;
-  }
-  return 'info';
-}
+// ═══════════════ LIVE EVENT SOURCE ═══════════════
+MF.onLive(evt => {
+  if (PAUSED) return;
+  if (!evt) return;
+  // Nur Events für DIESE Guild (oder ohne Guild = global)
+  const gid = document.body.dataset.guildId;
+  if (evt.guild_id && String(evt.guild_id) !== String(gid)) return;
+  FEED.unshift(evt);
+  if (FEED.length > 1000) FEED = FEED.slice(0, 1000);
+  RATE_BUFFER.push(Date.now());
+  RATE_BUFFER = RATE_BUFFER.filter(t => Date.now() - t < 60000);
+  renderFeed(true);
+});
 
-function renderBadge(type) {
-  const c = BADGE_COLORS[type] || BADGE_COLORS.info;
-  return `<span class="lf-badge" style="background:${c.bg};color:${c.color}">${type}</span>`;
-}
+window.addEventListener('mf:socket', e => {
+  const c = e.detail.connected;
+  document.getElementById('lfPulse').className = 'lf-pulse ' + (c ? 'live' : 'off');
+  document.getElementById('lfStatus').textContent = c ? 'LIVE' : 'GETRENNT';
+  document.getElementById('lfStatus').style.color = c ? 'var(--green)' : 'var(--red)';
+});
 
-function addItem(item) {
-  if (paused) return;
-  const type = item.type || detectType(item.text || item.msg || '');
-  feedItems.unshift({...item, type, _t: Date.now()});
-  if (feedItems.length > 500) feedItems = feedItems.slice(0, 500);
-  rateWindow.push(Date.now());
-  rateWindow = rateWindow.filter(t => Date.now() - t < 60000);
-  renderFeed();
-  updateStats();
-}
+window.addEventListener('mf:stats', e => {
+  const d = e.detail;
+  if (!d) return;
+  document.getElementById('s-total').textContent = (d.live?.total) || 0;
+  // Update sparkline mit echten Daten aus per_hour
+  drawSparkline(d.live?.per_hour || []);
+});
 
-function renderFeed() {
+// ═══════════════ RENDERING ═══════════════
+function renderFeed(fresh) {
   const list = document.getElementById('lfList');
-  const tab = document.querySelector('.mf-tab.active[data-tab-group=lf]')?.dataset.tab || 'all';
+  const tab = document.querySelector('.mf-tab.active[data-tab-group="lf"]')?.dataset.tab || 'all';
   const q = (document.getElementById('lfSearch')?.value || '').toLowerCase();
 
-  const filtered = feedItems.filter(it => {
-    const cat = (BADGE_COLORS[it.type] || {}).cat || 'all';
-    if (tab !== 'all' && cat !== tab) return false;
-    if (q && !((it.text||it.msg||'').toLowerCase().includes(q))) return false;
-    return true;
+  let view = FEED;
+  if (tab === 'danger') {
+    view = view.filter(e => ['warn','danger','critical'].includes(e.severity));
+  } else if (tab !== 'all') {
+    view = view.filter(e => (KIND_CAT[e.kind] || 'server') === tab);
+  }
+  if (q) view = view.filter(e =>
+    (e.text || '').toLowerCase().includes(q) ||
+    (e.user_name || '').toLowerCase().includes(q) ||
+    (e.kind || '').toLowerCase().includes(q)
+  );
+
+  document.getElementById('lfCount').textContent = view.length + ' sichtbar (' + FEED.length + ' im Puffer)';
+
+  // Stats counter
+  let cD=0, cW=0, cI=0;
+  FEED.forEach(e => {
+    const s = e.severity;
+    if (s === 'critical' || s === 'danger') cD++;
+    else if (s === 'warn') cW++;
+    else cI++;
   });
+  document.getElementById('s-danger').textContent = cD;
+  document.getElementById('s-warn').textContent = cW;
+  document.getElementById('s-info').textContent = cI;
+  document.getElementById('s-rate').textContent = RATE_BUFFER.length;
+  document.getElementById('s-buf').textContent = FEED.length;
+  // Total: prefer live-stats, sonst FEED-length
+  const totalEl = document.getElementById('s-total');
+  if (!totalEl.textContent || totalEl.textContent === '0') totalEl.textContent = FEED.length;
 
-  document.getElementById('lfCount').textContent = filtered.length + ' Events';
-
-  if (filtered.length === 0) {
-    list.innerHTML = `<div class="mf-empty"><div class="mf-empty-icon">📭</div><div class="mf-empty-title">Keine Events</div><div class="mf-empty-desc">${feedItems.length === 0 ? 'Warte auf Aktivität…' : 'Filter passt zu nichts'}</div></div>`;
+  if (view.length === 0) {
+    list.innerHTML = `<div class="lf-empty">
+      <div style="font-size:2.5rem;margin-bottom:6px;opacity:.4">${FEED.length === 0 ? '📡' : '🔍'}</div>
+      <div style="font-weight:700;color:var(--fg)">${FEED.length === 0 ? 'Warte auf Events…' : 'Keine Treffer'}</div>
+      <div style="font-size:.72rem;margin-top:4px">${FEED.length === 0 ? 'Sobald der Bot aktiv ist (Spam, Logs, Mod-Actions) erscheinen hier Events.' : 'Filter passt zu keinem Event.'}</div>
+    </div>`;
     return;
   }
 
-  list.innerHTML = filtered.slice(0, 100).map(it => `
-    <div class="lf-item">
-      <span class="lf-time">${formatTime(it._t)}</span>
-      ${renderBadge(it.type)}
-      <span class="lf-text">${(it.icon ? it.icon + ' ' : '') + (it.text || it.msg || '?').replace(/[<>]/g, c => ({'<':'&lt;','>':'&gt;'})[c])}</span>
-    </div>
-  `).join('');
+  list.innerHTML = view.slice(0, 200).map((e, idx) => {
+    const isFresh = fresh && idx === 0;
+    const time = e.ts ? new Date(e.ts).toLocaleTimeString('de-DE', {hour12:false}) : '—';
+    const userPart = e.user_name ? `<span>👤 ${escapeHtml(e.user_name)}</span>` : '';
+    return `<div class="lf-item ${isFresh ? 'fresh' : ''}">
+      <span class="lf-icon">${e.icon || '•'}</span>
+      <div style="flex:1;min-width:0">
+        <div class="lf-text">${escapeHtml(e.text || '?')}</div>
+        <div class="lf-meta">
+          <span class="lf-sev ${e.severity || 'info'}">${e.severity || 'info'}</span>
+          <span>${e.kind || '?'}</span>
+          ${userPart}
+          <span class="lf-time">${time}</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
 
-  if (document.getElementById('lfAutoScroll').checked) list.scrollTop = 0;
+  if (fresh && document.getElementById('lfAutoScroll').checked) {
+    list.scrollTop = 0;
+  }
 }
 
-function formatTime(ts) {
-  const d = new Date(ts);
-  return d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0') + ':' + d.getSeconds().toString().padStart(2,'0');
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
 }
 
-function updateStats() {
-  const stats = {ban:0, kick:0, warn:0, timeout:0, spam:0, automod:0, join:0, leave:0};
-  feedItems.forEach(it => {
-    if (stats[it.type] !== undefined) stats[it.type]++;
+// ═══════════════ SPARKLINE ═══════════════
+function drawSparkline(hours) {
+  if (!hours || hours.length === 0) return;
+  const w = 240, h = 50;
+  const max = Math.max(1, ...hours);
+  const step = w / Math.max(1, hours.length - 1);
+  let path = `M0,${h}`;
+  hours.forEach((v, i) => {
+    const x = i * step;
+    const y = h - (v / max) * (h - 4) - 2;
+    path += ` L${x.toFixed(1)},${y.toFixed(1)}`;
   });
-  document.getElementById('s-total').textContent = feedItems.length;
-  document.getElementById('s-bans').textContent = stats.ban;
-  document.getElementById('s-warns').textContent = stats.warn;
-  document.getElementById('s-spam').textContent = stats.spam + stats.automod;
-  document.getElementById('s-joins').textContent = stats.join;
-  document.getElementById('s-rate').textContent = rateWindow.length + '/min';
+  path += ` L${w},${h} Z`;
+  document.getElementById('sparkPath').setAttribute('d', path);
+  document.getElementById('sparkPeak').textContent = `Peak: ${max} · Avg: ${(hours.reduce((a,b)=>a+b,0)/hours.length).toFixed(1)}`;
 }
 
+// ═══════════════ INITIAL FETCH (Backlog) ═══════════════
+async function loadBacklog() {
+  if (!MF.guildId) return;
+  try {
+    const r = await fetch(`/api/guild/${MF.guildId}/live/feed?limit=100`);
+    if (!r.ok) return;
+    const d = await r.json();
+    (d.activity || []).reverse().forEach(e => {
+      FEED.unshift(e);
+    });
+    renderFeed(false);
+  } catch (e) {}
+}
+loadBacklog();
+
+// ═══════════════ CONTROLS ═══════════════
 function togglePause() {
-  paused = !paused;
-  document.getElementById('lfPauseBtn').textContent = paused ? '▶️ Fortsetzen' : '⏸️ Pausieren';
-  document.getElementById('lfPulse').className = 'lf-pulse ' + (paused ? 'paused' : 'live');
-  document.getElementById('lfStatus').textContent = paused ? 'PAUSED' : 'LIVE';
-  document.getElementById('lfStatus').style.color = paused ? 'var(--amberl)' : 'var(--green)';
+  PAUSED = !PAUSED;
+  const btn = document.getElementById('lfPauseBtn');
+  btn.textContent = PAUSED ? '▶️ Fortsetzen' : '⏸️ Pause';
+  document.getElementById('lfPulse').className = 'lf-pulse ' + (PAUSED ? 'paused' : 'live');
+  document.getElementById('lfStatus').textContent = PAUSED ? 'PAUSED' : 'LIVE';
+  document.getElementById('lfStatus').style.color = PAUSED ? 'var(--amberl)' : 'var(--green)';
 }
 
 function clearFeed() {
-  if (!confirm('Feed wirklich leeren?')) return;
-  feedItems = [];
-  rateWindow = [];
+  if (!confirm('Feed-Anzeige wirklich leeren? (Server-Buffer bleibt erhalten)')) return;
+  FEED = [];
+  RATE_BUFFER = [];
   renderFeed();
-  updateStats();
   MF.toast('🗑️ Feed geleert', 'info');
 }
 
-function filterFeed() { renderFeed(); }
+function exportFeed() {
+  const blob = new Blob([JSON.stringify(FEED, null, 2)], {type: 'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `livefeed-${new Date().toISOString().slice(0,16).replace('T','_')}.json`;
+  a.click();
+  MF.toast('📥 ' + FEED.length + ' Events exportiert', 'ok');
+}
 
-document.querySelectorAll('.mf-tab[data-tab-group="lf"]').forEach(b => b.addEventListener('click', () => setTimeout(renderFeed, 50)));
-
-// === Live Source: SocketIO (preferred) or Polling fallback ===
-(function() {
-  function startPolling() {
-    setInterval(() => {
-      fetch('/live/api/activity').then(r => r.json()).then(data => {
-        if (!data || !data.activity) return;
-        const newItems = data.activity.slice(0, 5);
-        newItems.reverse().forEach(it => {
-          if (!feedItems.find(f => f.text === (it.text||it.msg) && Date.now() - f._t < 30000)) {
-            addItem(it);
-          }
-        });
-      }).catch(()=>{});
-    }, 3000);
-  }
-
-  // Try to load SocketIO via CDN
-  const s = document.createElement('script');
-  s.src = 'https://cdn.socket.io/4.7.5/socket.io.min.js';
-  s.onload = () => {
-    try {
-      const sock = io({transports: ['websocket','polling']});
-      sock.on('status_update', d => {
-        if (d.activity) {
-          d.activity.slice(-5).forEach(it => {
-            if (!feedItems.find(f => f.text === (it.text||it.msg) && Date.now() - f._t < 30000)) {
-              addItem(it);
-            }
-          });
-        }
-      });
-      sock.on('connect', () => MF.toast('🔌 Socket verbunden', 'ok'));
-      sock.on('disconnect', () => { MF.toast('🔌 Socket getrennt — Polling-Fallback', 'warn'); startPolling(); });
-    } catch (e) { startPolling(); }
-  };
-  s.onerror = () => startPolling();
-  document.head.appendChild(s);
-})();
-
-// Seed with server-rendered activities
-{% if activities %}
-const seed = {{ activities|tojson|safe }};
-seed.forEach(it => addItem(it));
-{% endif %}
-renderFeed();
+// Tab-Change Re-Render
+document.querySelectorAll('.mf-tabs[data-tab-group="lf"]').forEach(g =>
+  g.addEventListener('mf:tab-change', () => renderFeed())
+);
 </script>
 {% endblock %}
 
 {% block preview %}
 <div style="font-weight:800;font-size:.85rem;margin-bottom:12px;display:flex;align-items:center;gap:8px">
-  <span class="lf-pulse live"></span> Health
+  📈 Live-Health
 </div>
 
-<div id="lfPreviewStats" style="display:grid;gap:8px">
-  <div style="padding:10px 14px;border-radius:10px;background:rgba(255,255,255,0.03);border:1px solid var(--border)">
-    <div style="display:flex;justify-content:space-between;font-size:.74rem"><span style="color:var(--muted)">Events / Minute</span><b id="prevRate">—</b></div>
+<div style="padding:12px;border-radius:10px;background:rgba(255,255,255,0.03);border:1px solid var(--border);margin-bottom:10px">
+  <div style="display:flex;justify-content:space-between;font-size:.74rem;margin-bottom:6px">
+    <span style="color:var(--muted)">Events / Minute</span>
+    <b id="prRate">0/min</b>
   </div>
-  <div style="padding:10px 14px;border-radius:10px;background:rgba(255,255,255,0.03);border:1px solid var(--border)">
-    <div style="display:flex;justify-content:space-between;font-size:.74rem;margin-bottom:6px"><span style="color:var(--muted)">Aktivitätslevel</span><b id="prevLevel">ruhig</b></div>
-    <div class="mf-progress"><div class="mf-progress-fill" id="prevBar" style="width:0%"></div></div>
-  </div>
+  <div class="mf-progress"><div class="mf-progress-fill" id="prBar" style="width:0%"></div></div>
+  <div style="font-size:.65rem;color:var(--muted);margin-top:6px" id="prLevel">🟢 Ruhig</div>
 </div>
 
-<div style="font-weight:800;font-size:.78rem;margin:14px 0 8px">📊 Aufschlüsselung</div>
-<div id="prevBreak" style="font-size:.72rem;color:var(--muted);line-height:1.7">—</div>
+<div style="padding:12px;border-radius:10px;background:rgba(255,255,255,0.03);border:1px solid var(--border);margin-bottom:10px">
+  <div style="font-size:.7rem;color:var(--muted);margin-bottom:6px">🤖 Bot-Status</div>
+  <div style="display:flex;justify-content:space-between;font-size:.78rem"><span>Online</span><b id="prBot" style="color:var(--muted)">—</b></div>
+  <div style="display:flex;justify-content:space-between;font-size:.78rem"><span>Latenz</span><b id="prLat">—</b></div>
+  <div style="display:flex;justify-content:space-between;font-size:.78rem"><span>Voice aktiv</span><b id="prVoice">—</b></div>
+</div>
+
+<div style="font-weight:800;font-size:.78rem;margin:14px 0 6px">📋 Top-Event-Typen</div>
+<div id="prTop" style="font-size:.7rem;color:var(--muted);line-height:1.6">—</div>
 
 <script>
+window.addEventListener('mf:stats', e => {
+  const d = e.detail;
+  if (!d) return;
+  // Rate
   setInterval(() => {
-    const rate = (typeof rateWindow !== 'undefined') ? rateWindow.length : 0;
-    const r = document.getElementById('prevRate');
-    if (r) r.textContent = rate + '/min';
-    const bar = document.getElementById('prevBar');
-    if (bar) {
-      const pct = Math.min(100, rate * 5);
-      bar.style.width = pct + '%';
-      bar.style.background = rate > 15 ? 'var(--red)' : rate > 5 ? 'var(--amberl)' : 'var(--green)';
-    }
-    const lvl = document.getElementById('prevLevel');
-    if (lvl) {
-      lvl.textContent = rate > 15 ? '🔴 hoch' : rate > 5 ? '🟡 normal' : '🟢 ruhig';
-    }
-    const br = document.getElementById('prevBreak');
-    if (br && typeof feedItems !== 'undefined') {
-      const counts = {};
-      feedItems.slice(0, 50).forEach(it => counts[it.type] = (counts[it.type]||0)+1);
-      const sorted = Object.entries(counts).sort((a,b) => b[1]-a[1]).slice(0,6);
-      br.innerHTML = sorted.length === 0
-        ? '<em>Noch keine Events</em>'
-        : sorted.map(([t,c]) => `<div style="display:flex;justify-content:space-between"><span>${t}</span><b>${c}</b></div>`).join('');
-    }
-  }, 2000);
+    const rate = (typeof RATE_BUFFER !== 'undefined') ? RATE_BUFFER.length : 0;
+    document.getElementById('prRate').textContent = rate + '/min';
+    const bar = document.getElementById('prBar');
+    const pct = Math.min(100, rate * 5);
+    bar.style.width = pct + '%';
+    bar.style.background = rate > 15 ? 'var(--red)' : rate > 5 ? 'var(--amberl)' : 'var(--green)';
+    document.getElementById('prLevel').textContent = rate > 15 ? '🔴 Hoch' : rate > 5 ? '🟡 Mittel' : '🟢 Ruhig';
+  }, 1000);
+
+  // Bot
+  if (d.bot) {
+    document.getElementById('prBot').textContent = d.bot.online ? '🟢 Ja' : '🔴 Nein';
+    document.getElementById('prBot').style.color = d.bot.online ? 'var(--green)' : 'var(--red)';
+    document.getElementById('prLat').textContent = (d.bot.latency_ms || 0) + ' ms';
+    document.getElementById('prVoice').textContent = (d.bot.voice_active || 0) + ' Channels';
+  }
+
+  // Top kinds
+  const counts = d.live?.by_kind || {};
+  const sorted = Object.entries(counts).sort((a,b) => b[1] - a[1]).slice(0, 8);
+  const max = sorted.length ? sorted[0][1] : 1;
+  document.getElementById('prTop').innerHTML = sorted.length === 0
+    ? '<em>Noch keine Events</em>'
+    : sorted.map(([k, c]) => `
+      <div style="margin-bottom:4px">
+        <div style="display:flex;justify-content:space-between;font-size:.7rem"><span>${k}</span><b>${c}</b></div>
+        <div style="height:3px;background:rgba(255,255,255,0.04);border-radius:99px;overflow:hidden">
+          <div style="width:${(c/max*100).toFixed(0)}%;height:100%;background:var(--vl)"></div>
+        </div>
+      </div>
+    `).join('');
+});
 </script>
 {% endblock %}

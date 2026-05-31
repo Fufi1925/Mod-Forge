@@ -185,3 +185,7 @@
 2026-05-31 09:28:20,575 [WARNING] discord.client: davey is not installed, voice will NOT be supported
 2026-05-31 09:28:28,291 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
 2026-05-31 09:28:28,291 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-05-31 13:31:20,208 [INFO] ModForge: ════════════════════════════════════════════════════════════
+2026-05-31 13:31:20,209 [INFO] ModForge: ModForge Logging initialisiert (Color=ON, Rotation=5MB×3)
+2026-05-31 13:31:20,209 [INFO] ModForge: ════════════════════════════════════════════════════════════
+2026-05-31 13:31:20,210 [INFO] ModForge.Activity: [INFO] • Compat-Shim funktioniert

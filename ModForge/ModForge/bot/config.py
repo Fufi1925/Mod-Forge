@@ -27,17 +27,91 @@ def get_uptime(start_time: float = BOT_START_TIME) -> int:
 BOT_TOKEN = os.getenv("DISCORD_TOKEN") or "DEIN_BOT_TOKEN_HIER"
 
 # ═══════════════════════════════════════════════════════════════
-# LOGGING
+# LOGGING — Production-ready mit Color-Output, Rotation, Filter
 # ═══════════════════════════════════════════════════════════════
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    handlers=[
-        logging.FileHandler("modforge.log", encoding="utf-8"),
-        logging.StreamHandler()
-    ]
-)
+from logging.handlers import RotatingFileHandler
+
+# Custom Color-Formatter (nur für Console)
+class _ColorFormatter(logging.Formatter):
+    GREY = "\033[90m"
+    BLUE = "\033[34m"
+    GREEN = "\033[32m"
+    YELLOW = "\033[33m"
+    RED = "\033[31m"
+    BRED = "\033[1;31m"
+    PURPLE = "\033[35m"
+    CYAN = "\033[36m"
+    RESET = "\033[0m"
+
+    LEVEL_COLORS = {
+        logging.DEBUG: GREY,
+        logging.INFO: CYAN,
+        logging.WARNING: YELLOW,
+        logging.ERROR: RED,
+        logging.CRITICAL: BRED,
+    }
+
+    def format(self, record):
+        ts = self.formatTime(record, "%H:%M:%S")
+        color = self.LEVEL_COLORS.get(record.levelno, "")
+        level = record.levelname.ljust(5)
+        name = record.name.replace("ModForge.", "MF.")
+        return f"{self.GREY}{ts}{self.RESET} {color}{level}{self.RESET} {self.PURPLE}{name:<22}{self.RESET} {record.getMessage()}"
+
+
+class _NoiseFilter(logging.Filter):
+    """Unterdrückt diverse Library-Spam-Logs in Production."""
+    NOISY = ("discord.gateway", "discord.http", "discord.client",
+             "engineio.server", "socketio.server", "werkzeug",
+             "urllib3.connectionpool", "asyncio")
+
+    def filter(self, record):
+        for n in self.NOISY:
+            if record.name.startswith(n) and record.levelno < logging.WARNING:
+                return False
+        return True
+
+
+# Console-Handler mit Farben
+_console = logging.StreamHandler()
+_console.setFormatter(_ColorFormatter())
+_console.addFilter(_NoiseFilter())
+
+# File-Handler mit Rotation (max 5 MB, 3 Backups)
+try:
+    _file = RotatingFileHandler(
+        "modforge.log",
+        maxBytes=5 * 1024 * 1024,
+        backupCount=3,
+        encoding="utf-8",
+    )
+    _file.setFormatter(logging.Formatter(
+        "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+    ))
+    _file_handlers = [_file]
+except Exception:
+    _file_handlers = []
+
+# Root-Logger konfigurieren
+_root = logging.getLogger()
+_root.setLevel(logging.INFO)
+_root.handlers.clear()
+_root.addHandler(_console)
+for fh in _file_handlers:
+    _root.addHandler(fh)
+
+# Reduziere Discord-Library Spam
+logging.getLogger("discord").setLevel(logging.WARNING)
+logging.getLogger("discord.gateway").setLevel(logging.WARNING)
+logging.getLogger("discord.http").setLevel(logging.WARNING)
+logging.getLogger("werkzeug").setLevel(logging.WARNING)
+logging.getLogger("engineio").setLevel(logging.WARNING)
+logging.getLogger("socketio").setLevel(logging.WARNING)
+
 log = logging.getLogger("ModForge")
+log.info("═" * 60)
+log.info("ModForge Logging initialisiert (Color=ON, Rotation=5MB×3)")
+log.info("═" * 60)
 
 # ═══════════════════════════════════════════════════════════════
 # FARBEN & KONSTANTEN
@@ -472,43 +546,74 @@ LOG_MODS = ["Moderation","Anti-Spam","Anti-Nuke","Anti-Raid","Anti-Mention","Aut
 # ═══════════════════════════════════════════════════════════════
 # ACTIVITY-STREAM (IN-MEMORY RING-BUFFER)
 # ═══════════════════════════════════════════════════════════════
-import threading
-from collections import deque
+# ═══════════════════════════════════════════════════════════════
+# ACTIVITY BUS — delegiert an bot.activity (Version 2)
+# Backwards-kompatible Shim für alle bestehenden ACTIVITY.push() Calls
+# ═══════════════════════════════════════════════════════════════
 from typing import Dict, Any, List, Optional
 
-class ActivityStream:
-    def __init__(self, maxlen: int = 500) -> None:
-        self.events: deque = deque(maxlen=maxlen)
-        self._lock = threading.Lock()
+try:
+    from bot.activity import ACTIVITY as _ACTIVITY_V2, track as _track_v2
 
-    def push(
-        self,
-        kind: str,
-        text: str,
-        guild_id: Optional[int] = None,
-        guild_name: Optional[str] = None,
-        user_id: Optional[int] = None,
-        user_name: Optional[str] = None,
-        extra: Optional[Dict[str, Any]] = None,
-    ) -> None:
-        import datetime
-        evt = {
-            "kind": kind,
-            "text": text,
-            "guild_id": guild_id,
-            "guild_name": guild_name,
-            "user_id": user_id,
-            "user_name": user_name,
-            "extra": extra or {},
-            "ts": datetime.datetime.utcnow().isoformat() + "Z"
-        }
-        with self._lock:
-            self.events.append(evt)
+    class _ActivityShim:
+        """Wrapper für Legacy-Code der ACTIVITY.push(kind, text, ...) nutzt."""
+        def __init__(self, real):
+            self._real = real
 
-    def snapshot(self, limit: int = 200) -> List[dict]:
-        with self._lock:
-            data = list(self.events)
-        return data[-limit:][::-1]
+        def push(self, kind: str, text: str,
+                 guild_id: Optional[int] = None,
+                 guild_name: Optional[str] = None,
+                 user_id: Optional[int] = None,
+                 user_name: Optional[str] = None,
+                 extra: Optional[Dict[str, Any]] = None) -> None:
+            # Delegiere an neuen track() — gibt uns automatisch
+            # SocketIO-Broadcast + DB-Persist + Icon-Mapping
+            _track_v2(
+                kind, text,
+                guild=guild_id, user=user_id,
+                extra=extra,
+            )
 
+        def snapshot(self, limit: int = 200,
+                     guild_id: Optional[int] = None) -> List[dict]:
+            return self._real.snapshot(limit, guild_id=guild_id)
 
-ACTIVITY = ActivityStream(maxlen=500)
+        def stats_24h(self, guild_id: int) -> Dict[str, Any]:
+            return self._real.stats_24h(guild_id)
+
+        @property
+        def events(self):
+            return self._real.events
+
+    ACTIVITY = _ActivityShim(_ACTIVITY_V2)
+
+except Exception as _e:
+    # Fallback wenn bot.activity nicht ladbar
+    import threading
+    from collections import deque
+
+    class ActivityStream:
+        def __init__(self, maxlen: int = 500) -> None:
+            self.events: deque = deque(maxlen=maxlen)
+            self._lock = threading.Lock()
+        def push(self, kind, text, guild_id=None, guild_name=None,
+                 user_id=None, user_name=None, extra=None):
+            import datetime
+            with self._lock:
+                self.events.append({
+                    "kind": kind, "text": text,
+                    "guild_id": guild_id, "guild_name": guild_name,
+                    "user_id": user_id, "user_name": user_name,
+                    "extra": extra or {},
+                    "ts": datetime.datetime.utcnow().isoformat() + "Z",
+                })
+        def snapshot(self, limit=200, guild_id=None):
+            with self._lock:
+                data = list(self.events)
+            if guild_id:
+                data = [e for e in data if e.get("guild_id") in (guild_id, None)]
+            return data[-limit:][::-1]
+        def stats_24h(self, guild_id):
+            return {"total": 0, "by_kind": {}, "per_hour": [0]*24}
+
+    ACTIVITY = ActivityStream(maxlen=500)

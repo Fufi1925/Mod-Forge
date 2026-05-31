@@ -287,5 +287,20 @@ function filt(){
   document.getElementById('mC').textContent=vis+'/'+M.length;
 }
 {% endraw %}
+
+// Live-Updates: Member-Counter im Sidebar refreshen bei Joins/Leaves
+if (window.MF && MF.onLive) {
+  MF.onLive(evt => {
+    if (evt.kind === 'join' || evt.kind === 'leave') {
+      const badge = document.getElementById('mC');
+      if (badge) {
+        // Visuelles Pulse zur Anzeige
+        badge.style.color = evt.kind === 'join' ? 'var(--green)' : 'var(--red)';
+        setTimeout(() => badge.style.color = '', 1500);
+      }
+      MF.toast?.((evt.kind === 'join' ? '👋 ' : '🚪 ') + (evt.text || ''), evt.kind === 'join' ? 'ok' : 'info');
+    }
+  });
+}
 </script>
 {% endblock %}

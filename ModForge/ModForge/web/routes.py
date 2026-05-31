@@ -503,14 +503,146 @@ def live_activity():
 
 @flask_app.route("/live/api/activity")
 def live_api_activity():
+    """Liefert die letzten Activity-Events (global, alle Guilds).
+
+    Optional ?guild=<id> filtert nach Guild.
+    Optional ?limit=<n> (default 50, max 500).
+    """
     try:
-        data = ACTIVITY.snapshot(50)
+        gid = request.args.get("guild", type=int)
+        limit = min(500, max(1, request.args.get("limit", default=50, type=int)))
+        try:
+            data = ACTIVITY.snapshot(limit, guild_id=gid)
+        except TypeError:
+            # Backwards-compat falls altes snapshot ohne guild_id Param
+            data = ACTIVITY.snapshot(limit)
         if not isinstance(data, list):
             data = []
-        return jsonify(data)
+        # Wrap in dict damit Frontend einheitlich {activity: [...]} kriegt
+        return jsonify({"activity": data, "count": len(data)})
     except Exception as e:
         log.error(f"[LIVE API ERROR] {e}")
-        return jsonify([])
+        return jsonify({"activity": [], "count": 0, "error": str(e)})
+
+
+@flask_app.route("/api/guild/<guild_id>/live/stats")
+def api_guild_live_stats(guild_id):
+    """Echte 24h-Stats aus dem Activity-Bus + DB.
+
+    Liefert:
+      - Event-Counts pro Kind (24h)
+      - Events pro Stunde (24h Sparkline)
+      - Letzte 50 Events
+      - Bot-Status für diese Guild
+      - DB-basierte Cases-Counts (7d / 30d)
+    """
+    try:
+        gid = int(guild_id)
+    except (ValueError, TypeError):
+        return jsonify({"error": "invalid guild id"}), 400
+
+    # Activity-Stats (Live-Memory)
+    try:
+        live_stats = ACTIVITY.stats_24h(gid)
+    except Exception as e:
+        log.debug(f"stats_24h error: {e}")
+        live_stats = {"total": 0, "by_kind": {}, "per_hour": [0] * 24}
+
+    # Bot-Status
+    bot_state = {
+        "online": False, "latency_ms": 0,
+        "member_count": 0, "channel_count": 0, "role_count": 0,
+    }
+    try:
+        from bot.bot import BOT_REF
+        if BOT_REF and BOT_REF.is_ready():
+            bot_state["online"] = True
+            bot_state["latency_ms"] = round((BOT_REF.latency or 0) * 1000, 1)
+            g = BOT_REF.get_guild(gid)
+            if g:
+                bot_state["member_count"] = g.member_count or 0
+                bot_state["channel_count"] = len(g.channels) if g.channels else 0
+                bot_state["role_count"] = (len(g.roles) - 1) if g.roles else 0
+                bot_state["name"] = g.name
+                bot_state["icon"] = str(g.icon.url) if g.icon else None
+                # Voice-Channels mit aktiven Membern
+                voice_active = sum(
+                    1 for c in g.voice_channels if c.members
+                ) if g.voice_channels else 0
+                bot_state["voice_active"] = voice_active
+    except Exception as e:
+        log.debug(f"bot state error: {e}")
+
+    # DB-Stats: Cases (7d / 30d)
+    db_stats = {"cases_7d": 0, "cases_30d": 0, "cases_total": 0,
+                "warns_active": 0, "by_action_30d": {}}
+    try:
+        import datetime as _dt
+        db = get_db()
+        if db:
+            cutoff_7 = _dt.datetime.utcnow() - _dt.timedelta(days=7)
+            cutoff_30 = _dt.datetime.utcnow() - _dt.timedelta(days=30)
+            all_cases = safe_async(
+                db.cases.find({"guild_id": str(gid)}).to_list(2000), []
+            ) or []
+            db_stats["cases_total"] = len(all_cases)
+            by_action = defaultdict(int)
+            for c in all_cases:
+                ts = c.get("timestamp")
+                if ts and hasattr(ts, '__ge__'):
+                    if ts >= cutoff_7:
+                        db_stats["cases_7d"] += 1
+                    if ts >= cutoff_30:
+                        db_stats["cases_30d"] += 1
+                        by_action[c.get("action", "other")] += 1
+            db_stats["by_action_30d"] = dict(by_action)
+            # Active warns
+            try:
+                warns_coll = getattr(db, "warnings", None)
+                if warns_coll is not None:
+                    db_stats["warns_active"] = safe_collection_count(
+                        warns_coll, {"guild_id": str(gid)}
+                    )
+            except Exception:
+                pass
+    except Exception as e:
+        log.debug(f"db stats error: {e}")
+
+    # Recent Events nur für diese Guild
+    try:
+        recent = ACTIVITY.snapshot(50, guild_id=gid)
+    except TypeError:
+        recent = [
+            e for e in ACTIVITY.snapshot(200)
+            if e.get("guild_id") == gid
+        ][:50]
+
+    return jsonify({
+        "bot": bot_state,
+        "live": live_stats,
+        "db": db_stats,
+        "recent": recent,
+        "ts": __import__("datetime").datetime.utcnow().isoformat() + "Z",
+    })
+
+
+@flask_app.route("/api/guild/<guild_id>/live/feed")
+def api_guild_live_feed(guild_id):
+    """Reine Event-Liste für eine Guild (für Live-Feed-Polling-Fallback)."""
+    try:
+        gid = int(guild_id)
+    except (ValueError, TypeError):
+        return jsonify({"activity": [], "error": "invalid id"})
+    limit = min(500, max(1, request.args.get("limit", default=100, type=int)))
+    since = request.args.get("since", type=float)  # unix timestamp
+    try:
+        events = ACTIVITY.snapshot(limit, guild_id=gid)
+    except TypeError:
+        events = [e for e in ACTIVITY.snapshot(500) if e.get("guild_id") == gid][:limit]
+    if since:
+        events = [e for e in events if e.get("_ts_unix", 0) > since]
+    return jsonify({"activity": events, "count": len(events),
+                    "server_time": __import__("time").time()})
 
 
 # =========================================================

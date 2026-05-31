@@ -178,14 +178,12 @@ function buildStats() {
   if (usrEl) usrEl.innerHTML = renderList(topN(users));
 }
 
-// Re-filter when tab changes
-document.querySelectorAll('.mf-tab[data-tab-group="cs"]').forEach(btn => {
-  btn.addEventListener('click', () => {
-    setTimeout(() => {
-      if (btn.dataset.tab === 'stats') buildStats();
-      else if (btn.dataset.tab !== 'all') filterCases();
-    }, 50);
-  });
+// Re-filter when tab changes — über das CustomEvent
+document.querySelector('.mf-tabs[data-tab-group="cs"]')?.addEventListener('mf:tab-change', e => {
+  setTimeout(() => {
+    if (e.detail.tab === 'stats') buildStats();
+    else filterCases();
+  }, 50);
 });
 
 // Reflect table in all/sub tabs

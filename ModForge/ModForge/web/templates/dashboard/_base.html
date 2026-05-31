@@ -114,6 +114,18 @@
   {% block head %}{% endblock %}
 </head>
 <body data-guild-id="{{ guild.id }}" data-guild-name="{{ guild.name|e }}" data-member-count="{{ guild.member_count }}">
+  <!-- MOBILE BURGER -->
+  <button class="mf-burger" id="mfBurger" aria-label="Menü öffnen" onclick="
+    this.classList.toggle('open');
+    document.querySelector('.db-sidebar')?.classList.toggle('open');
+    document.getElementById('mfSidebarBackdrop')?.classList.toggle('open');
+  "><span></span><span></span><span></span></button>
+  <div class="mf-sidebar-backdrop" id="mfSidebarBackdrop" onclick="
+    this.classList.remove('open');
+    document.querySelector('.db-sidebar')?.classList.remove('open');
+    document.getElementById('mfBurger')?.classList.remove('open');
+  "></div>
+
   <!-- SIDEBAR -->
   <aside class="db-sidebar">
     <a href="/" class="db-brand"><div class="db-brand-icon">🛡️</div><span class="db-brand-text">ModForge</span></a>
