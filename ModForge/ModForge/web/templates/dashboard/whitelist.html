@@ -1,0 +1,127 @@
+{% extends "dashboard/_base.html" %}
+{% set active = 'whitelist' %}
+{% block title %}Whitelist{% endblock %}
+{% block page_title %}🔐 Whitelist-Verwaltung{% endblock %}
+{% block page_desc %}Channels, Rollen, User, Bots — von allen Bot-Aktionen ausgenommen{% endblock %}
+
+{% set wl = whitelist or {} %}
+
+{% block content %}
+<div class="mf-tabs" data-tab-group="wl">
+  <button class="mf-tab active" data-tab="channels">💬 Channels <span class="mf-tab-badge">{{ wl.get('channels',[])|length }}</span></button>
+  <button class="mf-tab" data-tab="roles">🏷️ Rollen <span class="mf-tab-badge">{{ wl.get('roles',[])|length }}</span></button>
+  <button class="mf-tab" data-tab="users">👤 User <span class="mf-tab-badge">{{ wl.get('users',[])|length }}</span></button>
+  <button class="mf-tab" data-tab="bots">🤖 Bots <span class="mf-tab-badge">{{ wl.get('bots',[])|length }}</span></button>
+</div>
+
+{% macro wl_panel(cat, icon, label, items, options=[]) %}
+<div class="db-card">
+  <div class="mf-banner mf-banner-info">
+    <span class="mf-banner-icon">{{ icon }}</span>
+    <div>{{ label }} in dieser Liste werden von <b>allen Security-Modulen ignoriert</b>.</div>
+  </div>
+
+  <div class="mf-field">
+    <label class="mf-field-label">Aktuell whitelisted ({{ items|length }})</label>
+    {% if items %}
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:6px">
+      {% for id in items %}
+      <div class="cfg-row" style="margin:0;padding:8px 12px">
+        <code style="font-size:.72rem;color:var(--muted);font-family:'Geist Mono',monospace;flex:1;overflow:hidden;text-overflow:ellipsis">{{ id }}</code>
+        <button class="mf-btn mf-btn-sm mf-btn-danger" onclick="removeWL('{{ cat }}','{{ id }}')">×</button>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="mf-empty"><div class="mf-empty-icon">{{ icon }}</div><div class="mf-empty-desc">Keine Einträge</div></div>
+    {% endif %}
+  </div>
+
+  <hr style="border:none;border-top:1px solid var(--border);margin:18px 0">
+
+  <div style="font-weight:800;font-size:.92rem;margin-bottom:10px">➕ Hinzufügen</div>
+  {% if options %}
+  <div style="display:flex;gap:8px">
+    <select class="cfg-select" id="add-{{ cat }}" style="flex:1">
+      <option value="">— Wählen —</option>
+      {% for opt in options %}
+      <option value="{{ opt.id }}">{{ opt.name }}</option>
+      {% endfor %}
+    </select>
+    <button class="mf-btn mf-btn-primary" onclick="addWL('{{ cat }}', document.getElementById('add-{{ cat }}').value)">+ Hinzufügen</button>
+  </div>
+  {% else %}
+  <div style="display:flex;gap:8px">
+    <input type="text" class="cfg-input" id="add-{{ cat }}" placeholder="Discord-ID eingeben" style="flex:1;max-width:none;font-family:'Geist Mono',monospace">
+    <button class="mf-btn mf-btn-primary" onclick="addWL('{{ cat }}', document.getElementById('add-{{ cat }}').value)">+ Hinzufügen</button>
+  </div>
+  {% endif %}
+</div>
+{% endmacro %}
+
+{# Build option lists in Jinja-friendly way #}
+{% set channel_opts = [] %}
+{% if guild and guild.text_channels %}
+  {% for c in guild.text_channels %}{% set _ = channel_opts.append({'id': c.id, 'name': '# ' + c.name}) %}{% endfor %}
+{% endif %}
+{% set role_opts = [] %}
+{% if guild and guild.roles %}
+  {% for r in guild.roles %}{% if not r.is_default() and not r.managed %}{% set _ = role_opts.append({'id': r.id, 'name': r.name}) %}{% endif %}{% endfor %}
+{% endif %}
+
+<div class="mf-tab-panel active" data-tab-panel="channels" data-tab-group="wl">
+  {{ wl_panel('channels','💬','Channels', wl.get('channels',[]), channel_opts) }}
+</div>
+
+<div class="mf-tab-panel" data-tab-panel="roles" data-tab-group="wl">
+  {{ wl_panel('roles','🏷️','Rollen', wl.get('roles',[]), role_opts) }}
+</div>
+
+<div class="mf-tab-panel" data-tab-panel="users" data-tab-group="wl">
+  {{ wl_panel('users','👤','User', wl.get('users',[])) }}
+</div>
+
+<div class="mf-tab-panel" data-tab-panel="bots" data-tab-group="wl">
+  {{ wl_panel('bots','🤖','Bots', wl.get('bots',[])) }}
+</div>
+
+<script>
+async function addWL(cat, id) {
+  if (!id) return MF.toast('❌ ID nötig', 'err');
+  try {
+    const r = await fetch(`/api/guild/${MF.guildId}/whitelist`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({action:'add', category: cat, entry_id: parseInt(id)})
+    });
+    if (r.ok) { MF.toast('+ ' + id, 'ok'); setTimeout(() => location.reload(), 400); }
+    else MF.toast('❌ Fehler', 'err');
+  } catch (e) { MF.toast('❌ Netzwerk', 'err'); }
+}
+async function removeWL(cat, id) {
+  if (!confirm(`${id} aus ${cat} entfernen?`)) return;
+  try {
+    const r = await fetch(`/api/guild/${MF.guildId}/whitelist`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({action:'remove', category: cat, entry_id: parseInt(id)})
+    });
+    if (r.ok) { MF.toast('🗑️ Entfernt', 'ok'); setTimeout(() => location.reload(), 400); }
+    else MF.toast('❌ Fehler', 'err');
+  } catch (e) { MF.toast('❌ Netzwerk', 'err'); }
+}
+</script>
+{% endblock %}
+
+{% block preview %}
+<div style="font-weight:800;font-size:.85rem;margin-bottom:12px">🔐 Whitelist-Übersicht</div>
+<div style="padding:14px;border-radius:10px;background:rgba(255,255,255,0.03);border:1px solid var(--border);font-size:.78rem;line-height:1.8">
+  <div>💬 Channels: <b>{{ wl.get('channels',[])|length }}</b></div>
+  <div>🏷️ Rollen: <b>{{ wl.get('roles',[])|length }}</b></div>
+  <div>👤 User: <b>{{ wl.get('users',[])|length }}</b></div>
+  <div>🤖 Bots: <b>{{ wl.get('bots',[])|length }}</b></div>
+  <div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.05)">Gesamt: <b style="color:var(--vl)">{{ wl.get('channels',[])|length + wl.get('roles',[])|length + wl.get('users',[])|length + wl.get('bots',[])|length }}</b></div>
+</div>
+<div class="mf-banner mf-banner-warn" style="margin-top:12px;font-size:.72rem">
+  <span class="mf-banner-icon">⚠️</span>
+  <div>Whitelist-Einträge umgehen ALLE Security-Module. Sparsam nutzen!</div>
+</div>
+{% endblock %}

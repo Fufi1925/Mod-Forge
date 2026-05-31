@@ -1,0 +1,242 @@
+{% extends "dashboard/_base.html" %}
+{% set active = 'warns' %}
+{% block title %}Warns{% endblock %}
+{% block page_title %}⚠️ Warn-System{% endblock %}
+{% block page_desc %}Schwellen-basierte Eskalation · Auto-Decay · Custom Thresholds{% endblock %}
+
+{% set ws = cfg.get('warn_system', {}) %}
+{% set thresholds = ws.get('thresholds', {'3':'timeout','5':'kick','7':'ban'}) %}
+{% set decay = ws.get('decay', {}) %}
+
+{% block content %}
+
+<div class="mf-tabs" data-tab-group="wn">
+  <button class="mf-tab active" data-tab="general">⚙️ Allgemein</button>
+  <button class="mf-tab" data-tab="thresholds">📊 Schwellen</button>
+  <button class="mf-tab" data-tab="decay">⏳ Auto-Decay</button>
+  <button class="mf-tab" data-tab="appeal">📋 Appeal</button>
+</div>
+
+{# ═══ GENERAL ═══ #}
+<div class="mf-tab-panel active" data-tab-panel="general" data-tab-group="wn">
+  <div class="db-card">
+    <div class="cfg-row">
+      <div><span class="cfg-label">⚠️ Warn-System aktivieren</span><div class="cfg-desc">Mods können /warn nutzen und Schwellen lösen automatisch Aktionen aus</div></div>
+      <label class="toggle"><input type="checkbox" data-cfg="warn_system.enabled" {% if ws.get('enabled', True) %}checked{% endif %}><span class="slider"></span></label>
+    </div>
+
+    <div class="cfg-row">
+      <div><span class="cfg-label">💌 DM an gewarnten User</span><div class="cfg-desc">User erhält per DM die Verwarnung mit Grund</div></div>
+      <label class="toggle"><input type="checkbox" data-cfg="warn_system.dm_user" {% if ws.get('dm_user', True) %}checked{% endif %}><span class="slider"></span></label>
+    </div>
+
+    <div class="cfg-row">
+      <div><span class="cfg-label">📋 In Cases speichern</span><div class="cfg-desc">Jede Warnung wird zusätzlich als Case archiviert</div></div>
+      <label class="toggle"><input type="checkbox" data-cfg="warn_system.log_case" {% if ws.get('log_case', True) %}checked{% endif %}><span class="slider"></span></label>
+    </div>
+
+    <div class="cfg-row">
+      <div><span class="cfg-label">🔇 Reaktion im Channel</span><div class="cfg-desc">Bot reagiert mit ⚠️ auf die ausgelöste Nachricht</div></div>
+      <label class="toggle"><input type="checkbox" data-cfg="warn_system.react_in_channel" {% if ws.get('react_in_channel') %}checked{% endif %}><span class="slider"></span></label>
+    </div>
+  </div>
+</div>
+
+{# ═══ THRESHOLDS ═══ #}
+<div class="mf-tab-panel" data-tab-panel="thresholds" data-tab-group="wn">
+  <div class="db-card">
+    <div class="mf-banner mf-banner-info">
+      <span class="mf-banner-icon">📊</span>
+      <div>Wenn ein User <b>X Warnungen</b> erreicht, wird automatisch die zugeordnete <b>Aktion</b> ausgelöst.</div>
+    </div>
+
+    <div id="thresholdList" style="margin-top:14px">
+      {% for n, action in thresholds.items()|sort %}
+      <div class="cfg-row threshold-row" data-n="{{ n }}">
+        <div style="display:flex;align-items:center;gap:14px;flex:1">
+          <div style="font-size:1.6rem;font-weight:900;color:var(--vl);font-family:'Geist Mono',monospace;min-width:50px;text-align:center">{{ n }}</div>
+          <div><div style="font-weight:700;font-size:.85rem">Bei {{ n }} Warnungen</div><div style="font-size:.7rem;color:var(--muted)">User-Aktion</div></div>
+        </div>
+        <select class="cfg-select th-action" data-th-key="{{ n }}" style="min-width:140px">
+          <option value="warn" {% if action=='warn' %}selected{% endif %}>⚠️ Nur Log</option>
+          <option value="timeout" {% if action=='timeout' %}selected{% endif %}>⏱️ Timeout</option>
+          <option value="kick" {% if action=='kick' %}selected{% endif %}>👢 Kick</option>
+          <option value="ban" {% if action=='ban' %}selected{% endif %}>🔨 Ban</option>
+        </select>
+        <button class="mf-btn mf-btn-sm mf-btn-danger" onclick="removeThreshold('{{ n }}')">🗑️</button>
+      </div>
+      {% endfor %}
+    </div>
+
+    <hr style="border:none;border-top:1px solid var(--border);margin:18px 0">
+
+    <div style="font-weight:800;font-size:.92rem;margin-bottom:10px">➕ Neue Schwelle</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <input type="number" id="newThN" class="cfg-input" placeholder="z.B. 10" min="1" max="99" style="max-width:120px">
+      <select class="cfg-select" id="newThA">
+        <option value="warn">⚠️ Nur Log</option>
+        <option value="timeout" selected>⏱️ Timeout</option>
+        <option value="kick">👢 Kick</option>
+        <option value="ban">🔨 Ban</option>
+      </select>
+      <button class="mf-btn mf-btn-primary" onclick="addThreshold()">+ Hinzufügen</button>
+    </div>
+  </div>
+</div>
+
+{# ═══ DECAY ═══ #}
+<div class="mf-tab-panel" data-tab-panel="decay" data-tab-group="wn">
+  <div class="db-card">
+    <div class="mf-banner mf-banner-info">
+      <span class="mf-banner-icon">⏳</span>
+      <div>Warns verfallen nach einer bestimmten Zeit automatisch. So bekommen User eine <b>zweite Chance</b> und alte Sünden zählen nicht ewig.</div>
+    </div>
+
+    <div class="cfg-row">
+      <div><span class="cfg-label">Auto-Decay aktivieren</span><div class="cfg-desc">Warnungen werden nach X Tagen automatisch entfernt</div></div>
+      <label class="toggle"><input type="checkbox" data-cfg="warn_system.decay.enabled" {% if decay.get('enabled') %}checked{% endif %}><span class="slider"></span></label>
+    </div>
+
+    <div class="mf-field">
+      <label class="mf-field-label">Decay-Zeitraum <span class="mf-field-value" data-range-value="dc-d" data-suffix=" Tage">{{ decay.get('decay_days', 30) }} Tage</span></label>
+      <input type="range" class="mf-range" id="dc-d" data-cfg="warn_system.decay.decay_days" min="1" max="365" value="{{ decay.get('decay_days', 30) }}">
+    </div>
+
+    <div class="mf-field">
+      <label class="mf-field-label">Decay-Modus</label>
+      <select data-cfg="warn_system.decay.mode" class="cfg-select" style="width:100%">
+        <option value="oldest" {% if decay.get('mode','oldest')=='oldest' %}selected{% endif %}>📅 Älteste zuerst (jede Warn nach X Tagen weg)</option>
+        <option value="all" {% if decay.get('mode')=='all' %}selected{% endif %}>🧹 Alle löschen (nach X Tagen ohne neue Warn)</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+{# ═══ APPEAL ═══ #}
+<div class="mf-tab-panel" data-tab-panel="appeal" data-tab-group="wn">
+  <div class="db-card">
+    <div class="cfg-row">
+      <div><span class="cfg-label">📋 Appeal-System aktivieren</span><div class="cfg-desc">Gebannte/getimeoutete User können per DM Einspruch einreichen</div></div>
+      <label class="toggle"><input type="checkbox" data-cfg="appeal_system.enabled" {% if cfg.get('appeal_system',{}).get('enabled') %}checked{% endif %}><span class="slider"></span></label>
+    </div>
+
+    <div class="mf-field">
+      <label class="mf-field-label">📢 Appeal-Log-Kanal</label>
+      <select data-cfg="appeal_log_channel" class="cfg-select" style="width:100%">
+        <option value="">— Kanal wählen —</option>
+        {% if guild and guild.text_channels %}
+          {% for ch in guild.text_channels %}
+            <option value="{{ ch.id }}" {% if cfg.get('appeal_log_channel')|string == ch.id|string %}selected{% endif %}># {{ ch.name }}</option>
+          {% endfor %}
+        {% endif %}
+      </select>
+    </div>
+
+    <div class="mf-field">
+      <label class="mf-field-label">Appeal-DM-Text</label>
+      <textarea data-cfg="appeal_system.dm_message" class="mf-textarea" rows="4">{{ cfg.get('appeal_system',{}).get('dm_message','Du wurdest auf **{server}** moderiert. Wenn du Einspruch einreichen möchtest, antworte einfach auf diese DM mit deinem Grund. Das Team prüft deine Anfrage.') }}</textarea>
+    </div>
+  </div>
+</div>
+
+<script>
+let removedThresholds = [];
+
+function addThreshold() {
+  const n = document.getElementById('newThN').value;
+  const a = document.getElementById('newThA').value;
+  if (!n || +n < 1) return MF.toast('❌ Anzahl > 0', 'err');
+  if (document.querySelector(`.threshold-row[data-n="${n}"]`)) return MF.toast('❌ Bereits vorhanden', 'warn');
+
+  const list = document.getElementById('thresholdList');
+  const div = document.createElement('div');
+  div.className = 'cfg-row threshold-row';
+  div.dataset.n = n;
+  div.innerHTML = `
+    <div style="display:flex;align-items:center;gap:14px;flex:1">
+      <div style="font-size:1.6rem;font-weight:900;color:var(--vl);font-family:'Geist Mono',monospace;min-width:50px;text-align:center">${n}</div>
+      <div><div style="font-weight:700;font-size:.85rem">Bei ${n} Warnungen</div><div style="font-size:.7rem;color:var(--muted)">User-Aktion</div></div>
+    </div>
+    <select class="cfg-select th-action" data-th-key="${n}" style="min-width:140px">
+      <option value="warn">⚠️ Nur Log</option>
+      <option value="timeout" ${a==='timeout'?'selected':''}>⏱️ Timeout</option>
+      <option value="kick" ${a==='kick'?'selected':''}>👢 Kick</option>
+      <option value="ban" ${a==='ban'?'selected':''}>🔨 Ban</option>
+    </select>
+    <button class="mf-btn mf-btn-sm mf-btn-danger" onclick="removeThreshold('${n}')">🗑️</button>
+  `;
+  list.appendChild(div);
+  document.getElementById('newThN').value = '';
+  MF.markDirty();
+  MF.toast('+ Schwelle vorgemerkt', 'info');
+}
+
+function removeThreshold(n) {
+  const r = document.querySelector(`.threshold-row[data-n="${n}"]`);
+  if (r) {
+    removedThresholds.push(n);
+    r.remove();
+    MF.markDirty();
+  }
+}
+
+// Override save to include thresholds
+const originalSave = MF.saveConfig;
+MF.saveConfig = async function() {
+  const thresholds = {};
+  document.querySelectorAll('.th-action').forEach(s => {
+    thresholds[s.dataset.thKey] = s.value;
+  });
+  if (!MF.guildId) { MF.toast('Keine Guild-ID', 'err'); return; }
+  MF.saving = true;
+  try {
+    const data = MF.collectConfig();
+    data.warn_system = data.warn_system || {};
+    data.warn_system.thresholds = thresholds;
+    const r = await fetch(`/api/guild/${MF.guildId}/config`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(data)
+    });
+    if (r.ok) { MF.markClean(); MF.toast('💾 Gespeichert', 'save'); }
+    else MF.toast('❌ Fehler HTTP ' + r.status, 'err');
+  } catch (e) { MF.toast('❌ Netzwerk', 'err'); }
+  finally { MF.saving = false; }
+};
+</script>
+{% endblock %}
+
+{% block preview %}
+<div id="wnPreview"></div>
+<script>
+  MF.registerPreview('warns', function(cfg) {
+    const ws = cfg.warn_system || {};
+    const thresholds = {};
+    document.querySelectorAll('.th-action').forEach(s => thresholds[s.dataset.thKey] = s.value);
+
+    const sorted = Object.entries(thresholds).sort((a,b) => +a[0] - +b[0]);
+    const icons = {warn:'⚠️', timeout:'⏱️', kick:'👢', ban:'🔨'};
+
+    return `<div style="font-weight:800;font-size:.78rem;margin-bottom:10px">📊 Eskalations-Stufen</div>` +
+      (sorted.length === 0
+        ? `<div class="mf-empty"><div class="mf-empty-icon">📊</div><div class="mf-empty-desc">Keine Schwellen definiert</div></div>`
+        : sorted.map(([n, a]) => `
+          <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;background:rgba(255,255,255,0.03);border:1px solid var(--border);margin-bottom:5px">
+            <div style="font-weight:900;color:var(--vl);font-family:'Geist Mono',monospace;min-width:30px">${n}×</div>
+            <div style="flex:1;font-size:.78rem">→ ${icons[a]||'⚠️'} ${a}</div>
+          </div>
+        `).join('')) +
+      `<div class="mf-banner mf-banner-info" style="margin-top:14px;font-size:.72rem">
+        <span class="mf-banner-icon">⏳</span>
+        <div>Decay: ${ws.decay?.enabled ? `<b>${ws.decay?.decay_days||30}</b> Tage` : '<b>aus</b>'} · DM: ${ws.dm_user?'<b>an</b>':'<b>aus</b>'}</div>
+      </div>` +
+      MF.renderDiscordEmbed({
+        color: '#fbbf24',
+        title: '⚠️ Du wurdest verwarnt',
+        description: `**Server:** ${document.body.dataset.guildName||'Test'}\n**Grund:** Spam im #general\n**Warns gesamt:** 2`,
+        footer: 'ModForge • warn',
+        username: 'ModForge'
+      });
+  });
+</script>
+{% endblock %}

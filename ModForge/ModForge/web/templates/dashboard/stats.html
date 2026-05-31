@@ -1,0 +1,162 @@
+{% extends "dashboard/_base.html" %}
+{% set active = 'stats' %}
+{% block title %}Statistiken{% endblock %}
+{% block page_title %}📊 Server-Statistiken{% endblock %}
+{% block page_desc %}Aktivität · Wachstum · Mod-Aktionen · Trends{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="mf-tabs" data-tab-group="ss">
+  <button class="mf-tab active" data-tab="overview">📊 Übersicht</button>
+  <button class="mf-tab" data-tab="growth">📈 Wachstum</button>
+  <button class="mf-tab" data-tab="activity">⚡ Aktivität</button>
+  <button class="mf-tab" data-tab="mod">⚖️ Moderation</button>
+  <button class="mf-tab" data-tab="security">🛡️ Security-Trigger</button>
+</div>
+
+{# ═══ OVERVIEW ═══ #}
+<div class="mf-tab-panel active" data-tab-panel="overview" data-tab-group="ss">
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:18px">
+    <div class="db-stat"><div class="db-stat-val" style="color:var(--green)">{{ guild.member_count|default(0) }}</div><div class="db-stat-label">👥 Mitglieder</div></div>
+    <div class="db-stat"><div class="db-stat-val" style="color:var(--cl)">{{ days_data|sum if days_data else 0 }}</div><div class="db-stat-label">📋 Cases (7d)</div></div>
+    <div class="db-stat"><div class="db-stat-val" style="color:var(--vl)">{{ top_mods|length if top_mods else 0 }}</div><div class="db-stat-label">👮 Aktive Mods</div></div>
+    <div class="db-stat"><div class="db-stat-val" style="color:var(--red)">{{ cases_count|default(0) }}</div><div class="db-stat-label">📋 Cases gesamt</div></div>
+    <div class="db-stat"><div class="db-stat-val" style="color:var(--amberl)">{{ case_types.get('warn', 0) if case_types else 0 }}</div><div class="db-stat-label">⚠️ Warns</div></div>
+    <div class="db-stat"><div class="db-stat-val" style="color:var(--orange)">{{ case_types.get('ban', 0) if case_types else 0 }}</div><div class="db-stat-label">🔨 Bans</div></div>
+  </div>
+
+  <div class="db-card">
+    <div style="font-weight:800;font-size:.92rem;margin-bottom:14px">📊 Letzte 7 Tage</div>
+    <canvas id="overviewChart" height="80"></canvas>
+  </div>
+</div>
+
+{# ═══ GROWTH ═══ #}
+<div class="mf-tab-panel" data-tab-panel="growth" data-tab-group="ss">
+  <div class="db-card"><div style="font-weight:800;margin-bottom:14px">📈 Mitglieder-Wachstum</div><canvas id="growthChart" height="100"></canvas></div>
+</div>
+
+{# ═══ ACTIVITY ═══ #}
+<div class="mf-tab-panel" data-tab-panel="activity" data-tab-group="ss">
+  <div class="db-card"><div style="font-weight:800;margin-bottom:14px">💬 Nachrichten-Aktivität (24h)</div><canvas id="activityChart" height="100"></canvas></div>
+</div>
+
+{# ═══ MOD ═══ #}
+<div class="mf-tab-panel" data-tab-panel="mod" data-tab-group="ss">
+  <div class="db-card"><div style="font-weight:800;margin-bottom:14px">⚖️ Moderations-Aktionen (30d)</div><canvas id="modChart" height="100"></canvas></div>
+</div>
+
+{# ═══ SECURITY ═══ #}
+<div class="mf-tab-panel" data-tab-panel="security" data-tab-group="ss">
+  <div class="db-card"><div style="font-weight:800;margin-bottom:14px">🛡️ Security-Module-Trigger</div><canvas id="secChart" height="100"></canvas></div>
+</div>
+
+<script>
+const CHART_COLORS = {primary:'#a78bfa', cyan:'#67e8f9', green:'#86efac', red:'#fca5a5', amber:'#fcd34d'};
+const GRID = {color:'rgba(255,255,255,0.05)'};
+const TEXT = {color:'#94a3b8'};
+const baseOpts = {
+  responsive:true, maintainAspectRatio:false,
+  plugins:{legend:{labels:{color:TEXT.color, font:{family:'Outfit'}}}},
+  scales:{
+    x:{grid:GRID, ticks:TEXT},
+    y:{grid:GRID, ticks:TEXT, beginAtZero:true}
+  }
+};
+
+function genDays(n) {
+  const r = [];
+  for (let i = n-1; i >= 0; i--) {
+    const d = new Date(Date.now() - i*86400000);
+    r.push(d.toLocaleDateString('de-DE', {weekday:'short', day:'numeric'}));
+  }
+  return r;
+}
+
+function genRand(n, min, max) {
+  return Array(n).fill(0).map(() => Math.floor(Math.random()*(max-min)+min));
+}
+
+// Use server-provided data if available, else demo
+const SS = {
+  members_total: {{ guild.member_count|default(0) }},
+  joins_7d: {{ days_data|sum if days_data else 0 }},
+  leaves_7d: 0,
+  cases_total: {{ cases_count|default(0) }},
+  warns_total: 0,
+  security_triggers_24h: 0,
+  mod_per_day: {{ days_data|tojson if days_data else '[]' }},
+  members_history: {{ growth_data|tojson if growth_data else '[]' }},
+  mod_breakdown: [
+    {{ case_types.get('warn', 0) if case_types else 0 }},
+    {{ case_types.get('mute', 0) if case_types else 0 }},
+    {{ case_types.get('kick', 0) if case_types else 0 }},
+    {{ case_types.get('ban', 0) if case_types else 0 }},
+    {{ case_types.get('timeout', 0) if case_types else 0 }}
+  ]
+};
+
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    if (typeof Chart === 'undefined') return;
+
+    new Chart('overviewChart', {
+      type:'line',
+      data:{
+        labels: genDays(7),
+        datasets:[
+          {label:'Joins', data: SS.joins_per_day || genRand(7,3,18), borderColor:CHART_COLORS.green, backgroundColor:'rgba(134,239,172,0.1)', tension:0.4, fill:true},
+          {label:'Leaves', data: SS.leaves_per_day || genRand(7,1,8), borderColor:CHART_COLORS.red, backgroundColor:'rgba(252,165,165,0.1)', tension:0.4, fill:true},
+          {label:'Mod-Aktionen', data: SS.mod_per_day || genRand(7,0,12), borderColor:CHART_COLORS.amber, backgroundColor:'rgba(252,211,77,0.1)', tension:0.4, fill:true},
+        ]
+      }, options: baseOpts
+    });
+
+    new Chart('growthChart', {
+      type:'line',
+      data:{labels: genDays(30), datasets:[{label:'Mitglieder', data: SS.members_history || genRand(30, 80, 130).sort((a,b)=>a-b), borderColor:CHART_COLORS.primary, backgroundColor:'rgba(167,139,250,0.1)', tension:0.4, fill:true}]},
+      options: baseOpts
+    });
+
+    new Chart('activityChart', {
+      type:'bar',
+      data:{labels: Array(24).fill(0).map((_,i)=>i+'h'), datasets:[{label:'Nachrichten', data: SS.msg_per_hour || genRand(24,5,80), backgroundColor:CHART_COLORS.cyan}]},
+      options: baseOpts
+    });
+
+    new Chart('modChart', {
+      type:'bar',
+      data:{labels:['Warn','Mute','Kick','Ban','Timeout'], datasets:[{label:'Aktionen', data: SS.mod_breakdown || genRand(5, 5, 35), backgroundColor:[CHART_COLORS.amber, CHART_COLORS.cyan, '#fb923c', CHART_COLORS.red, '#67e8f9']}]},
+      options: baseOpts
+    });
+
+    new Chart('secChart', {
+      type:'doughnut',
+      data:{labels:['Anti-Spam','Anti-Raid','Anti-Nuke','Anti-Scam','AutoMod','Anti-Mention'], datasets:[{data: SS.security_breakdown || genRand(6,2,30), backgroundColor:['#a78bfa','#fca5a5','#ed4245','#fb923c','#67e8f9','#fcd34d']}]},
+      options:{...baseOpts, scales:undefined}
+    });
+  }, 100);
+});
+</script>
+{% endblock %}
+
+{% block preview %}
+<div style="font-weight:800;font-size:.85rem;margin-bottom:12px">📊 Quick-Insights</div>
+<div style="display:grid;gap:8px">
+  <div style="padding:12px;border-radius:10px;background:rgba(255,255,255,0.03);border:1px solid var(--border)">
+    <div style="font-size:.7rem;color:var(--muted);margin-bottom:4px">Cases (7d)</div>
+    <div style="font-size:1.4rem;font-weight:900;font-family:'Geist Mono',monospace;color:var(--vl)">{{ days_data|sum if days_data else 0 }}</div>
+  </div>
+  <div style="padding:12px;border-radius:10px;background:rgba(255,255,255,0.03);border:1px solid var(--border)">
+    <div style="font-size:.7rem;color:var(--muted);margin-bottom:4px">Aktive Mods</div>
+    <div style="font-size:1.4rem;font-weight:900;font-family:'Geist Mono',monospace;color:var(--green)">{{ top_mods|length if top_mods else 0 }}</div>
+  </div>
+</div>
+<div class="mf-banner mf-banner-info" style="margin-top:12px;font-size:.72rem">
+  <span class="mf-banner-icon">📊</span>
+  <div>Charts werden mit echten Daten aus der Mongo-DB gerendert sobald implementiert. Aktuell teils Demo-Werte.</div>
+</div>
+{% endblock %}

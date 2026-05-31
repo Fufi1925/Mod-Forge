@@ -1,0 +1,476 @@
+{% extends "dashboard/_base.html" %}
+{% set active = 'automod' %}
+{% block title %}AutoMod{% endblock %}
+{% block page_title %}🤖 AutoMod{% endblock %}
+{% block page_desc %}Wortfilter, Regex, Link/Invite-Schutz, Phishing-Check und vieles mehr{% endblock %}
+
+{% set am = cfg.get('automod', {}) %}
+
+{% block content %}
+
+{# ─── STATS ─── #}
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-bottom:18px">
+  <div class="db-stat"><div class="db-stat-val" style="color:var(--red)">{{ am.get('bad_words',[])|length }}</div><div class="db-stat-label">🚫 Bad-Words</div></div>
+  <div class="db-stat"><div class="db-stat-val" style="color:var(--cl)">{{ am.get('regex_rules',[])|length }}</div><div class="db-stat-label">📏 Regex</div></div>
+  <div class="db-stat"><div class="db-stat-val" style="color:var(--green)">{{ am.get('allowed_domains',[])|length }}</div><div class="db-stat-label">✅ Domains</div></div>
+  <div class="db-stat"><div class="db-stat-val" style="color:{% if am.get('enabled') %}var(--green){% else %}var(--muted){% endif %}">{{ '✅' if am.get('enabled') else '❌' }}</div><div class="db-stat-label">Status</div></div>
+</div>
+
+{# ─── TABS ─── #}
+<div class="mf-tabs" data-tab-group="am">
+  <button class="mf-tab active" data-tab="filters">🛡️ Filter</button>
+  <button class="mf-tab" data-tab="words">🚫 Bad-Words <span class="mf-tab-badge">{{ am.get('bad_words',[])|length }}</span></button>
+  <button class="mf-tab" data-tab="regex">📏 Regex <span class="mf-tab-badge">{{ am.get('regex_rules',[])|length }}</span></button>
+  <button class="mf-tab" data-tab="domains">🌐 Domains <span class="mf-tab-badge">{{ am.get('allowed_domains',[])|length }}</span></button>
+  <button class="mf-tab" data-tab="tester">🧪 Live-Tester</button>
+  <button class="mf-tab" data-tab="action">⚖️ Bestrafung</button>
+</div>
+
+{# ═══ FILTERS ═══ #}
+<div class="mf-tab-panel active" data-tab-panel="filters" data-tab-group="am">
+  <div class="db-card">
+    <div class="cfg-row">
+      <div><span class="cfg-label">🤖 AutoMod aktivieren</span><div class="cfg-desc">Master-Schalter für das gesamte AutoMod-System</div></div>
+      <label class="toggle"><input type="checkbox" data-cfg="automod.enabled" {% if am.get('enabled', True) %}checked{% endif %}><span class="slider"></span></label>
+    </div>
+
+    <hr style="border:none;border-top:1px solid var(--border);margin:18px 0">
+    <div style="font-weight:800;font-size:.92rem;margin-bottom:10px">🔗 Link & Invite</div>
+
+    <div class="cfg-row">
+      <div><span class="cfg-label">🎫 Invite-Filter</span><div class="cfg-desc">Blockt Discord-Einladungen (discord.gg/xxx, discord.com/invite/xxx)</div></div>
+      <label class="toggle"><input type="checkbox" data-cfg="automod.invite_filter" {% if am.get('invite_filter', True) %}checked{% endif %}><span class="slider"></span></label>
+    </div>
+
+    <div class="cfg-row">
+      <div><span class="cfg-label">🔗 Link-Filter</span><div class="cfg-desc">Blockt alle Links außer denen aus der Whitelist (siehe Tab „Domains")</div></div>
+      <label class="toggle"><input type="checkbox" data-cfg="automod.link_filter" {% if am.get('link_filter', True) %}checked{% endif %}><span class="slider"></span></label>
+    </div>
+
+    <div class="cfg-row">
+      <div><span class="cfg-label">🎣 Phishing-Check</span><div class="cfg-desc">Prüft URLs gegen bekannte Scam-Datenbanken</div></div>
+      <label class="toggle"><input type="checkbox" data-cfg="automod.phishing_check" {% if am.get('phishing_check', True) %}checked{% endif %}><span class="slider"></span></label>
+    </div>
+
+    <hr style="border:none;border-top:1px solid var(--border);margin:18px 0">
+    <div style="font-weight:800;font-size:.92rem;margin-bottom:10px">🔤 Text-Manipulation</div>
+
+    <div class="cfg-row">
+      <div><span class="cfg-label">🌀 Zalgo-Filter</span><div class="cfg-desc">Erkennt H̸͚̳̃a͖̮͒c͕̩͝k̬̟͒e̪̘͆d̲͕͝-Text mit übermäßigen Unicode-Combining-Marks</div></div>
+      <label class="toggle"><input type="checkbox" data-cfg="automod.zalgo_filter" {% if am.get('zalgo_filter', True) %}checked{% endif %}><span class="slider"></span></label>
+    </div>
+
+    <div class="cfg-row">
+      <div><span class="cfg-label">🆎 Unicode-Abuse</span><div class="cfg-desc">Erkennt RTL-Override, Zero-Width Joiner, Confusable-Characters</div></div>
+      <label class="toggle"><input type="checkbox" data-cfg="automod.unicode_abuse" {% if am.get('unicode_abuse', True) %}checked{% endif %}><span class="slider"></span></label>
+    </div>
+
+    <div class="cfg-row">
+      <div><span class="cfg-label">📎 Anhänge filtern</span><div class="cfg-desc">Blockt Dateien mit verdächtigen Endungen (.exe, .scr, .bat, .vbs …)</div></div>
+      <label class="toggle"><input type="checkbox" data-cfg="automod.attachment_filter" {% if am.get('attachment_filter') %}checked{% endif %}><span class="slider"></span></label>
+    </div>
+
+    <hr style="border:none;border-top:1px solid var(--border);margin:18px 0">
+    <div style="font-weight:800;font-size:.92rem;margin-bottom:10px">⚙️ Verhalten</div>
+
+    <div class="cfg-row">
+      <div><span class="cfg-label">🗑️ Nachricht löschen</span><div class="cfg-desc">Verstöße werden automatisch gelöscht (zusätzlich zur Bestrafung)</div></div>
+      <label class="toggle"><input type="checkbox" data-cfg="automod.delete_message" {% if am.get('delete_message', True) %}checked{% endif %}><span class="slider"></span></label>
+    </div>
+
+    <div class="cfg-row">
+      <div><span class="cfg-label">💬 User benachrichtigen</span><div class="cfg-desc">Sendet eine DM mit dem Grund der Löschung</div></div>
+      <label class="toggle"><input type="checkbox" data-cfg="automod.notify_user" {% if am.get('notify_user', True) %}checked{% endif %}><span class="slider"></span></label>
+    </div>
+  </div>
+</div>
+
+{# ═══ BAD WORDS ═══ #}
+<div class="mf-tab-panel" data-tab-panel="words" data-tab-group="am">
+  <div class="db-card">
+    <div class="mf-banner mf-banner-info">
+      <span class="mf-banner-icon">💡</span>
+      <div>
+        <b>Substring-Matching</b> — auch Wortteile werden erkannt. Beispiel: <code>nigg</code> matched auch <code>niggard</code>.<br>
+        Tippe das Wort und drücke <span class="mf-kbd">Enter</span> oder Komma um es hinzuzufügen.
+      </div>
+    </div>
+
+    <div class="mf-field">
+      <label class="mf-field-label">Verbotene Wörter / Phrasen</label>
+      <div class="mf-multi" data-cfg="automod.bad_words" data-values='{{ am.get("bad_words", [])|tojson|safe }}'>
+        <input type="text" placeholder="Wort eingeben + Enter …">
+      </div>
+    </div>
+
+    <div class="mf-banner mf-banner-warn" style="margin-top:14px">
+      <span class="mf-banner-icon">⚠️</span>
+      <div><b>Case-insensitive</b> — Groß-/Kleinschreibung egal. Tipp: kurze Wörter erzeugen viele False-Positives, lieber Phrasen verwenden.</div>
+    </div>
+  </div>
+
+  <div class="db-card" style="margin-top:14px">
+    <div style="font-weight:800;font-size:.92rem;margin-bottom:10px">📋 Vorgefertigte Listen</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px">
+      <button class="mf-btn" onclick="loadPreset('slurs_de')">🇩🇪 Deutsch · Schimpfwörter</button>
+      <button class="mf-btn" onclick="loadPreset('slurs_en')">🇬🇧 Englisch · Slurs</button>
+      <button class="mf-btn" onclick="loadPreset('nsfw')">🔞 NSFW-Keywords</button>
+      <button class="mf-btn" onclick="loadPreset('cheats')">🎮 Cheat/Hack-Promo</button>
+    </div>
+  </div>
+</div>
+
+{# ═══ REGEX ═══ #}
+<div class="mf-tab-panel" data-tab-panel="regex" data-tab-group="am">
+  <div class="db-card">
+    <div class="mf-banner mf-banner-info">
+      <span class="mf-banner-icon">📏</span>
+      <div>
+        <b>Python regex.</b> Verwende <code>(?i)</code> für case-insensitive.<br>
+        Beispiele: <code>(?i)gewinn.*gratis</code> · <code>discord\.gg\/[a-z0-9]+</code> · <code>\b\d{16}\b</code> (16-stellige Zahlen)
+      </div>
+    </div>
+
+    <div class="mf-field">
+      <label class="mf-field-label">Regex-Regeln</label>
+      <div class="mf-multi" data-cfg="automod.regex_rules" data-values='{{ am.get("regex_rules", [])|tojson|safe }}'>
+        <input type="text" placeholder="(?i)beispiel.*pattern + Enter …">
+      </div>
+    </div>
+
+    <hr style="border:none;border-top:1px solid var(--border);margin:18px 0">
+
+    <div style="font-weight:800;font-size:.92rem;margin-bottom:10px">🧪 Regex-Tester</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <input type="text" class="cfg-input" id="rxPattern" style="width:100%;max-width:none" placeholder="(?i)dein.*pattern">
+      <input type="text" class="cfg-input" id="rxText" style="width:100%;max-width:none" placeholder="Testtext eingeben…" oninput="testRegex()">
+    </div>
+    <div id="rxResult" style="margin-top:10px;padding:10px;border-radius:8px;background:rgba(255,255,255,0.03);font-size:.78rem;color:var(--muted);font-family:'Geist Mono',monospace">
+      ✏️ Pattern + Text eingeben um zu testen…
+    </div>
+  </div>
+</div>
+
+{# ═══ DOMAINS ═══ #}
+<div class="mf-tab-panel" data-tab-panel="domains" data-tab-group="am">
+  <div class="db-card">
+    <div class="mf-banner mf-banner-info">
+      <span class="mf-banner-icon">✅</span>
+      <div>
+        <b>Whitelist</b> — Wenn der <b>Link-Filter</b> aktiv ist, sind nur Domains aus dieser Liste erlaubt.<br>
+        Subdomains werden automatisch erlaubt: <code>youtube.com</code> erlaubt auch <code>music.youtube.com</code>.
+      </div>
+    </div>
+
+    <div class="mf-field">
+      <label class="mf-field-label">Erlaubte Domains</label>
+      <div class="mf-multi" data-cfg="automod.allowed_domains" data-values='{{ am.get("allowed_domains", [])|tojson|safe }}'>
+        <input type="text" placeholder="z.B. youtube.com + Enter …">
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:6px;margin-top:14px">
+      {% for d in ['youtube.com','twitter.com','x.com','reddit.com','github.com','spotify.com','twitch.tv','imgur.com','tenor.com','giphy.com','wikipedia.org','google.com'] %}
+      <button class="mf-btn mf-btn-sm" onclick="addDomain('{{ d }}')">+ {{ d }}</button>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+{# ═══ TESTER ═══ #}
+<div class="mf-tab-panel" data-tab-panel="tester" data-tab-group="am">
+  <div class="db-card">
+    <div style="font-weight:800;font-size:1rem;margin-bottom:12px">🧪 Live-Test: Würde diese Nachricht geblockt?</div>
+    <div class="mf-banner mf-banner-info">
+      <span class="mf-banner-icon">⚡</span>
+      <div>Tippe einen Beispieltext — der Test läuft sofort lokal gegen alle aktivierten Filter, Bad-Words und Regex.</div>
+    </div>
+
+    <textarea class="mf-textarea" id="testInput" rows="4" placeholder="Hier deine Beispiel-Nachricht eingeben…" oninput="runAutomodTest()"></textarea>
+
+    <div id="testResults" style="margin-top:14px">
+      <div class="mf-empty">
+        <div class="mf-empty-icon">🔍</div>
+        <div class="mf-empty-title">Test bereit</div>
+        <div class="mf-empty-desc">Tippe oben Text ein — die Vorschau rechts zeigt das Ergebnis live.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ═══ ACTION ═══ #}
+<div class="mf-tab-panel" data-tab-panel="action" data-tab-group="am">
+  <div class="db-card">
+    <div class="mf-field">
+      <label class="mf-field-label">Bestrafung bei Regel-Verstoß</label>
+      <select data-cfg="automod.punishment" class="cfg-select" style="width:100%">
+        <option value="warn" {% if am.get('punishment','warn')=='warn' %}selected{% endif %}>⚠️ Verwarnen (mild)</option>
+        <option value="timeout" {% if am.get('punishment')=='timeout' %}selected{% endif %}>⏱️ Timeout</option>
+        <option value="kick" {% if am.get('punishment')=='kick' %}selected{% endif %}>👢 Kick</option>
+        <option value="ban" {% if am.get('punishment')=='ban' %}selected{% endif %}>🔨 Ban</option>
+      </select>
+    </div>
+
+    <div class="mf-field">
+      <label class="mf-field-label">Timeout-Dauer (Sekunden, wenn Timeout gewählt)</label>
+      <input type="number" class="cfg-input" style="width:100%;max-width:none" data-cfg="automod.timeout_duration" min="10" max="86400" value="{{ am.get('timeout_duration', 300) }}">
+    </div>
+
+    <hr style="border:none;border-top:1px solid var(--border);margin:18px 0">
+
+    <div style="font-weight:800;font-size:.92rem;margin-bottom:10px">🎯 Eskalations-System</div>
+
+    <div class="cfg-row">
+      <div><span class="cfg-label">Wiederholungs-Eskalation</span><div class="cfg-desc">Erhöht die Bestrafung bei wiederholten Verstößen</div></div>
+      <label class="toggle"><input type="checkbox" data-cfg="automod.escalate" {% if am.get('escalate') %}checked{% endif %}><span class="slider"></span></label>
+    </div>
+
+    <div class="mf-field">
+      <label class="mf-field-label">Schwelle: Warn → Timeout</label>
+      <input type="number" class="cfg-input" style="width:100%;max-width:none" data-cfg="automod.escalate_to_timeout" min="2" max="20" value="{{ am.get('escalate_to_timeout', 3) }}">
+    </div>
+
+    <div class="mf-field">
+      <label class="mf-field-label">Schwelle: Timeout → Ban</label>
+      <input type="number" class="cfg-input" style="width:100%;max-width:none" data-cfg="automod.escalate_to_ban" min="2" max="20" value="{{ am.get('escalate_to_ban', 5) }}">
+    </div>
+  </div>
+</div>
+
+<script>
+const PRESETS = {
+  slurs_de: ['hurensohn','nutte','schwuchtel','bastard','arschloch','wichser'],
+  slurs_en: ['nigg','fagg','retard','cunt','whore','bitch'],
+  nsfw: ['nsfw','porn','xxx','sex','onlyfans','fansly'],
+  cheats: ['cheat','aimbot','wallhack','esp','hack','crack','keygen']
+};
+
+function loadPreset(name) {
+  const words = PRESETS[name] || [];
+  const multi = document.querySelector('.mf-multi[data-cfg="automod.bad_words"]');
+  if (!multi) return;
+  const existing = new Set([...multi.querySelectorAll('.mf-multi-chip')].map(c => c.dataset.value));
+  let added = 0;
+  words.forEach(w => {
+    if (!existing.has(w)) {
+      const chip = document.createElement('span');
+      chip.className = 'mf-multi-chip';
+      chip.dataset.value = w;
+      chip.innerHTML = `<span></span><span class="mf-chip-x">×</span>`;
+      chip.firstChild.textContent = w;
+      multi.insertBefore(chip, multi.querySelector('input'));
+      added++;
+    }
+  });
+  if (added > 0) { MF.markDirty(); MF.toast(`+${added} Wörter (Preset)`, 'info'); }
+  else MF.toast('Alle bereits drin', 'warn');
+}
+
+function addDomain(d) {
+  const multi = document.querySelector('.mf-multi[data-cfg="automod.allowed_domains"]');
+  if (!multi) return;
+  const existing = [...multi.querySelectorAll('.mf-multi-chip')].map(c => c.dataset.value);
+  if (existing.includes(d)) { MF.toast('Bereits drin', 'warn'); return; }
+  const chip = document.createElement('span');
+  chip.className = 'mf-multi-chip';
+  chip.dataset.value = d;
+  chip.innerHTML = `<span></span><span class="mf-chip-x">×</span>`;
+  chip.firstChild.textContent = d;
+  multi.insertBefore(chip, multi.querySelector('input'));
+  MF.markDirty();
+}
+
+function testRegex() {
+  const pat = document.getElementById('rxPattern').value;
+  const text = document.getElementById('rxText').value;
+  const out = document.getElementById('rxResult');
+  if (!pat || !text) { out.textContent = '✏️ Pattern + Text eingeben…'; return; }
+  try {
+    // Convert Python-style (?i) to JS flag
+    let flags = '';
+    let cleanPat = pat;
+    const m = pat.match(/^\(\?([imsx]+)\)/);
+    if (m) { flags = m[1].replace('s','').replace('x',''); cleanPat = pat.replace(m[0], ''); }
+    const re = new RegExp(cleanPat, flags);
+    const match = re.exec(text);
+    if (match) {
+      out.style.background = 'rgba(74,222,128,0.08)';
+      out.style.color = 'var(--green)';
+      out.innerHTML = `✅ <b>MATCH</b> · "<span style="background:rgba(74,222,128,0.2)">${match[0]}</span>" an Position ${match.index}`;
+    } else {
+      out.style.background = 'rgba(255,255,255,0.03)';
+      out.style.color = 'var(--muted)';
+      out.textContent = '❌ Kein Match';
+    }
+  } catch (e) {
+    out.style.background = 'rgba(239,68,68,0.08)';
+    out.style.color = 'var(--red)';
+    out.textContent = '⚠️ Regex-Fehler: ' + e.message;
+  }
+}
+
+function runAutomodTest() {
+  const text = document.getElementById('testInput').value;
+  const out = document.getElementById('testResults');
+  if (!text.trim()) {
+    out.innerHTML = `<div class="mf-empty"><div class="mf-empty-icon">🔍</div><div class="mf-empty-title">Test bereit</div><div class="mf-empty-desc">Tippe oben Text ein</div></div>`;
+    if (typeof MF !== 'undefined') MF.refreshPreview();
+    return;
+  }
+
+  const cfg = MF.collectConfig();
+  const am = cfg.automod || {};
+  const triggers = [];
+
+  // Bad words
+  const bw = [...document.querySelectorAll('.mf-multi[data-cfg="automod.bad_words"] .mf-multi-chip')].map(c => c.dataset.value);
+  for (const w of bw) {
+    if (text.toLowerCase().includes(w.toLowerCase())) triggers.push({type:'🚫 Bad-Word', value: w});
+  }
+
+  // Regex
+  const rx = [...document.querySelectorAll('.mf-multi[data-cfg="automod.regex_rules"] .mf-multi-chip')].map(c => c.dataset.value);
+  for (const r of rx) {
+    try {
+      let flags = '';
+      let pat = r;
+      const m = r.match(/^\(\?([imsx]+)\)/);
+      if (m) { flags = m[1].replace('s','').replace('x',''); pat = r.replace(m[0], ''); }
+      if (new RegExp(pat, flags).test(text)) triggers.push({type:'📏 Regex', value: r});
+    } catch (e) {}
+  }
+
+  // Invite filter
+  if (am.invite_filter && /discord\.(gg|com\/invite)\/\S+/i.test(text)) triggers.push({type:'🎫 Invite', value: 'Discord-Einladung'});
+
+  // Link filter
+  if (am.link_filter) {
+    const urls = text.match(/https?:\/\/([^\s\/]+)/gi) || [];
+    const allowed = [...document.querySelectorAll('.mf-multi[data-cfg="automod.allowed_domains"] .mf-multi-chip')].map(c => c.dataset.value.toLowerCase());
+    for (const u of urls) {
+      const host = u.replace(/^https?:\/\//,'').toLowerCase();
+      const ok = allowed.some(a => host === a || host.endsWith('.' + a));
+      if (!ok) triggers.push({type:'🔗 Link', value: host});
+    }
+  }
+
+  // Zalgo
+  if (am.zalgo_filter) {
+    const combiningMarks = (text.match(/[\u0300-\u036f\u1ab0-\u1aff\u1dc0-\u1dff\u20d0-\u20ff\ufe20-\ufe2f]/g) || []).length;
+    if (combiningMarks > 5) triggers.push({type:'🌀 Zalgo', value: combiningMarks + ' Combining Marks'});
+  }
+
+  // Render results
+  if (triggers.length === 0) {
+    out.innerHTML = `
+      <div class="mf-banner mf-banner-success">
+        <span class="mf-banner-icon">✅</span>
+        <div><b>Nachricht würde durchgehen</b> — keine AutoMod-Regel greift.</div>
+      </div>`;
+  } else {
+    out.innerHTML = `
+      <div class="mf-banner mf-banner-danger">
+        <span class="mf-banner-icon">🚨</span>
+        <div><b>Nachricht würde geblockt!</b> · ${triggers.length} Trigger</div>
+      </div>
+      <div style="margin-top:10px">
+        ${triggers.map(t => `<div style="padding:8px 12px;border-radius:8px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.18);margin-bottom:4px;font-size:.78rem;display:flex;justify-content:space-between"><span>${t.type}</span><code style="color:var(--red)">${t.value}</code></div>`).join('')}
+      </div>`;
+  }
+
+  if (typeof MF !== 'undefined') MF.refreshPreview();
+}
+</script>
+{% endblock %}
+
+{# ═══ LIVE PREVIEW ═══ #}
+{% block preview %}
+<div id="amPreviewSlot"><em style="color:var(--muted);font-size:.78rem">Lade Vorschau…</em></div>
+
+<script>
+  MF.registerPreview('automod', function(cfg) {
+    const activeTab = document.querySelector('.mf-tab.active')?.dataset.tab || 'filters';
+    const am = cfg.automod || {};
+
+    function activeRow(label, on) {
+      return `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:.76rem">
+        <span>${label}</span><span class="mf-dot ${on?'mf-dot-on':'mf-dot-off'}"></span>
+      </div>`;
+    }
+
+    if (activeTab === 'tester') {
+      // Mirror of test result with embed
+      const text = document.getElementById('testInput')?.value || '';
+      if (!text.trim()) {
+        return `<div class="mf-empty"><div class="mf-empty-icon">🧪</div><div class="mf-empty-title">Live-Test</div><div class="mf-empty-desc">Tippe links eine Nachricht — hier siehst du, was der Bot machen würde.</div></div>`;
+      }
+      return `
+        <div style="font-size:.7rem;color:var(--muted);margin-bottom:6px">📝 Test-Nachricht:</div>
+        <div class="mf-discord-msg" style="margin-bottom:10px">
+          <div class="mf-discord-author">
+            <div class="mf-discord-avatar" style="background:linear-gradient(135deg,#666,#444)">T</div>
+            <div><span class="mf-discord-username">TestUser</span><span class="mf-discord-time">jetzt</span></div>
+          </div>
+          <div style="margin-top:4px;color:#dbdee1;font-size:.85rem">${text.replace(/[<>]/g,'')}</div>
+        </div>
+      `;
+    }
+
+    if (activeTab === 'filters') {
+      return `<div style="font-weight:800;font-size:.78rem;margin-bottom:10px">Aktive Filter</div>` +
+        activeRow('🤖 AutoMod', am.enabled) +
+        activeRow('🎫 Invite', am.invite_filter) +
+        activeRow('🔗 Link', am.link_filter) +
+        activeRow('🎣 Phishing', am.phishing_check) +
+        activeRow('🌀 Zalgo', am.zalgo_filter) +
+        activeRow('🆎 Unicode', am.unicode_abuse) +
+        activeRow('📎 Anhänge', am.attachment_filter) +
+        activeRow('🗑️ Auto-Delete', am.delete_message) +
+        activeRow('💬 User-DM', am.notify_user);
+    }
+
+    if (activeTab === 'words') {
+      const words = [...document.querySelectorAll('.mf-multi[data-cfg="automod.bad_words"] .mf-multi-chip')].map(c => c.dataset.value);
+      return `<div style="font-weight:800;font-size:.78rem;margin-bottom:10px">🚫 Bad-Words (${words.length})</div>` +
+        (words.length === 0
+          ? `<div class="mf-empty"><div class="mf-empty-icon">📋</div><div class="mf-empty-desc">Noch keine Wörter</div></div>`
+          : `<div style="display:flex;flex-wrap:wrap;gap:4px">${words.slice(0,40).map(w=>`<span style="padding:2px 8px;background:rgba(239,68,68,0.08);color:var(--red);border-radius:6px;font-size:.7rem;font-family:'Geist Mono',monospace">${w.replace(/[<>]/g,'')}</span>`).join('')}${words.length>40?`<span style="font-size:.7rem;color:var(--muted)">+${words.length-40} mehr</span>`:''}</div>`);
+    }
+
+    if (activeTab === 'regex') {
+      const rx = [...document.querySelectorAll('.mf-multi[data-cfg="automod.regex_rules"] .mf-multi-chip')].map(c => c.dataset.value);
+      return `<div style="font-weight:800;font-size:.78rem;margin-bottom:10px">📏 Regex (${rx.length})</div>` +
+        (rx.length === 0
+          ? `<div class="mf-empty"><div class="mf-empty-icon">📐</div><div class="mf-empty-desc">Keine Regex-Regeln</div></div>`
+          : rx.map(r=>`<div style="padding:6px 10px;background:rgba(34,211,238,0.06);border:1px solid rgba(34,211,238,0.18);border-radius:6px;margin-bottom:4px"><code style="color:var(--cl);font-size:.7rem">${r.replace(/[<>]/g,'')}</code></div>`).join(''));
+    }
+
+    if (activeTab === 'domains') {
+      const d = [...document.querySelectorAll('.mf-multi[data-cfg="automod.allowed_domains"] .mf-multi-chip')].map(c => c.dataset.value);
+      return `<div style="font-weight:800;font-size:.78rem;margin-bottom:10px">✅ Erlaubte Domains (${d.length})</div>` +
+        (d.length === 0
+          ? `<div class="mf-empty"><div class="mf-empty-icon">🌐</div><div class="mf-empty-desc">Wenn Link-Filter aus ist: alles erlaubt</div></div>`
+          : `<div style="display:flex;flex-wrap:wrap;gap:4px">${d.map(x=>`<span style="padding:2px 8px;background:rgba(74,222,128,0.08);color:var(--green);border-radius:6px;font-size:.7rem">${x}</span>`).join('')}</div>`);
+    }
+
+    if (activeTab === 'action') {
+      const punish = am.punishment || 'warn';
+      const labels = {warn:'⚠️ Verwarnung',timeout:'⏱️ Timeout '+(am.timeout_duration||300)+'s',kick:'👢 Kick',ban:'🔨 Ban'};
+      return MF.renderDiscordEmbed({
+        color: '#ed4245',
+        author: 'AutoMod',
+        title: '🚨 Regel-Verstoß',
+        description: 'Deine Nachricht wurde wegen Verstoßes gegen die Server-Regeln entfernt.\n\n**Aktion:** ' + (labels[punish] || punish),
+        footer: 'ModForge • AutoMod',
+        username: 'ModForge'
+      }) + `
+        <div class="mf-banner mf-banner-info" style="font-size:.72rem;margin-top:10px">
+          <span class="mf-banner-icon">🎯</span>
+          <div>Eskalation: ${am.escalate?`an (→Timeout nach ${am.escalate_to_timeout||3}, →Ban nach ${am.escalate_to_ban||5})`:'aus'}</div>
+        </div>`;
+    }
+
+    return '';
+  });
+</script>
+{% endblock %}

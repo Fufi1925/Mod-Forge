@@ -1,0 +1,423 @@
+{% extends "dashboard/_base.html" %}
+{% set active = 'welcome' %}
+{% block title %}Welcome & Leave{% endblock %}
+{% block page_title %}✨ Welcome & Leave{% endblock %}
+{% block page_desc %}Begrüßung, Verabschiedung, DM-Nachrichten und Auto-Rollen — mit Live-Vorschau{% endblock %}
+
+{% set wc = cfg.get('welcome', {}) %}
+{% set lc = cfg.get('leave', {}) %}
+{% set autorole = cfg.get('auto_role', {}) %}
+{% set verify = cfg.get('verify_system', {}) %}
+
+{% block content %}
+
+{# ─── TABS ─── #}
+<div class="mf-tabs" data-tab-group="welcome">
+  <button class="mf-tab active" data-tab="join">👋 Beitritt</button>
+  <button class="mf-tab" data-tab="leave">👋 Verlassen</button>
+  <button class="mf-tab" data-tab="dm">💌 DM-Nachricht</button>
+  <button class="mf-tab" data-tab="autorole">🏷️ Auto-Rolle</button>
+  <button class="mf-tab" data-tab="verify">✅ Verifizierung</button>
+  <button class="mf-tab" data-tab="vars">📚 Variablen</button>
+</div>
+
+{# ═══ TAB: BEITRITT ═══ #}
+<div class="mf-tab-panel active" data-tab-panel="join" data-tab-group="welcome">
+  <div class="db-card">
+    <div class="cfg-row">
+      <div><span class="cfg-label">Welcome-Nachricht aktivieren</span><div class="cfg-desc">Sendet beim Server-Beitritt eine Nachricht in den gewählten Kanal</div></div>
+      <label class="toggle"><input type="checkbox" data-cfg="welcome.enabled" {% if wc.get('enabled') %}checked{% endif %}><span class="slider"></span></label>
+    </div>
+
+    <div class="mf-field">
+      <label class="mf-field-label">Kanal</label>
+      <select data-cfg="welcome.channel_id" class="cfg-select" style="width:100%">
+        <option value="">— Kanal wählen —</option>
+        {% for ch in channels %}
+          <option value="{{ ch.id }}" {% if wc.get('channel_id')|string == ch.id %}selected{% endif %}># {{ ch.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <div class="mf-field">
+        <label class="mf-field-label">Embed-Titel</label>
+        <input data-cfg="welcome.embed_title" class="cfg-input" style="width:100%;max-width:none" value="{{ wc.get('embed_title','👋 Willkommen, {user}!') }}">
+        <div class="mf-field-help">Tipp: Variablen wie <code>{user}</code>, <code>{server}</code> nutzen</div>
+      </div>
+      <div class="mf-field">
+        <label class="mf-field-label">Embed-Farbe <span class="mf-field-value" id="wcColorVal">{{ wc.get('embed_color','#22c55e') }}</span></label>
+        <div class="mf-color">
+          <input type="color" data-cfg="welcome.embed_color" value="{{ wc.get('embed_color','#22c55e') }}" oninput="document.getElementById('wcColorVal').textContent=this.value">
+          <span class="mf-color-hex">{{ wc.get('embed_color','#22c55e') }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="mf-field">
+      <label class="mf-field-label">Beschreibung</label>
+      <textarea data-cfg="welcome.embed_description" class="mf-textarea" rows="4">{{ wc.get('embed_description','Willkommen auf **{server}**, {user.mention}!\nWir sind jetzt **{member_count}** Mitglieder. 🎉') }}</textarea>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <div class="mf-field">
+        <label class="mf-field-label">Footer-Text</label>
+        <input data-cfg="welcome.embed_footer" class="cfg-input" style="width:100%;max-width:none" value="{{ wc.get('embed_footer','Mitglied #{member_count}') }}">
+      </div>
+      <div class="mf-field">
+        <label class="mf-field-label">Bild-URL (optional)</label>
+        <input data-cfg="welcome.embed_image" class="cfg-input" style="width:100%;max-width:none" placeholder="https://..." value="{{ wc.get('embed_image','') }}">
+      </div>
+    </div>
+
+    <div class="cfg-row">
+      <div><span class="cfg-label">User-Avatar als Thumbnail</span><div class="cfg-desc">Zeigt den Avatar des neuen Mitglieds rechts oben im Embed</div></div>
+      <label class="toggle"><input type="checkbox" data-cfg="welcome.show_avatar" {% if wc.get('show_avatar', True) %}checked{% endif %}><span class="slider"></span></label>
+    </div>
+
+    <div class="cfg-row">
+      <div><span class="cfg-label">Ping-Nachricht vor Embed</span><div class="cfg-desc">Sendet einen separaten Ping (<code>@user</code>) damit die Mention zählt</div></div>
+      <label class="toggle"><input type="checkbox" data-cfg="welcome.ping_user" {% if wc.get('ping_user') %}checked{% endif %}><span class="slider"></span></label>
+    </div>
+  </div>
+</div>
+
+{# ═══ TAB: VERLASSEN ═══ #}
+<div class="mf-tab-panel" data-tab-panel="leave" data-tab-group="welcome">
+  <div class="db-card">
+    <div class="cfg-row">
+      <div><span class="cfg-label">Leave-Nachricht aktivieren</span><div class="cfg-desc">Sendet eine Nachricht wenn jemand den Server verlässt oder gekickt wird</div></div>
+      <label class="toggle"><input type="checkbox" data-cfg="leave.enabled" {% if lc.get('enabled') %}checked{% endif %}><span class="slider"></span></label>
+    </div>
+
+    <div class="mf-field">
+      <label class="mf-field-label">Kanal</label>
+      <select data-cfg="leave.channel_id" class="cfg-select" style="width:100%">
+        <option value="">— Kanal wählen —</option>
+        {% for ch in channels %}
+          <option value="{{ ch.id }}" {% if lc.get('channel_id')|string == ch.id %}selected{% endif %}># {{ ch.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <div class="mf-field">
+        <label class="mf-field-label">Embed-Titel</label>
+        <input data-cfg="leave.embed_title" class="cfg-input" style="width:100%;max-width:none" value="{{ lc.get('embed_title','👋 Auf Wiedersehen, {user}!') }}">
+      </div>
+      <div class="mf-field">
+        <label class="mf-field-label">Embed-Farbe <span class="mf-field-value" id="lvColorVal">{{ lc.get('embed_color','#ef4444') }}</span></label>
+        <div class="mf-color">
+          <input type="color" data-cfg="leave.embed_color" value="{{ lc.get('embed_color','#ef4444') }}" oninput="document.getElementById('lvColorVal').textContent=this.value">
+          <span class="mf-color-hex">{{ lc.get('embed_color','#ef4444') }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="mf-field">
+      <label class="mf-field-label">Beschreibung</label>
+      <textarea data-cfg="leave.embed_description" class="mf-textarea" rows="4">{{ lc.get('embed_description','**{user}** hat den Server verlassen.\nWir sind noch **{member_count}** Mitglieder. 😢') }}</textarea>
+    </div>
+
+    <div class="cfg-row">
+      <div><span class="cfg-label">Auch bei Ban senden</span><div class="cfg-desc">Standardmäßig wird die Leave-Message bei Bans unterdrückt</div></div>
+      <label class="toggle"><input type="checkbox" data-cfg="leave.on_ban" {% if lc.get('on_ban') %}checked{% endif %}><span class="slider"></span></label>
+    </div>
+
+    <div class="cfg-row">
+      <div><span class="cfg-label">Beitrittsdatum anzeigen</span><div class="cfg-desc">Zeigt im Embed wie lange das Mitglied im Server war</div></div>
+      <label class="toggle"><input type="checkbox" data-cfg="leave.show_join_date" {% if lc.get('show_join_date', True) %}checked{% endif %}><span class="slider"></span></label>
+    </div>
+  </div>
+</div>
+
+{# ═══ TAB: DM ═══ #}
+<div class="mf-tab-panel" data-tab-panel="dm" data-tab-group="welcome">
+  <div class="db-card">
+    <div class="mf-banner mf-banner-info">
+      <span class="mf-banner-icon">💌</span>
+      <div>Die DM-Nachricht wird zusätzlich zur Channel-Welcome an den neuen User gesendet. Sehr nützlich für Server-Regeln oder Onboarding-Links.</div>
+    </div>
+
+    <div class="cfg-row">
+      <div><span class="cfg-label">DM bei Beitritt senden</span><div class="cfg-desc">Wichtig: Funktioniert nur wenn der User DMs vom Server erlaubt</div></div>
+      <label class="toggle"><input type="checkbox" data-cfg="welcome.dm_enabled" {% if wc.get('dm_enabled') %}checked{% endif %}><span class="slider"></span></label>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <div class="mf-field">
+        <label class="mf-field-label">DM-Titel</label>
+        <input data-cfg="welcome.dm_title" class="cfg-input" style="width:100%;max-width:none" value="{{ wc.get('dm_title','Willkommen auf {server}!') }}">
+      </div>
+      <div class="mf-field">
+        <label class="mf-field-label">DM-Farbe <span class="mf-field-value" id="dmColorVal">{{ wc.get('dm_color','#5865f2') }}</span></label>
+        <div class="mf-color">
+          <input type="color" data-cfg="welcome.dm_color" value="{{ wc.get('dm_color','#5865f2') }}" oninput="document.getElementById('dmColorVal').textContent=this.value">
+          <span class="mf-color-hex">{{ wc.get('dm_color','#5865f2') }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="mf-field">
+      <label class="mf-field-label">DM-Inhalt</label>
+      <textarea data-cfg="welcome.dm_description" class="mf-textarea" rows="6">{{ wc.get('dm_description','Hallo {user.name}, willkommen auf **{server}**!\n\n📜 Lies bitte die Regeln in #regeln\n💬 Stell dich kurz vor in #vorstellung\n❓ Fragen? Frag in #support\n\nViel Spaß! 🎉') }}</textarea>
+    </div>
+  </div>
+</div>
+
+{# ═══ TAB: AUTO-ROLE ═══ #}
+<div class="mf-tab-panel" data-tab-panel="autorole" data-tab-group="welcome">
+  <div class="db-card">
+    <div class="cfg-row">
+      <div><span class="cfg-label">Auto-Rolle aktivieren</span><div class="cfg-desc">Vergibt automatisch Rollen an neue Mitglieder</div></div>
+      <label class="toggle"><input type="checkbox" data-cfg="auto_role.enabled" {% if autorole.get('enabled') %}checked{% endif %}><span class="slider"></span></label>
+    </div>
+
+    <div class="mf-field">
+      <label class="mf-field-label">Rollen-Auswahl <span class="mf-field-help" style="margin-left:8px">Mehrere möglich · Strg/Cmd+Klick</span></label>
+      <select data-cfg="auto_role.role_ids" class="cfg-select" multiple size="8" style="width:100%;height:auto">
+        {% set selected_roles = autorole.get('role_ids', []) %}
+        {% for r in guild_roles %}
+          <option value="{{ r.id }}" {% if r.id in selected_roles or r.id|int in selected_roles %}selected{% endif %}>{{ r.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="cfg-row">
+      <div><span class="cfg-label">Nur an verifizierte Mitglieder</span><div class="cfg-desc">Rollen werden erst nach erfolgreicher Captcha/Verifizierung vergeben</div></div>
+      <label class="toggle"><input type="checkbox" data-cfg="auto_role.after_verify" {% if autorole.get('after_verify') %}checked{% endif %}><span class="slider"></span></label>
+    </div>
+
+    <div class="mf-field">
+      <label class="mf-field-label">Verzögerung (Sekunden) <span class="mf-field-value" data-range-value="ar-delay" data-suffix="s">{{ autorole.get('delay', 0) }}s</span></label>
+      <input type="range" class="mf-range" id="ar-delay" data-cfg="auto_role.delay" min="0" max="300" step="5" value="{{ autorole.get('delay', 0) }}">
+      <div class="mf-field-help">0 = sofort. Praktisch um Raid-Bots auszubremsen.</div>
+    </div>
+
+    <div class="cfg-row">
+      <div><span class="cfg-label">Sticky Roles</span><div class="cfg-desc">Rollen werden gespeichert und beim erneuten Beitritt wieder vergeben</div></div>
+      <label class="toggle"><input type="checkbox" data-cfg="auto_role.sticky" {% if autorole.get('sticky') %}checked{% endif %}><span class="slider"></span></label>
+    </div>
+  </div>
+</div>
+
+{# ═══ TAB: VERIFY ═══ #}
+<div class="mf-tab-panel" data-tab-panel="verify" data-tab-group="welcome">
+  <div class="db-card">
+    <div class="cfg-row">
+      <div><span class="cfg-label">Verifizierungs-System</span><div class="cfg-desc">Neue Mitglieder müssen sich verifizieren, bevor sie den Server nutzen können</div></div>
+      <label class="toggle"><input type="checkbox" data-cfg="verify_system.enabled" {% if verify.get('enabled') %}checked{% endif %}><span class="slider"></span></label>
+    </div>
+
+    <div class="mf-field">
+      <label class="mf-field-label">Verifizierungs-Modus</label>
+      <select data-cfg="verify_system.mode" class="cfg-select" style="width:100%">
+        <option value="one_click" {% if verify.get('mode')=='one_click' %}selected{% endif %}>🔘 One-Click Button (einfach)</option>
+        <option value="captcha" {% if verify.get('mode')=='captcha' %}selected{% endif %}>🔤 Captcha (Bot-Schutz)</option>
+        <option value="reaction" {% if verify.get('mode')=='reaction' %}selected{% endif %}>👍 Reaction Role</option>
+      </select>
+    </div>
+
+    <div class="mf-field">
+      <label class="mf-field-label">Captcha-Schwierigkeit</label>
+      <div class="mf-pills">
+        {% for diff,label in [('easy','😊 Einfach (4 Zeichen)'),('medium','🤔 Mittel (6 Zeichen)'),('hard','😤 Schwer (8 Zeichen + Linien)')] %}
+        <button class="mf-pill {% if verify.get('captcha_difficulty','medium')==diff %}active{% endif %}" onclick="setPill(this,'verify_system.captcha_difficulty','{{ diff }}')">{{ label }}</button>
+        {% endfor %}
+      </div>
+      <input type="hidden" data-cfg="verify_system.captcha_difficulty" value="{{ verify.get('captcha_difficulty','medium') }}" id="captchaDiff">
+    </div>
+
+    <div class="mf-field">
+      <label class="mf-field-label">Verifizierungs-Kanal</label>
+      <select data-cfg="verify_system.verify_channel" class="cfg-select" style="width:100%">
+        <option value="">— Kanal wählen —</option>
+        {% for ch in channels %}
+          <option value="{{ ch.id }}" {% if verify.get('verify_channel')|string == ch.id %}selected{% endif %}># {{ ch.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="mf-field">
+      <label class="mf-field-label">Nach Verify: Rollen hinzufügen</label>
+      <select data-cfg="verify_system.add_roles" class="cfg-select" multiple size="6" style="width:100%;height:auto">
+        {% set add_r = verify.get('add_roles', []) %}
+        {% for r in guild_roles %}
+          <option value="{{ r.id }}" {% if r.id in add_r or r.id|int in add_r %}selected{% endif %}>+ {{ r.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="mf-field">
+      <label class="mf-field-label">Nach Verify: Rollen entfernen</label>
+      <select data-cfg="verify_system.remove_roles" class="cfg-select" multiple size="6" style="width:100%;height:auto">
+        {% set rem_r = verify.get('remove_roles', []) %}
+        {% for r in guild_roles %}
+          <option value="{{ r.id }}" {% if r.id in rem_r or r.id|int in rem_r %}selected{% endif %}>− {{ r.name }}</option>
+        {% endfor %}
+      </select>
+      <div class="mf-field-help">Praktisch um „Unverified"-Rolle zu entfernen sobald verifiziert</div>
+    </div>
+  </div>
+</div>
+
+{# ═══ TAB: VARS ═══ #}
+<div class="mf-tab-panel" data-tab-panel="vars" data-tab-group="welcome">
+  <div class="db-card">
+    <div style="font-weight:800;font-size:1rem;margin-bottom:12px">📚 Verfügbare Variablen</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px">
+      {% for code, desc in [
+        ('{user}', 'Username z.B. "TestUser"'),
+        ('{user.name}', 'Genau wie {user}'),
+        ('{user.mention}', 'Echte Discord-Erwähnung @TestUser'),
+        ('{user.id}', 'Discord User-ID'),
+        ('{user.tag}', 'Username#0000 (legacy)'),
+        ('{server}', 'Server-Name'),
+        ('{server.name}', 'Genau wie {server}'),
+        ('{server.id}', 'Server-ID'),
+        ('{member_count}', 'Aktuelle Mitgliederzahl'),
+        ('{members}', 'Genau wie {member_count}'),
+        ('{owner}', 'Server-Owner Username'),
+        ('{date}', 'Aktuelles Datum'),
+        ('{time}', 'Aktuelle Uhrzeit'),
+      ] %}
+      <div class="cfg-row" style="margin:0">
+        <div>
+          <code style="font-size:.78rem;color:var(--vl);background:rgba(124,58,237,0.1);padding:2px 8px;border-radius:6px">{{ code }}</code>
+        </div>
+        <div style="font-size:.72rem;color:var(--muted);text-align:right">{{ desc }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="mf-banner mf-banner-info" style="margin-top:14px">
+      <span class="mf-banner-icon">💡</span>
+      <div><b>Markdown unterstützt:</b> <code>**fett**</code>, <code>*kursiv*</code>, <code>__unter__</code>, <code>~~durchgestrichen~~</code>, <code>`code`</code>, <code>```block```</code></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function setPill(btn, cfgPath, value) {
+    btn.parentElement.querySelectorAll('.mf-pill').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    const hidden = document.querySelector(`[data-cfg="${cfgPath}"]`);
+    if (hidden) { hidden.value = value; MF.markDirty(); MF.refreshPreview(); }
+  }
+</script>
+{% endblock %}
+
+{# ═══ LIVE PREVIEW ═══ #}
+{% block preview %}
+<div id="welcomePreviewSlot"><em style="color:var(--muted);font-size:.78rem">Lade Vorschau…</em></div>
+
+<script>
+  MF.registerPreview('welcome', function(cfg) {
+    // Determine which tab is active to pick what to preview
+    const activeTab = document.querySelector('.mf-tab.active')?.dataset.tab || 'join';
+
+    if (activeTab === 'leave') {
+      const lv = (cfg.leave || {});
+      return MF.renderDiscordEmbed({
+        color: lv.embed_color || '#ef4444',
+        title: MF.expandVars(lv.embed_title || '👋 Auf Wiedersehen, {user}!'),
+        description: MF.expandVars(lv.embed_description || ''),
+        footer: 'ModForge • leave',
+        username: 'ModForge'
+      });
+    }
+
+    if (activeTab === 'dm') {
+      const wc = (cfg.welcome || {});
+      return `<div style="font-size:.7rem;color:var(--muted);margin-bottom:8px">📩 So sieht die DM beim Beitritt aus:</div>` +
+        MF.renderDiscordEmbed({
+          color: wc.dm_color || '#5865f2',
+          title: MF.expandVars(wc.dm_title || 'Willkommen auf {server}!'),
+          description: MF.expandVars(wc.dm_description || ''),
+          username: 'ModForge'
+        });
+    }
+
+    if (activeTab === 'autorole') {
+      const ar = (cfg.auto_role || {});
+      const enabled = !!ar.enabled;
+      const roleCount = Array.isArray(ar.role_ids) ? ar.role_ids.length : 0;
+      const delay = ar.delay || 0;
+      return `
+        <div style="padding:14px;border-radius:12px;background:rgba(255,255,255,0.03);border:1px solid var(--border)">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+            <span class="mf-dot ${enabled ? 'mf-dot-on' : 'mf-dot-off'}"></span>
+            <span style="font-weight:700">${enabled ? 'Aktiv' : 'Inaktiv'}</span>
+          </div>
+          <div style="font-size:.78rem;color:var(--muted);line-height:1.6">
+            <div>📋 <b>${roleCount}</b> Rolle(n) ausgewählt</div>
+            <div>⏱️ Verzögerung: <b>${delay}s</b></div>
+            <div>✅ Nach Verify: <b>${ar.after_verify ? 'Ja' : 'Nein'}</b></div>
+            <div>📌 Sticky: <b>${ar.sticky ? 'Ja' : 'Nein'}</b></div>
+          </div>
+        </div>
+        <div class="mf-banner mf-banner-info" style="margin-top:12px;font-size:.72rem">
+          <span class="mf-banner-icon">ℹ️</span>
+          <div>Auto-Rollen werden bei <b>jedem Beitritt</b> vergeben — ${ar.after_verify ? 'erst nach Captcha' : 'sofort'}.</div>
+        </div>
+      `;
+    }
+
+    if (activeTab === 'verify') {
+      const v = (cfg.verify_system || {});
+      const mode = v.mode || 'one_click';
+      const diff = v.captcha_difficulty || 'medium';
+      const modeLabel = {one_click: '🔘 One-Click', captcha: '🔤 Captcha', reaction: '👍 Reaction'}[mode] || mode;
+      const sampleCaptcha = {easy:'AB12', medium:'X4P9KL', hard:'9M7QZAR2'}[diff];
+      return `
+        ${MF.renderDiscordEmbed({
+          color: '#5865f2',
+          title: '✅ Verifizierung',
+          description: 'Klicke auf den Button unten, um dich zu verifizieren und Zugriff auf den Server zu erhalten.',
+          footer: 'ModForge • verify',
+          username: 'ModForge'
+        })}
+        ${mode === 'one_click' ? `
+          <div style="margin-top:6px;display:flex;gap:6px">
+            <button style="background:#5865f2;color:#fff;border:none;padding:6px 14px;border-radius:6px;font-size:.78rem;font-weight:600;cursor:default">✅ Verifizieren</button>
+          </div>` : ''}
+        ${mode === 'captcha' ? `
+          <div style="margin-top:10px;padding:14px;background:#fff;border-radius:6px;font-family:monospace;font-size:1.4rem;font-weight:800;color:#000;letter-spacing:.3em;text-align:center;background-image:repeating-linear-gradient(45deg,transparent,transparent 8px,rgba(0,0,0,0.05) 8px,rgba(0,0,0,0.05) 10px)">
+            ${sampleCaptcha}
+          </div>
+          <div style="font-size:.65rem;color:var(--muted);text-align:center;margin-top:4px">Beispiel · Schwierigkeit: <b>${diff}</b></div>` : ''}
+        ${mode === 'reaction' ? `
+          <div style="margin-top:8px;font-size:1.6rem">✅</div>
+          <div style="font-size:.65rem;color:var(--muted);margin-top:2px">Reaktion zum Verifizieren</div>` : ''}
+      `;
+    }
+
+    if (activeTab === 'vars') {
+      return `
+        <div style="text-align:center;padding:20px">
+          <div style="font-size:3rem;margin-bottom:8px">📚</div>
+          <div style="font-weight:700;margin-bottom:4px">Variablen-Referenz</div>
+          <div style="font-size:.72rem;color:var(--muted);line-height:1.5">
+            Verwende Variablen in jedem Text-Feld<br>
+            der anderen Tabs. Sie werden beim<br>
+            Senden automatisch ersetzt.
+          </div>
+        </div>
+      `;
+    }
+
+    // Default: JOIN tab
+    const wc = (cfg.welcome || {});
+    const showAvatar = wc.show_avatar !== false;
+    return (wc.ping_user ? `<div style="color:#00b0f4;font-size:.85rem;margin-bottom:6px">@${document.body.dataset.guildName || 'NewUser'}</div>` : '') +
+      MF.renderDiscordEmbed({
+        color: wc.embed_color || '#22c55e',
+        title: MF.expandVars(wc.embed_title || '👋 Willkommen, {user}!'),
+        description: MF.expandVars(wc.embed_description || ''),
+        footer: MF.expandVars(wc.embed_footer || ''),
+        thumbnail: showAvatar ? 'https://cdn.discordapp.com/embed/avatars/2.png' : '',
+        image: wc.embed_image || '',
+        username: 'ModForge'
+      });
+  });
+</script>
+{% endblock %}

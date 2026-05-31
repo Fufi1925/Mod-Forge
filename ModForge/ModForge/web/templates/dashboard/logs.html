@@ -1,0 +1,183 @@
+{% extends "dashboard/_base.html" %}
+{% set active = 'logs' %}
+{% block title %}Log-Konfiguration{% endblock %}
+{% block page_title %}📢 Log-System{% endblock %}
+{% block page_desc %}{{ categories.values()|map('length')|sum }} Module · {{ total_configured }} konfiguriert · {{ 'Webhooks aktiv' if webhook_enabled else 'Bot-Posts' }}{% endblock %}
+
+{% block content %}
+
+{# ─── STATS ─── #}
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:18px">
+  <div class="db-stat"><div class="db-stat-val" style="color:var(--vl)">{{ categories.values()|map('length')|sum }}</div><div class="db-stat-label">Module</div></div>
+  <div class="db-stat"><div class="db-stat-val" style="color:var(--green)">{{ total_configured }}</div><div class="db-stat-label">Konfiguriert</div></div>
+  <div class="db-stat"><div class="db-stat-val" style="color:{% if default_channel %}var(--green){% else %}var(--red){% endif %}">{{ '✅' if default_channel else '❌' }}</div><div class="db-stat-label">Standard</div></div>
+  <div class="db-stat"><div class="db-stat-val" style="color:{% if webhook_enabled %}var(--cl){% else %}var(--muted){% endif %}">{{ '🔌' if webhook_enabled else '🤖' }}</div><div class="db-stat-label">{{ 'Webhooks' if webhook_enabled else 'Bot' }}</div></div>
+</div>
+
+{# ─── GLOBAL SETTINGS ─── #}
+<div class="db-card" style="padding:16px;margin-bottom:14px">
+  <div style="font-weight:800;font-size:.92rem;margin-bottom:10px">🌐 Globale Einstellungen</div>
+  <div class="cfg-row">
+    <div><span class="cfg-label">📌 Standard-Log-Kanal</span><div class="cfg-desc">Fallback für alle Module ohne eigenen Kanal</div></div>
+    <select class="cfg-select" id="default_log" style="min-width:200px">
+      <option value="">— Nicht gesetzt —</option>
+      {% for ch in channels %}<option value="{{ ch.id }}" {% if ch.id|string == (default_channel|string if default_channel else '') %}selected{% endif %}>#{{ ch.name }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="cfg-row">
+    <div><span class="cfg-label">🔌 Auto-Webhook-Logging</span><div class="cfg-desc">Bot erstellt automatisch Webhooks pro Modul (schneller, eigener Avatar)</div></div>
+    <label class="toggle"><input type="checkbox" id="wh_global" {% if webhook_enabled %}checked{% endif %}><span class="slider"></span></label>
+  </div>
+</div>
+
+{# ─── QUICK ACTIONS ─── #}
+<div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap">
+  <button class="mf-btn mf-btn-sm" onclick="setAllToDefault()">📌 Alle auf Standard</button>
+  <button class="mf-btn mf-btn-sm mf-btn-danger" onclick="clearAll()">🗑️ Alle zurücksetzen</button>
+  <input type="text" class="cfg-input" id="logSearch" placeholder="🔍 Modul suchen…" oninput="filterMods()" style="flex:1;min-width:200px;max-width:300px">
+</div>
+
+{# ─── TABS PER CATEGORY ─── #}
+<div class="mf-tabs" data-tab-group="lg">
+  <button class="mf-tab active" data-tab="all">📋 Alle</button>
+  {% for cat_name in categories.keys() %}
+  <button class="mf-tab" data-tab="cat-{{ loop.index }}">{{ cat_name }} <span class="mf-tab-badge">{{ categories[cat_name]|length }}</span></button>
+  {% endfor %}
+</div>
+
+{% macro render_module(mod) %}
+<div class="log-mod-row" data-mod-key="{{ mod.key }}" data-search="{{ mod.label|lower }} {{ mod.desc|lower }}" style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:12px;margin-bottom:6px;{% if log_channels.get(mod.key) %}border-left:3px solid var(--green){% endif %}">
+  <div style="font-size:1.2rem;width:28px;text-align:center">{{ mod.icon }}</div>
+  <div style="flex:1;min-width:0">
+    <div style="font-weight:700;font-size:.82rem">{{ mod.label }}</div>
+    <div style="font-size:.66rem;color:var(--muted);margin-top:1px">{{ mod.desc }}</div>
+  </div>
+  <select class="cfg-select log-ch" data-mod="{{ mod.key }}" style="min-width:180px;font-size:.72rem">
+    <option value="">📌 Standard</option>
+    {% for ch in channels %}<option value="{{ ch.id }}" {% if ch.id|string == log_channels.get(mod.key,'')|string %}selected{% endif %}>#{{ ch.name }}</option>{% endfor %}
+  </select>
+  <div style="width:24px;text-align:center;font-size:.85rem">
+    {% if log_channels.get(mod.key) %}<span style="color:var(--green)" title="Eigener Kanal">●</span>
+    {% elif default_channel %}<span style="color:var(--muted)" title="Standard">○</span>
+    {% else %}<span style="color:var(--red)" title="Nicht konfiguriert">✕</span>{% endif %}
+  </div>
+</div>
+{% endmacro %}
+
+<div class="mf-tab-panel active" data-tab-panel="all" data-tab-group="lg">
+  {% for cat_name, modules in categories.items() %}
+  <div style="margin-bottom:18px">
+    <div style="font-size:.7rem;font-weight:800;color:var(--vl);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)">{{ cat_name }} <span style="color:var(--muted);font-size:.6rem;font-weight:600;margin-left:6px">{{ modules|length }} Module</span></div>
+    {% for mod in modules %}{{ render_module(mod) }}{% endfor %}
+  </div>
+  {% endfor %}
+</div>
+
+{% for cat_name, modules in categories.items() %}
+<div class="mf-tab-panel" data-tab-panel="cat-{{ loop.index }}" data-tab-group="lg">
+  {% for mod in modules %}{{ render_module(mod) }}{% endfor %}
+</div>
+{% endfor %}
+
+<script>
+function filterMods() {
+  const q = document.getElementById('logSearch').value.toLowerCase();
+  document.querySelectorAll('.log-mod-row').forEach(r => {
+    r.style.display = (!q || r.dataset.search.includes(q)) ? '' : 'none';
+  });
+}
+
+function setAllToDefault() {
+  document.querySelectorAll('.log-ch').forEach(s => { s.value = ''; });
+  updateRowStyles();
+  MF.markDirty();
+  MF.toast('📌 Alle auf Standard', 'info');
+}
+
+function clearAll() {
+  if (!confirm('Alle Log-Kanäle zurücksetzen?')) return;
+  document.querySelectorAll('.log-ch').forEach(s => s.value = '');
+  document.getElementById('default_log').value = '';
+  document.getElementById('wh_global').checked = false;
+  updateRowStyles();
+  MF.markDirty();
+  MF.toast('🗑️ Alle zurückgesetzt', 'warn');
+}
+
+function updateRowStyles() {
+  document.querySelectorAll('.log-mod-row').forEach(row => {
+    const sel = row.querySelector('.log-ch');
+    const dot = row.lastElementChild;
+    if (sel.value) {
+      row.style.borderLeft = '3px solid var(--green)';
+      dot.innerHTML = '<span style="color:var(--green)">●</span>';
+    } else {
+      row.style.borderLeft = '1px solid var(--border)';
+      dot.innerHTML = '<span style="color:var(--muted)">○</span>';
+    }
+  });
+  MF.refreshPreview();
+}
+
+document.querySelectorAll('.log-ch').forEach(s => s.addEventListener('change', () => { updateRowStyles(); MF.markDirty(); }));
+document.getElementById('default_log').addEventListener('change', () => MF.markDirty());
+document.getElementById('wh_global').addEventListener('change', () => MF.markDirty());
+
+// Custom save
+MF.saveConfig = async function() {
+  const channels = {};
+  document.querySelectorAll('.log-ch').forEach(el => { if (el.value) channels[el.dataset.mod] = el.value; });
+  MF.saving = true;
+  try {
+    const r = await fetch(`/api/guild/${MF.guildId}/config`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        _log_channel: document.getElementById('default_log').value || null,
+        _log_channels: channels,
+        _webhook_logging: {enabled: document.getElementById('wh_global').checked}
+      })
+    });
+    if (r.ok) { MF.markClean(); MF.toast('💾 Gespeichert', 'save'); }
+    else MF.toast('❌ Fehler', 'err');
+  } catch (e) { MF.toast('❌ Netzwerk', 'err'); }
+  finally { MF.saving = false; }
+};
+</script>
+{% endblock %}
+
+{% block preview %}
+<div id="lgPreview"></div>
+<script>
+  MF.registerPreview('logs', function() {
+    const total = document.querySelectorAll('.log-ch').length;
+    const configured = [...document.querySelectorAll('.log-ch')].filter(s => s.value).length;
+    const def = document.getElementById('default_log')?.value;
+    const wh = document.getElementById('wh_global')?.checked;
+    const pct = total ? (configured/total*100).toFixed(0) : 0;
+
+    return `
+      <div style="font-weight:800;font-size:.78rem;margin-bottom:10px">📊 Coverage</div>
+      <div style="padding:14px;border-radius:10px;background:rgba(255,255,255,0.03);border:1px solid var(--border);margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:.78rem">
+          <span style="color:var(--muted)">Konfiguriert</span>
+          <b>${configured} / ${total} (${pct}%)</b>
+        </div>
+        <div class="mf-progress"><div class="mf-progress-fill" style="width:${pct}%"></div></div>
+      </div>
+      <div style="font-size:.78rem;color:var(--muted);line-height:1.7;margin-bottom:14px">
+        <div>📌 Standard-Kanal: <b style="color:${def?'var(--green)':'var(--red)'}">${def?'✅ gesetzt':'❌ nicht gesetzt'}</b></div>
+        <div>🔌 Auto-Webhooks: <b style="color:${wh?'var(--cl)':'var(--muted)'}">${wh?'aktiv':'aus'}</b></div>
+      </div>
+      ${MF.renderDiscordEmbed({
+        color: '#5865f2',
+        author: 'ModForge • Anti-Spam',
+        title: '⚡ Spam erkannt',
+        description: '**User:** @TestUser\n**Channel:** #general\n**Aktion:** ⏱️ Timeout 60s',
+        footer: 'ModForge • spam',
+        username: wh ? 'Anti-Spam Webhook' : 'ModForge'
+      })}
+    `;
+  });
+</script>
+{% endblock %}

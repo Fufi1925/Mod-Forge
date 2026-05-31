@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;700&family=Outfit:wght@400;500;600;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/dashboard-v2.css">
   <style>
     :root{--sidebar-w:240px;--topbar-h:56px}
     body{margin:0;padding:0;background:var(--bg);color:var(--fg);overflow-x:hidden}
@@ -112,7 +113,7 @@
   </style>
   {% block head %}{% endblock %}
 </head>
-<body>
+<body data-guild-id="{{ guild.id }}" data-guild-name="{{ guild.name|e }}" data-member-count="{{ guild.member_count }}">
   <!-- SIDEBAR -->
   <aside class="db-sidebar">
     <a href="/" class="db-brand"><div class="db-brand-icon">🛡️</div><span class="db-brand-text">ModForge</span></a>
@@ -123,29 +124,64 @@
     <nav class="db-nav">
       <div class="db-nav-label">Dashboard</div>
       <a href="/dashboard/{{ guild.id }}" {% if active=='overview' %}class="active"{% endif %}><span class="nav-icon">📊</span><span>Übersicht</span></a>
-      <a href="/dashboard/{{ guild.id }}/security" {% if active=='security' %}class="active"{% endif %}><span class="nav-icon">🛡️</span><span>Security</span></a>
-      <a href="/dashboard/{{ guild.id }}/automod" {% if active=='automod' %}class="active"{% endif %}><span class="nav-icon">🤖</span><span>AutoMod</span></a>
-      <a href="/dashboard/{{ guild.id }}/logs" {% if active=='logs' %}class="active"{% endif %}><span class="nav-icon">📢</span><span>Logs</span></a>
-      <a href="/dashboard/{{ guild.id }}/cases" {% if active=='cases' %}class="active"{% endif %}><span class="nav-icon">📋</span><span>Cases</span></a>
-      <div class="db-nav-label">Konfiguration</div>
-      <a href="/dashboard/{{ guild.id }}/warns" {% if active=='warns' %}class="active"{% endif %}><span class="nav-icon">⚠️</span><span>Warns</span></a>
-      <a href="/dashboard/{{ guild.id }}/modules" {% if active=='modules' %}class="active"{% endif %}><span class="nav-icon">⚙️</span><span>Module</span></a>
-      <a href="/dashboard/{{ guild.id }}/welcome" {% if active=='welcome' %}class="active"{% endif %}><span class="nav-icon">👋</span><span>Welcome</span></a>
-      <a href="/dashboard/{{ guild.id }}/roles" {% if active=='roles' %}class="active"{% endif %}><span class="nav-icon">🏷️</span><span>Rollen</span></a>
-      <a href="/dashboard/{{ guild.id }}/autonick" {% if active=='autonick' %}class="active"{% endif %}><span class="nav-icon">📝</span><span>Auto-Nick</span></a>
-      <a href="/dashboard/{{ guild.id }}/autoresponse" {% if active=='autoresponse' %}class="active"{% endif %}><span class="nav-icon">💬</span><span>Auto-Antwort</span></a>
-      <div class="db-nav-label">Analyse</div>
-      <a href="/dashboard/{{ guild.id }}/stats" {% if active=='stats' %}class="active"{% endif %}><span class="nav-icon">📊</span><span>Statistiken</span></a>
-      <a href="/dashboard/{{ guild.id }}/livefeed" {% if active=='livefeed' %}class="active"{% endif %}><span class="nav-icon">⚡</span><span>Live-Feed</span></a>
-      <a href="/dashboard/{{ guild.id }}/whitelist" {% if active=='whitelist' %}class="active"{% endif %}><span class="nav-icon">🔐</span><span>Whitelist</span></a>
-      <div class="db-nav-label">System</div>
-      <a href="/dashboard/{{ guild.id }}/members" {% if active=='members' %}class="active"{% endif %}><span class="nav-icon">👥</span><span>Mitglieder</span></a>
-      <a href="/dashboard/{{ guild.id }}/tickets" {% if active=='tickets' %}class="active"{% endif %}><span class="nav-icon">🎫</span><span>Tickets</span></a>
-      <a href="/dashboard/{{ guild.id }}/backup" {% if active=='backup' %}class="active"{% endif %}><span class="nav-icon">💾</span><span>Backup</span></a>
-      <a href="/dashboard/{{ guild.id }}/templates" {% if active=='templates' %}class="active"{% endif %}><span class="nav-icon">🌐</span><span>Community Templates</span></a>
-      <a href="/dashboard/{{ guild.id }}/embed" {% if active=='embed' %}class="active"{% endif %}><span class="nav-icon">🎨</span><span>Embed Builder</span></a>
-      <a href="/dashboard/{{ guild.id }}/design" {% if active=='design' %}class="active"{% endif %}><span class="nav-icon">🖌️</span><span>Design</span></a>
-      <a href="/dashboard/{{ guild.id }}/settings" {% if active=='settings' %}class="active"{% endif %}><span class="nav-icon">⚙️</span><span>Einstellungen</span></a>
+
+      {# ─── Schutz (mit Sub-Tabs) ─── #}
+      <div class="db-nav-section db-nav-section--protect {% if active in ['security','automod','whitelist'] %}open{% endif %}">
+        <a href="/dashboard/{{ guild.id }}/security" data-toggle-sub {% if active=='security' %}class="active"{% endif %}><span class="nav-icon">🛡️</span><span>Schutz ▾</span></a>
+        <div class="db-nav-sub">
+          <a href="/dashboard/{{ guild.id }}/security#antispam" {% if active=='security' %}class="active"{% endif %}>⚡ Anti-Spam</a>
+          <a href="/dashboard/{{ guild.id }}/security#antiraid">🚨 Anti-Raid</a>
+          <a href="/dashboard/{{ guild.id }}/security#antinuke">💥 Anti-Nuke</a>
+          <a href="/dashboard/{{ guild.id }}/security#antiscam">🎣 Anti-Scam</a>
+          <a href="/dashboard/{{ guild.id }}/automod" {% if active=='automod' %}class="active"{% endif %}>🤖 AutoMod</a>
+          <a href="/dashboard/{{ guild.id }}/whitelist" {% if active=='whitelist' %}class="active"{% endif %}>🔐 Whitelist</a>
+        </div>
+      </div>
+
+      {# ─── Moderation ─── #}
+      <div class="db-nav-section {% if active in ['logs','cases','warns','tickets'] %}open{% endif %}">
+        <a href="/dashboard/{{ guild.id }}/logs" data-toggle-sub {% if active=='logs' %}class="active"{% endif %}><span class="nav-icon">📢</span><span>Moderation ▾</span></a>
+        <div class="db-nav-sub">
+          <a href="/dashboard/{{ guild.id }}/logs" {% if active=='logs' %}class="active"{% endif %}>📢 Logs</a>
+          <a href="/dashboard/{{ guild.id }}/cases" {% if active=='cases' %}class="active"{% endif %}>📋 Cases</a>
+          <a href="/dashboard/{{ guild.id }}/warns" {% if active=='warns' %}class="active"{% endif %}>⚠️ Warns</a>
+          <a href="/dashboard/{{ guild.id }}/tickets" {% if active=='tickets' %}class="active"{% endif %}>🎫 Tickets</a>
+        </div>
+      </div>
+
+      {# ─── Engagement ─── #}
+      <div class="db-nav-section {% if active in ['welcome','roles','autonick','autoresponse','embed'] %}open{% endif %}">
+        <a href="/dashboard/{{ guild.id }}/welcome" data-toggle-sub {% if active=='welcome' %}class="active"{% endif %}><span class="nav-icon">✨</span><span>Engagement ▾</span></a>
+        <div class="db-nav-sub">
+          <a href="/dashboard/{{ guild.id }}/welcome" {% if active=='welcome' %}class="active"{% endif %}>👋 Welcome / Leave</a>
+          <a href="/dashboard/{{ guild.id }}/roles" {% if active=='roles' %}class="active"{% endif %}>🏷️ Rollen</a>
+          <a href="/dashboard/{{ guild.id }}/autonick" {% if active=='autonick' %}class="active"{% endif %}>📝 Auto-Nick</a>
+          <a href="/dashboard/{{ guild.id }}/autoresponse" {% if active=='autoresponse' %}class="active"{% endif %}>💬 Auto-Antwort</a>
+          <a href="/dashboard/{{ guild.id }}/embed" {% if active=='embed' %}class="active"{% endif %}>🎨 Embed Builder</a>
+        </div>
+      </div>
+
+      {# ─── Analyse ─── #}
+      <div class="db-nav-section {% if active in ['stats','livefeed','members'] %}open{% endif %}">
+        <a href="/dashboard/{{ guild.id }}/stats" data-toggle-sub {% if active=='stats' %}class="active"{% endif %}><span class="nav-icon">📈</span><span>Analyse ▾</span></a>
+        <div class="db-nav-sub">
+          <a href="/dashboard/{{ guild.id }}/stats" {% if active=='stats' %}class="active"{% endif %}>📊 Statistiken</a>
+          <a href="/dashboard/{{ guild.id }}/livefeed" {% if active=='livefeed' %}class="active"{% endif %}>⚡ Live-Feed</a>
+          <a href="/dashboard/{{ guild.id }}/members" {% if active=='members' %}class="active"{% endif %}>👥 Mitglieder</a>
+        </div>
+      </div>
+
+      {# ─── System ─── #}
+      <div class="db-nav-section {% if active in ['backup','templates','modules','settings','design'] %}open{% endif %}">
+        <a href="/dashboard/{{ guild.id }}/settings" data-toggle-sub {% if active=='settings' %}class="active"{% endif %}><span class="nav-icon">⚙️</span><span>System ▾</span></a>
+        <div class="db-nav-sub">
+          <a href="/dashboard/{{ guild.id }}/modules" {% if active=='modules' %}class="active"{% endif %}>🧩 Module</a>
+          <a href="/dashboard/{{ guild.id }}/backup" {% if active=='backup' %}class="active"{% endif %}>💾 Backup</a>
+          <a href="/dashboard/{{ guild.id }}/templates" {% if active=='templates' %}class="active"{% endif %}>🌐 Templates</a>
+          <a href="/dashboard/{{ guild.id }}/design" {% if active=='design' %}class="active"{% endif %}>🖌️ Design</a>
+          <a href="/dashboard/{{ guild.id }}/settings" {% if active=='settings' %}class="active"{% endif %}>⚙️ Einstellungen</a>
+        </div>
+      </div>
     </nav>
     <div style="padding:8px 16px;border-top:1px solid var(--border)">
       <div class="db-nav-label" style="padding:0;margin:0 0 6px">Theme</div>
@@ -168,8 +204,43 @@
       <h1>{% block page_title %}Dashboard{% endblock %}</h1>
       <p>{% block page_desc %}{{ guild.name }}{% endblock %}</p>
     </div>
-    {% block content %}{% endblock %}
+    {# ─── V2 Layout: optional Preview-Pane via {% block preview %} ─── #}
+    {# Render the preview block ONCE into a variable, then decide layout based on its content #}
+    {% set preview_html %}{% block preview %}{% endblock %}{% endset %}
+    {% set has_preview = preview_html|trim != '' %}
+    <div class="mf-layout {% if has_preview %}with-preview{% endif %}">
+      <div class="mf-content">
+        {% block content %}{% endblock %}
+      </div>
+      {% if has_preview %}
+      <aside class="mf-preview-pane">
+        <div class="mf-preview-header">
+          <span class="mf-preview-title"><span class="mf-preview-pulse"></span> Live-Vorschau</span>
+          <span style="font-size:.62rem;color:var(--muted)">aktualisiert sich live</span>
+        </div>
+        <div id="mfPreviewBody" data-preview-name="{% block preview_name %}{{ active }}{% endblock %}">
+          {{ preview_html|safe }}
+        </div>
+      </aside>
+      {% endif %}
+    </div>
   </main>
+
+  <!-- V2 SAVE BAR -->
+  <div class="mf-save-bar" id="mfSaveBar">
+    <div class="mf-save-bar-text">
+      <div class="mf-save-bar-icon">⚠️</div>
+      <div>
+        <div style="font-weight:800">Ungespeicherte Änderungen</div>
+        <div style="font-size:.68rem;color:var(--muted);margin-top:2px">Drücke <span class="mf-kbd">Ctrl</span> + <span class="mf-kbd">S</span> oder klicke Speichern</div>
+      </div>
+      <span class="mf-save-bar-count">0 ungespeichert</span>
+    </div>
+    <button class="mf-btn" onclick="MF.discardChanges()">Verwerfen</button>
+    <button class="mf-btn mf-btn-primary" onclick="MF.saveConfig()">💾 Speichern</button>
+  </div>
+
+
 
   <!-- ═══ SAVE BAR ═══ -->
   <div id="saveBar" style="position:fixed;bottom:0;left:var(--sidebar-w);right:0;z-index:9998;display:none;transform:translateY(100%)">
@@ -360,6 +431,7 @@
     setSidebar(localStorage.getItem('mf-sidebar') || 'expanded');
   })();
   </script>
+  <script src="/static/dashboard-v2.js"></script>
   {% block scripts %}{% endblock %}
 </body>
 </html>

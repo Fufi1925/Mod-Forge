@@ -1,0 +1,247 @@
+{% extends "dashboard/_base.html" %}
+{% set active = 'tickets' %}
+{% block title %}Tickets{% endblock %}
+{% block page_title %}🎫 Ticket-System{% endblock %}
+{% block page_desc %}Support-Tickets per Button · Transkripte · Auto-Close · Mod-Pings{% endblock %}
+
+{% set ts = cfg.get('ticket_system', {}) %}
+
+{% block content %}
+<div class="mf-tabs" data-tab-group="tk">
+  <button class="mf-tab active" data-tab="general">⚙️ Allgemein</button>
+  <button class="mf-tab" data-tab="panel">🎨 Panel-Embed</button>
+  <button class="mf-tab" data-tab="categories">📋 Kategorien</button>
+  <button class="mf-tab" data-tab="automation">🤖 Automatisierung</button>
+  <button class="mf-tab" data-tab="transcripts">📄 Transkripte</button>
+</div>
+
+{# ═══ GENERAL ═══ #}
+<div class="mf-tab-panel active" data-tab-panel="general" data-tab-group="tk">
+  <div class="db-card">
+    <div class="cfg-row">
+      <div><span class="cfg-label">🎫 Ticket-System aktivieren</span><div class="cfg-desc">User können per Button Support-Tickets erstellen</div></div>
+      <label class="toggle"><input type="checkbox" data-cfg="ticket_system.enabled" {% if ts.get('enabled') %}checked{% endif %}><span class="slider"></span></label>
+    </div>
+
+    <div class="mf-field">
+      <label class="mf-field-label">📂 Ticket-Kategorie</label>
+      <select data-cfg="ticket_system.category_id" class="cfg-select" style="width:100%">
+        <option value="">— Kategorie wählen —</option>
+        {% for cat in categories %}
+          <option value="{{ cat.id }}" {% if cat.id|string == ts.get('category_id','')|string %}selected{% endif %}>📁 {{ cat.name }}</option>
+        {% endfor %}
+      </select>
+      <div class="mf-field-help">Neue Tickets werden als Channels in dieser Kategorie erstellt</div>
+    </div>
+
+    <div class="mf-field">
+      <label class="mf-field-label">📢 Log-Kanal (Transkripte)</label>
+      <select data-cfg="ticket_system.log_channel_id" class="cfg-select" style="width:100%">
+        <option value="">— Kanal wählen —</option>
+        {% for ch in channels %}
+          <option value="{{ ch.id }}" {% if ch.id|string == ts.get('log_channel_id','')|string %}selected{% endif %}># {{ ch.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="mf-field">
+      <label class="mf-field-label">🎫 Max. offene Tickets pro User <span class="mf-field-value" data-range-value="ts-max">{{ ts.get('max_per_user', 1) }}</span></label>
+      <input type="range" class="mf-range" id="ts-max" data-cfg="ticket_system.max_per_user" min="1" max="10" value="{{ ts.get('max_per_user', 1) }}">
+    </div>
+
+    <div class="cfg-row">
+      <div><span class="cfg-label">📝 Ticket-Counter im Namen</span><div class="cfg-desc">Channels heißen z.B. „ticket-0042" mit fortlaufender Nummer</div></div>
+      <label class="toggle"><input type="checkbox" data-cfg="ticket_system.use_counter" {% if ts.get('use_counter', True) %}checked{% endif %}><span class="slider"></span></label>
+    </div>
+
+    <div class="mf-banner mf-banner-info" style="margin-top:14px">
+      <span class="mf-banner-icon">💡</span>
+      <div>Nach dem Speichern nutze <code style="color:var(--vl)">/setup_tickets</code> in Discord um das Ticket-Panel zu senden.</div>
+    </div>
+  </div>
+</div>
+
+{# ═══ PANEL ═══ #}
+<div class="mf-tab-panel" data-tab-panel="panel" data-tab-group="tk">
+  <div class="db-card">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <div class="mf-field">
+        <label class="mf-field-label">Panel-Titel</label>
+        <input data-cfg="ticket_system.panel_title" class="cfg-input" style="width:100%;max-width:none" value="{{ ts.get('panel_title','🎫 Support-Tickets') }}">
+      </div>
+      <div class="mf-field">
+        <label class="mf-field-label">Embed-Farbe <span class="mf-field-value" id="tkColorVal">{{ ts.get('panel_color','#5865f2') }}</span></label>
+        <div class="mf-color">
+          <input type="color" data-cfg="ticket_system.panel_color" value="{{ ts.get('panel_color','#5865f2') }}" oninput="document.getElementById('tkColorVal').textContent=this.value">
+          <span class="mf-color-hex">{{ ts.get('panel_color','#5865f2') }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="mf-field">
+      <label class="mf-field-label">Panel-Beschreibung</label>
+      <textarea data-cfg="ticket_system.panel_description" class="mf-textarea" rows="5">{{ ts.get('panel_description','Klicke auf den Button unten, um ein Support-Ticket zu öffnen.\n\nUnser Team wird sich so schnell wie möglich um dein Anliegen kümmern.') }}</textarea>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <div class="mf-field">
+        <label class="mf-field-label">Button-Label</label>
+        <input data-cfg="ticket_system.button_label" class="cfg-input" style="width:100%;max-width:none" value="{{ ts.get('button_label','📩 Ticket öffnen') }}">
+      </div>
+      <div class="mf-field">
+        <label class="mf-field-label">Button-Stil</label>
+        <select data-cfg="ticket_system.button_style" class="cfg-select" style="width:100%">
+          <option value="primary" {% if ts.get('button_style','primary')=='primary' %}selected{% endif %}>🟦 Primary (Blau)</option>
+          <option value="success" {% if ts.get('button_style')=='success' %}selected{% endif %}>🟩 Success (Grün)</option>
+          <option value="danger" {% if ts.get('button_style')=='danger' %}selected{% endif %}>🟥 Danger (Rot)</option>
+          <option value="secondary" {% if ts.get('button_style')=='secondary' %}selected{% endif %}>⬜ Secondary (Grau)</option>
+        </select>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ═══ CATEGORIES ═══ #}
+<div class="mf-tab-panel" data-tab-panel="categories" data-tab-group="tk">
+  <div class="db-card">
+    <div class="mf-banner mf-banner-info">
+      <span class="mf-banner-icon">📋</span>
+      <div><b>Multi-Kategorie-Modus.</b> User wählen die Art ihres Tickets per Dropdown. Jede Kategorie kann eigene Mod-Rollen pingen.</div>
+    </div>
+
+    <div class="cfg-row">
+      <div><span class="cfg-label">Mehrere Ticket-Typen anbieten</span><div class="cfg-desc">Statt einem Button erscheint ein Dropdown-Menü</div></div>
+      <label class="toggle"><input type="checkbox" data-cfg="ticket_system.multi_category" {% if ts.get('multi_category') %}checked{% endif %}><span class="slider"></span></label>
+    </div>
+
+    <div class="mf-field">
+      <label class="mf-field-label">Verfügbare Typen <span class="mf-field-help" style="margin-left:8px">Format: emoji|name</span></label>
+      <div class="mf-multi" data-cfg="ticket_system.types" data-values='{{ ts.get("types", ["🆘|Support","🐛|Bug Report","💡|Feedback","⚠️|Report User"])|tojson|safe }}'>
+        <input type="text" placeholder="z.B. 🆘|Support">
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ═══ AUTOMATION ═══ #}
+<div class="mf-tab-panel" data-tab-panel="automation" data-tab-group="tk">
+  <div class="db-card">
+    <div class="cfg-row">
+      <div><span class="cfg-label">⏰ Auto-Close bei Inaktivität</span><div class="cfg-desc">Schließt Tickets nach längerer Inaktivität automatisch</div></div>
+      <label class="toggle"><input type="checkbox" data-cfg="ticket_system.auto_close" {% if ts.get('auto_close') %}checked{% endif %}><span class="slider"></span></label>
+    </div>
+
+    <div class="mf-field">
+      <label class="mf-field-label">Auto-Close nach <span class="mf-field-value" data-range-value="ts-ac" data-suffix="h">{{ ts.get('auto_close_hours', 48) }}h</span></label>
+      <input type="range" class="mf-range" id="ts-ac" data-cfg="ticket_system.auto_close_hours" min="1" max="168" value="{{ ts.get('auto_close_hours', 48) }}">
+    </div>
+
+    <div class="cfg-row">
+      <div><span class="cfg-label">🔔 Mod-Rolle pingen</span><div class="cfg-desc">Bei neuem Ticket wird die Mod-Rolle angepingt</div></div>
+      <label class="toggle"><input type="checkbox" data-cfg="ticket_system.ping_mods" {% if ts.get('ping_mods', True) %}checked{% endif %}><span class="slider"></span></label>
+    </div>
+
+    <div class="cfg-row">
+      <div><span class="cfg-label">💌 Welcome-Message im Ticket</span><div class="cfg-desc">Automatische Begrüßung beim Öffnen</div></div>
+      <label class="toggle"><input type="checkbox" data-cfg="ticket_system.send_welcome" {% if ts.get('send_welcome', True) %}checked{% endif %}><span class="slider"></span></label>
+    </div>
+
+    <div class="mf-field">
+      <label class="mf-field-label">Ticket-Welcome-Text</label>
+      <textarea data-cfg="ticket_system.welcome_message" class="mf-textarea" rows="3">{{ ts.get('welcome_message','Hi {user}, danke für dein Ticket. Bitte beschreibe dein Anliegen — ein Team-Mitglied meldet sich gleich.') }}</textarea>
+    </div>
+
+    <div class="cfg-row">
+      <div><span class="cfg-label">🎯 Claim-System</span><div class="cfg-desc">Mods können Tickets per Button für sich beanspruchen</div></div>
+      <label class="toggle"><input type="checkbox" data-cfg="ticket_system.claim_enabled" {% if ts.get('claim_enabled') %}checked{% endif %}><span class="slider"></span></label>
+    </div>
+  </div>
+</div>
+
+{# ═══ TRANSCRIPTS ═══ #}
+<div class="mf-tab-panel" data-tab-panel="transcripts" data-tab-group="tk">
+  <div class="db-card">
+    <div class="cfg-row">
+      <div><span class="cfg-label">📄 Transkript bei Schließen erstellen</span><div class="cfg-desc">Speichert alle Nachrichten als HTML-File</div></div>
+      <label class="toggle"><input type="checkbox" data-cfg="ticket_system.create_transcript" {% if ts.get('create_transcript', True) %}checked{% endif %}><span class="slider"></span></label>
+    </div>
+
+    <div class="cfg-row">
+      <div><span class="cfg-label">💌 Transkript per DM an User</span><div class="cfg-desc">User erhält Kopie des Transkripts in DM</div></div>
+      <label class="toggle"><input type="checkbox" data-cfg="ticket_system.dm_transcript" {% if ts.get('dm_transcript') %}checked{% endif %}><span class="slider"></span></label>
+    </div>
+
+    <div class="mf-field">
+      <label class="mf-field-label">Format</label>
+      <select data-cfg="ticket_system.transcript_format" class="cfg-select" style="width:100%">
+        <option value="html" {% if ts.get('transcript_format','html')=='html' %}selected{% endif %}>📄 HTML (mit Avatars & Embeds)</option>
+        <option value="txt" {% if ts.get('transcript_format')=='txt' %}selected{% endif %}>📝 Plain Text</option>
+        <option value="json" {% if ts.get('transcript_format')=='json' %}selected{% endif %}>🗂️ JSON (für Backups)</option>
+      </select>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{# ═══ LIVE PREVIEW ═══ #}
+{% block preview %}
+<div id="tkPreviewSlot"></div>
+<script>
+  MF.registerPreview('tickets', function(cfg) {
+    const ts = cfg.ticket_system || {};
+    const activeTab = document.querySelector('.mf-tab.active')?.dataset.tab || 'general';
+
+    if (activeTab === 'panel' || activeTab === 'general') {
+      const buttonColors = {primary:'#5865f2',success:'#22c55e',danger:'#ed4245',secondary:'#4f545c'};
+      const btnColor = buttonColors[ts.button_style || 'primary'];
+      return MF.renderDiscordEmbed({
+        color: ts.panel_color || '#5865f2',
+        title: ts.panel_title || '🎫 Support-Tickets',
+        description: ts.panel_description || 'Klicke auf den Button…',
+        username: 'ModForge'
+      }) + `<div style="margin-top:6px"><button style="background:${btnColor};color:#fff;border:none;padding:6px 14px;border-radius:6px;font-size:.78rem;font-weight:600;cursor:default">${(ts.button_label || '📩 Ticket öffnen').replace(/[<>]/g,'')}</button></div>`;
+    }
+
+    if (activeTab === 'categories') {
+      const types = [...document.querySelectorAll('.mf-multi[data-cfg="ticket_system.types"] .mf-multi-chip')].map(c => c.dataset.value);
+      if (!ts.multi_category) {
+        return `<div class="mf-empty"><div class="mf-empty-icon">🔘</div><div class="mf-empty-title">Single-Button-Modus</div><div class="mf-empty-desc">Multi-Kategorie ist aus — User klicken nur einen Button</div></div>`;
+      }
+      return `<div style="font-weight:800;font-size:.78rem;margin-bottom:8px">Dropdown-Auswahl im Panel</div>` +
+        (types.length === 0
+          ? '<div class="mf-empty"><div class="mf-empty-icon">📋</div><div class="mf-empty-desc">Noch keine Typen definiert</div></div>'
+          : '<select style="width:100%;padding:8px;background:#2b2d31;color:#fff;border:1px solid #1e1f22;border-radius:6px;font-size:.85rem">' +
+              types.map(t => { const p = t.split('|'); return `<option>${(p[0]||'•')} ${(p[1]||t).replace(/[<>]/g,'')}</option>`; }).join('') +
+            '</select>');
+    }
+
+    if (activeTab === 'automation') {
+      return `<div style="font-size:.78rem;color:var(--muted);line-height:1.7">
+        <div>⏰ Auto-Close: <b>${ts.auto_close ? `nach ${ts.auto_close_hours||48}h` : 'aus'}</b></div>
+        <div>🔔 Mod-Ping: <b>${ts.ping_mods ? 'an' : 'aus'}</b></div>
+        <div>💌 Welcome: <b>${ts.send_welcome ? 'an' : 'aus'}</b></div>
+        <div>🎯 Claim: <b>${ts.claim_enabled ? 'an' : 'aus'}</b></div>
+      </div>` +
+      (ts.send_welcome ? `<div style="margin-top:12px">${MF.renderDiscordEmbed({
+        color: '#5865f2',
+        title: '🎫 Ticket #0042',
+        description: MF.expandVars(ts.welcome_message || ''),
+        username: 'ModForge'
+      })}</div>` : '');
+    }
+
+    if (activeTab === 'transcripts') {
+      const fmt = ts.transcript_format || 'html';
+      return `<div style="font-weight:800;font-size:.78rem;margin-bottom:8px">📄 Transkript-Format</div>
+        <div style="padding:14px;border-radius:10px;background:rgba(255,255,255,0.03);border:1px solid var(--border);font-family:'Geist Mono',monospace;font-size:.72rem;color:var(--muted)">
+          ticket-0042-${new Date().toISOString().slice(0,10)}.${fmt}
+        </div>
+        <div class="mf-banner mf-banner-info" style="margin-top:10px;font-size:.72rem">
+          <span class="mf-banner-icon">💾</span>
+          <div>Wird ${ts.dm_transcript ? '<b>an User per DM</b> + ' : ''}im Log-Channel gepostet</div>
+        </div>`;
+    }
+    return '';
+  });
+</script>
+{% endblock %}

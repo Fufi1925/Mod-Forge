@@ -47,6 +47,20 @@
 </style>
 {% endblock %}
 {% block content %}
+
+<!-- V2 Quick-Filter-Tabs -->
+<div class="mf-tabs" data-tab-group="mb" style="margin-bottom:12px">
+  <button class="mf-tab active" data-tab="all" onclick="document.getElementById('mF').value='';filt()">📋 Alle</button>
+  <button class="mf-tab" data-tab="h" onclick="document.getElementById('mF').value='h';filt()">👤 Menschen</button>
+  <button class="mf-tab" data-tab="b" onclick="document.getElementById('mF').value='b';filt()">🤖 Bots</button>
+  <button class="mf-tab" data-tab="on" onclick="document.getElementById('mF').value='on';filt()">🟢 Online</button>
+  <button class="mf-tab" data-tab="n" onclick="document.getElementById('mF').value='n';filt()">🆕 Neu</button>
+  <button class="mf-tab" data-tab="a" onclick="document.getElementById('mF').value='a';filt()">👑 Admins</button>
+  <button class="mf-tab" data-tab="bo" onclick="document.getElementById('mF').value='bo';filt()">💎 Booster</button>
+  <button class="mf-tab" data-tab="t" onclick="document.getElementById('mF').value='t';filt()">⏳ Timeout</button>
+  <button class="mf-tab" data-tab="hi" onclick="document.getElementById('mF').value='hi';filt()">🔴 Risiko</button>
+</div>
+
 <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
   <input type="text" id="mS" class="cfg-input" placeholder="🔍 Name/ID…" style="max-width:220px;width:100%" oninput="filt()">
   <select class="cfg-select" id="mF" onchange="filt()" style="font-size:.72rem">

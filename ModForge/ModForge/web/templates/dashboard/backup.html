@@ -1,0 +1,195 @@
+{% extends "dashboard/_base.html" %}
+{% set active = 'backup' %}
+{% block title %}Backups{% endblock %}
+{% block page_title %}💾 Backup-System{% endblock %}
+{% block page_desc %}Server-Snapshots erstellen · Wiederherstellen · Cross-Server-Restore · Auto-Backups{% endblock %}
+
+{% block content %}
+<div class="mf-tabs" data-tab-group="bk">
+  <button class="mf-tab active" data-tab="list">📦 Backups <span class="mf-tab-badge">{{ backups|length }}</span></button>
+  <button class="mf-tab" data-tab="create">➕ Erstellen</button>
+  <button class="mf-tab" data-tab="auto">🤖 Auto-Backup</button>
+  <button class="mf-tab" data-tab="restore">🔄 Restore</button>
+</div>
+
+{# ═══ LIST ═══ #}
+<div class="mf-tab-panel active" data-tab-panel="list" data-tab-group="bk">
+  {% if backups %}
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:14px">
+    {% for b in backups %}
+    <div class="db-card" style="padding:18px">
+      <div style="display:flex;align-items:start;justify-content:space-between;margin-bottom:10px">
+        <div>
+          <div style="font-weight:800;font-size:.95rem;margin-bottom:4px">{{ b.label }}</div>
+          <div style="font-size:.62rem;color:var(--muted);font-family:'Geist Mono',monospace">#{{ b.id }}</div>
+        </div>
+        {% if b.has_password %}<span style="font-size:1rem" title="Passwort-geschützt">🔒</span>{% endif %}
+        {% if b.is_public %}<span style="font-size:1rem;color:var(--green)" title="Public">🌐</span>{% endif %}
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:10px 0">
+        <div style="text-align:center;padding:8px;border-radius:8px;background:rgba(255,255,255,0.02);border:1px solid var(--border)">
+          <div style="font-size:1rem;font-weight:800;font-family:'Geist Mono',monospace">{{ b.roles }}</div>
+          <div style="font-size:.55rem;color:var(--muted);text-transform:uppercase">🏷️ Rollen</div>
+        </div>
+        <div style="text-align:center;padding:8px;border-radius:8px;background:rgba(255,255,255,0.02);border:1px solid var(--border)">
+          <div style="font-size:1rem;font-weight:800;font-family:'Geist Mono',monospace">{{ b.channels }}</div>
+          <div style="font-size:.55rem;color:var(--muted);text-transform:uppercase">💬 Ch.</div>
+        </div>
+        <div style="text-align:center;padding:8px;border-radius:8px;background:rgba(255,255,255,0.02);border:1px solid var(--border)">
+          <div style="font-size:1rem;font-weight:800;font-family:'Geist Mono',monospace">{{ b.categories }}</div>
+          <div style="font-size:.55rem;color:var(--muted);text-transform:uppercase">📂 Cat.</div>
+        </div>
+        <div style="text-align:center;padding:8px;border-radius:8px;background:rgba(255,255,255,0.02);border:1px solid var(--border)">
+          <div style="font-size:1rem;font-weight:800;font-family:'Geist Mono',monospace">{{ b.emojis }}</div>
+          <div style="font-size:.55rem;color:var(--muted);text-transform:uppercase">😀 Emj.</div>
+        </div>
+      </div>
+      <div style="font-size:.7rem;color:var(--muted);margin-bottom:12px">
+        Von: <code>{{ b.created_by }}</code><br>
+        Datum: {% if b.created_ts %}<t:{{ b.created_ts }}:R>{% else %}?{% endif %}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+        <button class="mf-btn mf-btn-primary" onclick="restoreBackup('{{ b.id }}')">🔄 Restore</button>
+        <button class="mf-btn" onclick="window.open('/api/guild/{{ guild.id }}/backup/{{ b.id }}/download', '_blank')">📥 Download</button>
+        <button class="mf-btn" onclick="toggleShare('{{ b.id }}', {{ 'true' if b.is_public else 'false' }})">{{ '🌐 Unshare' if b.is_public else '🔗 Share' }}</button>
+        <button class="mf-btn mf-btn-danger" onclick="deleteBackup('{{ b.id }}')">🗑️ Löschen</button>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="mf-empty">
+    <div class="mf-empty-icon">💾</div>
+    <div class="mf-empty-title">Noch keine Backups</div>
+    <div class="mf-empty-desc">Erstelle dein erstes Backup im Tab „Erstellen"</div>
+  </div>
+  {% endif %}
+</div>
+
+{# ═══ CREATE ═══ #}
+<div class="mf-tab-panel" data-tab-panel="create" data-tab-group="bk">
+  <div class="db-card">
+    <div class="mf-banner mf-banner-info">
+      <span class="mf-banner-icon">💾</span>
+      <div>Ein Backup speichert <b>Rollen, Channels, Kategorien, Emojis und die Server-Settings</b>. Es <b>kann keine Nachrichten</b> oder Mitglieder wiederherstellen.</div>
+    </div>
+
+    <div class="mf-field">
+      <label class="mf-field-label">Backup-Name (optional)</label>
+      <input type="text" class="cfg-input" id="bkLabel" placeholder="z.B. Vor großer Umstrukturierung" style="width:100%;max-width:none">
+    </div>
+
+    <div class="mf-field">
+      <label class="mf-field-label">Passwort (optional, für Cross-Server-Restore)</label>
+      <input type="password" class="cfg-input" id="bkPw" placeholder="Optional" style="width:100%;max-width:none">
+      <div class="mf-field-help">Wenn gesetzt, ist das Backup auf anderen Servern nur mit diesem Passwort wiederherstellbar</div>
+    </div>
+
+    <button class="mf-btn mf-btn-primary mf-btn-lg" onclick="createBackup()" style="width:100%;margin-top:14px">💾 Backup jetzt erstellen</button>
+  </div>
+</div>
+
+{# ═══ AUTO ═══ #}
+<div class="mf-tab-panel" data-tab-panel="auto" data-tab-group="bk">
+  <div class="db-card">
+    <div class="cfg-row">
+      <div><span class="cfg-label">🤖 Auto-Backup aktivieren</span><div class="cfg-desc">Bot erstellt regelmäßig automatisch Backups</div></div>
+      <label class="toggle"><input type="checkbox" data-cfg="backup_system.auto_enabled" {% if auto_enabled %}checked{% endif %}><span class="slider"></span></label>
+    </div>
+
+    <div class="mf-field">
+      <label class="mf-field-label">Intervall <span class="mf-field-value" data-range-value="bk-iv" data-suffix="h">{{ auto_interval }}h</span></label>
+      <input type="range" class="mf-range" id="bk-iv" data-cfg="backup_system.auto_interval_hours" min="1" max="168" value="{{ auto_interval }}">
+    </div>
+
+    <div class="mf-field">
+      <label class="mf-field-label">Max. Auto-Backups <span class="mf-field-value" data-range-value="bk-mx">{{ auto_max }}</span></label>
+      <input type="range" class="mf-range" id="bk-mx" data-cfg="backup_system.auto_max_backups" min="1" max="50" value="{{ auto_max }}">
+      <div class="mf-field-help">Älteste werden automatisch gelöscht wenn Limit erreicht</div>
+    </div>
+
+    {% if last_backup_ts %}
+    <div class="mf-banner mf-banner-success" style="margin-top:14px">
+      <span class="mf-banner-icon">✅</span>
+      <div>Letztes Auto-Backup: <t:{{ last_backup_ts }}:R></div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{# ═══ RESTORE ═══ #}
+<div class="mf-tab-panel" data-tab-panel="restore" data-tab-group="bk">
+  <div class="db-card">
+    <div class="mf-banner mf-banner-warn">
+      <span class="mf-banner-icon">⚠️</span>
+      <div><b>Achtung:</b> Restore <b>löscht</b> bestehende Rollen, Channels und Kategorien dieses Servers und ersetzt sie. Vorher unbedingt aktuelles Backup erstellen!</div>
+    </div>
+
+    <div class="cfg-row">
+      <div><span class="cfg-label">Bestehende Daten zuerst löschen</span><div class="cfg-desc">Empfohlen für saubere Wiederherstellung</div></div>
+      <label class="toggle"><input type="checkbox" id="rsClean" checked><span class="slider"></span></label>
+    </div>
+
+    <div class="cfg-row">
+      <div><span class="cfg-label">Nur fehlende Items anlegen</span><div class="cfg-desc">Sicherer Modus — bestehende Items werden NICHT geändert</div></div>
+      <label class="toggle"><input type="checkbox" id="rsSafe"><span class="slider"></span></label>
+    </div>
+
+    <p style="color:var(--muted);font-size:.78rem;margin-top:14px">Wähle das gewünschte Backup im Tab „Backups" und klicke auf 🔄 Restore.</p>
+  </div>
+</div>
+
+<script>
+async function createBackup() {
+  const label = document.getElementById('bkLabel').value || 'Backup ' + new Date().toLocaleString('de-DE');
+  const pw = document.getElementById('bkPw').value;
+  try {
+    const r = await fetch(`/api/guild/${MF.guildId}/backup/create`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({label, password: pw})
+    });
+    if (r.ok) { MF.toast('💾 Backup erstellt!', 'ok'); setTimeout(()=>location.reload(), 800); }
+    else MF.toast('❌ Fehler — Bot online?', 'err');
+  } catch (e) { MF.toast('❌ ' + e.message, 'err'); }
+}
+
+async function restoreBackup(id) {
+  if (!confirm('Backup ' + id + ' wiederherstellen? Dies kann nicht rückgängig gemacht werden!')) return;
+  const r = await fetch(`/api/guild/${MF.guildId}/backup/${id}/restore`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({clean: document.getElementById('rsClean').checked, safe: document.getElementById('rsSafe').checked})
+  });
+  if (r.ok) MF.toast('🔄 Restore gestartet', 'ok');
+  else MF.toast('❌ Fehler', 'err');
+}
+
+async function deleteBackup(id) {
+  if (!confirm('Backup ' + id + ' wirklich löschen?')) return;
+  const r = await fetch(`/api/guild/${MF.guildId}/backup/${id}/delete`, {method:'POST'});
+  if (r.ok) { MF.toast('🗑️ Gelöscht', 'ok'); setTimeout(()=>location.reload(), 500); }
+  else MF.toast('❌ Fehler', 'err');
+}
+
+async function toggleShare(id, isPublic) {
+  const url = isPublic ? `/api/guild/${MF.guildId}/templates/unshare/${id}` : `/api/guild/${MF.guildId}/templates/share`;
+  const body = isPublic ? null : JSON.stringify({backup_id: id});
+  const r = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body});
+  if (r.ok) { MF.toast(isPublic?'🔒 Privat':'🌐 Öffentlich', 'ok'); setTimeout(()=>location.reload(), 500); }
+  else MF.toast('❌ Fehler', 'err');
+}
+</script>
+{% endblock %}
+
+{% block preview %}
+<div style="font-weight:800;font-size:.85rem;margin-bottom:12px">💾 Backup-Status</div>
+<div style="padding:14px;border-radius:10px;background:rgba(255,255,255,0.03);border:1px solid var(--border);font-size:.78rem;line-height:1.8;margin-bottom:12px">
+  <div>Anzahl: <b>{{ backups|length }}</b></div>
+  <div>Auto-Backup: <b style="color:{% if auto_enabled %}var(--green){% else %}var(--muted){% endif %}">{% if auto_enabled %}aktiv ({{ auto_interval }}h){% else %}aus{% endif %}</b></div>
+  <div>Max behalten: <b>{{ auto_max }}</b></div>
+  {% if not bot_ready %}<div style="color:var(--red);margin-top:6px">⚠️ Bot offline — Restore/Create gehen nicht</div>{% endif %}
+</div>
+<div class="mf-banner mf-banner-info" style="font-size:.72rem">
+  <span class="mf-banner-icon">💡</span>
+  <div>Tipp: Vor jedem großen Server-Update ein manuelles Backup erstellen!</div>
+</div>
+{% endblock %}

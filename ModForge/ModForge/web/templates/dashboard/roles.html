@@ -1,0 +1,238 @@
+{% extends "dashboard/_base.html" %}
+{% set active = 'roles' %}
+{% block title %}Rollen{% endblock %}
+{% block page_title %}🏷️ Rollen-Management{% endblock %}
+{% block page_desc %}Auto-Rollen · Sticky-Roles · Reaction-Roles · Bot-Roles{% endblock %}
+
+{% set ar = cfg.get('auto_role', {}) %}
+{% set sr = cfg.get('sticky_roles', []) %}
+{% set br = cfg.get('bot_role', {}) %}
+{% set rr = cfg.get('reaction_roles', []) %}
+
+{% block content %}
+<div class="mf-tabs" data-tab-group="rl">
+  <button class="mf-tab active" data-tab="autorole">👋 Auto-Rolle</button>
+  <button class="mf-tab" data-tab="sticky">📌 Sticky-Roles</button>
+  <button class="mf-tab" data-tab="bot">🤖 Bot-Rolle</button>
+  <button class="mf-tab" data-tab="reaction">😀 Reaction-Roles</button>
+  <button class="mf-tab" data-tab="all">📋 Alle Rollen</button>
+</div>
+
+{# ═══ AUTO-ROLE ═══ #}
+<div class="mf-tab-panel active" data-tab-panel="autorole" data-tab-group="rl">
+  <div class="db-card">
+    <div class="cfg-row">
+      <div><span class="cfg-label">👋 Auto-Rolle aktivieren</span><div class="cfg-desc">Neue Mitglieder erhalten automatisch diese Rolle(n)</div></div>
+      <label class="toggle"><input type="checkbox" data-cfg="auto_role.enabled" {% if ar.get('enabled') %}checked{% endif %}><span class="slider"></span></label>
+    </div>
+
+    <div class="mf-field">
+      <label class="mf-field-label">Auto-Rollen <span class="mf-field-help" style="margin-left:8px">Mehrere mit Strg/Cmd+Klick</span></label>
+      <select data-cfg="auto_role.role_ids" class="cfg-select" multiple size="10" style="width:100%;height:auto;min-height:220px">
+        {% set selected = ar.get('role_ids', auto_roles) %}
+        {% for r in guild_roles %}
+          <option value="{{ r.id }}" {% if r.id in selected or r.id|int in selected %}selected{% endif %}>{{ r.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="cfg-row">
+      <div><span class="cfg-label">Nur nach Verifizierung</span><div class="cfg-desc">Rollen werden erst nach Captcha vergeben</div></div>
+      <label class="toggle"><input type="checkbox" data-cfg="auto_role.after_verify" {% if ar.get('after_verify') %}checked{% endif %}><span class="slider"></span></label>
+    </div>
+
+    <div class="mf-field">
+      <label class="mf-field-label">Verzögerung <span class="mf-field-value" data-range-value="ar-d" data-suffix="s">{{ ar.get('delay', 0) }}s</span></label>
+      <input type="range" class="mf-range" id="ar-d" data-cfg="auto_role.delay" min="0" max="300" step="5" value="{{ ar.get('delay', 0) }}">
+      <div class="mf-field-help">Anti-Raid: Bots werden vor Rollenvergabe oft schon gekickt</div>
+    </div>
+  </div>
+</div>
+
+{# ═══ STICKY ═══ #}
+<div class="mf-tab-panel" data-tab-panel="sticky" data-tab-group="rl">
+  <div class="db-card">
+    <div class="mf-banner mf-banner-info">
+      <span class="mf-banner-icon">📌</span>
+      <div><b>Sticky-Roles</b> werden gespeichert wenn ein User den Server verlässt und beim Wiederbeitritt automatisch wieder vergeben. Praktisch für „Verified", Boost-Rollen oder Mute.</div>
+    </div>
+
+    <div class="mf-field">
+      <label class="mf-field-label">Sticky-Rollen wählen</label>
+      <select data-cfg="sticky_roles" class="cfg-select" multiple size="10" style="width:100%;height:auto;min-height:220px">
+        {% for r in guild_roles %}
+          <option value="{{ r.id }}" {% if r.id in sticky_roles or r.id|int in sticky_roles %}selected{% endif %}>{{ r.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="cfg-row">
+      <div><span class="cfg-label">Mute-Rolle automatisch sticky</span><div class="cfg-desc">Verhindert dass User den Mute durch Re-Join umgehen</div></div>
+      <label class="toggle"><input type="checkbox" data-cfg="sticky_mute" {% if cfg.get('sticky_mute', True) %}checked{% endif %}><span class="slider"></span></label>
+    </div>
+  </div>
+</div>
+
+{# ═══ BOT-ROLE ═══ #}
+<div class="mf-tab-panel" data-tab-panel="bot" data-tab-group="rl">
+  <div class="db-card">
+    <div class="cfg-row">
+      <div><span class="cfg-label">🤖 Bot-Rolle automatisch vergeben</span><div class="cfg-desc">Wenn ein Bot dem Server beitritt, erhält er diese Rolle</div></div>
+      <label class="toggle"><input type="checkbox" data-cfg="bot_role.enabled" {% if br.get('enabled') %}checked{% endif %}><span class="slider"></span></label>
+    </div>
+
+    <div class="mf-field">
+      <label class="mf-field-label">Bot-Rolle</label>
+      <select data-cfg="bot_role.role_id" class="cfg-select" style="width:100%">
+        <option value="">— Rolle wählen —</option>
+        {% for r in guild_roles %}
+          <option value="{{ r.id }}" {% if r.id|string == br.get('role_id','')|string %}selected{% endif %}>🤖 {{ r.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="cfg-row">
+      <div><span class="cfg-label">🚫 Unbekannte Bots blocken</span><div class="cfg-desc">Nicht-whitelistete Bots werden sofort gekickt</div></div>
+      <label class="toggle"><input type="checkbox" data-cfg="bot_role.block_unknown" {% if br.get('block_unknown') %}checked{% endif %}><span class="slider"></span></label>
+    </div>
+  </div>
+</div>
+
+{# ═══ REACTION ═══ #}
+<div class="mf-tab-panel" data-tab-panel="reaction" data-tab-group="rl">
+  <div class="db-card">
+    <div class="mf-banner mf-banner-info">
+      <span class="mf-banner-icon">😀</span>
+      <div><b>Reaction-Roles</b> — User klicken auf eine Reaktion und bekommen die zugeordnete Rolle. Perfekt für Color-Roles, Game-Pings oder Region-Auswahl.</div>
+    </div>
+
+    <div class="mf-field">
+      <label class="mf-field-label">Reaction-Role-Konfiguration</label>
+      <div id="rrList">
+        {% for entry in rr %}
+        <div class="rr-row cfg-row" style="display:grid;grid-template-columns:60px 1fr 160px 40px;gap:8px">
+          <input type="text" class="cfg-input rr-emoji" value="{{ entry.emoji }}" placeholder="😀" style="text-align:center;font-size:1.1rem;width:100%;max-width:none">
+          <input type="text" class="cfg-input rr-msg" value="{{ entry.message_id|default('') }}" placeholder="Message-ID" style="width:100%;max-width:none;font-family:monospace;font-size:.74rem">
+          <select class="cfg-select rr-role" style="width:100%">
+            {% for r in guild_roles %}<option value="{{ r.id }}" {% if r.id|string == entry.role_id|string %}selected{% endif %}>{{ r.name }}</option>{% endfor %}
+          </select>
+          <button class="mf-btn mf-btn-sm mf-btn-danger" onclick="this.parentElement.remove();MF.markDirty()">×</button>
+        </div>
+        {% endfor %}
+      </div>
+      <button class="mf-btn mf-btn-primary" style="margin-top:10px" onclick="addRR()">+ Reaction-Role hinzufügen</button>
+    </div>
+
+    <div class="mf-banner mf-banner-warn" style="margin-top:14px">
+      <span class="mf-banner-icon">💡</span>
+      <div>Nach dem Speichern muss der Bot die Reaktion <b>einmalig manuell auf die Nachricht</b> setzen — oder du nutzt <code style="color:var(--vl)">/reactionrole add</code>.</div>
+    </div>
+  </div>
+</div>
+
+{# ═══ ALL ROLES ═══ #}
+<div class="mf-tab-panel" data-tab-panel="all" data-tab-group="rl">
+  <div class="db-card">
+    <div style="font-weight:800;font-size:.92rem;margin-bottom:10px">📋 Alle Server-Rollen ({{ guild_roles|length }})</div>
+    <input type="text" class="cfg-input" id="rolSearch" placeholder="🔍 Rolle suchen…" oninput="filterRoles()" style="width:100%;max-width:300px;margin-bottom:12px">
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:6px" id="rolGrid">
+      {% for r in guild_roles %}
+      <div class="rol-card" data-name="{{ r.name|lower }}" style="padding:9px 12px;border-radius:8px;background:rgba(255,255,255,0.02);border:1px solid var(--border);display:flex;align-items:center;gap:8px;font-size:.78rem">
+        <span style="font-family:'Geist Mono',monospace;font-size:.62rem;color:var(--muted)">{{ r.id }}</span>
+        <span>{{ r.name }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<script>
+function addRR() {
+  const list = document.getElementById('rrList');
+  const div = document.createElement('div');
+  div.className = 'rr-row cfg-row';
+  div.style.cssText = 'display:grid;grid-template-columns:60px 1fr 160px 40px;gap:8px';
+  const roleOpts = `{% for r in guild_roles %}<option value="{{ r.id }}">{{ r.name }}</option>{% endfor %}`;
+  div.innerHTML = `
+    <input type="text" class="cfg-input rr-emoji" placeholder="😀" style="text-align:center;font-size:1.1rem;width:100%;max-width:none">
+    <input type="text" class="cfg-input rr-msg" placeholder="Message-ID" style="width:100%;max-width:none;font-family:monospace;font-size:.74rem">
+    <select class="cfg-select rr-role" style="width:100%">${roleOpts}</select>
+    <button class="mf-btn mf-btn-sm mf-btn-danger" onclick="this.parentElement.remove();MF.markDirty()">×</button>
+  `;
+  list.appendChild(div);
+  MF.markDirty();
+}
+
+function filterRoles() {
+  const q = document.getElementById('rolSearch').value.toLowerCase();
+  document.querySelectorAll('.rol-card').forEach(c => c.style.display = (!q || c.dataset.name.includes(q)) ? '' : 'none');
+}
+
+// Custom save for reaction-roles
+const origSave = MF.saveConfig;
+MF.saveConfig = async function() {
+  const rrData = [...document.querySelectorAll('.rr-row')].map(row => ({
+    emoji: row.querySelector('.rr-emoji').value,
+    message_id: row.querySelector('.rr-msg').value,
+    role_id: row.querySelector('.rr-role').value,
+  })).filter(r => r.emoji && r.role_id);
+
+  MF.saving = true;
+  try {
+    const data = MF.collectConfig();
+    data.reaction_roles = rrData;
+    const r = await fetch(`/api/guild/${MF.guildId}/config`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(data)
+    });
+    if (r.ok) { MF.markClean(); MF.toast('💾 Gespeichert', 'save'); }
+    else MF.toast('❌ Fehler', 'err');
+  } catch (e) { MF.toast('❌ Netzwerk', 'err'); }
+  finally { MF.saving = false; }
+};
+</script>
+{% endblock %}
+
+{% block preview %}
+<div id="rlPrev"></div>
+<script>
+  MF.registerPreview('roles', function(cfg) {
+    const tab = document.querySelector('.mf-tab.active[data-tab-group=rl]')?.dataset.tab || 'autorole';
+
+    if (tab === 'autorole') {
+      const ar = cfg.auto_role || {};
+      const count = Array.isArray(ar.role_ids) ? ar.role_ids.length : (document.querySelector('[data-cfg="auto_role.role_ids"]')?.selectedOptions.length || 0);
+      return `<div style="font-weight:800;font-size:.78rem;margin-bottom:10px">👋 Auto-Rolle Vorschau</div>
+        <div style="padding:14px;border-radius:10px;background:rgba(255,255,255,0.03);border:1px solid var(--border)">
+          <div style="font-size:.78rem;line-height:1.7">
+            <div>Status: <b style="color:${ar.enabled?'var(--green)':'var(--muted)'}">${ar.enabled?'aktiv':'inaktiv'}</b></div>
+            <div>Rollen: <b>${count}</b> ausgewählt</div>
+            <div>Verzögerung: <b>${ar.delay||0}s</b></div>
+            <div>Nach Verify: <b>${ar.after_verify?'Ja':'Nein'}</b></div>
+          </div>
+        </div>
+        <div class="mf-banner mf-banner-info" style="margin-top:10px;font-size:.72rem">
+          <span class="mf-banner-icon">⚡</span>
+          <div>Wird ${ar.delay?`mit ${ar.delay}s Verzögerung`:'sofort'} ${ar.after_verify?'nach Verify':''} vergeben</div>
+        </div>`;
+    }
+
+    if (tab === 'reaction') {
+      const rows = [...document.querySelectorAll('.rr-row')];
+      return `<div style="font-weight:800;font-size:.78rem;margin-bottom:10px">😀 ${rows.length} Reaction-Rolle(n)</div>` +
+        (rows.length === 0
+          ? '<div class="mf-empty"><div class="mf-empty-icon">😀</div><div class="mf-empty-desc">Noch keine</div></div>'
+          : rows.map(r => {
+              const e = r.querySelector('.rr-emoji')?.value || '?';
+              const sel = r.querySelector('.rr-role');
+              const role = sel ? sel.selectedOptions[0]?.text : '?';
+              return `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;background:rgba(255,255,255,0.03);border:1px solid var(--border);margin-bottom:5px">
+                <span style="font-size:1.3rem">${e}</span><span style="font-size:.78rem">→ <b>${role}</b></span>
+              </div>`;
+            }).join(''));
+    }
+
+    return `<div class="mf-empty"><div class="mf-empty-icon">🏷️</div><div class="mf-empty-desc">Konfiguriere die Optionen links</div></div>`;
+  });
+</script>
+{% endblock %}

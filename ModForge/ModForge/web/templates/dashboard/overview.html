@@ -1,0 +1,293 @@
+{% extends "dashboard/_base.html" %}
+{% set active = 'overview' %}
+{% block title %}Übersicht{% endblock %}
+{% block page_title %}📊 Server-Übersicht{% endblock %}
+{% block page_desc %}Alles auf einen Blick · Security Score {{ score }}/100 · {{ active_count }} aktive Module{% endblock %}
+
+{% block head %}
+<style>
+  .ov-score-wrap { position:relative; width:140px; height:140px; margin:0 auto; }
+  .ov-score-val { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+  .ov-score-num { font-size:2.2rem; font-weight:900; font-family:'Geist Mono',monospace; line-height:1; }
+  .ov-score-lbl { font-size:.55rem; color:var(--muted); text-transform:uppercase; letter-spacing:.1em; margin-top:4px; }
+  .ov-quick a { padding:14px; border-radius:12px; background:rgba(255,255,255,0.03); border:1px solid var(--border); text-decoration:none; transition:all .15s; text-align:center; display:block; }
+  .ov-quick a:hover { border-color:rgba(139,92,246,0.3); background:rgba(124,58,237,0.06); transform:translateY(-2px); }
+  .ov-quick .q-icon { font-size:1.4rem; margin-bottom:4px; }
+  .ov-quick .q-title { font-size:.78rem; font-weight:700; color:var(--fg); }
+  .ov-quick .q-desc { font-size:.62rem; color:var(--muted); margin-top:2px; }
+  .ov-mod { display:flex; align-items:center; justify-content:space-between; padding:9px 14px; border-radius:10px; background:rgba(255,255,255,0.02); border:1px solid var(--border); margin-bottom:5px; font-size:.78rem; transition:all .15s; }
+  .ov-mod.on { border-left:3px solid var(--green); }
+  .ov-mod.off { border-left:3px solid rgba(100,116,139,0.2); opacity:.55; }
+  .ov-mod:hover { transform:translateX(2px); }
+</style>
+{% endblock %}
+
+{% block content %}
+
+{# ─── TABS ─── #}
+<div class="mf-tabs" data-tab-group="ov">
+  <button class="mf-tab active" data-tab="health">💚 Server-Health</button>
+  <button class="mf-tab" data-tab="security">🛡️ Schutz</button>
+  <button class="mf-tab" data-tab="moderation">⚖️ Moderation</button>
+  <button class="mf-tab" data-tab="features">🎨 Features</button>
+  <button class="mf-tab" data-tab="quick">⚡ Quick-Actions</button>
+</div>
+
+{# ═══ HEALTH ═══ #}
+<div class="mf-tab-panel active" data-tab-panel="health" data-tab-group="ov">
+  <div style="display:grid;grid-template-columns:240px 1fr;gap:18px;margin-bottom:18px">
+    <div class="db-card" style="text-align:center;padding:24px">
+      <div class="ov-score-wrap">
+        <svg width="140" height="140" viewBox="0 0 140 140" style="transform:rotate(-90deg)">
+          <circle cx="70" cy="70" r="60" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="12"/>
+          <circle cx="70" cy="70" r="60" fill="none"
+            stroke="{% if score>=80 %}var(--green){% elif score>=50 %}var(--amberl){% else %}var(--red){% endif %}"
+            stroke-width="12" stroke-linecap="round"
+            stroke-dasharray="{{ (score/100)*377 }} 377"/>
+        </svg>
+        <div class="ov-score-val">
+          <div class="ov-score-num" style="color:{% if score>=80 %}var(--green){% elif score>=50 %}var(--amberl){% else %}var(--red){% endif %}">{{ score }}</div>
+          <div class="ov-score-lbl">{% if score>=80 %}Sicher{% elif score>=50 %}OK{% else %}Risiko{% endif %}</div>
+        </div>
+      </div>
+      <div style="margin-top:12px;font-size:.78rem;color:var(--muted)">Security Score</div>
+    </div>
+
+    <div class="db-card">
+      <div style="font-weight:800;font-size:.92rem;margin-bottom:12px">📊 Mitglieder-Übersicht</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px">
+        <div class="db-stat" style="padding:14px"><div class="db-stat-val" style="color:var(--vl);font-size:1.5rem">{{ humans }}</div><div class="db-stat-label">Menschen</div></div>
+        <div class="db-stat" style="padding:14px"><div class="db-stat-val" style="color:var(--cl);font-size:1.5rem">{{ bots }}</div><div class="db-stat-label">Bots</div></div>
+        <div class="db-stat" style="padding:14px"><div class="db-stat-val" style="color:var(--green);font-size:1.5rem">{{ online_count }}</div><div class="db-stat-label">Online</div></div>
+      </div>
+      <div style="font-size:.72rem;color:var(--muted);margin-bottom:4px;display:flex;justify-content:space-between"><span>Online-Quote</span><span>{{ ((online_count/humans*100)|round(1)) if humans else 0 }}%</span></div>
+      <div class="mf-progress"><div class="mf-progress-fill" style="width:{{ ((online_count/humans*100)|round(1)) if humans else 0 }}%"></div></div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px">
+        <div class="db-stat" style="padding:12px"><div class="db-stat-val" style="color:var(--amberl);font-size:1.2rem">{{ boost_count }}</div><div class="db-stat-label">Boosts T{{ boost_tier }}</div></div>
+        <div class="db-stat" style="padding:12px"><div class="db-stat-val" style="color:var(--orange);font-size:1.2rem">{{ boosters }}</div><div class="db-stat-label">Booster</div></div>
+        <div class="db-stat" style="padding:12px"><div class="db-stat-val" style="color:var(--fg);font-size:1.2rem">{{ verification }}</div><div class="db-stat-label">Verify-Level</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <div class="db-card">
+      <div style="font-weight:800;font-size:.92rem;margin-bottom:12px">🏗️ Server-Struktur</div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px">
+        <div class="cfg-row" style="margin:0"><span>💬 Text-Channels</span><b>{{ text_ch }}</b></div>
+        <div class="cfg-row" style="margin:0"><span>🔊 Voice-Channels</span><b>{{ voice_ch }}</b></div>
+        <div class="cfg-row" style="margin:0"><span>📂 Kategorien</span><b>{{ cats }}</b></div>
+        <div class="cfg-row" style="margin:0"><span>🏷️ Rollen</span><b>{{ roles_count }}</b></div>
+        <div class="cfg-row" style="margin:0"><span>😀 Emojis</span><b>{{ emojis_count }}</b></div>
+        <div class="cfg-row" style="margin:0"><span>📅 Erstellt</span><b style="font-size:.7rem">{% if created %}<t:{{ created }}:R>{% else %}?{% endif %}</b></div>
+      </div>
+    </div>
+
+    <div class="db-card">
+      <div style="font-weight:800;font-size:.92rem;margin-bottom:12px">⚙️ Bot-Konfiguration</div>
+      <div class="cfg-row" style="margin-bottom:5px">
+        <span>👑 Owner</span><b style="font-size:.78rem">{{ owner_name }}</b>
+      </div>
+      <div class="cfg-row" style="margin-bottom:5px">
+        <span>⚙️ Prefix</span><code style="background:rgba(124,58,237,0.1);padding:2px 8px;border-radius:6px;color:var(--vl);font-family:'Geist Mono',monospace">{{ prefix }}</code>
+      </div>
+      <div class="cfg-row" style="margin-bottom:5px">
+        <span>🚫 No-Prefix</span><span class="mf-dot {% if no_prefix %}mf-dot-on{% else %}mf-dot-off{% endif %}"></span>
+      </div>
+      <div class="cfg-row" style="margin-bottom:5px">
+        <span>🔌 Webhook-Logging</span><span class="mf-dot {% if webhook_logging %}mf-dot-on{% else %}mf-dot-off{% endif %}"></span>
+      </div>
+      <div class="cfg-row" style="margin-bottom:5px">
+        <span>📢 Log-Kanäle</span><b>{{ log_channels_count }}{% if has_default_log %} (+1 Default){% endif %}</b>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ═══ SECURITY ═══ #}
+<div class="mf-tab-panel" data-tab-panel="security" data-tab-group="ov">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <div class="db-card">
+      <div style="font-weight:800;font-size:.92rem;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
+        <span>🛡️ Aktive Module ({{ active_count }}/{{ active_mods|length }})</span>
+        <a href="/dashboard/{{ guild.id }}/security" class="mf-btn mf-btn-sm">Konfigurieren →</a>
+      </div>
+      {% for mod_key, enabled in active_mods %}
+      <div class="ov-mod {{ 'on' if enabled else 'off' }}">
+        <span>{{ '✅' if enabled else '⭕' }} {{ mod_key.replace('anti_','Anti-').replace('_',' ').title() }}</span>
+        <span class="mf-dot {{ 'mf-dot-on' if enabled else 'mf-dot-off' }}"></span>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="db-card">
+      <div style="font-weight:800;font-size:.92rem;margin-bottom:12px">🎯 Schutz-Empfehlungen</div>
+      {% if score < 50 %}
+      <div class="mf-banner mf-banner-danger">
+        <span class="mf-banner-icon">🚨</span>
+        <div><b>Niedriger Score!</b> Aktiviere mindestens Anti-Spam, Anti-Nuke und richte einen Log-Channel ein.</div>
+      </div>
+      {% elif score < 80 %}
+      <div class="mf-banner mf-banner-warn">
+        <span class="mf-banner-icon">⚠️</span>
+        <div><b>Score verbesserbar.</b> Aktiviere mehr Module für besseren Schutz.</div>
+      </div>
+      {% else %}
+      <div class="mf-banner mf-banner-success">
+        <span class="mf-banner-icon">✅</span>
+        <div><b>Top!</b> Dein Server ist gut geschützt.</div>
+      </div>
+      {% endif %}
+
+      <div style="margin-top:14px;font-size:.78rem;color:var(--muted);line-height:1.7">
+        {% if not has_default_log and log_channels_count == 0 %}<div>🔴 Kein Log-Kanal gesetzt</div>{% endif %}
+        {% if active_count < 3 %}<div>🟡 Weniger als 3 Schutz-Module aktiv</div>{% endif %}
+        {% if not webhook_logging %}<div>🟡 Webhook-Logging deaktiviert</div>{% endif %}
+        {% if sec_level == 0 %}<div>🟡 Security-Level: 0 (kein Preset)</div>{% endif %}
+        {% if verification in ('None','none','') %}<div>🟡 Server-Verifikationsstufe niedrig</div>{% endif %}
+        {% if active_count >= 6 %}<div style="color:var(--green)">✅ {{ active_count }} Module aktiv</div>{% endif %}
+        {% if log_channels_count >= 3 %}<div style="color:var(--green)">✅ {{ log_channels_count }} Log-Kanäle</div>{% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ═══ MODERATION ═══ #}
+<div class="mf-tab-panel" data-tab-panel="moderation" data-tab-group="ov">
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin-bottom:18px">
+    <div class="db-stat"><div class="db-stat-val" style="color:var(--orange)">{{ cases_count }}</div><div class="db-stat-label">📋 Cases</div></div>
+    <div class="db-stat"><div class="db-stat-val" style="color:var(--red)">{{ warns_count }}</div><div class="db-stat-label">⚠️ Warns</div></div>
+    <div class="db-stat"><div class="db-stat-val" style="color:var(--cl)">{{ recent_cases|length }}</div><div class="db-stat-label">Letzte (5)</div></div>
+  </div>
+
+  <div class="db-card">
+    <div style="font-weight:800;font-size:.92rem;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
+      <span>🕒 Letzte Cases</span>
+      <a href="/dashboard/{{ guild.id }}/cases" class="mf-btn mf-btn-sm">Alle ansehen →</a>
+    </div>
+    {% if recent_cases %}
+      {% for c in recent_cases %}
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;background:rgba(255,255,255,0.02);border:1px solid var(--border);margin-bottom:6px;font-size:.78rem">
+        <code style="background:rgba(124,58,237,0.1);padding:2px 8px;border-radius:6px;color:var(--vl);font-family:'Geist Mono',monospace">#{{ c.case_id }}</code>
+        <span style="font-weight:600">{{ c.action|default('?') }}</span>
+        <span style="color:var(--muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ c.reason|default('(kein Grund)') }}</span>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="mf-empty">
+        <div class="mf-empty-icon">🎉</div>
+        <div class="mf-empty-title">Keine Cases</div>
+        <div class="mf-empty-desc">Bisher mussten keine Moderations-Aktionen geloggt werden.</div>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+{# ═══ FEATURES ═══ #}
+<div class="mf-tab-panel" data-tab-panel="features" data-tab-group="ov">
+  <div class="db-card">
+    <div style="font-weight:800;font-size:.92rem;margin-bottom:12px">🎨 Discord Server-Features</div>
+    {% if features_list %}
+    <div style="display:flex;flex-wrap:wrap;gap:6px">
+      {% for f in features_list %}
+      <span style="padding:5px 12px;border-radius:999px;background:rgba(124,58,237,0.1);border:1px solid rgba(124,58,237,0.2);color:var(--vl);font-size:.7rem;font-weight:600">{{ f.replace('_',' ').title() }}</span>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="mf-empty">
+      <div class="mf-empty-icon">🎁</div>
+      <div class="mf-empty-desc">Keine besonderen Discord-Features aktiv. Mit Boosts werden mehr freigeschaltet.</div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{# ═══ QUICK ACTIONS ═══ #}
+<div class="mf-tab-panel" data-tab-panel="quick" data-tab-group="ov">
+  <div class="ov-quick" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px">
+    <a href="/dashboard/{{ guild.id }}/security"><div class="q-icon">🛡️</div><div class="q-title">Security</div><div class="q-desc">{{ active_count }} aktiv</div></a>
+    <a href="/dashboard/{{ guild.id }}/automod"><div class="q-icon">🤖</div><div class="q-title">AutoMod</div><div class="q-desc">{{ cfg.get('automod',{}).get('bad_words',[])|length }} Bad-Words</div></a>
+    <a href="/dashboard/{{ guild.id }}/welcome"><div class="q-icon">✨</div><div class="q-title">Welcome</div><div class="q-desc">{{ '✅ An' if cfg.get('welcome',{}).get('enabled') else '⭕ Aus' }}</div></a>
+    <a href="/dashboard/{{ guild.id }}/logs"><div class="q-icon">📢</div><div class="q-title">Logs</div><div class="q-desc">{{ log_channels_count }} Kanäle</div></a>
+    <a href="/dashboard/{{ guild.id }}/cases"><div class="q-icon">📋</div><div class="q-title">Cases</div><div class="q-desc">{{ cases_count }} gesamt</div></a>
+    <a href="/dashboard/{{ guild.id }}/warns"><div class="q-icon">⚠️</div><div class="q-title">Warns</div><div class="q-desc">{{ warns_count }} aktiv</div></a>
+    <a href="/dashboard/{{ guild.id }}/tickets"><div class="q-icon">🎫</div><div class="q-title">Tickets</div><div class="q-desc">{{ '✅ An' if cfg.get('ticket_system',{}).get('enabled') else '⭕ Aus' }}</div></a>
+    <a href="/dashboard/{{ guild.id }}/backup"><div class="q-icon">💾</div><div class="q-title">Backup</div><div class="q-desc">Server sichern</div></a>
+    <a href="/dashboard/{{ guild.id }}/stats"><div class="q-icon">📊</div><div class="q-title">Stats</div><div class="q-desc">Analytics</div></a>
+    <a href="/dashboard/{{ guild.id }}/livefeed"><div class="q-icon">⚡</div><div class="q-title">Live-Feed</div><div class="q-desc">Echtzeit</div></a>
+    <a href="/dashboard/{{ guild.id }}/members"><div class="q-icon">👥</div><div class="q-title">Members</div><div class="q-desc">{{ humans }} User</div></a>
+    <a href="/dashboard/{{ guild.id }}/embed"><div class="q-icon">🎨</div><div class="q-title">Embed Builder</div><div class="q-desc">Custom Embeds</div></a>
+  </div>
+</div>
+{% endblock %}
+
+{# ═══ LIVE PREVIEW: Server-Status Realtime ═══ #}
+{% block preview %}
+<div style="font-weight:800;font-size:.85rem;margin-bottom:12px;display:flex;align-items:center;gap:8px">
+  <span class="mf-dot mf-dot-on"></span> Server-Status
+</div>
+
+<div style="padding:14px;border-radius:12px;background:rgba(255,255,255,0.03);border:1px solid var(--border);margin-bottom:12px">
+  <div style="display:flex;justify-content:space-between;font-size:.74rem;margin-bottom:6px">
+    <span style="color:var(--muted)">Bot-Status</span>
+    <span style="font-weight:700;color:var(--green)" id="livePulseStatus">● Online</span>
+  </div>
+  <div style="display:flex;justify-content:space-between;font-size:.74rem;margin-bottom:6px">
+    <span style="color:var(--muted)">Latenz</span>
+    <span style="font-weight:700" id="livePulseLatency">— ms</span>
+  </div>
+  <div style="display:flex;justify-content:space-between;font-size:.74rem">
+    <span style="color:var(--muted)">Guilds</span>
+    <span style="font-weight:700" id="livePulseGuilds">—</span>
+  </div>
+</div>
+
+<div style="font-weight:800;font-size:.78rem;margin-bottom:8px">📈 Schutz-Score</div>
+<div style="padding:10px 14px;border-radius:10px;background:linear-gradient(135deg,rgba(124,58,237,0.08),rgba(91,110,255,0.04));border:1px solid rgba(139,92,246,0.18);margin-bottom:14px">
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <span style="font-size:.74rem;color:var(--muted)">Aktuelle Bewertung</span>
+    <span style="font-size:1.4rem;font-weight:900;font-family:'Geist Mono',monospace;color:{% if score>=80 %}var(--green){% elif score>=50 %}var(--amberl){% else %}var(--red){% endif %}">{{ score }}</span>
+  </div>
+  <div class="mf-progress" style="margin-top:8px"><div class="mf-progress-fill" style="width:{{ score }}%;background:{% if score>=80 %}var(--green){% elif score>=50 %}var(--amberl){% else %}var(--red){% endif %}"></div></div>
+</div>
+
+<div style="font-weight:800;font-size:.78rem;margin-bottom:8px">⚡ Live-Aktivität</div>
+<div id="liveActivity" style="font-size:.7rem;color:var(--muted);line-height:1.6;max-height:200px;overflow-y:auto">
+  <em>Verbinde…</em>
+</div>
+
+<script>
+  // Connect to SocketIO (fallback to polling)
+  (function() {
+    function fetchStatus() {
+      fetch('/live/api/activity').then(r => r.json()).then(data => {
+        if (!data) return;
+        const act = document.getElementById('liveActivity');
+        if (act && data.activity) {
+          if (data.activity.length === 0) act.innerHTML = '<em>Keine Aktivität</em>';
+          else act.innerHTML = data.activity.slice(0, 12).map(a =>
+            `<div style="padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.04)">${(a.icon||'•')} ${(a.text||a.msg||'').replace(/[<>]/g,'')}</div>`
+          ).join('');
+        }
+      }).catch(e=>{});
+    }
+    fetchStatus();
+    setInterval(fetchStatus, 5000);
+
+    // Try socket.io if loaded
+    if (typeof io !== 'undefined') {
+      try {
+        const sock = io();
+        sock.on('status_update', d => {
+          if (d.bot) {
+            document.getElementById('livePulseStatus').textContent = d.bot.ready ? '● Online' : '○ Offline';
+            document.getElementById('livePulseStatus').style.color = d.bot.ready ? 'var(--green)' : 'var(--red)';
+            document.getElementById('livePulseLatency').textContent = (d.bot.latency_ms || 0) + ' ms';
+            document.getElementById('livePulseGuilds').textContent = d.bot.guilds || 0;
+          }
+        });
+      } catch (e) {}
+    }
+  })();
+</script>
+{% endblock %}
