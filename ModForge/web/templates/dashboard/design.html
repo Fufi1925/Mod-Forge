@@ -1,0 +1,247 @@
+{% extends "dashboard/_base.html" %}
+{% set active = 'design' %}
+{% block title %}Design{% endblock %}
+{% block page_title %}🖌️ Dashboard-Design{% endblock %}
+{% block page_desc %}Passe Theme, Akzentfarbe, Dichte und Animationen an – sofortige Vorschau, Speicherung nur im Browser.{% endblock %}
+
+{% block head %}
+<style>
+  .ds-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+  .ds-card{padding:18px;border-radius:14px;background:rgba(255,255,255,0.03);border:1px solid var(--border)}
+  .ds-card h3{font-size:.88rem;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:6px}
+  .ds-card p{font-size:.72rem;color:var(--muted);line-height:1.5;margin-bottom:12px}
+
+  .theme-pick{display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:8px}
+  .theme-tile{position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 6px;border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,0.02);cursor:pointer;transition:.15s}
+  .theme-tile:hover{border-color:rgba(139,92,246,0.35);transform:translateY(-2px)}
+  .theme-tile.active{border-color:rgba(139,92,246,0.6);background:rgba(124,58,237,0.06);box-shadow:0 0 0 2px rgba(124,58,237,0.18)}
+  .theme-tile .tt-dot{width:36px;height:36px;border-radius:10px}
+  .theme-tile .tt-name{font-size:.62rem;font-weight:700;text-align:center}
+
+  .seg{display:inline-flex;border-radius:999px;background:rgba(255,255,255,0.04);border:1px solid var(--border);padding:3px;gap:2px}
+  .seg button{padding:6px 12px;border-radius:999px;background:transparent;border:none;color:var(--muted);font-size:.74rem;font-weight:600;cursor:pointer;font-family:inherit;transition:.15s}
+  .seg button:hover{color:var(--fg)}
+  .seg button.active{background:rgba(124,58,237,0.18);color:var(--vl)}
+
+  .color-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .color-row input[type=color]{width:44px;height:32px;border:none;border-radius:8px;background:transparent;cursor:pointer;padding:0}
+  .color-row input[type=text]{font-family:'Geist Mono',monospace;font-size:.78rem;text-transform:uppercase;text-align:center;max-width:120px}
+
+  .preset-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .preset{width:24px;height:24px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:.15s}
+  .preset:hover{transform:scale(1.15)}
+  .preset.active{border-color:#fff;box-shadow:0 0 8px rgba(255,255,255,0.3)}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- INFO -->
+<div class="db-card" style="padding:14px 18px;margin-bottom:14px;background:rgba(124,58,237,0.03);border-color:rgba(124,58,237,0.12)">
+  <div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap">
+    <div style="font-size:1.4rem">🖌️</div>
+    <div style="flex:1;min-width:240px">
+      <div style="font-weight:700;font-size:.92rem;margin-bottom:4px">Design-Einstellungen</div>
+      <div style="font-size:.75rem;color:var(--muted);line-height:1.6">
+        Diese Einstellungen werden <strong style="color:var(--vl)">nur in deinem Browser</strong> gespeichert
+        (localStorage) – sie sind also pro Gerät und Browser persönlich. Andere Mods sehen weiterhin ihr eigenes Design.
+        Änderungen werden <strong>sofort</strong> live übernommen.
+      </div>
+    </div>
+    <button class="btn-glass btn-sm btn-glass-danger" onclick="resetDesign()">↩️ Zurücksetzen</button>
+  </div>
+</div>
+
+<!-- LIVE PREVIEW -->
+<div class="ds-card" style="margin-bottom:14px">
+  <h3>👁️ Live-Vorschau</h3>
+  <p>So sieht dein Dashboard mit den aktuellen Einstellungen aus. Änderungen sind sofort sichtbar.</p>
+  <div class="design-preview">
+    <div class="dp-sidebar">
+      <div class="dp-brand"><div>🛡️</div><span style="font-size:.65rem;font-weight:700">ModForge</span></div>
+      <div class="dp-nav-item active">📊 Übersicht</div>
+      <div class="dp-nav-item">🛡️ Security</div>
+      <div class="dp-nav-item">🤖 AutoMod</div>
+      <div class="dp-nav-item">📢 Logs</div>
+    </div>
+    <div class="dp-main">
+      <div class="dp-row">
+        <div class="dp-stat"><div class="dp-stat-v">42</div><div class="dp-stat-l">Cases</div></div>
+        <div class="dp-stat"><div class="dp-stat-v">8</div><div class="dp-stat-l">Mods</div></div>
+        <div class="dp-stat"><div class="dp-stat-v">99%</div><div class="dp-stat-l">Uptime</div></div>
+      </div>
+      <div class="dp-card">
+        <span>Anti-Spam aktiv</span>
+        <div class="dp-toggle"></div>
+      </div>
+      <div class="dp-card">
+        <span>Anti-Raid aktiv</span>
+        <div class="dp-toggle"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- THEMES -->
+<div class="ds-grid">
+
+  <div class="ds-card">
+    <h3>🎨 Farbschema</h3>
+    <p>Bestimmt die Hauptfarbe der Sidebar, Buttons und Toggles.</p>
+    <div class="theme-pick" id="themePick">
+      <div class="theme-tile" data-t="purple" onclick="pickTheme('purple')"><div class="tt-dot" style="background:linear-gradient(135deg,#7c3aed,#a78bfa)"></div><div class="tt-name">Purple</div></div>
+      <div class="theme-tile" data-t="blue"    onclick="pickTheme('blue')"><div class="tt-dot" style="background:linear-gradient(135deg,#2563eb,#60a5fa)"></div><div class="tt-name">Blue</div></div>
+      <div class="theme-tile" data-t="green"   onclick="pickTheme('green')"><div class="tt-dot" style="background:linear-gradient(135deg,#059669,#34d399)"></div><div class="tt-name">Green</div></div>
+      <div class="theme-tile" data-t="emerald" onclick="pickTheme('emerald')"><div class="tt-dot" style="background:linear-gradient(135deg,#10b981,#14b8a6)"></div><div class="tt-name">Emerald</div></div>
+      <div class="theme-tile" data-t="rose"    onclick="pickTheme('rose')"><div class="tt-dot" style="background:linear-gradient(135deg,#e11d48,#fb7185)"></div><div class="tt-name">Rose</div></div>
+      <div class="theme-tile" data-t="sunset"  onclick="pickTheme('sunset')"><div class="tt-dot" style="background:linear-gradient(135deg,#f97316,#ec4899)"></div><div class="tt-name">Sunset</div></div>
+      <div class="theme-tile" data-t="midnight" onclick="pickTheme('midnight')"><div class="tt-dot" style="background:linear-gradient(135deg,#050614,#6366f1)"></div><div class="tt-name">Midnight</div></div>
+      <div class="theme-tile" data-t="amoled"  onclick="pickTheme('amoled')"><div class="tt-dot" style="background:linear-gradient(135deg,#000,#222)"></div><div class="tt-name">AMOLED</div></div>
+      <div class="theme-tile" data-t="custom"  onclick="pickTheme('custom')"><div class="tt-dot" id="customSwatch" style="background:linear-gradient(135deg,#7c3aed,#a78bfa);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800">+</div><div class="tt-name">Custom</div></div>
+    </div>
+  </div>
+
+  <div class="ds-card">
+    <h3>🌈 Eigene Akzentfarbe</h3>
+    <p>Nur aktiv wenn <strong>Custom</strong> als Theme gewählt ist. Wähle eine Farbe oder eines der Presets.</p>
+    <div class="color-row">
+      <input type="color" id="accentColor" value="#7c3aed" oninput="onAccentInput(this.value)">
+      <input type="text" id="accentText" class="cfg-input" value="#7C3AED" maxlength="7" oninput="onAccentText(this.value)">
+      <span id="accentHint" style="font-size:.65rem;color:var(--muted)"></span>
+    </div>
+    <div class="preset-row" id="presetRow">
+      <span class="preset" style="background:#7c3aed" data-c="#7c3aed" title="Purple"></span>
+      <span class="preset" style="background:#2563eb" data-c="#2563eb" title="Blue"></span>
+      <span class="preset" style="background:#10b981" data-c="#10b981" title="Emerald"></span>
+      <span class="preset" style="background:#f97316" data-c="#f97316" title="Orange"></span>
+      <span class="preset" style="background:#e11d48" data-c="#e11d48" title="Rose"></span>
+      <span class="preset" style="background:#06b6d4" data-c="#06b6d4" title="Cyan"></span>
+      <span class="preset" style="background:#facc15" data-c="#facc15" title="Yellow"></span>
+      <span class="preset" style="background:#a3e635" data-c="#a3e635" title="Lime"></span>
+      <span class="preset" style="background:#ec4899" data-c="#ec4899" title="Pink"></span>
+      <span class="preset" style="background:#94a3b8" data-c="#94a3b8" title="Slate"></span>
+    </div>
+  </div>
+
+  <div class="ds-card">
+    <h3>📐 Dichte</h3>
+    <p>Bestimmt wie viel Abstand zwischen Cards und Reihen ist.</p>
+    <div class="seg" id="densitySeg">
+      <button data-v="compact" onclick="pickDensity('compact')">🤏 Compact</button>
+      <button data-v="comfy"   onclick="pickDensity('comfy')">👍 Comfy</button>
+      <button data-v="cozy"    onclick="pickDensity('cozy')">🛋️ Cozy</button>
+    </div>
+  </div>
+
+  <div class="ds-card">
+    <h3>🔘 Ecken</h3>
+    <p>Border-Radius der Cards, Inputs und Selects.</p>
+    <div class="seg" id="radiusSeg">
+      <button data-v="sharp"   onclick="pickRadius('sharp')">▭ Eckig</button>
+      <button data-v="soft"    onclick="pickRadius('soft')">▢ Weich</button>
+      <button data-v="rounded" onclick="pickRadius('rounded')">⬜ Rund</button>
+    </div>
+  </div>
+
+  <div class="ds-card">
+    <h3>📋 Sidebar</h3>
+    <p>Auf großen Bildschirmen. Auf Handys ist die Sidebar immer schmal.</p>
+    <div class="seg" id="sidebarSeg">
+      <button data-v="expanded" onclick="pickSidebar('expanded')">📃 Voll</button>
+      <button data-v="compact"  onclick="pickSidebar('compact')">📐 Nur Icons</button>
+    </div>
+  </div>
+
+  <div class="ds-card">
+    <h3>✨ Animationen</h3>
+    <p>Fade-In, Slider, Transitions. Aus = sofortige Übergänge (gut für langsame Geräte).</p>
+    <div class="seg" id="animSeg">
+      <button data-v="on"  onclick="pickAnim('on')">✨ An</button>
+      <button data-v="off" onclick="pickAnim('off')">⏹️ Aus</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+{% raw %}
+const ALL_THEMES = ['purple','blue','green','emerald','rose','sunset','midnight','amoled','custom'];
+
+// Active-States in den Pickern setzen
+function syncActive() {
+  const theme   = localStorage.getItem('mf-theme')   || 'purple';
+  const density = localStorage.getItem('mf-density') || 'comfy';
+  const radius  = localStorage.getItem('mf-radius')  || 'rounded';
+  const sidebar = localStorage.getItem('mf-sidebar') || 'expanded';
+  const anim    = localStorage.getItem('mf-anim')    || 'on';
+  const accent  = localStorage.getItem('mf-accent')  || '#7c3aed';
+
+  document.querySelectorAll('#themePick .theme-tile').forEach(t =>
+    t.classList.toggle('active', t.dataset.t === theme));
+  ['#densitySeg', '#radiusSeg', '#sidebarSeg', '#animSeg'].forEach(sel => {
+    const wrap = document.querySelector(sel); if (!wrap) return;
+    wrap.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.v === (
+      sel === '#densitySeg' ? density :
+      sel === '#radiusSeg'  ? radius  :
+      sel === '#sidebarSeg' ? sidebar : anim
+    )));
+  });
+
+  // Akzent-Inputs sync
+  document.getElementById('accentColor').value = accent;
+  document.getElementById('accentText').value = accent.toUpperCase();
+  document.getElementById('customSwatch').style.background =
+    `linear-gradient(135deg, ${accent}, ${accent})`;
+  document.querySelectorAll('#presetRow .preset').forEach(p =>
+    p.classList.toggle('active', p.dataset.c.toLowerCase() === accent.toLowerCase()));
+
+  // Hinweis ob Akzentfarbe gerade wirkt
+  const hint = document.getElementById('accentHint');
+  hint.textContent = theme === 'custom' ? '✓ wird angewendet' : '(nur aktiv mit Theme „Custom")';
+  hint.style.color = theme === 'custom' ? 'var(--green)' : 'var(--muted)';
+}
+
+function pickTheme(t)   { setTheme(t);    syncActive(); showToast('🎨 Theme: ' + t, 'ok'); }
+function pickDensity(v) { setDensity(v);  syncActive(); }
+function pickRadius(v)  { setRadius(v);   syncActive(); }
+function pickSidebar(v) { setSidebar(v);  syncActive(); }
+function pickAnim(v)    { setAnim(v);     syncActive(); }
+
+function onAccentInput(hex) {
+  document.getElementById('accentText').value = hex.toUpperCase();
+  setAccent(hex);
+  // Wenn der User die Akzentfarbe ändert, springen wir automatisch auf "custom"
+  if ((localStorage.getItem('mf-theme') || 'purple') !== 'custom') {
+    setTheme('custom');
+  }
+  syncActive();
+}
+
+function onAccentText(val) {
+  const v = (val || '').trim();
+  if (/^#[0-9A-Fa-f]{6}$/.test(v)) {
+    document.getElementById('accentColor').value = v;
+    onAccentInput(v);
+  }
+}
+
+document.querySelectorAll('#presetRow .preset').forEach(p => {
+  p.addEventListener('click', () => onAccentInput(p.dataset.c));
+});
+
+function resetDesign() {
+  if (!confirm('Alle Design-Einstellungen auf Standard (Purple/Comfy/Rund/Voll/Animiert) zurücksetzen?')) return;
+  ['mf-theme','mf-accent','mf-density','mf-radius','mf-sidebar','mf-anim'].forEach(k => localStorage.removeItem(k));
+  setTheme('purple'); setAccent(''); setDensity('comfy');
+  setRadius('rounded'); setSidebar('expanded'); setAnim('on');
+  syncActive();
+  showToast('↩️ Design zurückgesetzt', 'ok');
+}
+
+syncActive();
+
+// Diese Seite hat keine "Speichern"-Logik – alles passiert direkt im localStorage
+window._dirty = false;
+{% endraw %}
+</script>
+{% endblock %}

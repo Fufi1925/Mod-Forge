@@ -1442,6 +1442,7 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 .badge-green  { background:rgba(74,222,128,0.15); color:#86efac;  border:1px solid rgba(74,222,128,0.3); }
 .badge-red    { background:rgba(239,68,68,0.15);  color:#fca5a5;  border:1px solid rgba(239,68,68,0.3); }
 .badge-amber  { background:rgba(245,158,11,0.15); color:#fcd34d;  border:1px solid rgba(245,158,11,0.3); }
+.badge-grey   { background:rgba(255,255,255,0.05); color:#94a3b8;  border:1px solid rgba(255,255,255,0.08); }
 
 /* ═══════════════════════════════════════════════════
    FOOTER (for pages that render their own)
@@ -2454,3 +2455,265 @@ input[type="range"]::-webkit-slider-thumb {
 .ov-stat:nth-child(4) { animation-delay: .2s; }
 .ov-stat:nth-child(5) { animation-delay: .25s; }
 .ov-stat:nth-child(6) { animation-delay: .3s; }
+
+/* ═══════════════════════════════════════════════════
+   DASHBOARD-DESIGN-PREFERENCES (Custom Themes, Accent,
+   Density, Border-Radius, Animations, Sidebar-Mode)
+   Werden via <html data-theme=… data-density=…> gesteuert
+   und im Dashboard unter „🖌️ Design" konfiguriert.
+═══════════════════════════════════════════════════ */
+
+/* ── Custom Accent (wenn der User eine eigene Farbe wählt) ── */
+[data-theme="custom"] {
+  --v:  var(--accent, #7c3aed);
+  --vl: var(--accent-l, var(--accent, #a78bfa));
+}
+[data-theme="custom"] .db-brand-icon {
+  background: linear-gradient(135deg, var(--accent), var(--accent-l, var(--accent))) !important;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 40%, transparent) !important;
+}
+[data-theme="custom"] .db-nav a.active {
+  color: var(--accent-l, var(--accent)) !important;
+  border-left-color: var(--accent) !important;
+  background: color-mix(in srgb, var(--accent) 8%, transparent) !important;
+}
+[data-theme="custom"] .toggle input:checked+.slider {
+  background: color-mix(in srgb, var(--accent) 35%, transparent) !important;
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent) !important;
+}
+[data-theme="custom"] .toggle input:checked+.slider::before {
+  background: var(--accent-l, var(--accent)) !important;
+}
+
+/* ── Theme: Midnight (dunkles Indigo) ── */
+[data-theme="midnight"] {
+  --bg: #050614;
+  --v: #6366f1;
+  --vl: #a5b4fc;
+  --vd: #312e81;
+  --p: #4f46e5;
+  --p2: #818cf8;
+}
+[data-theme="midnight"] .db-brand-icon {
+  background: linear-gradient(135deg, #6366f1, #06b6d4) !important;
+}
+[data-theme="midnight"] .db-nav a.active {
+  color: #a5b4fc !important; border-left-color: #6366f1 !important;
+  background: rgba(99,102,241,0.08) !important;
+}
+[data-theme="midnight"] .toggle input:checked+.slider {
+  background: rgba(99,102,241,0.35) !important; border-color: rgba(99,102,241,0.5) !important;
+}
+[data-theme="midnight"] .toggle input:checked+.slider::before {
+  background: #a5b4fc !important;
+}
+
+/* ── Theme: Rose ── */
+[data-theme="rose"] {
+  --v: #e11d48;
+  --vl: #fb7185;
+  --vd: #881337;
+  --p: #be123c;
+  --p2: #f43f5e;
+}
+[data-theme="rose"] .db-brand-icon {
+  background: linear-gradient(135deg, #e11d48, #f43f5e) !important;
+}
+[data-theme="rose"] .db-nav a.active {
+  color: #fb7185 !important; border-left-color: #e11d48 !important;
+  background: rgba(225,29,72,0.06) !important;
+}
+[data-theme="rose"] .toggle input:checked+.slider {
+  background: rgba(225,29,72,0.35) !important; border-color: rgba(225,29,72,0.5) !important;
+}
+[data-theme="rose"] .toggle input:checked+.slider::before {
+  background: #fb7185 !important;
+}
+
+/* ── Theme: Emerald ── */
+[data-theme="emerald"] {
+  --v: #10b981;
+  --vl: #34d399;
+  --vd: #064e3b;
+  --p: #059669;
+  --p2: #6ee7b7;
+}
+[data-theme="emerald"] .db-brand-icon {
+  background: linear-gradient(135deg, #10b981, #14b8a6) !important;
+}
+[data-theme="emerald"] .db-nav a.active {
+  color: #34d399 !important; border-left-color: #10b981 !important;
+  background: rgba(16,185,129,0.06) !important;
+}
+[data-theme="emerald"] .toggle input:checked+.slider {
+  background: rgba(16,185,129,0.35) !important; border-color: rgba(16,185,129,0.5) !important;
+}
+[data-theme="emerald"] .toggle input:checked+.slider::before {
+  background: #34d399 !important;
+}
+
+/* ── Theme: Sunset (orange/pink Verlauf) ── */
+[data-theme="sunset"] {
+  --v: #f97316;
+  --vl: #fdba74;
+  --vd: #7c2d12;
+  --p: #ea580c;
+  --p2: #fb923c;
+}
+[data-theme="sunset"] .db-brand-icon {
+  background: linear-gradient(135deg, #f97316, #ec4899) !important;
+}
+[data-theme="sunset"] .db-nav a.active {
+  color: #fdba74 !important; border-left-color: #f97316 !important;
+  background: rgba(249,115,22,0.07) !important;
+}
+[data-theme="sunset"] .toggle input:checked+.slider {
+  background: rgba(249,115,22,0.35) !important; border-color: rgba(249,115,22,0.5) !important;
+}
+[data-theme="sunset"] .toggle input:checked+.slider::before {
+  background: #fdba74 !important;
+}
+
+/* ── Density (Padding der Cards & Rows) ── */
+[data-density="compact"] .db-card { padding: 14px; }
+[data-density="compact"] .cfg-row { padding: 9px 13px; margin-bottom: 6px; }
+[data-density="compact"] .ov-stat { padding: 12px; }
+[data-density="compact"] .db-main { padding: 20px 28px 80px; }
+
+[data-density="cozy"] .db-card { padding: 32px; }
+[data-density="cozy"] .cfg-row { padding: 18px 22px; margin-bottom: 10px; }
+[data-density="cozy"] .ov-stat { padding: 26px; }
+[data-density="cozy"] .db-main { padding: 40px 56px 100px; }
+
+/* ── Border-Radius Modi ── */
+[data-radius="soft"]    .db-card,
+[data-radius="soft"]    .cfg-row,
+[data-radius="soft"]    .ov-stat,
+[data-radius="soft"]    .cfg-input,
+[data-radius="soft"]    .cfg-select { border-radius: 8px !important; }
+
+[data-radius="sharp"]   .db-card,
+[data-radius="sharp"]   .cfg-row,
+[data-radius="sharp"]   .ov-stat,
+[data-radius="sharp"]   .cfg-input,
+[data-radius="sharp"]   .cfg-select { border-radius: 3px !important; }
+
+/* ── Animations aus / an ── */
+[data-anim="off"] *,
+[data-anim="off"] *::before,
+[data-anim="off"] *::after {
+  animation: none !important;
+  transition: none !important;
+}
+
+/* ── Sidebar-Mode "compact" (immer schmal, nur Icons) ── */
+@media (min-width: 901px) {
+  [data-sidebar="compact"] { --sidebar-w: 64px; }
+  [data-sidebar="compact"] .db-sidebar { width: 64px; overflow: hidden; }
+  [data-sidebar="compact"] .db-sidebar .db-brand-text,
+  [data-sidebar="compact"] .db-nav a span,
+  [data-sidebar="compact"] .db-server-name,
+  [data-sidebar="compact"] .db-server-sub,
+  [data-sidebar="compact"] .db-user-info,
+  [data-sidebar="compact"] .db-nav-label { display: none; }
+  [data-sidebar="compact"] .db-nav a { justify-content: center; padding: 12px 0; }
+  [data-sidebar="compact"] .db-nav a .nav-icon { width: auto; font-size: 1rem; }
+  [data-sidebar="compact"] .db-main { margin-left: 64px; padding: 24px 24px 80px; }
+  [data-sidebar="compact"] .db-server { justify-content: center; padding: 10px; }
+  [data-sidebar="compact"] .db-user { justify-content: center; padding: 10px; }
+  [data-sidebar="compact"] #saveBar { left: 64px; }
+}
+
+/* ── Live-Preview Mini-Dashboard (für die Design-Seite) ── */
+.design-preview {
+  position: relative;
+  height: 320px;
+  border-radius: 16px;
+  overflow: hidden;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.35);
+}
+.design-preview .dp-sidebar {
+  position: absolute; top: 0; left: 0; bottom: 0; width: 110px;
+  background: rgba(8,8,20,0.97); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; padding: 12px 8px; gap: 4px;
+}
+.design-preview .dp-brand {
+  display: flex; align-items: center; gap: 6px; padding: 4px 6px 10px;
+  border-bottom: 1px solid var(--border); margin-bottom: 6px;
+}
+.design-preview .dp-brand div:first-child {
+  width: 22px; height: 22px; border-radius: 7px;
+  background: linear-gradient(135deg, var(--v), var(--p));
+  display: flex; align-items: center; justify-content: center;
+  font-size: .65rem;
+}
+.design-preview .dp-nav-item {
+  padding: 6px 10px; border-radius: 6px; font-size: .68rem;
+  color: var(--muted); display: flex; align-items: center; gap: 6px;
+}
+.design-preview .dp-nav-item.active {
+  background: color-mix(in srgb, var(--v) 12%, transparent);
+  color: var(--vl); font-weight: 700;
+  border-left: 2px solid var(--v);
+}
+.design-preview .dp-main {
+  margin-left: 110px; padding: 16px; height: 100%;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.design-preview .dp-row {
+  display: flex; gap: 8px;
+}
+.design-preview .dp-stat {
+  flex: 1; padding: 12px; border-radius: 10px;
+  background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+  text-align: center;
+}
+.design-preview .dp-stat-v {
+  font-size: 1.1rem; font-weight: 800; color: var(--vl);
+  font-family: 'Geist Mono', monospace;
+}
+.design-preview .dp-stat-l {
+  font-size: .55rem; color: var(--muted); margin-top: 2px;
+}
+.design-preview .dp-card {
+  padding: 12px 14px; border-radius: 10px;
+  background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: .72rem;
+}
+.design-preview .dp-toggle {
+  width: 30px; height: 16px; border-radius: 999px;
+  background: color-mix(in srgb, var(--v) 35%, transparent);
+  border: 1px solid color-mix(in srgb, var(--v) 50%, transparent);
+  position: relative;
+}
+.design-preview .dp-toggle::after {
+  content: ''; position: absolute; right: 2px; top: 1px;
+  width: 12px; height: 12px; border-radius: 50%;
+  background: var(--vl);
+}
+
+/* Erweiterter Theme-Switcher (alle Themes) */
+.theme-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(28px, 1fr));
+  gap: 8px;
+}
+.theme-grid .theme-dot {
+  width: 28px; height: 28px;
+}
+.theme-dot[data-t="midnight"] { background: linear-gradient(135deg, #050614, #6366f1); }
+.theme-dot[data-t="rose"]     { background: linear-gradient(135deg, #e11d48, #fb7185); }
+.theme-dot[data-t="emerald"]  { background: linear-gradient(135deg, #10b981, #34d399); }
+.theme-dot[data-t="sunset"]   { background: linear-gradient(135deg, #f97316, #ec4899); }
+.theme-dot[data-t="custom"]   {
+  background: linear-gradient(135deg, var(--accent, #7c3aed), var(--accent-l, var(--accent, #a78bfa)));
+  position: relative;
+}
+.theme-dot[data-t="custom"]::after {
+  content: '+'; position: absolute; inset: 0; display: flex;
+  align-items: center; justify-content: center;
+  color: #fff; font-weight: 800; font-size: .85rem;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+}
