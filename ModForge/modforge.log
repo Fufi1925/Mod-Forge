@@ -136,3 +136,34 @@
 2026-05-30 23:09:14,969 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
 2026-05-30 23:09:14,969 [WARNING] discord.client: davey is not installed, voice will NOT be supported
 2026-05-30 23:09:15,020 [ERROR] ModForge.Web.Routes: [COUNT ERROR] Collection objects do not implement truth value testing or bool(). Please compare with None instead: collection is not None
+2026-05-30 23:24:20,947 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-05-30 23:24:20,947 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-05-30 23:24:21,000 [ERROR] ModForge.Web.Routes: [COUNT ERROR] Collection objects do not implement truth value testing or bool(). Please compare with None instead: collection is not None
+2026-05-30 23:27:38,281 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-05-30 23:27:38,281 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-05-30 23:27:41,340 [ERROR] ModForge.Web.Routes: [COUNT ERROR] Collection objects do not implement truth value testing or bool(). Please compare with None instead: collection is not None
+2026-05-30 23:28:39,098 [ERROR] ModForge.Web.Routes: Direct DB save failed for 111: maximum recursion depth exceeded
+2026-05-30 23:28:42,103 [ERROR] ModForge.Web.Routes: Direct DB save failed for 111: maximum recursion depth exceeded
+2026-05-30 23:28:45,109 [ERROR] ModForge.Web.Routes: Direct DB save failed for 111: maximum recursion depth exceeded
+2026-05-30 23:28:48,115 [ERROR] ModForge.Web.Routes: Direct DB save failed for 111: maximum recursion depth exceeded
+2026-05-30 23:28:51,122 [ERROR] ModForge.Web.Routes: Direct DB save failed for 111: maximum recursion depth exceeded
+2026-05-30 23:28:54,127 [ERROR] ModForge.Web.Routes: Direct DB save failed for 111: maximum recursion depth exceeded
+2026-05-30 23:28:57,135 [ERROR] ModForge.Web.Routes: Direct DB save failed for 111: maximum recursion depth exceeded
+2026-05-30 23:29:00,141 [ERROR] ModForge.Web.Routes: Direct DB save failed for 111: maximum recursion depth exceeded
+2026-05-30 23:29:03,146 [ERROR] ModForge.Web.Routes: Direct DB save failed for 111: maximum recursion depth exceeded
+2026-05-30 23:29:06,155 [ERROR] ModForge.Web.Routes: Direct DB save failed for 111: maximum recursion depth exceeded
+2026-05-30 23:29:09,163 [ERROR] ModForge.Web.Routes: Direct DB save failed for 111: maximum recursion depth exceeded
+2026-05-30 23:29:12,169 [ERROR] ModForge.Web.Routes: Direct DB save failed for 111: maximum recursion depth exceeded
+2026-05-30 23:29:15,174 [ERROR] ModForge.Web.Routes: Direct DB save failed for 111: maximum recursion depth exceeded
+2026-05-30 23:29:18,183 [ERROR] ModForge.Web.Routes: Direct DB save failed for 111: maximum recursion depth exceeded
+2026-05-30 23:29:21,192 [ERROR] ModForge.Web.Routes: Direct DB save failed for 111: maximum recursion depth exceeded
+2026-05-30 23:29:24,201 [ERROR] ModForge.Web.Routes: Direct DB save failed for 111: maximum recursion depth exceeded
+2026-05-30 23:29:57,733 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-05-30 23:29:57,733 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-05-30 23:30:00,793 [ERROR] ModForge.Web.Routes: [COUNT ERROR] Collection objects do not implement truth value testing or bool(). Please compare with None instead: collection is not None
+2026-05-30 23:30:43,247 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-05-30 23:30:43,247 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-05-30 23:30:43,302 [ERROR] ModForge.Web.Routes: [COUNT ERROR] Collection objects do not implement truth value testing or bool(). Please compare with None instead: collection is not None
+2026-05-30 23:37:56,613 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
+2026-05-30 23:37:56,613 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-05-30 23:37:56,719 [ERROR] ModForge.Web.Routes: [COUNT ERROR] Collection objects do not implement truth value testing or bool(). Please compare with None instead: collection is not None

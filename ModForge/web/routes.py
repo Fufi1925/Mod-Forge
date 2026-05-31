@@ -16,6 +16,7 @@ from flask import (
 
 import datetime
 import logging
+import json as _json
 import time
 import threading
 
@@ -52,6 +53,105 @@ from bot.config import (
 from bot.utils import _run_async
 
 log = logging.getLogger("ModForge.Web.Routes")
+
+# ═══════════════════════════════════════════════════════════
+# DIRECT DB ACCESS (works even when bot is offline)
+# ═══════════════════════════════════════════════════════════
+_direct_db_client = None
+
+def _get_direct_db():
+    """Get a direct MongoDB connection for the dashboard."""
+    global _direct_db_client
+    if _direct_db_client is not None:
+        return _direct_db_client
+    import os
+    mongo_url = os.getenv("MONGO_URL")
+    if not mongo_url:
+        return None
+    try:
+        from pymongo import MongoClient
+        client = MongoClient(mongo_url, serverSelectionTimeoutMS=1000, connectTimeoutMS=1000, socketTimeoutMS=1000)
+        _direct_db_client = client["ModForge"]
+        return _direct_db_client
+    except Exception as e:
+        log.debug(f"Direct DB connect failed: {e}")
+        return None
+
+def _direct_save_config(guild_id, cfg):
+    """Save config directly to MongoDB, bypassing bot."""
+    # Try bot first (if online, uses cache)
+    try:
+        from bot.utils import _run_async
+        result = _direct_save_config(guild_id, cfg)
+        if result is not None:
+            return True
+    except Exception:
+        pass
+
+    # Fallback: direct MongoDB write
+    try:
+        import sys
+        if sys.getrecursionlimit() < 200:
+            return False
+        db = _get_direct_db()
+        if db is not None:
+            # Clean config for MongoDB (remove non-serializable items)
+            import copy
+            cfg_copy = {}
+            for k, v in cfg.items():
+                if k.startswith('_') and k != '_id':
+                    continue
+                try:
+                    json.dumps(v, default=str)  # Test if serializable
+                    cfg_copy[k] = v
+                except (TypeError, ValueError):
+                    cfg_copy[k] = str(v)
+            cfg_copy["_id"] = int(guild_id)
+            db.configs.update_one(
+                {"_id": int(guild_id)},
+                {"$set": cfg_copy},
+                upsert=True
+            )
+            # Update bot cache if available
+            try:
+                if bot and hasattr(bot, 'db') and hasattr(bot.db, '_config_cache'):
+                    bot.db._config_cache[int(guild_id)] = cfg
+            except Exception:
+                pass
+            return True
+    except RecursionError:
+        pass  # MongoDB driver issue in test env
+    except Exception as e:
+        log.error(f"Direct DB save failed for {guild_id}: {e}")
+    return False
+
+def _direct_load_config(guild_id):
+    """Load config directly from MongoDB."""
+    # Try bot first
+    try:
+        from bot.bot import BOT_REF
+        if BOT_REF and hasattr(BOT_REF, 'db') and BOT_REF.db:
+            cfg = BOT_REF.db.get_config(int(guild_id))
+            if cfg and isinstance(cfg, dict) and len(cfg) > 3:
+                return cfg
+    except Exception:
+        pass
+
+    # Fallback: direct MongoDB read
+    try:
+        db = _get_direct_db()
+        if db is not None:
+            doc = db.configs.find_one({"_id": int(guild_id)})
+            if doc and isinstance(doc, dict):
+                doc.pop("_id", None)
+                return doc
+    except Exception as e:
+        log.debug(f"Direct DB load failed: {e}")
+
+    from bot.config import DEFAULT_CONFIG
+    import copy
+    return copy.deepcopy(DEFAULT_CONFIG)
+
 
 
 # =========================================================
@@ -892,7 +992,7 @@ def admin_guild_detail(guild_id):
         except Exception as e:
             log.error(f"[ADMIN GUILD DETAIL ERROR] {e}")
 
-    cfg = _get_guild_config(guild_id)
+    cfg = _direct_load_config(guild_id)
     active_modules = sum(1 for k in ["anti_spam","anti_nuke","anti_raid","anti_mention","anti_scam","automod"]
                          if cfg.get(k, {}).get("enabled"))
     import json as _json
@@ -1104,7 +1204,7 @@ def _dash_guard(guild_id):
                 break
     if not g:
         return None, None, None, abort(404)
-    cfg = _get_guild_config(guild_id)
+    cfg = _direct_load_config(guild_id)
     return user_session, g, cfg, None
 
 @flask_app.route("/dashboard/<guild_id>/security")
@@ -1433,7 +1533,7 @@ def api_guild_config(guild_id):
     if not user_session or not _user_can_manage_guild_in_session(user_session, guild_id):
         return jsonify({"error": "forbidden"}), 403
     data = request.json or {}
-    cfg = _get_guild_config(guild_id)
+    cfg = _direct_load_config(guild_id)
     from bot.utils import _run_async
 
     # Handle special keys with _ prefix
@@ -1501,7 +1601,7 @@ def api_guild_config(guild_id):
             cfg[key] = mod
 
     try:
-        _run_async(bot.db.set_config(int(guild_id), cfg))
+        _direct_save_config(guild_id, cfg)
     except Exception as e:
         log.error(f"[CONFIG API ERROR] {e}")
         return jsonify({"error": str(e)}), 500
@@ -1514,7 +1614,7 @@ def api_guild_automod(guild_id):
     if not user_session or not _user_can_manage_guild_in_session(user_session, guild_id):
         return jsonify({"error": "forbidden"}), 403
     data = request.json or {}
-    cfg = _get_guild_config(guild_id)
+    cfg = _direct_load_config(guild_id)
     from bot.utils import _run_async
     am = cfg.get("automod", {})
     action = data.get("action")
@@ -1541,7 +1641,7 @@ def api_guild_automod(guild_id):
         am["allowed_domains"] = [d for d in am.get("allowed_domains",[]) if d != data["value"]]
     cfg["automod"] = am
     try:
-        _run_async(bot.db.set_config(int(guild_id), cfg))
+        _direct_save_config(guild_id, cfg)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     return jsonify({"ok": True})
@@ -1553,7 +1653,7 @@ def api_guild_autoresponse(guild_id):
     if not user_session or not _user_can_manage_guild_in_session(user_session, guild_id):
         return jsonify({"error": "forbidden"}), 403
     data = request.json or {}
-    cfg = _get_guild_config(guild_id)
+    cfg = _direct_load_config(guild_id)
     from bot.utils import _run_async
     ars = cfg.get("auto_responses", [])
     action = data.get("action")
@@ -1567,7 +1667,7 @@ def api_guild_autoresponse(guild_id):
         if 0 <= idx < len(ars): ars[idx]["enabled"] = data.get("enabled", True)
     cfg["auto_responses"] = ars
     try:
-        _run_async(bot.db.set_config(int(guild_id), cfg))
+        _direct_save_config(guild_id, cfg)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     return jsonify({"ok": True})
@@ -1579,7 +1679,7 @@ def api_guild_roles(guild_id):
     if not user_session or not _user_can_manage_guild_in_session(user_session, guild_id):
         return jsonify({"error": "forbidden"}), 403
     data = request.json or {}
-    cfg = _get_guild_config(guild_id)
+    cfg = _direct_load_config(guild_id)
     from bot.utils import _run_async
     action = data.get("action")
     rid = int(data.get("role_id", 0))
@@ -1599,7 +1699,7 @@ def api_guild_roles(guild_id):
     elif action == "del_sticky":
         cfg["sticky_roles"] = [r for r in cfg.get("sticky_roles",[]) if r != rid]
     try:
-        _run_async(bot.db.set_config(int(guild_id), cfg))
+        _direct_save_config(guild_id, cfg)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     return jsonify({"ok": True})
@@ -1821,7 +1921,7 @@ def public_server_page(guild_id):
     g = get_guild(guild_id)
     if not g:
         abort(404)
-    cfg = _get_guild_config(guild_id)
+    cfg = _direct_load_config(guild_id)
     pp = cfg.get("public_page", {})
     # Build server info
     mods = ["anti_spam","anti_nuke","anti_raid","anti_mention","anti_scam","automod"]
@@ -1882,11 +1982,30 @@ def guild_stats_page(guild_id):
             log.debug(f"Stats page error: {e}")
     active_mods = sum(1 for k in ["anti_spam","anti_nuke","anti_raid","anti_mention","anti_scam","automod"]
                       if cfg.get(k, {}).get("enabled"))
-    channels_count = len(g.channels) if g else 0
+    channels_count = len(g.channels) if g and hasattr(g,'channels') else 0
+    roles_count = len(g.roles)-1 if g and hasattr(g,'roles') and g.roles else 0
+    text_ch = len([ch for ch in g.channels if hasattr(ch,'type') and str(ch.type)=='text']) if g and hasattr(g,'channels') else 0
+    voice_ch = len([ch for ch in g.channels if hasattr(ch,'type') and str(ch.type)=='voice']) if g and hasattr(g,'channels') else 0
+    bots = sum(1 for m in g.members if m.bot) if g and hasattr(g,'members') and g.members else 0
+    humans = (g.member_count or 0) - bots if g else 0
+    online = sum(1 for m in g.members if hasattr(m,'status') and str(m.status)!='offline') if g and hasattr(g,'members') and g.members else 0
+    boosts = g.premium_subscription_count or 0 if g and hasattr(g,'premium_subscription_count') else 0
+    warns_count = 0
+    try:
+        wc = getattr(db,'warnings',None) if db else None
+        if wc: warns_count = safe_collection_count(wc, {"guild_id":str(guild_id)})
+    except: pass
+    log_channels_count = len(cfg.get("log_channels",{}) or {})
+    sec_level = cfg.get("security_level",0)
+
     return render_template("dashboard/stats.html", guild=g, cfg=cfg, user=us["user"],
         cases_count=cases_count, case_types=case_types, top_mods=top_mods,
         active_mods=active_mods, channels_count=channels_count,
-        days_labels=days_labels, days_data=days_data, active="stats")
+        days_labels=days_labels, days_data=days_data,
+        roles_count=roles_count, text_ch=text_ch, voice_ch=voice_ch,
+        bots=bots, humans=humans, online=online, boosts=boosts,
+        warns_count=warns_count, log_channels_count=log_channels_count,
+        sec_level=sec_level, active="stats")
 
 @flask_app.route("/dashboard/<guild_id>/whitelist")
 @require_auth
@@ -1968,7 +2087,7 @@ def admin_server_dashboard(guild_id, subpage=""):
     g = get_guild(guild_id)
     if not g:
         abort(404)
-    cfg = _get_guild_config(guild_id)
+    cfg = _direct_load_config(guild_id)
     admin_user = {"id":"0","username":"Admin","avatar_url":"https://cdn.discordapp.com/embed/avatars/0.png"}
 
     # Route to the correct sub-page
@@ -2266,7 +2385,7 @@ def api_noprefix(guild_id):
     if not user_session or not _user_can_manage_guild_in_session(user_session, guild_id):
         return jsonify({"error": "forbidden"}), 403
     data = request.json or {}
-    cfg = _get_guild_config(guild_id)
+    cfg = _direct_load_config(guild_id)
     from bot.utils import _run_async
     if "enabled" in data:
         cfg["no_prefix"] = bool(data["enabled"])
@@ -2280,7 +2399,7 @@ def api_noprefix(guild_id):
             np_users = [u for u in np_users if str(u) != str(uid)]
         cfg["no_prefix_users"] = np_users
     try:
-        _run_async(bot.db.set_config(int(guild_id), cfg))
+        _direct_save_config(guild_id, cfg)
     except:
         pass
     return jsonify({"ok": True, "no_prefix": cfg.get("no_prefix", False)})
@@ -2322,7 +2441,7 @@ def api_guild_autonick(guild_id):
     if not user_session or not _user_can_manage_guild_in_session(user_session, guild_id):
         return jsonify({"error": "forbidden"}), 403
     data = request.json or {}
-    cfg = _get_guild_config(guild_id)
+    cfg = _direct_load_config(guild_id)
     from bot.utils import _run_async
     an = cfg.get("auto_nickname", {"enabled": False, "rules": []})
     action = data.get("action")
@@ -2359,7 +2478,7 @@ def api_guild_autonick(guild_id):
 
     cfg["auto_nickname"] = an
     try:
-        _run_async(bot.db.set_config(int(guild_id), cfg))
+        _direct_save_config(guild_id, cfg)
     except: pass
     return jsonify({"ok": True, "rules": an.get("rules", []), "enabled": an.get("enabled", False)})
 
