@@ -8,9 +8,17 @@ import logging
 # UPTIME
 # ═══════════════════════════════════════════════════════════════
 BOT_START_TIME = time.time()
-EXTRA_UPTIME = 2334360
+# EXTRA_UPTIME war früher fest auf 2334360 (~27 Tage) gesetzt, was die
+# Dashboard-Uptime künstlich aufgeblasen hat. Wir lassen den Wert per
+# Env-Variable konfigurierbar (z. B. um echte vorherige Laufzeiten
+# weiterzuführen), defaulten aber auf 0.
+try:
+    EXTRA_UPTIME = max(0, int(os.getenv("EXTRA_UPTIME", "0")))
+except (TypeError, ValueError):
+    EXTRA_UPTIME = 0
 
-def get_uptime(start_time: float = BOT_START_TIME):
+
+def get_uptime(start_time: float = BOT_START_TIME) -> int:
     return int(time.time() - start_time) + EXTRA_UPTIME
 
 # ═══════════════════════════════════════════════════════════════
