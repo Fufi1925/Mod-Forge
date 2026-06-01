@@ -61,8 +61,8 @@
 </div>
 {% endfor %}
 
+{% block scripts %}
 <script>
-{% raw %}
 const GID = "{{ guild.id }}";
 
 async function wlAdd(cat) {
@@ -104,6 +104,6 @@ async function wlDel(cat, id) {
     showToast('❌ Fehler', 'err');
   }
 }
-{% endraw %}
 </script>
+{% endblock %}
 {% endblock %}

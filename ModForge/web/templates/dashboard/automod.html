@@ -26,26 +26,75 @@
   <div style="display:flex;gap:6px;margin-bottom:10px"><input type="text" id="nd" class="cfg-input" placeholder="youtube.com" style="max-width:250px"><button class="btn-glass btn-sm btn-glass-primary" onclick="addD()">+</button></div>
   <div style="display:flex;flex-wrap:wrap;gap:4px">{% for d in cfg.get('automod',{}).get('allowed_domains',[]) %}<span style="padding:3px 10px;border-radius:999px;font-size:.68rem;background:rgba(74,222,128,0.06);color:var(--green);border:1px solid rgba(74,222,128,0.12);display:inline-flex;align-items:center;gap:4px">{{ d }}<span style="cursor:pointer;font-weight:700" onclick="delD('{{ d }}')">×</span></span>{% endfor %}</div>
 </div>
-{% block scripts %}<script>
-{% raw %}
-const G="{{ guild.id }}";
-const api=(d)=>fetch('/api/guild/'+G+'/automod',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});
-function addW(){const v=document.getElementById('nw').value.trim();if(v)api({action:'add_word',value:v}).then(()=>{showToast('✅ Wort hinzugefügt',true);setTimeout(()=>location.reload(),500)})}
-function delW(w){api({action:'del_word',value:w}).then(()=>{showToast('🗑️ Entfernt',true);setTimeout(()=>location.reload(),500)})}
-function addR(){const v=document.getElementById('nr').value.trim();if(v)api({action:'add_regex',value:v}).then(()=>{showToast('✅ Regex hinzugefügt',true);setTimeout(()=>location.reload(),500)})}
-function delR(i){api({action:'del_regex',index:i}).then(()=>{showToast('🗑️ Entfernt',true);setTimeout(()=>location.reload(),500)})}
-function addD(){const v=document.getElementById('nd').value.trim();if(v)api({action:'add_domain',value:v}).then(()=>{showToast('✅ Domain erlaubt',true);setTimeout(()=>location.reload(),500)})}
-function delD(d){api({action:'del_domain',value:d}).then(()=>{showToast('🗑️ Entfernt',true);setTimeout(()=>location.reload(),500)})}
-async function saveConfig(){
-  // Filter toggles save through config API
-  await fetch('/api/guild/'+G+'/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({automod:{
-    invite_filter:document.getElementById('inv_f').checked,
-    link_filter:document.getElementById('link_f').checked,
-    zalgo_filter:document.getElementById('zalgo_f').checked,
-    phishing_check:document.getElementById('phish_f').checked
-  }})});
+{% block scripts %}
+<script>
+const GID = "{{ guild.id }}";
+const api = (d) => fetch('/api/guild/' + GID + '/automod', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(d)
+});
+
+function addW() {
+  const v = document.getElementById('nw').value.trim();
+  if (v) api({ action: 'add_word', value: v }).then(() => {
+    showToast('✅ Wort hinzugefügt', 'ok');
+    setTimeout(() => location.reload(), 500);
+  });
+}
+
+function delW(w) {
+  api({ action: 'del_word', value: w }).then(() => {
+    showToast('🗑️ Entfernt', 'ok');
+    setTimeout(() => location.reload(), 500);
+  });
+}
+
+function addR() {
+  const v = document.getElementById('nr').value.trim();
+  if (v) api({ action: 'add_regex', value: v }).then(() => {
+    showToast('✅ Regex hinzugefügt', 'ok');
+    setTimeout(() => location.reload(), 500);
+  });
+}
+
+function delR(i) {
+  api({ action: 'del_regex', index: i }).then(() => {
+    showToast('🗑️ Entfernt', 'ok');
+    setTimeout(() => location.reload(), 500);
+  });
+}
+
+function addD() {
+  const v = document.getElementById('nd').value.trim();
+  if (v) api({ action: 'add_domain', value: v }).then(() => {
+    showToast('✅ Domain erlaubt', 'ok');
+    setTimeout(() => location.reload(), 500);
+  });
+}
+
+function delD(d) {
+  api({ action: 'del_domain', value: d }).then(() => {
+    showToast('🗑️ Entfernt', 'ok');
+    setTimeout(() => location.reload(), 500);
+  });
+}
+
+async function saveConfig() {
+  await fetch('/api/guild/' + GID + '/config', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      automod: {
+        invite_filter: document.getElementById('inv_f').checked,
+        link_filter: document.getElementById('link_f').checked,
+        zalgo_filter: document.getElementById('zalgo_f').checked,
+        phishing_check: document.getElementById('phish_f').checked
+      }
+    })
+  });
   markSaved();
 }
-{% endraw %}
-</script>{% endblock %}
+</script>
+{% endblock %}
 {% endblock %}

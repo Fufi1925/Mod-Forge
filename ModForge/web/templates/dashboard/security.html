@@ -39,7 +39,11 @@
   {% endif %}
 </div>
 {% endfor %}
-{% block scripts %}<script>
+
+{% block scripts %}
+<script>
+const GID = "{{ guild.id }}";
+
 async function saveConfig(){
   const d={};
   document.querySelectorAll('[data-mod]').forEach(el=>{
@@ -47,12 +51,20 @@ async function saveConfig(){
     if(!d[m])d[m]={};
     d[m][f]=el.type==='checkbox'?el.checked:el.type==='number'?Number(el.value):el.value;
   });
-  const r=await fetch('/api/guild/{{ guild.id }}/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});
-  if(r.ok)markSaved();else showToast('❌ Fehler',false);
+  try {
+    const r = await fetch('/api/guild/'+GID+'/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});
+    const res = await r.json();
+    if(res.ok) markSaved(); else showToast('❌ Fehler: ' + res.error, 'err');
+  } catch(e) { showToast('❌ Netzwerk-Fehler', 'err'); }
 }
+
 async function setLvl(l){
-  await fetch('/api/guild/{{ guild.id }}/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({_security_level:l})});
-  showToast('🛡️ Level '+l+' gesetzt',true);setTimeout(()=>location.reload(),800);
+  try {
+    await fetch('/api/guild/'+GID+'/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({_security_level:l})});
+    showToast('🛡️ Level '+l+' gesetzt', 'ok');
+    setTimeout(()=>location.reload(),800);
+  } catch(e) { showToast('❌ Fehler', 'err'); }
 }
-</script>{% endblock %}
+</script>
+{% endblock %}
 {% endblock %}

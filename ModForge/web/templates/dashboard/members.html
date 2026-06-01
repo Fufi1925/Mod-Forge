@@ -36,10 +36,6 @@
   .mp-tab:hover{color:var(--fg);background:rgba(255,255,255,0.03)}
   .mp-tab.a{color:var(--vl);background:rgba(124,58,237,0.08)}
   .mp-tp{display:none}.mp-tp.a{display:block}
-  .toast{position:fixed;bottom:20px;right:20px;padding:10px 18px;border-radius:10px;z-index:99999;font-size:.78rem;font-weight:600;display:none}
-  .toast.ok{background:rgba(74,222,128,0.12);border:1px solid rgba(74,222,128,0.25);color:var(--green)}
-  .toast.err{background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);color:var(--red)}
-  .toast.show{display:block;animation:fadeUp .2s ease}
   .plat{display:flex;gap:4px;align-items:center;margin-top:4px}
   .plat-dot{width:8px;height:8px;border-radius:50%}
   .plat-dot.online{background:#22c55e}.plat-dot.idle{background:#f59e0b}.plat-dot.dnd{background:#ef4444}.plat-dot.offline{background:#4b5563}
@@ -86,13 +82,11 @@
 {% if not members %}<div class="db-card" style="text-align:center;padding:40px"><p style="color:var(--muted)">Bot muss online sein</p></div>{% endif %}
 
 <div class="mp" id="mp"><div class="mp-h"><span style="font-weight:700;font-size:.85rem" id="mpT"></span><span style="cursor:pointer;color:var(--muted);font-size:1rem" onclick="X()">✕</span></div><div class="mp-b" id="mpB"></div></div>
-<div class="toast" id="toast"></div>
 
+{% block scripts %}
 <script>
 const M={{ members|tojson }};
 const GID="{{ guild.id }}";
-{% raw %}
-function toast(m,ok){const t=document.getElementById('toast');t.className='toast '+(ok?'ok':'err')+' show';t.textContent=m;setTimeout(()=>t.classList.remove('show'),3000)}
 
 function P(i){
   const m=M[i];if(!m)return;
@@ -112,7 +106,7 @@ function P(i){
       <img src="${m.guild_avatar_url||m.avatar}" class="mp-av" ${m.accent_color?'style="border-color:'+m.accent_color+'"':''}>
       <div style="font-weight:800;font-size:1.05rem">${m.display_name} ${tag}</div>
       <div style="font-size:.68rem;color:var(--muted)">${m.name}</div>
-      <div style="font-size:.6rem;color:var(--muted);font-family:'Geist Mono',monospace;cursor:pointer;margin-top:2px" onclick="navigator.clipboard.writeText('${m.id}');toast('📋 ID kopiert',true)">${m.id} 📋</div>
+      <div style="font-size:.6rem;color:var(--muted);font-family:'Geist Mono',monospace;cursor:pointer;margin-top:2px" onclick="navigator.clipboard.writeText('${m.id}');showToast('📋 ID kopiert','info')">${m.id} 📋</div>
       ${m.nick?`<div style="font-size:.68rem;color:var(--vl);margin-top:2px">Nick: ${m.nick}</div>`:''}
       ${m.activity?`<div style="font-size:.65rem;color:var(--cl);margin-top:3px">🎮 ${m.activity_type}: ${m.activity}</div>`:''}
     </div>
@@ -122,7 +116,7 @@ function P(i){
       <button class="mp-tab a" onclick="tab(event,'info')">📋 Info</button>
       <button class="mp-tab" onclick="tab(event,'perms')">🔐 Rechte</button>
       <button class="mp-tab" onclick="tab(event,'roles')">🏷️ Rollen</button>
-      ${(!m.bot&&m.sort_priority>=3)?'<button class="mp-tab" onclick="tab(event,\'mod\')">⚡ Mod</button>':''}
+      ${(!m.bot)?'<button class="mp-tab" onclick="tab(event,\'mod\')">⚡ Mod</button>':''}
     </div>
 
     <!-- TAB: INFO -->
@@ -138,15 +132,9 @@ function P(i){
       <div class="mp-f"><span class="mp-fl">📥 Beigetreten</span><span class="mp-fv">${m.joined?'<t:'+m.joined+':d> (<t:'+m.joined+':R>)':'?'}</span></div>
       <div class="mp-f"><span class="mp-fl">🔝 Höchste Rolle</span><span class="mp-fv" ${m.top_role_color?'style="color:'+m.top_role_color+'"':''}>${m.top_role||'—'}</span></div>
       <div class="mp-f"><span class="mp-fl">📱 Status</span><span class="mp-fv">${st}</span></div>
-      <div class="plat">
-        <span style="font-size:.55rem;color:var(--muted)">🖥️</span><div class="plat-dot ${m.desktop_status}"></div>
-        <span style="font-size:.55rem;color:var(--muted)">🌐</span><div class="plat-dot ${m.web_status}"></div>
-        <span style="font-size:.55rem;color:var(--muted)">📱</span><div class="plat-dot ${m.mobile_status}"></div>
-      </div>
       ${m.voice_ch?`<div class="mp-f"><span class="mp-fl">🎤 Voice</span><span class="mp-fv" style="color:var(--green)">${m.voice_ch}${m.voice_mute?' 🔇':''}${m.voice_deaf?' 🔇D':''}${m.voice_stream?' 📺':''}</span></div>`:''}
       ${m.timeout?`<div class="mp-f"><span class="mp-fl">⏳ Timeout</span><span class="mp-fv" style="color:var(--red)">Bis <t:${m.timeout}:R></span></div>`:''}
       ${m.boost_since?`<div class="mp-f"><span class="mp-fl">💎 Boost</span><span class="mp-fv" style="color:#f472b6">Seit <t:${m.boost_since}:R></span></div>`:''}
-      ${m.pending?`<div class="mp-f"><span class="mp-fl">⏳ Pending</span><span class="mp-fv" style="color:var(--amberl)">Verifizierung ausstehend</span></div>`:''}
     </div>
 
     <!-- TAB: PERMS -->
@@ -162,7 +150,6 @@ function P(i){
     </div>
 
     <!-- TAB: MOD -->
-    ${(!m.bot&&m.sort_priority>=3)?`
     <div class="mp-tp" id="tp-mod">
       <div class="mp-sec">⚡ Schnell-Aktionen</div>
       <div class="mp-btn">
@@ -178,28 +165,24 @@ function P(i){
         <button class="btn-glass btn-sm btn-glass-ghost" onclick="to('${m.id}',60)">1m</button>
         <button class="btn-glass btn-sm btn-glass-ghost" onclick="to('${m.id}',300)">5m</button>
         <button class="btn-glass btn-sm btn-glass-ghost" onclick="to('${m.id}',600)">10m</button>
-        <button class="btn-glass btn-sm btn-glass-ghost" onclick="to('${m.id}',1800)">30m</button>
         <button class="btn-glass btn-sm btn-glass-ghost" onclick="to('${m.id}',3600)">1h</button>
-        <button class="btn-glass btn-sm btn-glass-ghost" onclick="to('${m.id}',21600)">6h</button>
         <button class="btn-glass btn-sm btn-glass-ghost" onclick="to('${m.id}',86400)">24h</button>
         <button class="btn-glass btn-sm btn-glass-ghost" onclick="to('${m.id}',604800)">7d</button>
-        <button class="btn-glass btn-sm btn-glass-ghost" onclick="to('${m.id}',2419200)">28d</button>
       </div>
       <div class="mp-sec">⚙️ Erweitert</div>
       <div class="mp-btn">
         <button class="btn-glass btn-sm btn-glass-ghost" onclick="addRole('${m.id}')">🏷️ + Rolle</button>
         <button class="btn-glass btn-sm btn-glass-ghost" onclick="removeRole('${m.id}')">🏷️ - Rolle</button>
-        <button class="btn-glass btn-sm btn-glass-ghost" onclick="dmUser('${m.id}','${m.display_name}')">📨 DM</button>
-        <button class="btn-glass btn-sm btn-glass-ghost" onclick="copyInfo(${i})">📋 Kopieren</button>
       </div>
     </div>
-    `:''}
   `;
   document.getElementById('mp').classList.add('open');
 }
 
 function tab(e,name){
-  e.target.closest('.mp-tabs').querySelectorAll('.mp-tab').forEach(t=>t.classList.remove('a'));
+  const tabs = e.target.closest('.mp-tabs');
+  if(!tabs) return;
+  tabs.querySelectorAll('.mp-tab').forEach(t=>t.classList.remove('a'));
   e.target.classList.add('a');
   document.querySelectorAll('.mp-tp').forEach(p=>p.classList.remove('a'));
   document.getElementById('tp-'+name)?.classList.add('a');
@@ -208,7 +191,7 @@ function tab(e,name){
 function X(){document.getElementById('mp').classList.remove('open');document.querySelectorAll('.m-card').forEach(c=>c.classList.remove('sel'))}
 document.addEventListener('keydown',e=>{if(e.key==='Escape')X()});
 
-async function api(uid,body){
+async function apiAction(uid,body){
   const r=await fetch(`/api/guild/${GID}/member/${uid}/action`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   return await r.json();
 }
@@ -217,44 +200,36 @@ async function act(action,uid){
   let reason='Dashboard';
   if(action!=='untimeout'){reason=prompt(action.toUpperCase()+' — Grund:');if(reason===null)return}
   try{
-    const d=await api(uid,{action,reason:reason||'Dashboard',duration:300});
-    if(d.ok){toast({warn:'⚠️ Gewarnt',kick:'👢 Gekickt',ban:'🔨 Gebannt',timeout:'🔇 Timeout',untimeout:'🔊 Unmute'}[action]+(d.case_id?' #'+d.case_id:''),true);
+    const d=await apiAction(uid,{action,reason:reason||'Dashboard',duration:300});
+    if(d.ok){showToast({warn:'⚠️ Gewarnt',kick:'👢 Gekickt',ban:'🔨 Gebannt',timeout:'🔇 Timeout',untimeout:'🔊 Unmute'}[action]+(d.case_id?' #'+d.case_id:''),'ok');
       if(action==='kick'||action==='ban')setTimeout(()=>location.reload(),1500)}
-    else toast('❌ '+(d.error||'Fehler'),false);
-  }catch(e){toast('❌ '+e.message,false)}
+    else showToast('❌ '+(d.error||'Fehler'),'err');
+  }catch(e){showToast('❌ '+e.message,'err')}
 }
 
 async function to(uid,dur){
   const reason=prompt('Timeout-Grund:');if(reason===null)return;
   try{
-    const d=await api(uid,{action:'timeout',reason:reason||'Dashboard',duration:dur});
+    const d=await apiAction(uid,{action:'timeout',reason:reason||'Dashboard',duration:dur});
     const label=dur>=86400?Math.round(dur/86400)+'d':dur>=3600?Math.round(dur/3600)+'h':dur>=60?Math.round(dur/60)+'m':dur+'s';
-    if(d.ok)toast('🔇 '+label+' Timeout'+(d.case_id?' #'+d.case_id:''),true);
-    else toast('❌ '+(d.error||'Fehler'),false);
-  }catch(e){toast('❌ '+e.message,false)}
+    if(d.ok)showToast('🔇 '+label+' Timeout'+(d.case_id?' #'+d.case_id:''),'ok');
+    else showToast('❌ '+(d.error||'Fehler'),'err');
+  }catch(e){showToast('❌ '+e.message,'err')}
 }
 
 async function nick(uid,current){
   const n=prompt('Neuer Nickname (leer=reset):',current);if(n===null)return;
-  try{const d=await api(uid,{action:'nick',nick:n});if(d.ok){toast('✅ Nick geändert',true);setTimeout(()=>location.reload(),1000)}else toast('❌ '+(d.error||''),false)}catch(e){toast('❌ '+e.message,false)}
+  try{const d=await apiAction(uid,{action:'nick',nick:n});if(d.ok){showToast('✅ Nick geändert','ok');setTimeout(()=>location.reload(),1000)}else showToast('❌ '+(d.error||''),'err')}catch(e){showToast('❌ '+e.message,'err')}
 }
 
 async function addRole(uid){
   const roleId=prompt('Rollen-ID eingeben:');if(!roleId)return;
-  try{const d=await api(uid,{action:'add_role',role_id:roleId});if(d.ok)toast('✅ Rolle gegeben',true);else toast('❌ '+(d.error||''),false)}catch(e){toast('❌ '+e.message,false)}
+  try{const d=await apiAction(uid,{action:'add_role',role_id:roleId});if(d.ok)showToast('✅ Rolle gegeben','ok');else showToast('❌ '+(d.error||''),'err')}catch(e){showToast('❌ '+e.message,'err')}
 }
 
 async function removeRole(uid){
   const roleId=prompt('Rollen-ID eingeben:');if(!roleId)return;
-  try{const d=await api(uid,{action:'remove_role',role_id:roleId});if(d.ok)toast('✅ Rolle entfernt',true);else toast('❌ '+(d.error||''),false)}catch(e){toast('❌ '+e.message,false)}
-}
-
-function dmUser(uid,name){toast('📨 DM-Funktion kommt bald — nutze /report im Discord',true)}
-
-function copyInfo(i){
-  const m=M[i];if(!m)return;
-  const txt=`User: ${m.display_name}\nID: ${m.id}\nRisk: ${m.risk}%\nRollen: ${m.roles_str}\nAlter: ${m.age_days} Tage\nCases: ${m.cases||0}\nWarns: ${m.warns||0}\nStatus: ${m.status}`;
-  navigator.clipboard.writeText(txt);toast('📋 Info kopiert',true);
+  try{const d=await apiAction(uid,{action:'remove_role',role_id:roleId});if(d.ok)showToast('✅ Rolle entfernt','ok');else showToast('❌ '+(d.error||''),'err')}catch(e){showToast('❌ '+e.message,'err')}
 }
 
 function filt(){
@@ -272,6 +247,6 @@ function filt(){
   });
   document.getElementById('mC').textContent=vis+'/'+M.length;
 }
-{% endraw %}
 </script>
+{% endblock %}
 {% endblock %}

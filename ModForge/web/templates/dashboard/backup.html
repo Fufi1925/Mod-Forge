@@ -186,9 +186,10 @@
   {% endif %}
 </div>
 
+{% block scripts %}
 <script>
 const GID = "{{ guild.id }}";
-{% raw %}
+
 function toggleDetails(id) {
   const el = document.getElementById('bk-' + id);
   if (el) el.classList.toggle('expanded');
@@ -266,7 +267,7 @@ function deleteBackup(id, label) {
     <div style="text-align:center;margin-bottom:18px">
       <div style="font-size:2rem;margin-bottom:10px">🗑️</div>
       <div style="font-weight:800">Backup löschen?</div>
-      <div style="color:var(--muted);font-size:.82rem;margin-top:6px"><strong style="color:var(--fg)">${label}</strong> wird endgültig entfernt (auch aus der Community-Liste).</div>
+      <div style="color:var(--muted);font-size:.82rem;margin-top:6px"><strong style="color:var(--fg)">${label}</strong> wird endgültig entfernt.</div>
     </div>
     <div style="display:flex;gap:8px">
       <button onclick="closeModal()" style="flex:1;padding:10px;border-radius:10px;background:rgba(255,255,255,0.05);border:1px solid var(--border);color:var(--fg);font-size:.82rem;cursor:pointer;font-family:inherit">Abbrechen</button>
@@ -288,21 +289,14 @@ function shareBackup(id, label) {
       <div style="font-weight:800;font-size:1rem;margin-bottom:10px">🌐 Als Community-Template teilen</div>
       <div style="color:var(--muted);font-size:.78rem;margin-bottom:14px">
         Andere Server-Owner können dein Backup einsehen und auf ihren Server anwenden.
-        Du kannst das Teilen jederzeit wieder aufheben.
       </div>
       <div style="display:flex;flex-direction:column;gap:8px">
-        <input id="shName" type="text" maxlength="60" placeholder="Name (z.B. „Gaming-Server Vorlage")" value="${label || ''}" style="padding:10px 14px;border-radius:10px;background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--fg);font-family:inherit;outline:none">
-        <textarea id="shDesc" rows="3" maxlength="500" placeholder="Kurze Beschreibung – was zeichnet diese Vorlage aus?" style="padding:10px 14px;border-radius:10px;background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--fg);font-family:inherit;outline:none;resize:vertical"></textarea>
+        <input id="shName" type="text" maxlength="60" placeholder="Name" value="${label || ''}" style="padding:10px 14px;border-radius:10px;background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--fg);font-family:inherit;outline:none">
+        <textarea id="shDesc" rows="3" maxlength="500" placeholder="Beschreibung" style="padding:10px 14px;border-radius:10px;background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--fg);font-family:inherit;outline:none;resize:vertical"></textarea>
         <select id="shCat" style="padding:10px 14px;border-radius:10px;background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--fg);font-family:inherit;outline:none">
-          <option value="general">📦 Allgemein</option>
-          <option value="gaming">🎮 Gaming</option>
-          <option value="community">👥 Community</option>
-          <option value="anime">🌸 Anime</option>
-          <option value="music">🎵 Musik</option>
-          <option value="education">📚 Bildung</option>
-          <option value="support">🛟 Support</option>
-          <option value="business">💼 Business</option>
-          <option value="other">✨ Sonstiges</option>
+          <option value="general"> Allgemein</option>
+          <option value="gaming"> Gaming</option>
+          <option value="community"> Community</option>
         </select>
       </div>
     </div>
@@ -343,8 +337,8 @@ async function saveConfig() {
       }
     });
     markSaved();
-  } catch (e) { markError('Fehler beim Speichern'); }
+  } catch (e) { showToast('❌ ' + e.message, 'err'); }
 }
-{% endraw %}
 </script>
+{% endblock %}
 {% endblock %}

@@ -94,7 +94,7 @@
 
   <div class="cfg-row">
     <div><span class="cfg-label">System aktiv</span><div class="cfg-desc">Verifizierung erforderlich für neue Member</div></div>
-    <label class="toggle"><input type="checkbox" id="vOn" {% if vs.get('enabled') %}checked{% endif %}><span class="slider"></span></label>
+    <label class="toggle"><input type="checkbox" id="vOn" {% if vs.get('enabled') %}checked{% endif %} onchange="showSaveBar()"><span class="slider"></span></label>
   </div>
 
   <div class="cfg-row">
@@ -102,7 +102,7 @@
       <span class="cfg-label">Modus</span>
       <div class="cfg-desc">One-Click = nur Button drücken · Captcha = Code aus Bild eingeben</div>
     </div>
-    <select class="cfg-select" id="vMode" style="min-width:140px">
+    <select class="cfg-select" id="vMode" style="min-width:140px" onchange="showSaveBar(); document.getElementById('captcha-diff-row').style.display = (this.value === 'captcha') ? '' : 'none';">
       <option value="one_click" {% if vs.get('mode')=='one_click' %}selected{% endif %}>One-Click</option>
       <option value="captcha" {% if vs.get('mode')=='captcha' %}selected{% endif %}>Captcha</option>
     </select>
@@ -110,7 +110,7 @@
 
   <div class="cfg-row" id="captcha-diff-row" style="{% if vs.get('mode')!='captcha' %}display:none{% endif %}">
     <div><span class="cfg-label">Captcha-Schwierigkeit</span><div class="cfg-desc">Hard = mehr Rauschen + Linien</div></div>
-    <select class="cfg-select" id="vDiff" style="min-width:140px">
+    <select class="cfg-select" id="vDiff" style="min-width:140px" onchange="showSaveBar()">
       {% for opt in ['easy','medium','hard'] %}
       <option value="{{ opt }}" {% if vs.get('captcha_difficulty')==opt %}selected{% endif %}>{{ opt }}</option>
       {% endfor %}
@@ -118,27 +118,40 @@
   </div>
 </div>
 
+{% block scripts %}
 <script>
 const GID = "{{ guild.id }}";
-{% raw %}
-const roleApi = (d) => fetch('/api/guild/' + GID + '/roles', {
-  method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(d)
-});
+
+async function roleApi(d) {
+  const r = await fetch('/api/guild/' + GID + '/roles', {
+    method: 'POST', 
+    headers: {'Content-Type': 'application/json'}, 
+    body: JSON.stringify(d)
+  });
+  return r.json();
+}
 
 async function addAutoRole() {
   const sel = document.getElementById('arSel');
   if (!sel.value) return showToast('❌ Rolle wählen', 'err');
   try {
-    const r = await roleApi({action: 'add_auto', role_id: sel.value});
-    if ((await r.json()).ok) { showToast('✅ Auto-Rolle hinzugefügt', 'ok'); setTimeout(() => location.reload(), 400); }
-    else showToast('❌ Fehler', 'err');
+    const d = await roleApi({action: 'add_auto', role_id: sel.value});
+    if (d.ok) { 
+      showToast('✅ Auto-Rolle hinzugefügt', 'ok'); 
+      setTimeout(() => location.reload(), 400); 
+    } else {
+      showToast('❌ Fehler: ' + (d.error || 'Unbekannt'), 'err');
+    }
   } catch (e) { showToast('❌ Netzwerk-Fehler', 'err'); }
 }
 
 async function delAR(rid) {
   try {
-    const r = await roleApi({action: 'del_auto', role_id: rid});
-    if ((await r.json()).ok) { showToast('🗑️ Entfernt', 'ok'); setTimeout(() => location.reload(), 400); }
+    const d = await roleApi({action: 'del_auto', role_id: rid});
+    if (d.ok) { 
+      showToast('🗑️ Entfernt', 'ok'); 
+      setTimeout(() => location.reload(), 400); 
+    }
   } catch (e) { showToast('❌ Fehler', 'err'); }
 }
 
@@ -146,22 +159,23 @@ async function addStickyRole() {
   const sel = document.getElementById('srSel');
   if (!sel.value) return showToast('❌ Rolle wählen', 'err');
   try {
-    const r = await roleApi({action: 'add_sticky', role_id: sel.value});
-    if ((await r.json()).ok) { showToast('✅ Sticky-Rolle hinzugefügt', 'ok'); setTimeout(() => location.reload(), 400); }
+    const d = await roleApi({action: 'add_sticky', role_id: sel.value});
+    if (d.ok) { 
+      showToast('✅ Sticky-Rolle hinzugefügt', 'ok'); 
+      setTimeout(() => location.reload(), 400); 
+    }
   } catch (e) { showToast('❌ Fehler', 'err'); }
 }
 
 async function delSR(rid) {
   try {
-    const r = await roleApi({action: 'del_sticky', role_id: rid});
-    if ((await r.json()).ok) { showToast('🗑️ Entfernt', 'ok'); setTimeout(() => location.reload(), 400); }
+    const d = await roleApi({action: 'del_sticky', role_id: rid});
+    if (d.ok) { 
+      showToast('🗑️ Entfernt', 'ok'); 
+      setTimeout(() => location.reload(), 400); 
+    }
   } catch (e) { showToast('❌ Fehler', 'err'); }
 }
-
-// Captcha-Difficulty nur zeigen, wenn Captcha gewählt
-document.getElementById('vMode').addEventListener('change', function () {
-  document.getElementById('captcha-diff-row').style.display = (this.value === 'captcha') ? '' : 'none';
-});
 
 async function saveConfig() {
   const payload = {
@@ -172,14 +186,16 @@ async function saveConfig() {
     }
   };
   try {
-    await fetch('/api/guild/' + GID + '/config', {
+    const r = await fetch('/api/guild/' + GID + '/config', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(payload),
     });
-    markSaved();
+    const d = await r.json();
+    if (d.ok) markSaved();
+    else markError(d.error);
   } catch (e) { markError(); }
 }
-{% endraw %}
 </script>
+{% endblock %}
 {% endblock %}

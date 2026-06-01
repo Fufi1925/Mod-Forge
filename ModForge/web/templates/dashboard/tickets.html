@@ -17,10 +17,25 @@
 <div class="db-card" style="padding:14px;margin-top:14px;background:rgba(124,58,237,0.02);border-color:rgba(124,58,237,0.08)">
   <div style="font-size:.72rem;color:var(--muted);line-height:1.6"><strong style="color:var(--fg)">💡</strong> Nach dem Speichern nutze <code style="color:var(--vl)">/setup_tickets</code> in Discord um das Ticket-Panel zu senden.</div>
 </div>
-{% block scripts %}<script>
+{% block scripts %}
+<script>
 async function saveConfig(){
-  const r=await fetch('/api/guild/{{ guild.id }}/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({_ticket_system:{enabled:document.getElementById('tOn').checked,category_id:document.getElementById('tCat').value||null,log_channel_id:document.getElementById('tLog').value||null}})});
-  if(r.ok) markSaved(); else markError();
+  try {
+    const r=await fetch('/api/guild/{{ guild.id }}/config',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        _ticket_system: {
+          enabled: document.getElementById('tOn').checked,
+          category_id: document.getElementById('tCat').value || null,
+          log_channel_id: document.getElementById('tLog').value || null
+        }
+      })
+    });
+    const data = await r.json();
+    if(data.ok) markSaved(); else markError(data.error);
+  } catch(e) { markError(e.message); }
 }
-</script>{% endblock %}
+</script>
+{% endblock %}
 {% endblock %}

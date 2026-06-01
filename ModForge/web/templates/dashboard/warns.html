@@ -120,24 +120,37 @@
 
 <script>
 const GID = "{{ guild.id }}";
-const API = "/api/guild/" + GID + "/config";
-{% raw %}
+const CONFIG_API = "/api/guild/" + GID + "/config";
+
 async function postCfg(body) {
-  const r = await fetch(API, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
-  return r.ok ? r.json() : Promise.reject(await r.text());
+  const r = await fetch(CONFIG_API, {
+    method: 'POST', 
+    headers: { 'Content-Type': 'application/json' }, 
+    body: JSON.stringify(body)
+  });
+  const data = await r.json();
+  if (!r.ok) throw new Error(data.error || 'API Error');
+  return data;
 }
 
 async function saveConfig() {
   try {
     const thresholds = {};
-    document.querySelectorAll('.th-action').forEach(s => { thresholds[s.dataset.key] = s.value; });
+    document.querySelectorAll('.th-action').forEach(s => { 
+      thresholds[s.dataset.key] = s.value; 
+    });
     const decay = {
       enabled: document.getElementById('decayOn').checked,
       decay_days: Math.max(1, Number(document.getElementById('decayD').value) || 30),
     };
-    await postCfg({_warn_thresholds: thresholds, _warn_decay: decay});
+    await postCfg({
+      _warn_thresholds: thresholds, 
+      _warn_decay: decay
+    });
     markSaved();
-  } catch (e) { markError('Speichern fehlgeschlagen'); }
+  } catch (e) { 
+    showToast('❌ Fehler: ' + e.message, 'err'); 
+  }
 }
 
 async function addTh() {
@@ -148,7 +161,9 @@ async function addTh() {
     await postCfg({_warn_thresholds_add: {[String(n)]: a}});
     showToast('✅ Schwelle hinzugefügt', 'ok');
     setTimeout(() => location.reload(), 500);
-  } catch (e) { showToast('❌ Fehler', 'err'); }
+  } catch (e) { 
+    showToast('❌ Fehler: ' + e.message, 'err'); 
+  }
 }
 
 async function delTh(key) {
@@ -157,13 +172,13 @@ async function delTh(key) {
     await postCfg({_warn_thresholds_remove: [String(key)]});
     showToast('🗑️ Gelöscht', 'ok');
     setTimeout(() => location.reload(), 400);
-  } catch (e) { showToast('❌ Fehler', 'err'); }
+  } catch (e) { 
+    showToast('❌ Fehler: ' + e.message, 'err'); 
+  }
 }
 
-// Änderungen an Schwellen-Dropdowns aktivieren Save-Bar
 document.querySelectorAll('.th-action').forEach(el => {
   el.addEventListener('change', showSaveBar);
 });
-{% endraw %}
 </script>
 {% endblock %}

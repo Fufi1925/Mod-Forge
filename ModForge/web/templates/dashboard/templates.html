@@ -158,9 +158,10 @@
 </div>
 {% endif %}
 
+{% block scripts %}
 <script>
 const GID = "{{ guild.id }}";
-{% raw %}
+
 async function postJSON(url, body) {
   const r = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body || {})});
   let data = {};
@@ -207,7 +208,6 @@ async function doImport(id) {
   } catch (e) { showToast('❌ ' + e.message, 'err'); }
 }
 
-// ── Filter / Search ──
 function filterTemplates() {
   const q = (document.getElementById('tplSearch').value || '').toLowerCase().trim();
   const cat = document.querySelector('#catFilter .cat-pill.active')?.dataset.cat || '';
@@ -229,6 +229,6 @@ document.querySelectorAll('#catFilter .cat-pill').forEach(btn => {
     filterTemplates();
   });
 });
-{% endraw %}
 </script>
+{% endblock %}
 {% endblock %}

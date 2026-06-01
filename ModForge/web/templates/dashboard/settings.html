@@ -184,9 +184,10 @@
   </div>
 </div>
 
+{% block scripts %}
 <script>
 const GID = "{{ guild.id }}";
-{% raw %}
+
 function updatePrefixDemo() {
   const v = document.getElementById('pfx').value || '!';
   document.getElementById('pfxDemo').textContent = v + 'ban';
@@ -199,11 +200,9 @@ async function postCfg(body) {
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify(body),
   });
-  if (!r.ok) {
-    let txt = ''; try { txt = (await r.json()).error || ''; } catch(e) {}
-    throw new Error(txt || ('HTTP ' + r.status));
-  }
-  return r.json();
+  const data = await r.json();
+  if (!r.ok) throw new Error(data.error || 'API Error');
+  return data;
 }
 
 async function saveConfig() {
@@ -226,7 +225,7 @@ async function saveConfig() {
     });
     markSaved();
   } catch (e) {
-    markError('Speichern fehlgeschlagen: ' + e.message);
+    showToast('❌ Fehler: ' + e.message, 'err');
   }
 }
 
@@ -253,6 +252,6 @@ async function doReset() {
     setTimeout(() => location.reload(), 800);
   } catch (e) { showToast('❌ ' + e.message, 'err'); }
 }
-{% endraw %}
 </script>
+{% endblock %}
 {% endblock %}

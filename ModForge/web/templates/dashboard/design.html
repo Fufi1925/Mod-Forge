@@ -163,11 +163,10 @@
 
 </div>
 
+{% block scripts %}
 <script>
-{% raw %}
 const ALL_THEMES = ['purple','blue','green','emerald','rose','sunset','midnight','amoled','custom'];
 
-// Active-States in den Pickern setzen
 function syncActive() {
   const theme   = localStorage.getItem('mf-theme')   || 'purple';
   const density = localStorage.getItem('mf-density') || 'comfy';
@@ -187,7 +186,6 @@ function syncActive() {
     )));
   });
 
-  // Akzent-Inputs sync
   document.getElementById('accentColor').value = accent;
   document.getElementById('accentText').value = accent.toUpperCase();
   document.getElementById('customSwatch').style.background =
@@ -195,7 +193,6 @@ function syncActive() {
   document.querySelectorAll('#presetRow .preset').forEach(p =>
     p.classList.toggle('active', p.dataset.c.toLowerCase() === accent.toLowerCase()));
 
-  // Hinweis ob Akzentfarbe gerade wirkt
   const hint = document.getElementById('accentHint');
   hint.textContent = theme === 'custom' ? '✓ wird angewendet' : '(nur aktiv mit Theme „Custom")';
   hint.style.color = theme === 'custom' ? 'var(--green)' : 'var(--muted)';
@@ -210,7 +207,6 @@ function pickAnim(v)    { setAnim(v);     syncActive(); }
 function onAccentInput(hex) {
   document.getElementById('accentText').value = hex.toUpperCase();
   setAccent(hex);
-  // Wenn der User die Akzentfarbe ändert, springen wir automatisch auf "custom"
   if ((localStorage.getItem('mf-theme') || 'purple') !== 'custom') {
     setTheme('custom');
   }
@@ -230,7 +226,7 @@ document.querySelectorAll('#presetRow .preset').forEach(p => {
 });
 
 function resetDesign() {
-  if (!confirm('Alle Design-Einstellungen auf Standard (Purple/Comfy/Rund/Voll/Animiert) zurücksetzen?')) return;
+  if (!confirm('Alle Design-Einstellungen zurücksetzen?')) return;
   ['mf-theme','mf-accent','mf-density','mf-radius','mf-sidebar','mf-anim'].forEach(k => localStorage.removeItem(k));
   setTheme('purple'); setAccent(''); setDensity('comfy');
   setRadius('rounded'); setSidebar('expanded'); setAnim('on');
@@ -239,9 +235,7 @@ function resetDesign() {
 }
 
 syncActive();
-
-// Diese Seite hat keine "Speichern"-Logik – alles passiert direkt im localStorage
 window._dirty = false;
-{% endraw %}
 </script>
+{% endblock %}
 {% endblock %}

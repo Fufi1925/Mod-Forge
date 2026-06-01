@@ -46,7 +46,6 @@
 <div style="font-weight:700;font-size:.85rem;margin-bottom:8px">📋 Aktive Regeln</div>
 
 {% if auto_responses %}
-  {# data-rules wird als JSON für sichere JS-Verarbeitung mitgegeben — kein gefährliches |replace mehr #}
   <div id="arList" data-rules='{{ auto_responses|tojson|safe }}'>
   {% for ar in auto_responses %}
   <div class="cfg-row" style="flex-direction:column;align-items:stretch;gap:8px;padding:14px 16px;animation:fadeUp .2s ease {{ loop.index * 0.04 }}s both;{% if not ar.get('enabled', True) %}opacity:.55{% endif %}">
@@ -78,14 +77,14 @@
 </div>
 {% endif %}
 
+{% block scripts %}
 <script>
 const GID = "{{ guild.id }}";
-{% raw %}
-const api = (d) => fetch('/api/guild/' + GID + '/autoresponse', {
+
+const apiAR = (d) => fetch('/api/guild/' + GID + '/autoresponse', {
   method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(d)
 });
 
-// Regel-Daten sicher aus dem DOM ziehen (HTML-Escaping inkl. Quotes funktioniert sauber)
 function getRules() {
   const node = document.getElementById('arList');
   if (!node) return [];
@@ -104,12 +103,14 @@ async function addAR() {
   const r = document.getElementById('arR').value.trim();
   if (!t) return showToast('❌ Trigger eingeben!', 'err');
   if (!r) return showToast('❌ Antwort eingeben!', 'err');
-  if (t.length > 100) return showToast('❌ Trigger zu lang (max 100)', 'err');
-  if (r.length > 2000) return showToast('❌ Antwort zu lang (max 2000)', 'err');
-  const res = await api({action:'add', trigger:t, response:r});
+  const res = await apiAR({action:'add', trigger:t, response:r});
   const d = await res.json();
-  if (d.ok) { showToast('✅ Auto-Antwort hinzugefügt', 'ok'); setTimeout(() => location.reload(), 500); }
-  else showToast('❌ ' + (d.error || 'Fehler'), 'err');
+  if (d.ok) { 
+    showToast('✅ Auto-Antwort hinzugefügt', 'ok'); 
+    setTimeout(() => location.reload(), 500); 
+  } else {
+    showToast('❌ ' + (d.error || 'Fehler'), 'err');
+  }
 }
 
 function delAR(i) {
@@ -119,8 +120,7 @@ function delAR(i) {
     <div style="text-align:center;margin-bottom:20px">
       <div style="font-size:2rem;margin-bottom:8px">🗑️</div>
       <div style="font-weight:700">Auto-Antwort löschen?</div>
-      <div style="color:var(--muted);font-size:.78rem;margin-top:6px">Trigger: <code style="color:var(--vl)">${escapeHtml(trig)}</code></div>
-      <div style="color:var(--muted);font-size:.72rem;margin-top:4px">Diese Aktion kann nicht rückgängig gemacht werden.</div>
+      <div style="color:var(--muted);font-size:.78rem;margin-top:6px">Trigger: <code style="color:var(--vl)">${trig}</code></div>
     </div>
     <div style="display:flex;gap:8px">
       <button onclick="closeModal()" style="flex:1;padding:10px;border-radius:10px;background:rgba(255,255,255,0.05);border:1px solid var(--border);color:var(--fg);font-size:.82rem;cursor:pointer;font-family:inherit">Abbrechen</button>
@@ -130,14 +130,18 @@ function delAR(i) {
 }
 
 async function confirmDelAR(i) {
-  const res = await api({action:'del', index:i});
+  const res = await apiAR({action:'del', index:i});
   const d = await res.json();
-  if (d.ok) { showToast('🗑️ Gelöscht', 'ok'); setTimeout(() => location.reload(), 400); }
-  else showToast('❌ Fehler', 'err');
+  if (d.ok) { 
+    showToast('🗑️ Gelöscht', 'ok'); 
+    setTimeout(() => location.reload(), 400); 
+  } else {
+    showToast('❌ Fehler', 'err');
+  }
 }
 
 async function togAR(i, v) {
-  const res = await api({action:'toggle', index:i, enabled:v});
+  const res = await apiAR({action:'toggle', index:i, enabled:v});
   const d = await res.json();
   if (d.ok) showToast(v ? '✅ Aktiviert' : '⏸️ Pausiert', 'ok');
   else showToast('❌ Fehler', 'err');
@@ -152,11 +156,11 @@ function editAR(i) {
       <div style="font-weight:700;font-size:1rem;margin-bottom:12px">✏️ Regel bearbeiten</div>
       <div style="margin-bottom:10px">
         <label style="font-size:.65rem;color:var(--muted);display:block;margin-bottom:4px">Trigger</label>
-        <input type="text" id="editT" value="${escapeHtml(rule.trigger || '')}" maxlength="100" style="width:100%;padding:10px;border-radius:10px;background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--fg);font-family:inherit;outline:none">
+        <input type="text" id="editT" value="${rule.trigger || ''}" maxlength="100" style="width:100%;padding:10px;border-radius:10px;background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--fg);font-family:inherit;outline:none">
       </div>
       <div>
         <label style="font-size:.65rem;color:var(--muted);display:block;margin-bottom:4px">Antwort</label>
-        <textarea id="editR" rows="4" maxlength="2000" style="width:100%;padding:10px;border-radius:10px;background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--fg);font-family:inherit;resize:vertical;outline:none">${escapeHtml(rule.response || '')}</textarea>
+        <textarea id="editR" rows="4" maxlength="2000" style="width:100%;padding:10px;border-radius:10px;background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--fg);font-family:inherit;resize:vertical;outline:none">${rule.response || ''}</textarea>
       </div>
     </div>
     <div style="display:flex;gap:8px">
@@ -170,25 +174,12 @@ async function saveEditAR(i) {
   const t = document.getElementById('editT').value.trim();
   const r = document.getElementById('editR').value.trim();
   if (!t || !r) return showToast('❌ Felder ausfüllen', 'err');
-  // Editier-Strategie: alte Regel löschen + neue an gleicher Stelle einfügen.
-  // Da unsere API "add" ans Ende anhängt, ist die Reihenfolge danach nicht garantiert –
-  // wir akzeptieren das, weil die Reihenfolge bei Auto-Antworten egal ist (es wird
-  // ohnehin die erste passende Regel ausgeführt – der Trigger ändert sich nicht).
-  await api({action:'del', index:i});
-  await api({action:'add', trigger:t, response:r});
+  await apiAR({action:'del', index:i});
+  await apiAR({action:'add', trigger:t, response:r});
   closeModal();
   showToast('✅ Aktualisiert', 'save');
   setTimeout(() => location.reload(), 500);
 }
-
-function escapeHtml(str) {
-  return String(str)
-    .replaceAll('&','&amp;')
-    .replaceAll('<','&lt;')
-    .replaceAll('>','&gt;')
-    .replaceAll('"','&quot;')
-    .replaceAll("'",'&#039;');
-}
-{% endraw %}
 </script>
+{% endblock %}
 {% endblock %}

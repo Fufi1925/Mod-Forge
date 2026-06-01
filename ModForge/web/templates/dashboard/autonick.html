@@ -6,7 +6,7 @@
 {% block content %}
 
 <!-- STATUS-ROW -->
-<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-bottom:14px">
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-bottom:14px">
   <div class="ov-stat"><div class="ov-sv" style="color:{% if enabled %}var(--green){% else %}var(--muted){% endif %}">{% if enabled %}AN{% else %}AUS{% endif %}</div><div class="ov-sl">System</div></div>
   <div class="ov-stat"><div class="ov-sv" style="color:var(--vl)">{{ rules|length }}</div><div class="ov-sl">Regeln</div></div>
   <div class="ov-stat"><div class="ov-sv" style="color:var(--cl)">{{ guild_roles|length }}</div><div class="ov-sl">Verfügbare Rollen</div></div>
@@ -92,9 +92,10 @@
 {% endif %}
 </div>
 
+{% block scripts %}
 <script>
 const GID = "{{ guild.id }}";
-{% raw %}
+
 function previewNick() {
   const p = document.getElementById('nrPrefix').value;
   const s = document.getElementById('nrSuffix').value;
@@ -105,14 +106,18 @@ function previewNick() {
     `Vorschau: <strong>${result}</strong> <span style="font-size:.6rem;color:${tooLong?'var(--red)':'var(--muted)'}">(${len}/32${tooLong?' – ❌ zu lang!':''})</span>`;
 }
 
-async function api(body) {
-  const r = await fetch(`/api/guild/${GID}/autonick`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+async function apiAN(body) {
+  const r = await fetch(`/api/guild/${GID}/autonick`, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(body)
+  });
   return await r.json();
 }
 
 async function toggleAN() {
   const on = document.getElementById('anOn').checked;
-  const d = await api({action:'toggle', enabled:on});
+  const d = await apiAN({action:'toggle', enabled:on});
   if (d.ok) showToast(on ? '✅ Auto-Nickname aktiviert' : '⏸️ Deaktiviert', 'ok');
   else showToast('❌ Fehler', 'err');
 }
@@ -128,15 +133,22 @@ async function addRule() {
   if (('VexoTestUser' + prefix + suffix).length > 32) {
     if (!confirm('Mit einem langen Namen würde der Nickname > 32 Zeichen werden. Trotzdem speichern?')) return;
   }
-  const d = await api({action:'add', role_id:roleId, role_name:roleName, prefix, suffix});
-  if (d.ok) { showToast('✅ Regel hinzugefügt', 'ok'); setTimeout(()=>location.reload(), 500); }
-  else showToast('❌ ' + (d.error||'Fehler'), 'err');
+  const d = await apiAN({action:'add', role_id:roleId, role_name:roleName, prefix, suffix});
+  if (d.ok) { 
+    showToast('✅ Regel hinzugefügt', 'ok'); 
+    setTimeout(()=>location.reload(), 500); 
+  } else {
+    showToast('❌ ' + (d.error||'Fehler'), 'err');
+  }
 }
 
 async function delRule(idx) {
   if (!confirm('Regel #' + (idx+1) + ' wirklich löschen?')) return;
-  const d = await api({action:'delete', index:idx});
-  if (d.ok) { showToast('🗑️ Gelöscht', 'ok'); setTimeout(()=>location.reload(), 400); }
+  const d = await apiAN({action:'delete', index:idx});
+  if (d.ok) { 
+    showToast('🗑️ Gelöscht', 'ok'); 
+    setTimeout(()=>location.reload(), 400); 
+  }
 }
 
 async function move(idx, dir) {
@@ -145,12 +157,14 @@ async function move(idx, dir) {
   if (ni < 0 || ni >= count) return;
   const order = Array.from({length:count}, (_,i)=>i);
   [order[idx], order[ni]] = [order[ni], order[idx]];
-  const d = await api({action:'reorder', order});
-  if (d.ok) { showToast('↕️ Verschoben', 'ok'); setTimeout(()=>location.reload(), 300); }
+  const d = await apiAN({action:'reorder', order});
+  if (d.ok) { 
+    showToast('↕️ Verschoben', 'ok'); 
+    setTimeout(()=>location.reload(), 300); 
+  }
 }
 
-// Autonick speichert per Aktion – Save-Bar nicht nötig
 window._dirty = false;
-{% endraw %}
 </script>
+{% endblock %}
 {% endblock %}
