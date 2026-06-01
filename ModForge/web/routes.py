@@ -3186,6 +3186,58 @@ def api_template_import(guild_id, backup_id):
         return jsonify({"error": str(e)}), 500
 
 
+@flask_app.route("/api/guild/<guild_id>/member/<member_id>/details")
+@require_auth
+def api_member_details(guild_id, member_id):
+    user_session = get_session()
+    if not user_session or not _user_can_manage_guild_in_session(user_session, guild_id):
+        return jsonify({"error": "forbidden"}), 403
+    db = get_db()
+    if not db:
+        return jsonify({"error": "database offline"}), 503
+    try:
+        # Fetch notes
+        notes = safe_async(db.db["notes"].find({"guild_id": int(guild_id), "user_id": int(member_id)}).sort("timestamp", -1).to_list(50), []) or []
+        # Convert BSON/Datetime
+        for n in notes:
+            n["_id"] = str(n["_id"])
+            if n.get("timestamp"): n["timestamp"] = n["timestamp"].isoformat() + "Z"
+        
+        # Fetch detailed cases
+        cases = safe_async(db.cases.find({"guild_id": int(guild_id), "user_id": int(member_id)}).sort("case_id", -1).to_list(50), []) or []
+        for c in cases:
+            c["_id"] = str(c["_id"])
+            if c.get("created_at"): c["created_at"] = c["created_at"].isoformat() + "Z"
+            if c.get("timestamp"): c["timestamp"] = c["timestamp"].isoformat() + "Z"
+            
+        return jsonify({"ok": True, "notes": notes, "cases": cases})
+    except Exception as e:
+        log.error(f"[MEMBER DETAILS API] {e}")
+        return jsonify({"error": str(e)}), 500
+
+@flask_app.route("/api/guild/<guild_id>/member/<member_id>/note", methods=["POST"])
+@require_auth
+def api_member_note(guild_id, member_id):
+    user_session = get_session()
+    if not user_session or not _user_can_manage_guild_in_session(user_session, guild_id):
+        return jsonify({"error": "forbidden"}), 403
+    db = get_db()
+    data = request.json or {}
+    text = data.get("text")
+    if not text: return jsonify({"error": "missing text"}), 400
+    try:
+        note = {
+            "guild_id": int(guild_id),
+            "user_id": int(member_id),
+            "mod_id": int(user_session["user"]["id"]),
+            "text": text,
+            "timestamp": datetime.datetime.utcnow()
+        }
+        safe_async(db.db["notes"].insert_one(note))
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 # 404 / 403 / 500 HANDLER
 # =========================================================
 

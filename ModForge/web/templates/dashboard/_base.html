@@ -201,38 +201,41 @@
       _dirty = true;
       const bar = document.getElementById('saveBar');
       bar.style.display = 'block';
-      requestAnimationFrame(() => { bar.style.transform = 'translateY(0)'; bar.style.transition = 'transform .3s cubic-bezier(.4,0,.2,1)'; });
+      requestAnimationFrame(() => { 
+        bar.style.transform = 'translateY(0)'; 
+        bar.style.transition = 'transform .4s cubic-bezier(.18,.89,.32,1.28)'; 
+      });
     }
 
     function hideSaveBar() {
       const bar = document.getElementById('saveBar');
       bar.style.transform = 'translateY(100%)';
-      setTimeout(() => { bar.style.display = 'none'; }, 300);
+      setTimeout(() => { bar.style.display = 'none'; }, 400);
     }
 
     function discardChanges() {
       _dirty = false;
       hideSaveBar();
       showToast('↩️ Änderungen verworfen', 'info');
-      setTimeout(() => location.reload(), 600);
+      setTimeout(() => location.reload(), 500);
     }
 
     /* ── Toast System ── */
     function showToast(msg, type) {
       const colors = {
-        ok: { bg: 'rgba(74,222,128,0.12)', border: 'rgba(74,222,128,0.25)', text: '#4ade80', icon: '✅' },
-        err: { bg: 'rgba(239,68,68,0.1)', border: 'rgba(239,68,68,0.2)', text: '#f87171', icon: '❌' },
-        info: { bg: 'rgba(56,189,248,0.1)', border: 'rgba(56,189,248,0.2)', text: '#38bdf8', icon: 'ℹ️' },
-        warn: { bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.2)', text: '#fbbf24', icon: '⚠️' },
-        save: { bg: 'rgba(124,58,237,0.1)', border: 'rgba(124,58,237,0.25)', text: '#a78bfa', icon: '💾' },
+        ok: { bg: 'rgba(34,197,94,0.15)', border: 'rgba(34,197,94,0.3)', text: '#4ade80', icon: '✅' },
+        err: { bg: 'rgba(239,68,68,0.15)', border: 'rgba(239,68,68,0.3)', text: '#f87171', icon: '❌' },
+        info: { bg: 'rgba(59,130,246,0.15)', border: 'rgba(59,130,246,0.3)', text: '#60a5fa', icon: 'ℹ️' },
+        warn: { bg: 'rgba(245,158,11,0.15)', border: 'rgba(245,158,11,0.3)', text: '#fbbf24', icon: '⚠️' },
+        save: { bg: 'rgba(139,92,246,0.15)', border: 'rgba(139,92,246,0.3)', text: '#a78bfa', icon: '💾' },
       };
       const c = colors[type] || colors.ok;
       const container = document.getElementById('mfToast');
       const toast = document.createElement('div');
-      toast.style.cssText = `padding:12px 20px;border-radius:14px;background:${c.bg};border:1px solid ${c.border};color:${c.text};font-size:.82rem;font-weight:600;margin-top:8px;pointer-events:auto;display:flex;align-items:center;gap:8px;animation:fadeUp .25s ease,fadeOut .3s ease 2.7s forwards;box-shadow:0 4px 20px rgba(0,0,0,0.3);backdrop-filter:blur(12px)`;
-      toast.innerHTML = `<span style="font-size:1rem">${c.icon}</span>${msg}`;
+      toast.style.cssText = `padding:14px 22px;border-radius:16px;background:${c.bg};border:1px solid ${c.border};color:${c.text};font-size:.85rem;font-weight:700;margin-top:10px;pointer-events:auto;display:flex;align-items:center;gap:10px;animation:fadeUp .3s ease,fadeOut .4s ease 3.5s forwards;box-shadow:0 10px 40px rgba(0,0,0,0.4);backdrop-filter:blur(20px)`;
+      toast.innerHTML = `<span style="font-size:1.1rem">${c.icon}</span>${msg}`;
       container.appendChild(toast);
-      setTimeout(() => toast.remove(), 3200);
+      setTimeout(() => toast.remove(), 4000);
     }
 
     /* ── Mark Saved ── */
@@ -240,7 +243,7 @@
       _dirty = false;
       _saving = false;
       hideSaveBar();
-      showToast('Einstellungen gespeichert!', 'save');
+      showToast('Einstellungen erfolgreich übernommen!', 'save');
     }
 
     function markError(msg) {
@@ -253,10 +256,13 @@
       document.getElementById('mfModalBody').innerHTML = html;
       const m = document.getElementById('mfModal');
       m.style.display = 'flex';
+      m.style.animation = 'fadeIn .2s ease';
     }
 
     function closeModal() {
-      document.getElementById('mfModal').style.display = 'none';
+      const m = document.getElementById('mfModal');
+      m.style.animation = 'fadeOut .2s ease forwards';
+      setTimeout(() => { m.style.display = 'none'; }, 200);
     }
 
     document.getElementById('mfModal').addEventListener('click', function(e) {
@@ -264,27 +270,34 @@
     });
 
     /* ── Navigation Guard ── */
-    function showUnsavedModal(callback) {
+    function showUnsavedModal() {
       showModal(`
-        <div style="text-align:center;margin-bottom:20px">
-          <div style="font-size:2.5rem;margin-bottom:12px">⚠️</div>
-          <div style="font-weight:800;font-size:1.1rem;margin-bottom:6px">Ungespeicherte Änderungen</div>
-          <div style="color:var(--muted);font-size:.85rem">Du hast Änderungen die noch nicht gespeichert wurden.</div>
+        <div style="text-align:center;margin-bottom:24px">
+          <div style="font-size:3rem;margin-bottom:14px;filter:drop-shadow(0 0 10px rgba(245,158,11,0.5))">⚠️</div>
+          <div style="font-weight:900;font-size:1.3rem;margin-bottom:8px;color:#fff">Ungespeicherte Änderungen</div>
+          <div style="color:var(--muted);font-size:.9rem;line-height:1.6">Du hast Einstellungen verändert, aber noch nicht gespeichert. Willst du sie jetzt sichern oder verwerfen?</div>
         </div>
-        <div style="display:flex;gap:8px">
-          <button onclick="closeModal()" style="flex:1;padding:10px;border-radius:12px;background:rgba(255,255,255,0.05);border:1px solid var(--border);color:var(--fg);font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit;transition:.15s" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">Zurück</button>
-          <button onclick="closeModal();discardChanges()" style="flex:1;padding:10px;border-radius:12px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);color:#f87171;font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit;transition:.15s" onmouseover="this.style.background='rgba(239,68,68,0.2)'" onmouseout="this.style.background='rgba(239,68,68,0.1)'">Verwerfen</button>
-          <button onclick="closeModal();saveConfig()" style="flex:1;padding:10px;border-radius:12px;background:linear-gradient(135deg,rgba(109,40,217,0.7),rgba(30,64,175,0.7));border:1px solid rgba(139,92,246,0.3);color:#fff;font-size:.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:.15s">💾 Speichern</button>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <button onclick="closeModal();saveConfig()" style="width:100%;padding:14px;border-radius:14px;background:linear-gradient(135deg,var(--v),var(--p));border:1px solid rgba(255,255,255,0.1);color:#fff;font-size:.9rem;font-weight:800;cursor:pointer;font-family:inherit;transition:.2s;box-shadow:0 4px 15px rgba(124,58,237,0.3)">💾 Jetzt Speichern</button>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <button onclick="closeModal()" style="padding:12px;border-radius:14px;background:rgba(255,255,255,0.05);border:1px solid var(--border);color:var(--fg);font-size:.85rem;font-weight:600;cursor:pointer;font-family:inherit;transition:.15s">Weiter bearbeiten</button>
+            <button onclick="closeModal();discardChanges()" style="padding:12px;border-radius:14px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);color:#f87171;font-size:.85rem;font-weight:600;cursor:pointer;font-family:inherit;transition:.15s">❌ Verwerfen</button>
+          </div>
         </div>
       `);
     }
 
-    // Track changes
-    document.querySelectorAll('.cfg-input,.cfg-select').forEach(el => {
-      el.addEventListener('change', showSaveBar);
-      el.addEventListener('input', showSaveBar);
+    // Only track elements that are not explicitly ignored
+    document.addEventListener('change', e => {
+      if (e.target.closest('.cfg-input, .cfg-select, .toggle input') && !e.target.closest('.ignore-dirty')) {
+        showSaveBar();
+      }
     });
-    document.querySelectorAll('.toggle input').forEach(el => el.addEventListener('change', showSaveBar));
+    document.addEventListener('input', e => {
+      if (e.target.closest('.cfg-input, .cfg-select, textarea') && !e.target.closest('.ignore-dirty')) {
+        showSaveBar();
+      }
+    });
 
     // Block browser navigation
     window.addEventListener('beforeunload', function(e) {
@@ -293,11 +306,13 @@
 
     // Block sidebar navigation with modal
     document.querySelectorAll('.db-nav a').forEach(link => {
-      const href = link.getAttribute('href');
       link.addEventListener('click', function(e) {
         if (_dirty) {
-          e.preventDefault();
-          showUnsavedModal();
+          const targetHref = this.getAttribute('href');
+          if (targetHref && targetHref !== window.location.pathname) {
+            e.preventDefault();
+            showUnsavedModal();
+          }
         }
       });
     });
