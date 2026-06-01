@@ -122,6 +122,41 @@ class E:
     USER       = "<:1000051750:1493333172962721872>"
     IMAGE      = "<:1000051775:1493333213031174224>"
     NO         = "<:1000052152:1493631418671169546>"
+    SPEED      = "⚡"
+    ALERT      = "⚠"
+    PLUS       = "➕"
+    MINUS      = "➖"
+    QUESTION   = "❓"
+    LAW        = "⚖"
+    DOT        = "⚪"
+    REFRESH    = "♻"
+    SHIELD_UI  = "🛡️"
+    SPEED_UI   = "⚡"
+    RAID_UI    = "🚨"
+    BOT_UI     = "🤖"
+    MENTION_UI = "🔔"
+    SCAM_UI    = "🎣"
+    OK_UI      = "✅"
+    APPEAL_UI  = "📋"
+    AUDIT_UI   = "🔍"
+    TICKET_UI  = "🎫"
+    WELCOME_UI = "👋"
+    LOGS_UI    = "📝"
+    ROCKET     = "🚀"
+    HAMMER     = "🔨"
+    PARTY      = "🎉"
+    RED        = "🔴"
+    ORANGE     = "🟠"
+    YELLOW     = "🟡"
+    GREEN      = "🟢"
+    BLUE       = "🔵"
+    FOLDER     = "📁"
+    CATEGORY   = "📂"
+    FILE       = "📄"
+    SAVE       = "💾"
+    TEXT       = "💬"
+    VOICE      = "🔊"
+    LABEL      = "🏷️"
 
 # ═══════════════════════════════════════════════════════════════
 # REGEX & LISTEN
@@ -397,18 +432,18 @@ HELP_DATA = {
 # WEB KONSTANTEN (werden von web/routes.py genutzt)
 # ═══════════════════════════════════════════════════════════════
 FEATURES = [
-    {"icon":"🛡️","title":"Anti-Nuke","desc":"Stoppt Massen-Bans, Kicks und Kanal-/Rollen-Wipes in Echtzeit.","bg":"rgba(237,66,69,.15)"},
-    {"icon":"⚡","title":"Anti-Spam","desc":"Erkennt Nachrichten-Spam, CAPS-Missbrauch, Emoji-Flood.","bg":"rgba(254,231,92,.15)"},
-    {"icon":"🚨","title":"Anti-Raid","desc":"Schützt vor koordinierten Beitritts-Angriffen.","bg":"rgba(65,105,225,.15)"},
-    {"icon":"🤖","title":"AutoMod","desc":"BadWords, Regex, Invite-Filter, Zalgo, Phishing-Schutz.","bg":"rgba(155,89,182,.15)"},
-    {"icon":"🔔","title":"Anti-Mention","desc":"Verhindert Massen-Erwähnungen und Mention-Spam.","bg":"rgba(0,176,244,.15)"},
-    {"icon":"🎣","title":"Anti-Scam","desc":"Erkennt Scam-Domains und Nitro-Fake-Links.","bg":"rgba(60,179,113,.15)"},
-    {"icon":"✅","title":"Verifizierung","desc":"One-Click oder CAPTCHA-Verifizierung.","bg":"rgba(65,105,225,.15)"},
-    {"icon":"📋","title":"Case-System","desc":"Case-ID mit Beweisen, Verlauf und Nachrichtenarchiv.","bg":"rgba(254,231,92,.15)"},
-    {"icon":"🔍","title":"Perms-Audit","desc":"Findet gefährliche Rollen und Hierarchie-Probleme.","bg":"rgba(155,89,182,.15)"},
-    {"icon":"🎫","title":"Tickets","desc":"Professionelles Support-Ticket-System.","bg":"rgba(237,66,69,.15)"},
-    {"icon":"👋","title":"Welcome & Leave","desc":"Embed-Builder im Dashboard.","bg":"rgba(60,179,113,.15)"},
-    {"icon":"📝","title":"Granulare Logs","desc":"26 Log-Module mit eigenem Kanal.","bg":"rgba(91,110,255,.15)"},
+    {"icon":E.SHIELD_UI,"title":"Anti-Nuke","desc":"Stoppt Massen-Bans, Kicks und Kanal-/Rollen-Wipes in Echtzeit.","bg":"rgba(237,66,69,.15)"},
+    {"icon":E.SPEED_UI,"title":"Anti-Spam","desc":"Erkennt Nachrichten-Spam, CAPS-Missbrauch, Emoji-Flood.","bg":"rgba(254,231,92,.15)"},
+    {"icon":E.RAID_UI,"title":"Anti-Raid","desc":"Schützt vor koordinierten Beitritts-Angriffen.","bg":"rgba(65,105,225,.15)"},
+    {"icon":E.BOT_UI,"title":"AutoMod","desc":"BadWords, Regex, Invite-Filter, Zalgo, Phishing-Schutz.","bg":"rgba(155,89,182,.15)"},
+    {"icon":E.MENTION_UI,"title":"Anti-Mention","desc":"Verhindert Massen-Erwähnungen und Mention-Spam.","bg":"rgba(0,176,244,.15)"},
+    {"icon":E.SCAM_UI,"title":"Anti-Scam","desc":"Erkennt Scam-Domains und Nitro-Fake-Links.","bg":"rgba(60,179,113,.15)"},
+    {"icon":E.OK_UI,"title":"Verifizierung","desc":"One-Click oder CAPTCHA-Verifizierung.","bg":"rgba(65,105,225,.15)"},
+    {"icon":E.APPEAL_UI,"title":"Case-System","desc":"Case-ID mit Beweisen, Verlauf und Nachrichtenarchiv.","bg":"rgba(254,231,92,.15)"},
+    {"icon":E.AUDIT_UI,"title":"Perms-Audit","desc":"Findet gefährliche Rollen und Hierarchie-Probleme.","bg":"rgba(155,89,182,.15)"},
+    {"icon":E.TICKET_UI,"title":"Tickets","desc":"Professionelles Support-Ticket-System.","bg":"rgba(237,66,69,.15)"},
+    {"icon":E.WELCOME_UI,"title":"Welcome & Leave","desc":"Embed-Builder im Dashboard.","bg":"rgba(60,179,113,.15)"},
+    {"icon":E.LOGS_UI,"title":"Granulare Logs","desc":"26 Log-Module mit eigenem Kanal.","bg":"rgba(91,110,255,.15)"},
 ]
 
 CMDS_PREVIEW = [
@@ -420,7 +455,7 @@ CMDS_PREVIEW = [
 ]
 
 VERSIONS = [
-    {"ver":"3.0.0","date":"2026-05-02","icon":"🚀","badge":"Major","badge_cls":"major","changes":[
+    {"ver":"3.0.0","date":"2026-05-02","icon":E.ROCKET,"badge":"Major","badge_cls":"major","changes":[
         "Neues Discord OAuth2 User-Dashboard (Login mit Discord)",
         "Vollständiger Welcome & Leave Embed-Builder im Dashboard",
         "Per-Modul Einstellungen direkt im Browser konfigurierbar",
@@ -432,7 +467,7 @@ VERSIONS = [
         "Verbessertes Anti-Nuke mit detaillierteren Logs",
         "Alle Bot-Antworten mit mehr Text und Details überarbeitet",
     ]},
-    {"ver":"2.7.0","date":"2026-04-15","icon":"🛡️","badge":"Fix","badge_cls":"fix","changes":[
+    {"ver":"2.7.0","date":"2026-04-15","icon":E.SHIELD_UI,"badge":"Fix","badge_cls":"fix","changes":[
         "Voice-Channel-Commands komplett entfernt",
         "Status-Loop alle 10 Sekunden mit 3 rotierenden Texten",
         "Flask-Dashboard mit Dark-Sidebar-Design",
@@ -440,7 +475,7 @@ VERSIONS = [
         "Tempaction-Loop für Tempban/Tempmute-Aufhebung",
         "Admin-Dashboard mit Live-API-Polling",
     ]},
-    {"ver":"2.6.1","date":"2025-12-01","icon":"⚡","badge":"New","badge_cls":"new","changes":[
+    {"ver":"2.6.1","date":"2025-12-01","icon":E.SPEED_UI,"badge":"New","badge_cls":"new","changes":[
         "112 Command-Handler komplett überarbeitet",
         "Motor für async MongoDB",
         "Case-System mit Beweisen und Nachrichtenarchiv",
@@ -449,14 +484,14 @@ VERSIONS = [
         "Whitelist-System mit 5 Kategorien",
         "Permissions-Audit (CRITICAL/HIGH/MEDIUM)",
     ]},
-    {"ver":"2.5.0","date":"2025-09-15","icon":"🔨","badge":"Major","badge_cls":"major","changes":[
+    {"ver":"2.5.0","date":"2025-09-15","icon":E.HAMMER,"badge":"Major","badge_cls":"major","changes":[
         "Anti-Raid komplett neu geschrieben",
         "Verify-System mit CAPTCHA-Modal",
         "Ticket-System mit Kategorie-Support",
         "AutoMod: Zalgo, Regex, Domain-Filter",
         "Warn-Schwellen mit automatischen Maßnahmen",
     ]},
-    {"ver":"2.0.0","date":"2025-06-01","icon":"🎉","badge":"Major","badge_cls":"major","changes":[
+    {"ver":"2.0.0","date":"2025-06-01","icon":E.PARTY,"badge":"Major","badge_cls":"major","changes":[
         "Erster öffentlicher Release",
         "Discord.py 2.x mit Slash-Commands",
         "MongoDB-Integration",

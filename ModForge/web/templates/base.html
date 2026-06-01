@@ -20,59 +20,263 @@
 
     body { padding-top: var(--chrome); }
 
-    /* ══════════════════════════════════════════
-       OUTAGE BAR
-    ══════════════════════════════════════════ */
-    #outage-bar {
-      position: fixed; top:0; left:0; right:0; z-index: 10010;
-      height: var(--outage-h);
-      background: linear-gradient(90deg,
-        rgba(153,27,27,0.98) 0%,
-        rgba(185,28,28,0.98) 50%,
-        rgba(153,27,27,0.98) 100%);
-      border-bottom: 1px solid rgba(248,113,113,0.25);
-    }
-    .outage-inner {
-      max-width: 1280px; margin: 0 auto;
-      height: 100%; padding: 0 1.5rem;
-      display: flex; align-items: center; gap: 0.65rem;
-    }
-    .outage-icon {
-      width: 1.35rem; height: 1.35rem; border-radius: 50%;
-      background: rgba(255,255,255,0.15);
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0;
-      animation: outagePulse 1.5s ease-in-out infinite;
-    }
-    .outage-icon svg { width:.65rem; height:.65rem; color:#fff; }
-    .outage-badge {
-      flex-shrink: 0;
-      display: inline-flex; align-items: center;
-      padding: .14rem .5rem; border-radius: 999px;
-      background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2);
-      font-family: 'Geist Mono',monospace;
-      font-size: .56rem; font-weight:700; letter-spacing:.1em;
-      text-transform: uppercase; color:#fff;
-    }
-    .outage-text {
-      flex:1; min-width:0;
-      font-size:.76rem; font-weight:600; color:#fff;
-      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-    }
-    .outage-text strong { font-weight:800; }
-    .outage-link {
-      flex-shrink:0;
-      display: inline-flex; align-items:center; gap:.25rem;
-      padding:.22rem .75rem; border-radius:999px;
-      font-size:.66rem; font-weight:700; color:#fff;
-      background:rgba(255,255,255,0.12);
-      border:1px solid rgba(255,255,255,0.25);
-      backdrop-filter:blur(10px);
-      transition:all var(--r); white-space:nowrap;
-    }
-    .outage-link:hover { background:rgba(255,255,255,0.22); transform:translateY(-1px); }
-    .outage-link svg { width:.62rem; height:.62rem; }
+:root {
+  --outage-h: 52px;
+  --r: .25s;
+}
 
+/* ══════════════════════════════════════════
+   ANIMATIONS
+══════════════════════════════════════════ */
+
+@keyframes slideInTop {
+  from {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes outagePulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(52,211,153,.45);
+  }
+  50% {
+    transform: scale(1.1);
+    box-shadow: 0 0 0 12px rgba(52,211,153,0);
+  }
+}
+
+@keyframes bannerGlow {
+  0%, 100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.15);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -300px 0;
+  }
+  100% {
+    background-position: 300px 0;
+  }
+}
+
+@keyframes floatArrow {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(4px);
+  }
+}
+
+/* ══════════════════════════════════════════
+   DASHBOARD BAR
+══════════════════════════════════════════ */
+
+#outage-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10010;
+  height: var(--outage-h);
+
+  background: linear-gradient(
+    90deg,
+    rgba(5,150,105,0.98) 0%,
+    rgba(16,185,129,0.98) 50%,
+    rgba(5,150,105,0.98) 100%
+  );
+
+  border-bottom: 1px solid rgba(52,211,153,.3);
+
+  animation:
+    slideInTop .8s cubic-bezier(.22,1,.36,1),
+    bannerGlow 5s ease-in-out infinite;
+
+  overflow: hidden;
+}
+
+#outage-bar::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255,255,255,.12),
+    transparent
+  );
+
+  background-size: 300% 100%;
+  animation: shimmer 7s linear infinite;
+  pointer-events: none;
+}
+
+.outage-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  height: 100%;
+  padding: 0 1.5rem;
+
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+}
+
+.outage-icon {
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: 50%;
+
+  background: rgba(255,255,255,.15);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;
+
+  animation: outagePulse 2s infinite;
+}
+
+.outage-icon svg {
+  width: .75rem;
+  height: .75rem;
+  color: #fff;
+}
+
+.outage-badge {
+  flex-shrink: 0;
+
+  display: inline-flex;
+  align-items: center;
+
+  padding: .18rem .6rem;
+
+  border-radius: 999px;
+
+  background: rgba(0,0,0,.25);
+  border: 1px solid rgba(255,255,255,.15);
+
+  color: #fff;
+
+  font-size: .58rem;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.outage-text {
+  flex: 1;
+  min-width: 0;
+
+  color: #fff;
+
+  font-size: .78rem;
+  font-weight: 600;
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.outage-text strong {
+  font-weight: 800;
+}
+
+.outage-link {
+  position: relative;
+
+  flex-shrink: 0;
+
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+
+  padding: .45rem .95rem;
+
+  border-radius: 999px;
+
+  color: #fff;
+  text-decoration: none;
+
+  font-size: .68rem;
+  font-weight: 800;
+
+  background: rgba(255,255,255,.12);
+  border: 1px solid rgba(255,255,255,.22);
+
+  backdrop-filter: blur(12px);
+
+  overflow: hidden;
+  transition: all .25s ease;
+}
+
+.outage-link::before {
+  content: "";
+
+  position: absolute;
+  top: 0;
+  left: -150%;
+
+  width: 100%;
+  height: 100%;
+
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255,255,255,.35),
+    transparent
+  );
+
+  animation: shimmer 3s linear infinite;
+}
+
+.outage-link:hover {
+  transform: translateY(-2px) scale(1.04);
+
+  background: rgba(255,255,255,.2);
+
+  box-shadow:
+    0 0 20px rgba(255,255,255,.2),
+    0 0 40px rgba(255,255,255,.08);
+}
+
+.outage-link svg {
+  width: .7rem;
+  height: .7rem;
+
+  animation: floatArrow 1.5s ease-in-out infinite;
+}
+
+/* ══════════════════════════════════════════
+   MOBILE
+══════════════════════════════════════════ */
+
+@media (max-width: 768px) {
+  .outage-badge {
+    display: none;
+  }
+
+  .outage-text {
+    font-size: .7rem;
+  }
+
+  .outage-link {
+    padding: .4rem .75rem;
+  }
+  }
     /* ══════════════════════════════════════════
        TRUST BAR — animated marquee
     ══════════════════════════════════════════ */
@@ -652,26 +856,32 @@
 <body>
 <div class="page-wrapper">
 
-<!-- ══════ OUTAGE BAR ══════ -->
+<!-- ══════════════════════════════════════════
+     DASHBOARD ONLINE BAR
+══════════════════════════════════════════ -->
 <div id="outage-bar">
   <div class="outage-inner">
+
     <div class="outage-icon">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-        <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+        <path d="M20 6L9 17l-5-5"/>
       </svg>
     </div>
-    <span class="outage-badge">Dashboard · Ausfall</span>
+
+    <span class="outage-badge">Dashboard · Online</span>
+
     <span class="outage-text">
-      <strong>Das Web-Dashboard ist aktuell nicht erreichbar.</strong>
-      Wir arbeiten an einer Lösung – der Bot läuft stabil weiter.
+      <strong>Das Dashboard ist jetzt verfügbar.</strong>
+      Verwalte Server, Statistiken und Einstellungen direkt über das Dashboard.
     </span>
-    <a href="/status" class="outage-link">
-      Status
+
+    <a href="/dashboard" class="outage-link">
+      Dashboard öffnen
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
         <polyline points="9 18 15 12 9 6"/>
       </svg>
     </a>
+
   </div>
 </div>
 

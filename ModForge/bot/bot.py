@@ -246,11 +246,11 @@ class AppealReasonModal(discord.ui.Modal):
             except (discord.NotFound, discord.Forbidden):
                 pass
             color = COLOR_SUCCESS
-            result_title = "✅ Appeal akzeptiert & Entbannt"
+            result_title = f"{E.OK} Appeal akzeptiert & Entbannt"
             result_desc = f"Notiz: {self.reason.value}"
         else:
             color = COLOR_DANGER
-            result_title = "❌ Appeal abgelehnt"
+            result_title = f"{E.FAIL} Appeal abgelehnt"
             result_desc = f"Grund: {self.reason.value}"
         embed = interaction.message.embeds[0] if interaction.message.embeds else discord.Embed()
         embed.color = color
@@ -260,9 +260,9 @@ class AppealReasonModal(discord.ui.Modal):
         try:
             user = await self.bot_ref.fetch_user(user_id)
             dm_msg = (
-                f"✅ **Dein Entbannungs-Antrag wurde angenommen!**\n"
+                f"{E.OK} **Dein Entbannungs-Antrag wurde angenommen!**\n"
                 f"**Notiz:** {self.reason.value}" if self.action == "unban"
-                else f"❌ **Dein Entbannungs-Antrag wurde abgelehnt.**\n"
+                else f"{E.FAIL} **Dein Entbannungs-Antrag wurde abgelehnt.**\n"
                      f"**Grund:** {self.reason.value}"
             )
             await user.send(dm_msg)
@@ -290,7 +290,7 @@ class AppealActionView(discord.ui.View):
                         pass
         return {}
 
-    @discord.ui.button(label="Ablehnen", style=discord.ButtonStyle.danger, custom_id="appeal:decline", emoji="❌")
+    @discord.ui.button(label="Ablehnen", style=discord.ButtonStyle.danger, custom_id="appeal:decline", emoji=E.FAIL)
     async def decline(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         if not interaction.user.guild_permissions.ban_members:
             await interaction.response.send_message("Keine Berechtigung.", ephemeral=True)
@@ -300,17 +300,17 @@ class AppealActionView(discord.ui.View):
         guild = interaction.guild
         embed = interaction.message.embeds[0] if interaction.message.embeds else discord.Embed()
         embed.color = COLOR_DANGER
-        embed.add_field(name="❌ Status", value="Abgelehnt", inline=True)
+        embed.add_field(name=f"{E.FAIL} Status", value="Abgelehnt", inline=True)
         embed.add_field(name="Bearbeitet von", value=interaction.user.mention, inline=True)
         await interaction.response.edit_message(embed=embed, view=None)
         try:
             user = await interaction.client.fetch_user(user_id)
-            await user.send(f"❌ **Dein Entbannungs-Antrag wurde abgelehnt.** Du bleibst vom Server **{guild.name}** gebannt.")
+            await user.send(f"{E.FAIL} **Dein Entbannungs-Antrag wurde abgelehnt.** Du bleibst vom Server **{guild.name}** gebannt.")
         except (discord.NotFound, discord.Forbidden, discord.HTTPException):
             pass
-        await interaction.client.log_action(guild, "❌ Appeal abgelehnt", f"Appeal von <@{user_id}> abgelehnt.", COLOR_DANGER, module="appeal")
+        await interaction.client.log_action(guild, f"{E.FAIL} Appeal abgelehnt", f"Appeal von <@{user_id}> abgelehnt.", COLOR_DANGER, module="appeal")
 
-    @discord.ui.button(label="Entbannen", style=discord.ButtonStyle.success, custom_id="appeal:unban", emoji="✅")
+    @discord.ui.button(label="Entbannen", style=discord.ButtonStyle.success, custom_id="appeal:unban", emoji=E.OK)
     async def unban(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         if not interaction.user.guild_permissions.ban_members:
             await interaction.response.send_message("Keine Berechtigung.", ephemeral=True)
@@ -324,15 +324,15 @@ class AppealActionView(discord.ui.View):
             pass
         embed = interaction.message.embeds[0] if interaction.message.embeds else discord.Embed()
         embed.color = COLOR_SUCCESS
-        embed.add_field(name="✅ Status", value="Entbannt", inline=True)
+        embed.add_field(name=f"{E.OK} Status", value="Entbannt", inline=True)
         embed.add_field(name="Bearbeitet von", value=interaction.user.mention, inline=True)
         await interaction.response.edit_message(embed=embed, view=None)
         try:
             user = await interaction.client.fetch_user(user_id)
-            await user.send(f"✅ **Dein Entbannungs-Antrag wurde angenommen!** Willkommen zurück auf **{guild.name}**.")
+            await user.send(f"{E.OK} **Dein Entbannungs-Antrag wurde angenommen!** Willkommen zurück auf **{guild.name}**.")
         except (discord.NotFound, discord.Forbidden, discord.HTTPException):
             pass
-        await interaction.client.log_action(guild, "✅ Appeal akzeptiert", f"<@{user_id}> entbannt von {interaction.user.mention}", COLOR_SUCCESS, module="appeal")
+        await interaction.client.log_action(guild, f"{E.OK} Appeal akzeptiert", f"<@{user_id}> entbannt von {interaction.user.mention}", COLOR_SUCCESS, module="appeal")
 
     @discord.ui.button(label="Ablehnen + Grund", style=discord.ButtonStyle.secondary, custom_id="appeal:decline_reason", emoji="📝")
     async def decline_reason(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
@@ -342,7 +342,7 @@ class AppealActionView(discord.ui.View):
         data = self._get_appeal_data(interaction)
         await interaction.response.send_modal(AppealReasonModal("decline", data, interaction.client))
 
-    @discord.ui.button(label="Entbannen + Notiz", style=discord.ButtonStyle.primary, custom_id="appeal:unban_reason", emoji="💬")
+    @discord.ui.button(label="Entbannen + Notiz", style=discord.ButtonStyle.primary, custom_id="appeal:unban_reason", emoji=E.TEXT)
     async def unban_reason(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         if not interaction.user.guild_permissions.ban_members:
             await interaction.response.send_message("Keine Berechtigung.", ephemeral=True)
@@ -370,7 +370,7 @@ class SetupModuleSelect(discord.ui.Select):
         cfg = interaction.client.db.get_config(interaction.guild.id)
         mod_cfg = cfg.get(module, {})
         fields = [(k, str(v), True) for k, v in mod_cfg.items()]
-        embed = create_embed(f"{E.GEAR} Konfiguration: {module.replace('_', ' ').title()}",
+        embed = create_embed(f"{E.GEAR} Konfiguration: {module.replace('_', ' ') .title()}",
                              f"Aktuelle Einstellungen für **{module}**", COLOR_PRIMARY, fields)
         await interaction.response.edit_message(embed=embed, view=self.view)
 
@@ -531,8 +531,9 @@ class ModForge(commands.Bot):
 
     # Webhook-Module: Name + Avatar pro Modul
     WEBHOOK_MODULES = {
+
         "moderation": ("🛡️ Moderation", "https://cdn.discordapp.com/embed/avatars/0.png"),
-        "antispam":   ("⚡ Anti-Spam", "https://cdn.discordapp.com/embed/avatars/1.png"),
+        f"antispam":   (f"{E.SPEED} Anti-Spam", "https://cdn.discordapp.com/embed/avatars/1.png"),
         "antinuke":   ("💥 Anti-Nuke", "https://cdn.discordapp.com/embed/avatars/2.png"),
         "antiraid":   ("🚨 Anti-Raid", "https://cdn.discordapp.com/embed/avatars/3.png"),
         "antimention":("🔔 Anti-Mention", "https://cdn.discordapp.com/embed/avatars/4.png"),
@@ -541,16 +542,16 @@ class ModForge(commands.Bot):
         "voice":      ("🎤 Voice-Log", "https://cdn.discordapp.com/embed/avatars/2.png"),
         "members":    ("👥 Members", "https://cdn.discordapp.com/embed/avatars/3.png"),
         "nicknames":  ("📝 Nicknames", "https://cdn.discordapp.com/embed/avatars/4.png"),
-        "channels":   ("📁 Channels", "https://cdn.discordapp.com/embed/avatars/0.png"),
-        "roles":      ("🏷️ Rollen", "https://cdn.discordapp.com/embed/avatars/1.png"),
+        f"channels":   (f"{E.FOLDER} Channels", "https://cdn.discordapp.com/embed/avatars/0.png"),
+        f"roles":      (f"{E.LABEL} Rollen", "https://cdn.discordapp.com/embed/avatars/1.png"),
         "webhooks":   ("🔌 Webhooks", "https://cdn.discordapp.com/embed/avatars/2.png"),
         "tickets":    ("🎫 Tickets", "https://cdn.discordapp.com/embed/avatars/3.png"),
-        "verify":     ("✅ Verify", "https://cdn.discordapp.com/embed/avatars/4.png"),
-        "warns":      ("⚠️ Warns", "https://cdn.discordapp.com/embed/avatars/0.png"),
+        f"verify":     (f"{E.OK} Verify", "https://cdn.discordapp.com/embed/avatars/4.png"),
+        f"warns":      (f"{E.ALERT}️ Warns", "https://cdn.discordapp.com/embed/avatars/0.png"),
         "cases":      ("📋 Cases", "https://cdn.discordapp.com/embed/avatars/1.png"),
-        "backup":     ("💾 Backup", "https://cdn.discordapp.com/embed/avatars/2.png"),
+        f"backup":     (f"{E.SAVE} Backup", "https://cdn.discordapp.com/embed/avatars/2.png"),
         "welcome":    ("👋 Welcome", "https://cdn.discordapp.com/embed/avatars/3.png"),
-        "errors":     ("❌ Errors", "https://cdn.discordapp.com/embed/avatars/4.png"),
+        f"errors":     (f"{E.FAIL} Errors", "https://cdn.discordapp.com/embed/avatars/4.png"),
         "default":    ("🛡️ ModForge", "https://cdn.discordapp.com/embed/avatars/0.png"),
     }
 
@@ -560,10 +561,14 @@ class ModForge(commands.Bot):
         if not guild:
             return
 
-        # Dedup: same log within 3 seconds = skip
-        dedup_key = f"{guild.id}:{module}:{title}:{str(user.id if user else '')}"
+        # Dedup: same log within 2 seconds = skip (Voice is more sensitive, so we use description in key there)
+        if module == "voice":
+            dedup_key = f"{guild.id}:{module}:{title}:{description}:{str(user.id if user else '')}"
+        else:
+            dedup_key = f"{guild.id}:{module}:{title}:{str(user.id if user else '')}"
+            
         now = time.time()
-        if dedup_key in self._log_dedup and now - self._log_dedup[dedup_key] < 3:
+        if dedup_key in self._log_dedup and now - self._log_dedup[dedup_key] < 2:
             return
         self._log_dedup[dedup_key] = now
         # Cleanup old entries
@@ -577,7 +582,7 @@ class ModForge(commands.Bot):
         # Embed bauen
         thumb = user.display_avatar.url if user else None
         embed = create_embed(title, description, color, fields, thumbnail=thumb, user=user)
-        embed.timestamp = datetime.datetime.utcnow()
+        embed.timestamp = discord.utils.utcnow()
 
         # ── Auto-Webhook-Logging ──
         # Wenn aktiviert: Bot erstellt/nutzt automatisch Webhooks pro Log-Kanal
@@ -680,13 +685,13 @@ class ModForge(commands.Bot):
                     f"{E.WARN} Verwarnung erhalten",
                     f"Du wurdest auf **{guild.name}** verwarnt.\n\n"
                     f"📝 **Grund:** {reason}\n"
-                    f"⚠️ **Verwarnungen:** {count}\n\n"
-                    f"{'🔴 **Achtung:** Bei weiteren Verwarnungen drohen härtere Strafen!' if count >= 2 else ''}",
+                    f"{E.ALERT}️ **Verwarnungen:** {count}\n\n"
+                    f"{E.RED} **Achtung:** Bei weiteren Verwarnungen drohen härtere Strafen!" if count >= 2 else "",
                     COLOR_WARNING,
                     thumbnail=guild.icon.url if guild.icon else None
                 )
                 dm_e.set_footer(text=f"{guild.name} · ModForge Security", icon_url=FOOTER_ICON)
-                dm_e.timestamp = datetime.datetime.utcnow()
+                dm_e.timestamp = discord.utils.utcnow()
                 await safe_dm(member, dm_e, cooldown_key=f"warn:{guild.id}:{member.id}")
             elif punishment == "timeout":
                 until = discord.utils.utcnow() + datetime.timedelta(seconds=duration)
@@ -705,7 +710,7 @@ class ModForge(commands.Bot):
                     thumbnail=guild.icon.url if guild.icon else None
                 )
                 dm_e.set_footer(text=f"{guild.name} · ModForge Security", icon_url=FOOTER_ICON)
-                dm_e.timestamp = datetime.datetime.utcnow()
+                dm_e.timestamp = discord.utils.utcnow()
                 await safe_dm(member, dm_e, cooldown_key=f"kick:{guild.id}:{member.id}")
                 await member.kick(reason=reason)
                 executed = True
@@ -725,13 +730,13 @@ class ModForge(commands.Bot):
                     f"{E.BAN} Du wurdest gebannt",
                     f"Du wurdest von **{guild.name}** permanent gebannt.\n\n"
                     f"📝 **Grund:** {reason}\n"
-                    f"📅 **Datum:** <t:{int(datetime.datetime.utcnow().timestamp())}:F>"
+                    f"📅 **Datum:** <t:{int(discord.utils.utcnow().timestamp())}:F>"
                     f"{appeal_text}",
                     COLOR_DANGER,
                     thumbnail=guild.icon.url if guild.icon else None
                 )
                 dm_e.set_footer(text=f"{guild.name} · ModForge Security", icon_url=FOOTER_ICON)
-                dm_e.timestamp = datetime.datetime.utcnow()
+                dm_e.timestamp = discord.utils.utcnow()
                 await safe_dm(member, dm_e, cooldown_key=f"ban:{guild.id}:{member.id}")
                 await member.ban(reason=reason, delete_message_seconds=86400)
                 executed = True
@@ -741,7 +746,7 @@ class ModForge(commands.Bot):
                         "channel_id": m.get("channel_id"), "message_id": m.get("message_id"),
                         "content": m.get("content", ""), "attachments": m.get("attachments", []),
                         "deleted": bool(m.get("deleted")), "edits": m.get("edits", []),
-                        "timestamp": (m.get("timestamp") or datetime.datetime.utcnow()).isoformat() + "Z",
+                        "timestamp": (m.get("timestamp") or discord.utils.utcnow()).isoformat() + "Z",
                     } for m in pre_messages]
                     await self.db.aattach_messages_to_case(guild.id, case_id, serializable)
                 ACTIVITY.push("case", f"Case #{case_id} (ban) – {member} | {len(pre_messages)} archivierte Nachrichten",
@@ -775,7 +780,7 @@ class ModForge(commands.Bot):
                     "channel_id": m.get("channel_id"), "message_id": m.get("message_id"),
                     "content": m.get("content", ""), "attachments": m.get("attachments", []),
                     "deleted": bool(m.get("deleted")), "edits": m.get("edits", []),
-                    "timestamp": (m.get("timestamp") or datetime.datetime.utcnow()).isoformat() + "Z",
+                    "timestamp": (m.get("timestamp") or discord.utils.utcnow()).isoformat() + "Z",
                 } for m in pre_messages]
                 await self.db.aattach_messages_to_case(guild.id, case_id, serializable)
         ACTIVITY.push("case", f"Case #{case_id} ({action}) – Target `{target_id}` von {moderator}.",
@@ -859,7 +864,7 @@ class ModForge(commands.Bot):
     async def restore_persistent_mutes(self) -> None:
         await self.wait_until_ready()
         active = await self.db.aget_active_mutes()
-        now = datetime.datetime.utcnow()
+        now = discord.utils.utcnow()
         for entry in active:
             guild = self.get_guild(entry["guild_id"])
             if not guild:
@@ -911,7 +916,7 @@ async def on_member_join(member):
     ACTIVITY.push("join", f"{member} ist **{guild.name}** beigetreten ({guild.member_count} Member).",
                   guild_id=guild.id, guild_name=guild.name, user_id=member.id, user_name=str(member))
     if bot.is_whitelisted(member, "bypass_antinuke"):
-        await bot.log_action(guild, "➕ Mitglied beigetreten", f"{member.mention}", COLOR_SUCCESS, user=member, module="members")
+        await bot.log_action(guild, f"{E.PLUS} Mitglied beigetreten", f"{member.mention}", COLOR_SUCCESS, user=member, module="members")
         return
     # ── Anti-VPN Check ──
     vpn_cfg = cfg.get("anti_vpn", {})
@@ -920,7 +925,7 @@ async def on_member_join(member):
         if str(member.id) not in [str(w) for w in vpn_wl]:
             # Note: Discord doesn't expose IP directly. We check via audit log guild join metadata
             # This is a heuristic: new accounts + no avatar + suspicious patterns
-            account_age_hours = (datetime.datetime.utcnow() - member.created_at.replace(tzinfo=None)).total_seconds() / 3600
+            account_age_hours = (discord.utils.utcnow() - member.created_at.replace(tzinfo=None)).total_seconds() / 3600
             suspicious_vpn = (
                 account_age_hours < 24 and
                 not member.avatar and
@@ -939,7 +944,7 @@ async def on_member_join(member):
                         f"Kein Avatar + neuer Account + verdächtiger Name",
                         COLOR_WARNING, user=member, module="antiraid")
                 except discord.Forbidden:
-                    await bot.log_action(guild, f"⚠️ Anti-VPN", f"Kann {member.mention} nicht {action}en (fehlende Rechte).", COLOR_WARNING, module="antiraid")
+                    await bot.log_action(guild, f"{E.ALERT}️ Anti-VPN", f"Kann {member.mention} nicht {action}en (fehlende Rechte).", COLOR_WARNING, module="antiraid")
 
     # ── Raid-Mode DM ──
     if cfg.get("raidmode_active") and not member.bot:
@@ -957,7 +962,7 @@ async def on_member_join(member):
             pass
 
     if sec_level >= 2:
-        account_age = (datetime.datetime.utcnow() - member.created_at.replace(tzinfo=None)).days
+        account_age = (discord.utils.utcnow() - member.created_at.replace(tzinfo=None)).days
         if account_age < 5:
             try:
                 await member.kick(reason="Sicherheitsstufe 2: Account zu jung (< 5 Tage)")
@@ -980,7 +985,7 @@ async def on_member_join(member):
         dq.append(now)
         bot.tracker.clean_old(dq, raid_cfg.get("window", 20))
         min_age_days = raid_cfg.get("min_account_age", 7)
-        account_age = (datetime.datetime.utcnow() - member.created_at.replace(tzinfo=None)).days
+        account_age = (discord.utils.utcnow() - member.created_at.replace(tzinfo=None)).days
         if account_age < min_age_days and raid_cfg.get("auto_kick"):
             try:
                 await member.kick(reason=f"Anti-Raid: Account zu jung ({account_age} Tage)")
@@ -1085,7 +1090,7 @@ async def handle_appeal_dm(message: discord.Message) -> bool:
 
         if next_step < len(APPEAL_QUESTIONS):
             await message.author.send(embed=create_embed(
-                "✅ Antwort gespeichert", APPEAL_QUESTIONS[next_step], COLOR_INFO))
+                f"{E.OK} Antwort gespeichert", APPEAL_QUESTIONS[next_step], COLOR_INFO))
         else:
             await _submit_appeal(message.author, session)
             del appeal_sessions[user_id]
@@ -1101,14 +1106,14 @@ async def _submit_appeal(user: discord.User, session: dict) -> None:
     ban_reason = session.get("ban_reason", "Unbekannt")
 
     if not guild:
-        await user.send("❌ Der Server konnte nicht gefunden werden.")
+        await user.send(f"{E.FAIL} Der Server konnte nicht gefunden werden.")
         return
 
     cfg = bot.db.get_config(guild_id)
     channel_id = cfg.get("appeal_log_channel")
     if not channel_id:
         await user.send(embed=create_embed(
-            "❌ Kein Appeal-Kanal",
+            f"{E.FAIL} Kein Appeal-Kanal",
             "Auf diesem Server wurde noch kein Appeal-Kanal eingerichtet. "
             "Bitte wende dich direkt an einen Admin.",
             COLOR_DANGER))
@@ -1126,11 +1131,11 @@ async def _submit_appeal(user: discord.User, session: dict) -> None:
             ("👤 Nutzer", f"{user.mention} (`{user}`)", True),
             ("🆔 User-ID", str(user.id), True),
             ("🔨 Ban-Grund", ban_reason, False),
-            ("❓ Warum gebannt?", answers.get("ban_grund", "–"), False),
-            ("✅ Fehler eingesehen?", answers.get("fehler_eingesehen", "–"), True),
+            (f"{E.QUESTION} Warum gebannt?", answers.get("ban_grund", "–"), False),
+            (f"{E.OK} Fehler eingesehen?", answers.get("fehler_eingesehen", "–"), True),
             ("📜 Statement", answers.get("statement", "–"), False),
             ("🤝 Regeln versprechen?", answers.get("regeln_versprechen", "–"), True),
-            ("💬 Zusatz", answers.get("zusatz", "–"), False),
+            (f"{E.TEXT} Zusatz", answers.get("zusatz", "–"), False),
         ],
         thumbnail=user.display_avatar.url
     )
@@ -1140,7 +1145,7 @@ async def _submit_appeal(user: discord.User, session: dict) -> None:
     await channel.send(embed=embed, view=view)
 
     await user.send(embed=create_embed(
-        "✅ Antrag eingereicht!",
+        f"{E.OK} Antrag eingereicht!",
         (f"Dein Entbannungs-Antrag wurde erfolgreich an das Team von **{guild.name}** gesendet.\n"
          "Bitte habe etwas Geduld – du wirst per DM über die Entscheidung informiert."),
         COLOR_SUCCESS,
@@ -1331,7 +1336,7 @@ async def _notify_owner_nuke(
     # ── Strafe ─────────────────────────────────────────────────
 
     embed.add_field(
-        name="⚖️  Strafe",
+        name=f"{E.LAW}️  Strafe",
 
         value=(
             f"```fix\n"
@@ -1354,10 +1359,10 @@ async def _notify_owner_nuke(
             f"> 🚫  **Alle Rollen** des Täters "
             f"wurden entzogen\n"
 
-            f"> ⚖️  **Strafe** `{punishment}` "
+            f"> {E.LAW}️  **Strafe** `{punishment}` "
             f"wurde verhängt\n"
 
-            f"> 📁  **Case** wurde automatisch "
+            f"> {E.FOLDER}  **Case** wurde automatisch "
             f"im System gespeichert"
         ),
 
@@ -1534,11 +1539,11 @@ async def _nuke_check(
             owner = guild.owner
             if owner:
                 alert_embed = create_embed(
-                    f"{E.NUKE} ⚠️ ANTI-NUKE ALARM — Bot kann nicht handeln!",
+                    f"{E.NUKE} {E.ALERT}️ ANTI-NUKE ALARM — Bot kann nicht handeln!",
                     (
                         f"**{executor.mention}** führt verdächtige "
                         f"Massenaktionen auf **{guild.name}** durch!\n\n"
-                        f"**⚠️ Problem:** {hierarchy_msg}\n\n"
+                        f"**{E.ALERT}️ Problem:** {hierarchy_msg}\n\n"
                         f"**Was du tun solltest:**\n"
                         f"> 1. Rolle von `{executor.display_name}` sofort entfernen\n"
                         f"> 2. User manuell bannen\n"
@@ -2046,6 +2051,7 @@ async def on_voice_state_update(member: discord.Member, before: discord.VoiceSta
                                 after: discord.VoiceState) -> None:
     """Vollständiges Voice-Logging – loggt JEDEN Voice-State-Change zuverlässig."""
     guild = member.guild
+    now = discord.utils.utcnow()
 
     # ── Temp-Voice: Join-to-Create ──
     if not member.bot:
@@ -2061,21 +2067,16 @@ async def on_voice_state_update(member: discord.Member, before: discord.VoiceSta
                         guild.me: discord.PermissionOverwrite(read_messages=True, connect=True, manage_channels=True),
                     }
                     temp_ch = await guild.create_voice_channel(
-                        name=f"🔊 {member.display_name}", category=cat, overwrites=overwrites,
+                        name=f"{E.VOICE} {member.display_name}", category=cat, overwrites=overwrites,
                         reason=f"Temp-Voice von {member}"
                     )
                     await member.move_to(temp_ch, reason="Temp-Voice erstellt")
-                    try:
-                        await bot.log_action(guild, "🎤 Temp-Voice erstellt",
-                                             f"{member.mention} hat {temp_ch.mention} erstellt.",
-                                             COLOR_SUCCESS, user=member, module="voice")
-                    except Exception:
-                        pass
-                    # KEIN return hier – Voice Join soll trotzdem geloggt werden
+                    await bot.log_action(guild, "🎤 Temp-Voice erstellt",
+                                         f"{member.mention} hat {temp_ch.mention} erstellt.",
+                                         COLOR_SUCCESS, user=member, module="voice")
 
-                # Temp channel empty -> auto delete
                 if before.channel and before.channel != after.channel:
-                    if before.channel.name.startswith("🔊 ") and len(before.channel.members) == 0:
+                    if before.channel.name.startswith(f"{E.VOICE} ") and len(before.channel.members) == 0:
                         try:
                             await before.channel.delete(reason="Temp-Voice: Kanal leer")
                         except (discord.Forbidden, discord.NotFound):
@@ -2083,159 +2084,110 @@ async def on_voice_state_update(member: discord.Member, before: discord.VoiceSta
         except Exception as ex:
             log.debug(f"Temp-Voice Fehler: {ex}")
 
-    # ══════════════════════════════════════════════════════════════
-    # AB HIER: LOGGING — alles in try/except damit nie was abbricht
-    # ══════════════════════════════════════════════════════════════
-
     # ── Channel Join / Leave / Switch ──
     if before.channel != after.channel:
         try:
+            # JOIN
             if not before.channel and after.channel:
                 await bot.log_action(guild, f"{E.VOICE_IN} Voice Join",
                                      f"{member.mention} ist **{after.channel.mention}** beigetreten.",
                                      COLOR_SUCCESS, user=member, module="voice")
+            # LEAVE
             elif before.channel and not after.channel:
-                await bot.log_action(guild, f"{E.VOICE_OUT} Voice Leave",
-                                     f"{member.mention} hat **{before.channel.mention}** verlassen.",
-                                     COLOR_DANGER, user=member, module="voice")
+                # Check for Mod Disconnect
+                actor = None
+                if not member.bot:
+                    try:
+                        # Wait a tiny bit for Audit Log to populate
+                        await asyncio.sleep(0.4)
+                        async for entry in guild.audit_logs(limit=5, action=discord.AuditLogAction.member_disconnect):
+                            if entry.target and entry.target.id == member.id and (now - entry.created_at).total_seconds() < 7:
+                                actor = entry.user
+                                break
+                    except: pass
+                
+                if actor:
+                    await bot.log_action(guild, "📤 Voice Disconnect (Mod)",
+                                         f"**{member.mention}** wurde aus **{before.channel.mention}** entfernt von **{actor.mention}**.",
+                                         COLOR_WARNING, user=member, module="voice")
+                else:
+                    await bot.log_action(guild, f"{E.VOICE_OUT} Voice Leave",
+                                         f"{member.mention} hat **{before.channel.mention}** verlassen.",
+                                         COLOR_DANGER, user=member, module="voice")
+            # SWITCH
             elif before.channel and after.channel:
-                await bot.log_action(guild, f"{E.VOICE_SW} Voice Wechsel",
-                                     f"{member.mention}: {before.channel.mention} → {after.channel.mention}",
-                                     COLOR_INFO, user=member, module="voice")
-        except Exception as ex:
-            log.debug(f"Voice Join/Leave Log Fehler: {ex}")
-
-    # ── Voice Disconnect / Move (durch Moderator, via Audit-Log) ──
-    if before.channel and not after.channel and not member.bot:
-        try:
-            async for entry in guild.audit_logs(limit=3, action=discord.AuditLogAction.member_disconnect):
-                if (discord.utils.utcnow() - entry.created_at).total_seconds() < 5:
-                    if entry.target and entry.target.id == member.id:
-                        await bot.log_action(guild, "📤 Voice Disconnect (durch Mod)",
-                                             f"**{member.mention}** wurde aus **{before.channel.mention}** entfernt von **{entry.user.mention}**.",
-                                             COLOR_WARNING, user=member, module="voice")
-                        break
-        except (discord.Forbidden, discord.HTTPException):
-            pass
-
-    if before.channel and after.channel and before.channel != after.channel and not member.bot:
-        try:
-            async for entry in guild.audit_logs(limit=3, action=discord.AuditLogAction.member_move):
-                if (discord.utils.utcnow() - entry.created_at).total_seconds() < 5:
-                    await bot.log_action(guild, "↔️ Voice Verschoben (durch Mod)",
-                                         f"**{member.mention}** verschoben von **{entry.user.mention}**: {before.channel.mention} → {after.channel.mention}",
+                # Check for Mod Move
+                actor = None
+                if not member.bot:
+                    try:
+                        await asyncio.sleep(0.4)
+                        async for entry in guild.audit_logs(limit=5, action=discord.AuditLogAction.member_move):
+                            if entry.target and entry.target.id == member.id and (now - entry.created_at).total_seconds() < 7:
+                                actor = entry.user
+                                break
+                    except: pass
+                
+                if actor:
+                    await bot.log_action(guild, "↔️ Voice Verschoben (Mod)",
+                                         f"**{member.mention}** verschoben von **{actor.mention}**: {before.channel.mention} → {after.channel.mention}",
                                          COLOR_INFO, user=member, module="voice")
-                    break
-        except (discord.Forbidden, discord.HTTPException):
-            pass
+                else:
+                    await bot.log_action(guild, f"{E.VOICE_SW} Voice Wechsel",
+                                         f"{member.mention}: {before.channel.mention} → {after.channel.mention}",
+                                         COLOR_INFO, user=member, module="voice")
+        except Exception as ex:
+            log.debug(f"Voice Channel Event Fehler: {ex}")
 
     # ── Server Mute / Unmute ──
     if before.mute != after.mute:
         try:
             mod_info = ""
-            try:
-                async for entry in guild.audit_logs(limit=3, action=discord.AuditLogAction.member_update):
-                    if entry.target and entry.target.id == member.id and (discord.utils.utcnow() - entry.created_at).total_seconds() < 5:
-                        mod_info = f"\nDurch: **{entry.user.mention}**"
-                        if entry.reason:
-                            mod_info += f"\nGrund: {entry.reason}"
-                        break
-            except (discord.Forbidden, discord.HTTPException):
-                pass
-            if after.mute:
-                await bot.log_action(guild, f"{E.MUTE} Server Mute",
-                                     f"**{member.mention}** wurde **Server-stummgeschaltet** 🔇{mod_info}\nKanal: {after.channel.mention if after.channel else '—'}",
-                                     COLOR_WARNING, user=member, module="voice")
-            else:
-                await bot.log_action(guild, f"{E.UNMUTE} Server Unmute",
-                                     f"**{member.mention}** wurde **Server-entstummgeschaltet** 🔊{mod_info}\nKanal: {after.channel.mention if after.channel else '—'}",
-                                     COLOR_SUCCESS, user=member, module="voice")
-        except Exception as ex:
-            log.debug(f"Server Mute Log Fehler: {ex}")
+            if not member.bot:
+                try:
+                    async for entry in guild.audit_logs(limit=1, action=discord.AuditLogAction.member_update):
+                        if entry.target and entry.target.id == member.id and (now - entry.created_at).total_seconds() < 5:
+                            mod_info = f"\nDurch: **{entry.user.mention}**"
+                            if entry.reason: mod_info += f"\nGrund: {entry.reason}"
+                            break
+                except: pass
+            
+            title = f"{E.MUTE} Server Mute" if after.mute else f"{E.UNMUTE} Server Unmute"
+            status = "Server-stummgeschaltet 🔇" if after.mute else "Server-entstummgeschaltet"
+            color = COLOR_WARNING if after.mute else COLOR_SUCCESS
+            await bot.log_action(guild, title, f"**{member.mention}** wurde **{status}**{mod_info}", color, user=member, module="voice")
+        except Exception: pass
 
     # ── Server Deafen / Undeafen ──
     if before.deaf != after.deaf:
         try:
             mod_info = ""
-            try:
-                async for entry in guild.audit_logs(limit=3, action=discord.AuditLogAction.member_update):
-                    if entry.target and entry.target.id == member.id and (discord.utils.utcnow() - entry.created_at).total_seconds() < 5:
-                        mod_info = f"\nDurch: **{entry.user.mention}**"
-                        break
-            except (discord.Forbidden, discord.HTTPException):
-                pass
-            if after.deaf:
-                await bot.log_action(guild, "🔇 Server Deafen",
-                                     f"**{member.mention}** wurde **Server-taubgeschaltet**{mod_info}\nKanal: {after.channel.mention if after.channel else '—'}",
-                                     COLOR_WARNING, user=member, module="voice")
-            else:
-                await bot.log_action(guild, "🔊 Server Undeafen",
-                                     f"**{member.mention}** — Server-Taub **aufgehoben**{mod_info}\nKanal: {after.channel.mention if after.channel else '—'}",
-                                     COLOR_SUCCESS, user=member, module="voice")
-        except Exception as ex:
-            log.debug(f"Server Deaf Log Fehler: {ex}")
+            if not member.bot:
+                try:
+                    async for entry in guild.audit_logs(limit=1, action=discord.AuditLogAction.member_update):
+                        if entry.target and entry.target.id == member.id and (now - entry.created_at).total_seconds() < 5:
+                            mod_info = f"\nDurch: **{entry.user.mention}**"
+                            break
+                except: pass
+            
+            title = "🔇 Server Deafen" if after.deaf else f"{E.VOICE} Server Undeafen"
+            status = "Server-taubgeschaltet" if after.deaf else "Server-Taub aufgehoben"
+            color = COLOR_WARNING if after.deaf else COLOR_SUCCESS
+            await bot.log_action(guild, title, f"**{member.mention}** wurde **{status}**{mod_info}", color, user=member, module="voice")
+        except Exception: pass
 
-    # ── Self Mute ──
-    if before.self_mute != after.self_mute:
-        try:
-            ch = after.channel or before.channel
-            if after.self_mute:
-                await bot.log_action(guild, "🔇 Self Mute", f"**{member.mention}** hat sich **stummgeschaltet**\nKanal: {ch.mention if ch else '—'}",
-                                     COLOR_INFO, user=member, module="voice")
-            else:
-                await bot.log_action(guild, "🔊 Self Unmute", f"**{member.mention}** hat sich **entstummgeschaltet**\nKanal: {ch.mention if ch else '—'}",
-                                     COLOR_INFO, user=member, module="voice")
-        except Exception:
-            pass
-
-    # ── Self Deafen ──
-    if before.self_deaf != after.self_deaf:
-        try:
-            ch = after.channel or before.channel
-            if after.self_deaf:
-                await bot.log_action(guild, "🔇 Self Deafen", f"**{member.mention}** hat sich **taubgeschaltet**\nKanal: {ch.mention if ch else '—'}",
-                                     COLOR_INFO, user=member, module="voice")
-            else:
-                await bot.log_action(guild, "🔊 Self Undeafen", f"**{member.mention}** — Self-Taub **aufgehoben**\nKanal: {ch.mention if ch else '—'}",
-                                     COLOR_INFO, user=member, module="voice")
-        except Exception:
-            pass
-
-    # ── Stream Start/Stop ──
+    # ── Stream / Video / Stage Suppress (Reduced noise) ──
     if before.self_stream != after.self_stream:
         try:
-            if after.self_stream:
-                await bot.log_action(guild, "📺 Stream gestartet", f"**{member.mention}** streamt in {after.channel.mention if after.channel else 'Voice'}",
-                                     COLOR_PRIMARY, user=member, module="voice")
-            else:
-                await bot.log_action(guild, "📺 Stream beendet", f"**{member.mention}** hat den Stream beendet.",
-                                     COLOR_INFO, user=member, module="voice")
-        except Exception:
-            pass
+            title = "📺 Stream gestartet" if after.self_stream else "📺 Stream beendet"
+            desc = f"**{member.mention}** streamt in {after.channel.mention if after.channel else 'Voice'}" if after.self_stream else f"**{member.mention}** hat den Stream beendet."
+            await bot.log_action(guild, title, desc, COLOR_PRIMARY if after.self_stream else COLOR_INFO, user=member, module="voice")
+        except Exception: pass
 
-    # ── Camera On/Off ──
     if before.self_video != after.self_video:
         try:
-            if after.self_video:
-                await bot.log_action(guild, "📹 Kamera an", f"**{member.mention}** — Kamera eingeschaltet in {after.channel.mention if after.channel else 'Voice'}",
-                                     COLOR_PRIMARY, user=member, module="voice")
-            else:
-                await bot.log_action(guild, "📹 Kamera aus", f"**{member.mention}** — Kamera ausgeschaltet",
-                                     COLOR_INFO, user=member, module="voice")
-        except Exception:
-            pass
-
-    # ── Stage Suppress ──
-    if before.suppress != after.suppress:
-        try:
-            if after.suppress:
-                await bot.log_action(guild, "🎙️ Zum Zuhörer", f"**{member.mention}** → **Zuhörer** in {after.channel.mention if after.channel else 'Stage'}",
-                                     COLOR_WARNING, user=member, module="voice")
-            else:
-                await bot.log_action(guild, "🎙️ Zum Sprecher", f"**{member.mention}** → darf jetzt **sprechen** in {after.channel.mention if after.channel else 'Stage'}",
-                                     COLOR_SUCCESS, user=member, module="voice")
-        except Exception:
-            pass
+            title = "📹 Kamera an" if after.self_video else "📹 Kamera aus"
+            await bot.log_action(guild, title, f"**{member.mention}** Kamera {'eingeschaltet' if after.self_video else 'ausgeschaltet'}", COLOR_PRIMARY if after.self_video else COLOR_INFO, user=member, module="voice")
+        except Exception: pass
 
 @bot.event
 async def on_member_update(before: discord.Member, after: discord.Member) -> None:
@@ -2448,9 +2400,9 @@ async def on_guild_channel_update(before: discord.abc.GuildChannel,
             a = after_ow.get(target)
             target_label = getattr(target, "mention", str(target))
             if b is None and a is not None:
-                changes.append(f"➕ Overwrite hinzugefügt für {target_label}")
+                changes.append(f"{E.PLUS} Overwrite hinzugefügt für {target_label}")
             elif a is None and b is not None:
-                changes.append(f"➖ Overwrite entfernt für {target_label}")
+                changes.append(f"{E.MINUS} Overwrite entfernt für {target_label}")
             elif b != a:
                 b_pair = b.pair() if b else (discord.Permissions.none(), discord.Permissions.none())
                 a_pair = a.pair() if a else (discord.Permissions.none(), discord.Permissions.none())
@@ -2524,9 +2476,9 @@ async def on_guild_role_update(before: discord.Role, after: discord.Role) -> Non
         added_p = a_perms - b_perms
         removed_p = b_perms - a_perms
         if added_p:
-            diffs.append(("➕ Permissions hinzugefügt", "`" + "`, `".join(sorted(added_p))[:900] + "`", False))
+            diffs.append((f"{E.PLUS} Permissions hinzugefügt", "`" + "`, `".join(sorted(added_p))[:900] + "`", False))
         if removed_p:
-            diffs.append(("➖ Permissions entfernt", "`" + "`, `".join(sorted(removed_p))[:900] + "`", False))
+            diffs.append((f"{E.MINUS} Permissions entfernt", "`" + "`, `".join(sorted(removed_p))[:900] + "`", False))
 
     if diffs:
         await bot.log_action(
@@ -2673,7 +2625,7 @@ async def on_guild_join(guild: discord.Guild) -> None:
         value=(
             "```\n"
             "🛡️  Anti-Nuke     — Massen-Bans / Kicks / Wipes\n"
-            "⚡  Anti-Spam     — Nachrichten-, CAPS-, Emoji-Flood\n"
+            f"{E.SPEED}  Anti-Spam     — Nachrichten-, CAPS-, Emoji-Flood\n"
             "🚨  Anti-Raid     — Koordinierte Beitritts-Angriffe\n"
             "🔔  Anti-Mention  — Massen-Erwähnungen\n"
             "🎣  Anti-Scam     — Scam-Domains, Nitro-Fakes\n"
@@ -2691,7 +2643,7 @@ async def on_guild_join(guild: discord.Guild) -> None:
             "📝  BadWords-Filter  — Eigene Wortliste\n"
             "🔍  Regex-Filter     — Custom Patterns\n"
             "📩  Invite-Blocker   — Discord Invite Links\n"
-            "⚠️  Zalgo-Schutz     — Zalgo / Unicode-Spam\n"
+            f"{E.ALERT}️  Zalgo-Schutz     — Zalgo / Unicode-Spam\n"
             "🎣  Phishing-Schutz  — Externe URL-Prüfung\n"
             "```"
         ),
@@ -2700,12 +2652,12 @@ async def on_guild_join(guild: discord.Guild) -> None:
 
     # ── MODERATION FEATURES ───────────────────────────────
     embed.add_field(
-        name="⚖️ Moderation",
+        name=f"{E.LAW}️ Moderation",
         value=(
             "```\n"
             "📋  Case-System    — IDs, Beweise, Archiv\n"
-            "⚠️  Warn-System    — Schwellen + Auto-Punish\n"
-            "✅  Verifizierung  — One-Click oder CAPTCHA\n"
+            f"{E.ALERT}️  Warn-System    — Schwellen + Auto-Punish\n"
+            f"{E.OK}  Verifizierung  — One-Click oder CAPTCHA\n"
             "🎫  Tickets        — Support-Ticket-System\n"
             "🔍  Perms-Audit    — Rollen-Hierarchie Check\n"
             "🔒  Appeal-System  — Entbannungs-Anträge\n"
@@ -2768,7 +2720,7 @@ async def on_guild_join(guild: discord.Guild) -> None:
             "**2.** Tippe `/setup` — interaktives Setup-Panel\n"
             "**3.** Konfiguriere deine Module im **Web-Dashboard**\n"
             "**4.** Setze deine Log-Kanäle mit `/logsetup`\n\n"
-            f"**Fertig in unter 2 Minuten! ⚡**"
+            f"**Fertig in unter 2 Minuten! {E.SPEED}**"
         ),
         inline=False,
     )
@@ -2779,9 +2731,9 @@ async def on_guild_join(guild: discord.Guild) -> None:
         value=(
             "🌐 **[Dashboard öffnen](https://mod-forge.up.railway.app/login)**"
             "　・　"
-            "💬 **[Support Server](https://discord.gg/gwryX3dbkt)**"
+            f"{E.TEXT} **[Support Server](https://discord.gg/gwryX3dbkt)**"
             "　・　"
-            "📄 **[Terms of Service](https://mod-forge.up.railway.app/terms)**"
+            f"{E.FILE} **[Terms of Service](https://mod-forge.up.railway.app/terms)**"
         ),
         inline=False,
     )
@@ -3083,7 +3035,7 @@ async def cmd_banappeal(ctx: commands.Context, user_id: int, *,
                         ban_reason: str = "Kein Grund angegeben") -> None:
     cfg = bot.db.get_config(ctx.guild.id)
     if not cfg.get("appeal_log_channel"):
-        await ctx.send(embed=create_embed("⚠️ Kein Appeal-Kanal gesetzt",
+        await ctx.send(embed=create_embed(f"{E.ALERT}️ Kein Appeal-Kanal gesetzt",
                                           "Bitte zuerst mit `/logban #kanal` einen Appeal-Kanal setzen!",
                                           COLOR_WARNING))
         return
@@ -3091,7 +3043,7 @@ async def cmd_banappeal(ctx: commands.Context, user_id: int, *,
     try:
         user = await bot.fetch_user(user_id)
     except discord.NotFound:
-        await ctx.send(embed=create_embed("❌ Nutzer nicht gefunden",
+        await ctx.send(embed=create_embed(f"{E.FAIL} Nutzer nicht gefunden",
                                           f"Kein Nutzer mit ID `{user_id}` gefunden.",
                                           COLOR_DANGER))
         return
@@ -3099,7 +3051,7 @@ async def cmd_banappeal(ctx: commands.Context, user_id: int, *,
     try:
         await ctx.guild.fetch_ban(discord.Object(id=user_id))
     except discord.NotFound:
-        await ctx.send(embed=create_embed("❌ Nutzer nicht gebannt",
+        await ctx.send(embed=create_embed(f"{E.FAIL} Nutzer nicht gebannt",
                                           f"**{user}** ist auf diesem Server nicht gebannt.",
                                           COLOR_DANGER))
         return
@@ -3113,7 +3065,7 @@ async def cmd_banappeal(ctx: commands.Context, user_id: int, *,
 
     try:
         embed_dm = create_embed(
-            "⚖️ Entbannungs-Antrag möglich",
+            f"{E.LAW}️ Entbannungs-Antrag möglich",
             (f"Du wurdest vom Server **{ctx.guild.name}** gebannt.\n\n"
              f"**Ban-Grund:** {ban_reason}\n\n"
              "Das Moderationsteam gibt dir die Möglichkeit, einen **Entbannungs-Antrag** zu stellen.\n\n"
@@ -3124,7 +3076,7 @@ async def cmd_banappeal(ctx: commands.Context, user_id: int, *,
         )
         await user.send(embed=embed_dm)
 
-        embed_confirm = create_embed("✅ Appeal-DM gesendet",
+        embed_confirm = create_embed(f"{E.OK} Appeal-DM gesendet",
                                      f"**{user}** (`{user_id}`) hat eine Appeal-DM erhalten.",
                                      COLOR_SUCCESS,
                                      fields=[("Ban-Grund", ban_reason, False),
@@ -3134,7 +3086,7 @@ async def cmd_banappeal(ctx: commands.Context, user_id: int, *,
 
     except discord.Forbidden:
         appeal_sessions.pop(user_id, None)
-        await ctx.send(embed=create_embed("❌ DM nicht möglich",
+        await ctx.send(embed=create_embed(f"{E.FAIL} DM nicht möglich",
                                           f"**{user}** hat DMs deaktiviert oder hat den Bot blockiert.",
                                           COLOR_DANGER))
 
@@ -3228,7 +3180,7 @@ async def slash_ban(interaction: discord.Interaction, member: discord.Member,
             {"channel_id": m.get("channel_id"), "message_id": m.get("message_id"),
              "content": m.get("content", ""), "attachments": m.get("attachments", []),
              "deleted": bool(m.get("deleted")), "edits": m.get("edits", []),
-             "timestamp": (m.get("timestamp") or datetime.datetime.utcnow()).isoformat() + "Z"}
+             "timestamp": (m.get("timestamp") or discord.utils.utcnow()).isoformat() + "Z"}
             for m in pre_msgs
         ]
         await bot.db.aattach_messages_to_case(interaction.guild.id, case_id, serializable)
@@ -3269,7 +3221,7 @@ async def slash_tempban(interaction: discord.Interaction, member: discord.Member
                                "Format: `30m`, `2h`, `7d` (mind. 60s)", COLOR_DANGER),
             ephemeral=True)
         return
-    end = datetime.datetime.utcnow() + datetime.timedelta(seconds=seconds)
+    end = discord.utils.utcnow() + datetime.timedelta(seconds=seconds)
     pre_msgs = await bot.db.aget_user_messages(interaction.guild.id, member.id, hours=48, limit=500)
     try:
         await member.ban(reason=f"Tempban {duration} – {interaction.user}: {reason}")
@@ -3286,7 +3238,7 @@ async def slash_tempban(interaction: discord.Interaction, member: discord.Member
             {"channel_id": m.get("channel_id"), "message_id": m.get("message_id"),
              "content": m.get("content", ""), "attachments": m.get("attachments", []),
              "deleted": bool(m.get("deleted")), "edits": m.get("edits", []),
-             "timestamp": (m.get("timestamp") or datetime.datetime.utcnow()).isoformat() + "Z"}
+             "timestamp": (m.get("timestamp") or discord.utils.utcnow()).isoformat() + "Z"}
             for m in pre_msgs
         ]
         await bot.db.aattach_messages_to_case(interaction.guild.id, case_id, serializable)
@@ -3323,7 +3275,7 @@ async def slash_tempmute(interaction: discord.Interaction, member: discord.Membe
                                "Format: `30m`, `2h`, `7d` (max 28d)", COLOR_DANGER),
             ephemeral=True)
         return
-    end = datetime.datetime.utcnow() + datetime.timedelta(seconds=seconds)
+    end = discord.utils.utcnow() + datetime.timedelta(seconds=seconds)
     try:
         await member.timeout(end, reason=f"Tempmute {duration} – {interaction.user}: {reason}")
     except discord.Forbidden:
@@ -4164,7 +4116,7 @@ async def slash_setarchive(interaction: discord.Interaction, enabled: bool) -> N
     arch.setdefault("ttl_hours", 48)
     cfg["message_archive"] = arch
     await bot.db.set_config(interaction.guild.id, cfg)
-    state = "AKTIVIERT ✅" if enabled else "DEAKTIVIERT ❌"
+    state = f"AKTIVIERT {E.OK}" if enabled else "DEAKTIVIERT {E.FAIL}"
     await interaction.response.send_message(
         embed=create_embed(
             f"{E.SHIELD} Nachrichten-Archiv {state}",
@@ -4235,9 +4187,9 @@ async def slash_audit_perms(interaction: discord.Interaction) -> None:
                                                     "manage_roles", "manage_webhooks")) else "MEDIUM"
             note = ""
             if "mention_everyone" in risky and member_count > 20:
-                note = f" ⚠️ {member_count} Member können @everyone pingen!"
+                note = f" {E.ALERT}️ {member_count} Member können @everyone pingen!"
             if position_pct > max_safe_pct:
-                note += f" ⚠️ Sehr hohe Hierarchie-Position ({position_pct}%)."
+                note += f" {E.ALERT}️ Sehr hohe Hierarchie-Position ({position_pct}%)."
             findings.append((
                 sev, role.name,
                 f"Gefährliche Perms: **{', '.join(risky)}**. "
@@ -4279,7 +4231,7 @@ async def slash_audit_perms(interaction: discord.Interaction) -> None:
         "CRITICAL": COLOR_DANGER, "HIGH": COLOR_DANGER,
         "MEDIUM": COLOR_WARNING, "LOW": COLOR_INFO,
     }
-    sev_emoji = {"CRITICAL": "🔴", "HIGH": "🟠", "MEDIUM": "🟡", "LOW": "🔵"}
+    sev_emoji = {"CRITICAL": E.RED, "HIGH": E.ORANGE, "MEDIUM": E.YELLOW, "LOW": E.BLUE}
 
     if not findings:
         embed = create_embed(
@@ -4296,7 +4248,7 @@ async def slash_audit_perms(interaction: discord.Interaction) -> None:
 
     desc_lines: List[str] = []
     for sev, label, msg in findings[:25]:
-        desc_lines.append(f"{sev_emoji.get(sev, '⚪')} **[{sev}] {label}**\n{msg}")
+        desc_lines.append(f"{sev_emoji.get(sev, '{E.DOT}')} **[{sev}] {label}**\n{msg}")
     if len(findings) > 25:
         desc_lines.append(f"\n_…und {len(findings) - 25} weitere Funde._")
 
@@ -4671,7 +4623,7 @@ async def _collect_backup_data(guild: discord.Guild) -> dict:
         "system_channel_id": guild.system_channel.id if guild.system_channel else None,
         "rules_channel_id": guild.rules_channel.id if guild.rules_channel else None,
         "public_updates_channel_id": guild.public_updates_channel.id if guild.public_updates_channel else None,
-        "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
+        "timestamp": discord.utils.utcnow().isoformat() + "Z",
     }
     # Rollen
     roles_list = []
@@ -4872,8 +4824,8 @@ async def _backup_db_save(backup_data: dict, created_by: int, label: str = None,
     doc = {
         "backup_id": backup_id, "guild_id": backup_data["guild_id"],
         "guild_name": backup_data.get("guild_name", "Unbekannt"),
-        "label": label or f"Backup vom {datetime.datetime.utcnow().strftime('%d.%m.%Y %H:%M')} UTC",
-        "created_by": created_by, "created_at": datetime.datetime.utcnow(),
+        "label": label or f"Backup vom {discord.utils.utcnow().strftime('%d.%m.%Y %H:%M')} UTC",
+        "created_by": created_by, "created_at": discord.utils.utcnow(),
         "data": backup_data, "stats": backup_data.get("stats", {}),
         "password_hash": password_hash,
         "has_password": password_hash is not None,
@@ -4949,13 +4901,13 @@ class BackupPasswordModal(discord.ui.Modal, title="🔐 Backup-Passwort eingeben
             return
         report = await _restore_from_backup(self.guild, doc["data"], interaction)
         fields = [
-            ("Rollen erstellt/aktualisiert/übersprungen", f"✅ {report['roles_created']} / 🔄 {report['roles_updated']} / ⏭️ {report['roles_skipped']}", False),
-            ("Kategorien", f"✅ {report['categories_created']} / 🔄 {report['categories_updated']}", False),
-            ("Kanäle", f"✅ {report['channels_created']} / 🔄 {report['channels_updated']}", False),
+            ("Rollen erstellt/aktualisiert/übersprungen", f"{E.OK} {report['roles_created']} / 🔄 {report['roles_updated']} / ⏭️ {report['roles_skipped']}", False),
+            ("Kategorien", f"{E.OK} {report['categories_created']} / 🔄 {report['categories_updated']}", False),
+            ("Kanäle", f"{E.OK} {report['channels_created']} / 🔄 {report['channels_updated']}", False),
         ]
         if report["errors"]:
             error_text = "\n".join(f"• {e[:100]}" for e in report["errors"][:10])
-            fields.append(("⚠️ Fehler", error_text, False))
+            fields.append((f"{E.ALERT}️ Fehler", error_text, False))
         result_color = COLOR_SUCCESS if not report["errors"] else COLOR_WARNING
         result_embed = create_embed(f"{E.OK} Backup-Restore abgeschlossen", f"Backup **{self.backup_label}** wurde wiederhergestellt.", result_color, fields)
         await interaction.followup.send(embed=result_embed)
@@ -4971,7 +4923,7 @@ class BackupRestoreConfirmView(discord.ui.View):
         self.user = user
         self.has_password = has_password
 
-    @discord.ui.button(label="Ja, Restore bestätigen", style=discord.ButtonStyle.danger, emoji="⚠️")
+    @discord.ui.button(label=f"Ja, Restore bestätigen", style=discord.ButtonStyle.danger, emoji="{E.ALERT}️")
     async def confirm_restore(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         if interaction.user.id != self.user.id:
             await interaction.response.send_message(f"{E.FAIL} Nur der Initiator kann bestätigen.", ephemeral=True)
@@ -4989,14 +4941,14 @@ class BackupRestoreConfirmView(discord.ui.View):
         embed_progress = create_embed("⏳ Backup-Restore läuft...", f"Backup **{self.backup_label}** wird wiederhergestellt.", COLOR_WARNING)
         await interaction.followup.send(embed=embed_progress)
         report = await _restore_from_backup(self.guild, doc["data"], interaction)
-        fields = [("Rollen", f"✅{report['roles_created']} 🔄{report['roles_updated']} ⏭️{report['roles_skipped']}", False), ("Kategorien", f"✅{report['categories_created']} 🔄{report['categories_updated']}", False), ("Kanäle", f"✅{report['channels_created']} 🔄{report['channels_updated']}", False)]
+        fields = [("Rollen", f"{E.OK}{report['roles_created']} 🔄{report['roles_updated']} ⏭️{report['roles_skipped']}", False), ("Kategorien", f"{E.OK}{report['categories_created']} 🔄{report['categories_updated']}", False), ("Kanäle", f"{E.OK}{report['channels_created']} 🔄{report['channels_updated']}", False)]
         if report["errors"]:
-            fields.append(("⚠️ Fehler", "\n".join(f"• {e[:100]}" for e in report["errors"][:10]), False))
+            fields.append(("{E.ALERT}️ Fehler", "\n".join(f"• {e[:100]}" for e in report["errors"][:10]), False))
         rc = COLOR_SUCCESS if not report["errors"] else COLOR_WARNING
         await interaction.channel.send(embed=create_embed(f"{E.OK} Backup-Restore abgeschlossen", f"Backup **{self.backup_label}** wiederhergestellt.", rc, fields))
         await bot.log_action(self.guild, f"{E.OK} Backup-Restore", f"Backup **{self.backup_label}** von {self.user.mention} wiederhergestellt.", rc, fields, user=self.user, module="backup")
 
-    @discord.ui.button(label="Abbrechen", style=discord.ButtonStyle.secondary, emoji="❌")
+    @discord.ui.button(label="Abbrechen", style=discord.ButtonStyle.secondary, emoji=E.FAIL)
     async def cancel_restore(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         if interaction.user.id != self.user.id:
             return
@@ -5037,7 +4989,7 @@ class BackupDeleteConfirmView(discord.ui.View):
             await interaction.response.edit_message(embed=create_embed(f"{E.FAIL} Fehler", "Konnte nicht löschen.", COLOR_DANGER), view=None)
         await bot.log_action(interaction.guild, f"{E.DELETE} Backup gelöscht", f"Backup **{self.backup_label}** von {self.user.mention} gelöscht.", COLOR_WARNING, user=self.user, module="backup")
 
-    @discord.ui.button(label="Abbrechen", style=discord.ButtonStyle.secondary, emoji="❌")
+    @discord.ui.button(label="Abbrechen", style=discord.ButtonStyle.secondary, emoji=E.FAIL)
     async def cancel_delete(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         if interaction.user.id != self.user.id:
             return
@@ -5058,7 +5010,7 @@ class BackupSetPasswordModal(discord.ui.Modal, title="🔐 Backup mit Passwort s
             await interaction.followup.send(embed=create_embed(f"{E.FAIL} Fehler", "Backup konnte nicht gespeichert werden.", COLOR_DANGER))
             return
         stats = backup_data.get("stats", {})
-        fields = [("Backup-ID", f"`{backup_id}`", True), ("🔐 Passwortgeschützt", "✅ Ja", True), ("Label", self.label.value or "Automatisch", True), ("Rollen", str(len(backup_data.get("roles", []))), True), ("Kanäle", str(len(backup_data.get("channels", []))), True), ("Kategorien", str(len(backup_data.get("categories", []))), True)]
+        fields = [("Backup-ID", f"`{backup_id}`", True), ("🔐 Passwortgeschützt", "{E.OK} Ja", True), ("Label", self.label.value or "Automatisch", True), ("Rollen", str(len(backup_data.get("roles", []))), True), ("Kanäle", str(len(backup_data.get("channels", []))), True), ("Kategorien", str(len(backup_data.get("categories", []))), True)]
         await interaction.followup.send(embed=create_embed(f"{E.OK} Passwortgeschütztes Backup erstellt", f"Backup **{backup_id}** wurde mit Passwort gesichert.", COLOR_SUCCESS, fields))
         await bot.log_action(guild, f"{E.OK} Passwort-Backup erstellt", f"Backup `{backup_id}` (passwortgeschützt) von {interaction.user.mention}.", COLOR_SUCCESS, user=interaction.user, module="backup")
 
@@ -5070,11 +5022,11 @@ class BackupMainDropdown(discord.ui.Select):
             discord.SelectOption(label="🔐 Passwort-Backup erstellen", value="create_pw", description="Backup mit Passwort sichern", emoji="🔐"),
             discord.SelectOption(label="📋 Backups anzeigen", value="list", description="Alle Backups auflisten", emoji="📋"),
             discord.SelectOption(label="🔍 Backup-Details", value="info", description="Details zu einem Backup anzeigen", emoji="🔍"),
-            discord.SelectOption(label="♻️ Backup wiederherstellen", value="restore", description="Backup auf diesem Server restoren", emoji="♻️"),
+            discord.SelectOption(label=f"{E.REFRESH}️ Backup wiederherstellen", value=f"restore", description="Backup auf diesem Server restoren", emoji="{E.REFRESH}️"),
             discord.SelectOption(label="🌐 Cross-Server Restore", value="restore_cross", description="Backup von einem anderen Server restoren", emoji="🌐"),
             discord.SelectOption(label="🗑️ Backup löschen", value="delete", description="Ein Backup löschen", emoji="🗑️"),
             discord.SelectOption(label="💣 Alle Backups löschen", value="purge", description="ALLE Backups dieses Servers löschen", emoji="💣"),
-            discord.SelectOption(label="⚙️ Auto-Backup konfigurieren", value="autosetup", description="Automatische Backups einstellen", emoji="⚙️"),
+            discord.SelectOption(label=f"{E.GEAR}️ Auto-Backup konfigurieren", value=f"autosetup", description="Automatische Backups einstellen", emoji="{E.GEAR}️"),
         ]
         super().__init__(placeholder="🔧 Backup-Aktion wählen...", options=options, min_values=1, max_values=1)
 
@@ -5108,7 +5060,7 @@ class BackupMainDropdown(discord.ui.Select):
         elif val == "info":
             await interaction.response.send_message(embed=create_embed("🔍 Backup-Info", "Nutze `/backup_info <backup_id>` für Details.", COLOR_INFO), ephemeral=True)
         elif val == "restore":
-            await interaction.response.send_message(embed=create_embed("♻️ Backup Restore", "Nutze `/backup_restore <backup_id>` um ein Backup wiederherzustellen.", COLOR_INFO), ephemeral=True)
+            await interaction.response.send_message(embed=create_embed(f"{E.REFRESH}️ Backup Restore", "Nutze `/backup_restore <backup_id>` um ein Backup wiederherzustellen.", COLOR_INFO), ephemeral=True)
         elif val == "restore_cross":
             await interaction.response.send_message(embed=create_embed("🌐 Cross-Server Restore", "Nutze `/backup_restore_cross <backup_id>` um ein Backup von einem anderen Server zu laden.", COLOR_INFO), ephemeral=True)
         elif val == "delete":
@@ -5119,7 +5071,7 @@ class BackupMainDropdown(discord.ui.Select):
             result = await collection.delete_many({"guild_id": interaction.guild.id})
             await interaction.followup.send(embed=create_embed(f"{E.DELETE} Alle Backups gelöscht", f"**{result.deleted_count}** Backups gelöscht.", COLOR_SUCCESS), ephemeral=True)
         elif val == "autosetup":
-            await interaction.response.send_message(embed=create_embed("⚙️ Auto-Backup", "Nutze `/backup_autosetup` für die Konfiguration.", COLOR_INFO), ephemeral=True)
+            await interaction.response.send_message(embed=create_embed(f"{E.GEAR}️ Auto-Backup", "Nutze `/backup_autosetup` für die Konfiguration.", COLOR_INFO), ephemeral=True)
 
 class BackupMainView(discord.ui.View):
     def __init__(self) -> None:
@@ -5132,7 +5084,7 @@ class BackupMainView(discord.ui.View):
 @bot.tree.command(name="backup", description="Interaktives Backup-Menü mit Dropdown")
 @app_commands.default_permissions(administrator=True)
 async def slash_backup_menu(interaction: discord.Interaction) -> None:
-    embed = create_embed(f"{E.SHIELD} Backup-System", "Wähle eine Aktion aus dem Dropdown-Menü:\n\n📦 **Erstellen** – Backup ohne Passwort\n🔐 **Passwort-Backup** – Verschlüsselt mit Passwort\n📋 **Anzeigen** – Alle Backups listen\n♻️ **Restore** – Auf diesem Server wiederherstellen\n🌐 **Cross-Server** – Backup von anderem Server laden\n🗑️ **Löschen** – Einzelnes oder alle Backups\n⚙️ **Auto-Backup** – Automatische Backups konfigurieren", COLOR_PRIMARY,
+    embed = create_embed(f"{E.SHIELD} Backup-System", "Wähle eine Aktion aus dem Dropdown-Menü:\n\n📦 **Erstellen** – Backup ohne Passwort\n🔐 **Passwort-Backup** – Verschlüsselt mit Passwort\n📋 **Anzeigen** – Alle Backups listen\n{E.REFRESH}️ **Restore** – Auf diesem Server wiederherstellen\n🌐 **Cross-Server** – Backup von anderem Server laden\n🗑️ **Löschen** – Einzelnes oder alle Backups\n{E.GEAR}️ **Auto-Backup** – Automatische Backups konfigurieren", COLOR_PRIMARY,
         [("Tipp", "Passwort-Backups können auf **jedem Server** restored werden, wenn du das Passwort kennst!", False)],
         thumbnail=interaction.guild.icon.url if interaction.guild.icon else None)
     await interaction.response.send_message(embed=embed, view=BackupMainView(), ephemeral=True)
@@ -5185,7 +5137,7 @@ async def slash_backup_info(interaction: discord.Interaction, backup_id: str) ->
     stats = data.get("stats", {})
     ts = doc.get("created_at")
     ts_text = f"<t:{int(ts.timestamp())}:F>" if isinstance(ts, datetime.datetime) else str(ts)
-    pw_status = "🔐 Ja" if doc.get("has_password") else "❌ Nein"
+    pw_status = f"🔐 Ja" if doc.get("has_password") else "{E.FAIL} Nein"
     fields = [("Backup-ID", f"`{doc.get('backup_id')}`", True), ("Label", doc.get("label", "Ohne Label"), True), ("Erstellt", ts_text, True), ("Von", f"<@{doc.get('created_by')}>", True), ("Passwortgeschützt", pw_status, True), ("Rollen", str(len(data.get("roles", []))), True), ("Kanäle", str(len(data.get("channels", []))), True), ("Kategorien", str(len(data.get("categories", []))), True), ("Emojis", str(len(data.get("emojis", []))), True)]
     roles = data.get("roles", [])
     if roles:
@@ -5206,7 +5158,7 @@ async def slash_backup_restore(interaction: discord.Interaction, backup_id: str)
     label = doc.get("label", backup_id)
     pw = doc.get("has_password", False)
     pw_text = "\n🔐 **Dieses Backup ist passwortgeschützt!** Du musst das Passwort eingeben." if pw else ""
-    embed = create_embed("⚠️ Backup-Restore bestätigen", f"Backup **{label}** (`{backup_id}`) wiederherstellen?\n\n> Fehlende Rollen/Kanäle werden **erstellt**\n> Bestehende werden **aktualisiert**\n> Nichts wird gelöscht{pw_text}", COLOR_DANGER)
+    embed = create_embed(f"{E.ALERT}️ Backup-Restore bestätigen", f"Backup **{label}** (`{backup_id}`) wiederherstellen?\n\n> Fehlende Rollen/Kanäle werden **erstellt**\n> Bestehende werden **aktualisiert**\n> Nichts wird gelöscht{pw_text}", COLOR_DANGER)
     await interaction.response.send_message(embed=embed, view=BackupRestoreConfirmView(backup_id, label, interaction.guild, interaction.user, has_password=pw))
 
 @bot.tree.command(name="backup_restore_cross", description="Stellt ein passwortgeschütztes Backup von einem anderen Server wieder her")
@@ -5267,7 +5219,7 @@ async def slash_backup_purge(interaction: discord.Interaction) -> None:
 # ═══════════════════════════════════════════════════════════════════
 @tasks.loop(minutes=30)
 async def auto_backup_loop() -> None:
-    now = datetime.datetime.utcnow()
+    now = discord.utils.utcnow()
     for guild in bot.guilds:
         try:
             cfg = bot.db.get_config(guild.id)
@@ -5418,7 +5370,7 @@ class WelcomeSetupView(discord.ui.View):
     @discord.ui.button(label="Welcome-Kanal setzen", style=discord.ButtonStyle.primary, emoji="📢")
     async def set_channel(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         await interaction.response.send_message("Wähle den Kanal:", view=discord.ui.View().add_item(WelcomeChannelSelect()), ephemeral=True)
-    @discord.ui.button(label="Welcome aktivieren", style=discord.ButtonStyle.success, emoji="✅")
+    @discord.ui.button(label="Welcome aktivieren", style=discord.ButtonStyle.success, emoji=E.OK)
     async def enable(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         cfg = bot.db.get_config(interaction.guild.id)
         wc = cfg.get("welcome", {})
@@ -5485,7 +5437,7 @@ async def slash_leave_channel(interaction: discord.Interaction, channel: discord
 # ═══════════════════════════════════════════════════════════════════
 class AutoRoleDropdown(discord.ui.Select):
     def __init__(self, roles: list) -> None:
-        options = [discord.SelectOption(label=r.name, value=str(r.id), emoji="🏷️") for r in roles[:25]]
+        options = [discord.SelectOption(label=r.name, value=str(r.id), emoji=E.LABEL) for r in roles[:25]]
         super().__init__(placeholder="Rolle(n) für Auto-Role wählen...", options=options, min_values=1, max_values=min(len(options), 10))
     async def callback(self, interaction: discord.Interaction) -> None:
         cfg = bot.db.get_config(interaction.guild.id)
@@ -5520,7 +5472,7 @@ async def slash_autorole(interaction: discord.Interaction, role: Optional[discor
         if not manageable_roles:
             await interaction.response.send_message(embed=create_embed(f"{E.FAIL} Keine Rollen", "Keine verwaltbaren Rollen gefunden.", COLOR_DANGER), ephemeral=True)
             return
-        await interaction.response.send_message(embed=create_embed("🏷️ Auto-Role wählen", "Wähle eine oder mehrere Rollen:", COLOR_PRIMARY), view=AutoRoleView(manageable_roles), ephemeral=True)
+        await interaction.response.send_message(embed=create_embed(f"{E.LABEL} Auto-Role wählen", "Wähle eine oder mehrere Rollen:", COLOR_PRIMARY), view=AutoRoleView(manageable_roles), ephemeral=True)
 
 @bot.tree.command(name="autorole_remove", description="Entfernt eine Auto-Role")
 @app_commands.describe(role="Die zu entfernende Rolle")
@@ -5617,7 +5569,7 @@ async def _save_sticky_roles(member: discord.Member) -> None:
     if member_sticky:
         try:
             collection = bot.db.client["ModForge"]["sticky_roles"]
-            await collection.update_one({"guild_id": member.guild.id, "user_id": member.id}, {"$set": {"roles": member_sticky, "saved_at": datetime.datetime.utcnow()}}, upsert=True)
+            await collection.update_one({"guild_id": member.guild.id, "user_id": member.id}, {"$set": {"roles": member_sticky, "saved_at": discord.utils.utcnow()}}, upsert=True)
         except Exception as e:
             log.error(f"Sticky-Roles Save Fehler: {e}")
 
@@ -5696,7 +5648,7 @@ class TempVoiceDropdown(discord.ui.Select):
     def __init__(self) -> None:
         options = [
             discord.SelectOption(label="🎤 Kanal erstellen", value="create", description="Temp-Voice-Setup starten", emoji="🎤"),
-            discord.SelectOption(label="⚙️ Einstellungen", value="settings", description="Temp-Voice konfigurieren", emoji="⚙️"),
+            discord.SelectOption(label=f"{E.GEAR}️ Einstellungen", value=f"settings", description="Temp-Voice konfigurieren", emoji="{E.GEAR}️"),
             discord.SelectOption(label="🗑️ Setup entfernen", value="remove", description="Temp-Voice deaktivieren", emoji="🗑️"),
         ]
         super().__init__(placeholder="Temp-Voice Aktion...", options=options, min_values=1, max_values=1)
@@ -5707,8 +5659,8 @@ class TempVoiceDropdown(discord.ui.Select):
         elif val == "settings":
             cfg = bot.db.get_config(interaction.guild.id)
             tv = cfg.get("temp_voice", {})
-            fields = [("Aktiviert", f"{'✅' if tv.get('enabled') else '❌'}", True), ("Join-Kanal", f"<#{tv.get('channel_id')}>" if tv.get('channel_id') else "Nicht gesetzt", True), ("Kategorie", f"<#{tv.get('category_id')}>" if tv.get('category_id') else "Auto", True)]
-            await interaction.response.edit_message(embed=create_embed("⚙️ Temp-Voice Einstellungen", "", COLOR_INFO, fields), view=None)
+            fields = [("Aktiviert", f"{'{E.OK}' if tv.get('enabled') else '{E.FAIL}'}", True), ("Join-Kanal", f"<#{tv.get('channel_id')}>" if tv.get('channel_id') else "Nicht gesetzt", True), ("Kategorie", f"<#{tv.get('category_id')}>" if tv.get('category_id') else "Auto", True)]
+            await interaction.response.edit_message(embed=create_embed(f"{E.GEAR}️ Temp-Voice Einstellungen", "", COLOR_INFO, fields), view=None)
         elif val == "remove":
             cfg = bot.db.get_config(interaction.guild.id)
             cfg["temp_voice"] = {"enabled": False}
@@ -5765,7 +5717,7 @@ class MassBanConfirmView(discord.ui.View):
         await interaction.followup.send(embed=embed)
         await bot.log_action(interaction.guild, f"{E.BAN} Mass-Ban", f"{interaction.user.mention} hat {banned} Nutzer gebannt: {self.reason}", COLOR_DANGER, user=interaction.user, module="moderation")
 
-    @discord.ui.button(label="Abbrechen", style=discord.ButtonStyle.secondary, emoji="❌")
+    @discord.ui.button(label="Abbrechen", style=discord.ButtonStyle.secondary, emoji=E.FAIL)
     async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         if interaction.user.id != self.user.id:
             return
@@ -5789,7 +5741,7 @@ async def slash_massban(interaction: discord.Interaction, user_ids: str, reason:
     id_text = ", ".join(f"`{uid}`" for uid in id_list[:10])
     if len(id_list) > 10:
         id_text += f" … +{len(id_list)-10}"
-    embed = create_embed("⚠️ Mass-Ban bestätigen", f"**{len(id_list)} Nutzer** werden gebannt.\nGrund: {reason}\nIDs: {id_text}", COLOR_DANGER)
+    embed = create_embed(f"{E.ALERT}️ Mass-Ban bestätigen", f"**{len(id_list)} Nutzer** werden gebannt.\nGrund: {reason}\nIDs: {id_text}", COLOR_DANGER)
     await interaction.response.send_message(embed=embed, view=MassBanConfirmView(id_list, reason, interaction.user))
 
 # ═══════════════════════════════════════════════════════════════════
@@ -5876,7 +5828,7 @@ async def _userinfo_logic(guild, target, requester):
     if warn_count > 0: risk += min(warn_count * 10, 30)
     if case_count > 0: risk += min(case_count * 5, 20)
     risk = min(risk, 100)
-    risk_color = "🟢" if risk < 25 else "🟡" if risk < 50 else "🟠" if risk < 75 else "🔴"
+    risk_color = E.GREEN if risk < 25 else E.YELLOW if risk < 50 else E.ORANGE if risk < 75 else E.RED
 
     timeout_str = "Nein"
     if target.timed_out_until and target.timed_out_until > discord.utils.utcnow():
@@ -5897,11 +5849,11 @@ async def _userinfo_logic(guild, target, requester):
         ("📅 Erstellt", created, True),
         ("📥 Beigetreten", joined, True),
         (f"{risk_color} Risk-Score", f"{risk}/100", True),
-        ("⚠️ Warns", str(warn_count), True),
+        (f"{E.ALERT}️ Warns", str(warn_count), True),
         ("📋 Cases", str(case_count), True),
         ("⏳ Timeout", timeout_str, True),
         ("🎤 Voice", voice_str, False),
-        (f"🏷️ Rollen ({len(roles)})", roles_str, False),
+        (f"{E.LABEL} Rollen ({len(roles)})", roles_str, False),
     ]
     embed = create_embed(
         f"{E.USERS} User Info – {target.display_name}",
@@ -5940,10 +5892,10 @@ async def _serverinfo_logic(guild):
         ("📅 Erstellt", created, True),
         ("🔐 Verif.-Level", str(guild.verification_level).title(), True),
         ("👥 Mitglieder", f"{humans:,} Humans + {bots:,} Bots", True),
-        ("🟢 Online", str(online), True),
+        (f"{E.GREEN} Online", str(online), True),
         ("💎 Boosts", f"{boosts} (Tier {boost_tier})", True),
-        ("📁 Kanäle", f"💬 {text_ch} Text · 🔊 {voice_ch} Voice · 📂 {cats} Kategorien", False),
-        ("🏷️ Rollen", str(roles_count), True),
+        ("{E.FOLDER} Kanäle", f"{E.TEXT} {text_ch} Text · {E.VOICE} {voice_ch} Voice · {E.CATEGORY} {cats} Kategorien", False),
+        (f"{E.LABEL} Rollen", str(roles_count), True),
         ("😀 Emojis", str(emojis_count), True),
         ("🛡️ ModForge", f"{active_mods}/6 Module aktiv · Security Level {sec_level}", False),
     ]
@@ -5984,7 +5936,7 @@ async def _modstats_logic(guild, moderator=None):
         fields = [
             ("🔨 Bans", str(bans), True),
             ("👢 Kicks", str(kicks), True),
-            ("⚠️ Warns", str(warns), True),
+            (f"{E.ALERT}️ Warns", str(warns), True),
             ("🔇 Mutes", str(mutes), True),
             ("📋 Gesamt", str(total), True),
             ("🕐 Letzter Case", last_str, True),
@@ -6086,7 +6038,7 @@ async def slash_ar_list(interaction: discord.Interaction) -> None:
         return await interaction.response.send_message(embed=create_embed("📝 Auto-Responses", "Keine eingerichtet. Nutze `/autoresponse_add`.", COLOR_INFO))
     listing = ""
     for i, ar in enumerate(ars, 1):
-        status = "✅" if ar.get("enabled", True) else "❌"
+        status = E.OK if ar.get("enabled", True) else E.FAIL
         listing += f"`{i}.` {status} **{ar['trigger']}** → {ar['response'][:60]}\n"
     await interaction.response.send_message(embed=create_embed("📝 Auto-Responses", listing, COLOR_INFO))
 
@@ -6147,13 +6099,13 @@ async def slash_noprefix_list(interaction: discord.Interaction) -> None:
     np_users = cfg.get("no_prefix_users", [])
     enabled = cfg.get("no_prefix", False)
     if not enabled:
-        return await interaction.response.send_message(embed=create_embed("⚙️ No-Prefix", "No-Prefix ist **deaktiviert**. `/noprefix true` zum Aktivieren.", COLOR_WARNING))
+        return await interaction.response.send_message(embed=create_embed(f"{E.GEAR}️ No-Prefix", "No-Prefix ist **deaktiviert**. `/noprefix true` zum Aktivieren.", COLOR_WARNING))
     if not np_users:
         desc = "**Modus:** Alle mit `Manage Messages`\n\nNutze `/noprefix_add @User` für eine Whitelist."
     else:
         user_list = "\n".join(f"• <@{u}>" for u in np_users)
         desc = f"**Modus:** Whitelist ({len(np_users)} User)\n\n{user_list}"
-    await interaction.response.send_message(embed=create_embed("⚙️ No-Prefix Whitelist", desc, COLOR_INFO))
+    await interaction.response.send_message(embed=create_embed(f"{E.GEAR}️ No-Prefix Whitelist", desc, COLOR_INFO))
 
 # ═══════════════════════════════════════════════════════════════════
 # PREFIX MIRRORS — Fehlende Prefix-Pendants für wichtige Commands
@@ -6296,7 +6248,7 @@ async def _userinfo(guild, target, requester):
     elif age < 30: risk += 15
     if not target.avatar: risk += 10
     risk = min(risk, 100)
-    rc = "🟢" if risk < 25 else "🟡" if risk < 50 else "🟠" if risk < 75 else "🔴"
+    rc = E.GREEN if risk < 25 else E.YELLOW if risk < 50 else E.ORANGE if risk < 75 else E.RED
     timeout_str = "Nein"
     if target.timed_out_until and target.timed_out_until > discord.utils.utcnow():
         timeout_str = f"Bis <t:{int(target.timed_out_until.timestamp())}:R>"
@@ -6311,7 +6263,7 @@ async def _userinfo(guild, target, requester):
     e = create_embed(f"{E.USERS} {target.display_name}", f"{target.mention} (`{target.id}`)", COLOR_INFO,
         [("📅 Erstellt",created,True),("📥 Beigetreten",joined,True),(f"{rc} Risk",f"{risk}/100",True),
          ("⏳ Timeout",timeout_str,True),("🎤 Voice",voice_str,True),
-         (f"🏷️ Rollen ({len(roles)})",", ".join(roles) or "Keine",False)],
+         (f"{E.LABEL} Rollen ({len(roles)})",", ".join(roles) or "Keine",False)],
         thumbnail=target.display_avatar.url)
     return e
 
@@ -6339,7 +6291,7 @@ async def slash_serverinfo(interaction: discord.Interaction):
         e = create_embed(f"{E.SERVER} {g.name}", f"ID: `{g.id}`", COLOR_PRIMARY,
             [("👑 Owner",g.owner.mention if g.owner else "?",True),("📅 Erstellt",f"<t:{int(g.created_at.timestamp())}:R>",True),
              ("👥 Members",f"{g.member_count-bots} + {bots} Bots",True),("💎 Boosts",f"{g.premium_subscription_count or 0} (T{g.premium_tier})",True),
-             ("📁 Kanäle",str(len(g.channels)),True),("🏷️ Rollen",str(len(g.roles)-1),True)],
+             (f"{E.FOLDER} Kanäle",str(len(g.channels)),True),("{E.LABEL} Rollen",str(len(g.roles)-1),True)],
             thumbnail=g.icon.url if g.icon else None)
         await interaction.response.send_message(embed=e)
     except Exception as e:
@@ -6364,12 +6316,12 @@ async def slash_modstats(interaction: discord.Interaction, moderator: discord.Me
             bans = sum(1 for c in cases if c.get("action")=="ban")
             kicks = sum(1 for c in cases if c.get("action")=="kick")
             warns = sum(1 for c in cases if c.get("action")=="warn")
-            await interaction.followup.send(embed=create_embed(f"📊 {moderator.display_name}",f"🔨 Bans: {bans} · 👢 Kicks: {kicks} · ⚠️ Warns: {warns} · 📋 Total: {len(cases)}",COLOR_INFO,thumbnail=moderator.display_avatar.url))
+            await interaction.followup.send(embed=create_embed(f"📊 {moderator.display_name}",f"🔨 Bans: {bans} · 👢 Kicks: {kicks} · {E.ALERT}️ Warns: {warns} · 📋 Total: {len(cases)}",COLOR_INFO,thumbnail=moderator.display_avatar.url))
         else:
             counts = _dd(int)
             for c in cases: counts[c.get("moderator_id","?")] += 1
             top = sorted(counts.items(), key=lambda x:x[1], reverse=True)[:10]
-            ranking = "\n".join(f"{'🥇🥈🥉'[i] if i<3 else f'`{i+1}.'} <@{mid}> — **{cnt}**" for i,(mid,cnt) in enumerate(top)) or "Keine Daten."
+            ranking = "\n".join(f"{'🥇🥈🥉'[i] if i < 3 else f'`{i+1}.`'} <@{mid}> — **{cnt}**" for i, (mid, cnt) in enumerate(top)) or "Keine Daten."
             await interaction.followup.send(embed=create_embed(f"📊 Mod-Ranking ({len(cases)} Cases)",ranking,COLOR_PRIMARY))
     except Exception as e:
         try: await interaction.followup.send(f"Fehler: {e}")
@@ -6476,7 +6428,7 @@ async def slash_invites(interaction: discord.Interaction, member: discord.Member
                 if exp_ts > time.time():
                     expires = f" · ⏰ läuft ab <t:{exp_ts}:R>"
                 else:
-                    expires = " · ❌ abgelaufen"
+                    expires = f" · {E.FAIL} abgelaufen"
             max_uses = f"/{inv.max_uses}" if inv.max_uses else "/∞"
             channel = f"#{inv.channel.name}" if inv.channel else "?"
             lines.append(
@@ -6596,7 +6548,7 @@ async def slash_history(interaction: discord.Interaction, member: discord.Member
             for n in notes: entries.append(f"📝 Notiz: {n.get('text','')[:40]}")
         except: pass
         risk = min(len(entries)*8, 100)
-        rc = "🟢" if risk<25 else "🟡" if risk<50 else "🟠" if risk<75 else "🔴"
+        rc = E.GREEN if risk<25 else E.YELLOW if risk<50 else E.ORANGE if risk<75 else E.RED
         await interaction.followup.send(embed=create_embed(f"📜 History – {member.display_name} ({len(entries)})","\n".join(entries[:20]) or "Keine Einträge.",COLOR_INFO,
             [(f"{rc} Risk",f"{risk}/100",True)],thumbnail=member.display_avatar.url))
     except Exception as e:
@@ -6672,7 +6624,7 @@ async def prefix_poll(ctx, *, args=""):
 async def slash_roleinfo(interaction: discord.Interaction, role: discord.Role):
     try:
         perms = ", ".join(p[0].replace("_"," ").title() for p in role.permissions if p[1])[:200] or "Keine"
-        await interaction.response.send_message(embed=create_embed(f"🏷️ {role.name}",f"Members: {len(role.members)} · Pos: {role.position} · Farbe: {role.color}",role.color.value or COLOR_INFO,
+        await interaction.response.send_message(embed=create_embed(f"{E.LABEL} {role.name}",f"Members: {len(role.members)} · Pos: {role.position} · Farbe: {role.color}",role.color.value or COLOR_INFO,
             [("Berechtigungen",perms,False)]))
     except Exception as e:
         try: await interaction.response.send_message(f"Fehler: {e}",ephemeral=True)
@@ -6682,7 +6634,7 @@ async def slash_roleinfo(interaction: discord.Interaction, role: discord.Role):
 @app_commands.describe(channel="Channel")
 async def slash_channelinfo(interaction: discord.Interaction, channel: discord.TextChannel):
     try:
-        await interaction.response.send_message(embed=create_embed(f"📁 #{channel.name}",
+        await interaction.response.send_message(embed=create_embed(f"{E.FOLDER} #{channel.name}",
             f"Typ: {channel.type} · Slowmode: {channel.slowmode_delay}s · NSFW: {channel.nsfw}\nTopic: {channel.topic or '—'}",COLOR_INFO))
     except Exception as e:
         try: await interaction.response.send_message(f"Fehler: {e}",ephemeral=True)
@@ -6691,12 +6643,12 @@ async def slash_channelinfo(interaction: discord.Interaction, channel: discord.T
 @bot.command(name="roleinfo")
 async def prefix_roleinfo(ctx, role: discord.Role = None):
     if not role: return await ctx.send("`!roleinfo @Rolle`")
-    await ctx.send(embed=create_embed(f"🏷️ {role.name}",f"Members: {len(role.members)} · Pos: {role.position}",role.color.value or COLOR_INFO))
+    await ctx.send(embed=create_embed(f"{E.LABEL} {role.name}",f"Members: {len(role.members)} · Pos: {role.position}",role.color.value or COLOR_INFO))
 
 @bot.command(name="channelinfo")
 async def prefix_channelinfo(ctx, channel: discord.TextChannel = None):
     ch = channel or ctx.channel
-    await ctx.send(embed=create_embed(f"📁 #{ch.name}",f"Slowmode: {ch.slowmode_delay}s · NSFW: {ch.nsfw}",COLOR_INFO))
+    await ctx.send(embed=create_embed(f"{E.FOLDER} #{ch.name}",f"Slowmode: {ch.slowmode_delay}s · NSFW: {ch.nsfw}",COLOR_INFO))
 
 # ── RAIDMODE ──
 @bot.tree.command(name="raidmode", description="Manueller Raid-Modus")
@@ -6726,7 +6678,7 @@ async def slash_raidmode(interaction: discord.Interaction, enabled: bool, dauer:
             for ch in interaction.guild.text_channels:
                 try: await ch.set_permissions(interaction.guild.default_role,send_messages=None)
                 except: pass
-            await interaction.response.send_message(embed=create_embed("✅","Raid-Modus aus.",COLOR_SUCCESS))
+            await interaction.response.send_message(embed=create_embed(E.OK,"Raid-Modus aus.",COLOR_SUCCESS))
     except Exception as e:
         try: await interaction.response.send_message(f"Fehler: {e}",ephemeral=True)
         except: pass
@@ -6742,15 +6694,15 @@ async def prefix_raidmode(ctx, action="status"):
             try: await ch.set_permissions(ctx.guild.default_role,send_messages=False)
             except: pass
         await ctx.send(embed=create_embed("🚨","Raid-Modus AKTIV.",COLOR_DANGER))
-    elif action in ("off","false","0"):
+    elif action in ("of","false","0"):
         cfg["raidmode_active"] = False
         await bot.db.set_config(ctx.guild.id, cfg)
         for ch in ctx.guild.text_channels:
             try: await ch.set_permissions(ctx.guild.default_role,send_messages=None)
             except: pass
-        await ctx.send(embed=create_embed("✅","Raid-Modus aus.",COLOR_SUCCESS))
+        await ctx.send(embed=create_embed(E.OK,"Raid-Modus aus.",COLOR_SUCCESS))
     else:
-        await ctx.send(embed=create_embed("🚨",f"Status: {'AKTIV 🔴' if cfg.get('raidmode_active') else '🟢'}",COLOR_INFO))
+        await ctx.send(embed=create_embed("🚨",f"Status: {'AKTIV {E.RED}' if cfg.get('raidmode_active') else f"{E.GREEN}"}",COLOR_INFO))
 
 # ── NOPREFIX ──
 @bot.tree.command(name="noprefix", description="No-Prefix-Modus")
@@ -6771,7 +6723,7 @@ async def slash_noprefix(interaction: discord.Interaction, enabled: bool):
 async def prefix_noprefix(ctx, enabled: str = None):
     cfg = bot.db.get_config(ctx.guild.id)
     if enabled in ("on","true"): cfg["no_prefix"] = True
-    elif enabled in ("off","false"): cfg["no_prefix"] = False
+    elif enabled in ("of","false"): cfg["no_prefix"] = False
     else: cfg["no_prefix"] = not cfg.get("no_prefix",False)
     await bot.db.set_config(ctx.guild.id, cfg)
     await ctx.send(embed=create_embed(f"{E.OK}",f"No-Prefix {'AN' if cfg['no_prefix'] else 'AUS'}",COLOR_SUCCESS if cfg["no_prefix"] else COLOR_WARNING))
@@ -6960,7 +6912,7 @@ async def prefix_warndecay(ctx, days: int = 0):
 async def prefix_antivpn(ctx, action="status"):
     cfg = bot.db.get_config(ctx.guild.id)
     if action in ("on","true"): cfg["anti_vpn"]={"enabled":True,"action":"kick"}
-    elif action in ("off","false"): cfg["anti_vpn"]={"enabled":False}
+    elif action in ("of","false"): cfg["anti_vpn"]={"enabled":False}
     else: return await ctx.send(embed=create_embed(f"{E.SHIELD}",f"Anti-VPN: {'AN' if cfg.get('anti_vpn',{}).get('enabled') else 'AUS'}",COLOR_INFO))
     await bot.db.set_config(ctx.guild.id, cfg)
     await ctx.send(embed=create_embed(f"{E.OK}",f"Anti-VPN {'AN' if cfg.get('anti_vpn',{}).get('enabled') else 'AUS'}",COLOR_SUCCESS))
@@ -7018,9 +6970,12 @@ async def slash_servertag(interaction: discord.Interaction, enabled: bool, rewar
                         except: pass
             cfg["server_tag"] = {"enabled": False, "tag": None, "reward_role": None}
             await bot.db.set_config(interaction.guild.id, cfg)
+            msg_text = f"Tag-System ist jetzt **aus**.\n"
+            if removed:
+                msg_text += f"Rolle von {removed} Usern entfernt."
             await interaction.response.send_message(embed=create_embed(
                 f"{E.OK} Server-Tag deaktiviert",
-                f"Tag-System ist jetzt **aus**.\n{f'Rolle von {removed} Usern entfernt.' if removed else ''}",
+                msg_text,
                 COLOR_WARNING))
             return
 
@@ -7036,13 +6991,13 @@ async def slash_servertag(interaction: discord.Interaction, enabled: bool, rewar
             f"**Tag:** `{tag}`\n"
             f"**Rolle:** {reward_role.mention}\n\n"
             f"**So funktioniert es:**\n"
-            f"> 🏷️ User setzt `{tag}` in seinen **Discord-Namen**\n"
+            f"> {E.LABEL} User setzt `{tag}` in seinen **Discord-Namen**\n"
             f"> 💎 Oder User **boostet** den Server UND hat den Tag\n"
-            f"> ✅ → Bekommt automatisch {reward_role.mention}\n"
-            f"> ❌ Tag entfernt → Rolle wird **sofort entzogen**\n\n"
+            f"> {E.OK} → Bekommt automatisch {reward_role.mention}\n"
+            f"> {E.FAIL} Tag entfernt → Rolle wird **sofort entzogen**\n\n"
             f"Der Bot prüft bei jedem Status-Update.",
             COLOR_SUCCESS))
-        await bot.log_action(interaction.guild, "🏷️ Server-Tag eingerichtet",
+        await bot.log_action(interaction.guild, f"{E.LABEL} Server-Tag eingerichtet",
             f"Tag: `{tag}` · Rolle: {reward_role.mention} · Von: {interaction.user.mention}",
             COLOR_SUCCESS, user=interaction.user, module="moderation")
     except Exception as e:
@@ -7061,18 +7016,18 @@ async def prefix_servertag(ctx, action: str = "status", role: discord.Role = Non
             cfg["server_tag"] = {"enabled": True, "tag": tag, "reward_role": role.id}
             await bot.db.set_config(ctx.guild.id, cfg)
             await ctx.send(embed=create_embed(f"{E.OK} Server-Tag", f"Tag: `{tag}` · Rolle: {role.mention}", COLOR_SUCCESS))
-        elif action.lower() in ("off", "false"):
+        elif action.lower() in ("of", "false"):
             cfg["server_tag"] = {"enabled": False, "tag": None, "reward_role": None}
             await bot.db.set_config(ctx.guild.id, cfg)
             await ctx.send(embed=create_embed(f"{E.OK}", "Server-Tag deaktiviert.", COLOR_WARNING))
         else:
             if st.get("enabled"):
                 r = ctx.guild.get_role(st.get("reward_role"))
-                await ctx.send(embed=create_embed("🏷️ Server-Tag",
-                    f"**Status:** ✅ Aktiv\n**Tag:** `{st['tag']}`\n**Rolle:** {r.mention if r else '?'}\n"
+                await ctx.send(embed=create_embed(f"{E.LABEL} Server-Tag",
+                    f"**Status:** {E.OK} Aktiv\n**Tag:** `{st['tag']}`\n**Rolle:** {r.mention if r else '?'}\n"
                     f"**User mit Rolle:** {len(r.members) if r else 0}", COLOR_SUCCESS))
             else:
-                await ctx.send(embed=create_embed("🏷️", "Server-Tag ist **inaktiv**.\n`!servertag on @Rolle | MeinTag`", COLOR_WARNING))
+                await ctx.send(embed=create_embed(E.LABEL, "Server-Tag ist **inaktiv**.\n`!servertag on @Rolle | MeinTag`", COLOR_WARNING))
     except Exception as e:
         await ctx.send(f"Fehler: {e}")
 
@@ -7108,14 +7063,14 @@ async def servertag_check(before: discord.Member, after: discord.Member):
 
         if should_have_role and role not in after.roles:
             await after.add_roles(role, reason=f"Server-Tag erkannt: {tag}")
-            await bot.log_action(after.guild, "🏷️ Server-Tag — Rolle gegeben",
+            await bot.log_action(after.guild, f"{E.LABEL} Server-Tag — Rolle gegeben",
                 f"{after.mention} hat den Tag `{tag}` im Namen → {role.mention}\n"
                 f"{'💎 Server-Booster' if is_booster else ''}",
                 COLOR_SUCCESS, user=after, module="members")
 
         elif not should_have_role and role in after.roles:
             await after.remove_roles(role, reason=f"Server-Tag entfernt: {tag}")
-            await bot.log_action(after.guild, "🏷️ Server-Tag — Rolle entzogen",
+            await bot.log_action(after.guild, f"{E.LABEL} Server-Tag — Rolle entzogen",
                 f"{after.mention} hat den Tag `{tag}` **nicht mehr** im Namen → {role.mention} entzogen",
                 COLOR_WARNING, user=after, module="members")
 
@@ -7257,7 +7212,7 @@ async def slash_backup_share(interaction: discord.Interaction, backup_id: str, n
                 "description": description[:200],
                 "category": category.lower(),
                 "shared_by": str(interaction.user.id),
-                "shared_at": datetime.datetime.utcnow(),
+                "shared_at": discord.utils.utcnow(),
                 "guild_name": interaction.guild.name,
                 "guild_icon": str(interaction.guild.icon.url) if interaction.guild.icon else None,
                 "roles_count": len(backup.get("roles", [])),
@@ -7273,7 +7228,7 @@ async def slash_backup_share(interaction: discord.Interaction, backup_id: str, n
             f"**{name}** ist jetzt öffentlich.\n\n"
             f"🌐 Sichtbar auf: `/templates`\n"
             f"📋 ID: `{backup_id}`\n"
-            f"📂 Kategorie: {category}",
+            f"{E.CATEGORY} Kategorie: {category}",
             COLOR_SUCCESS))
     except Exception as e:
         try: await interaction.response.send_message(f"Fehler: {e}", ephemeral=True)
