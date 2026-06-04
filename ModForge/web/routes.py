@@ -526,6 +526,10 @@ def features():
 def premium():
     return render_template("premium.html")
 
+@flask_app.route("/pricing")
+def pricing():
+    return render_template("pricing.html")
+
 @flask_app.route("/partners")
 def partners():
     return render_template("partners.html")
