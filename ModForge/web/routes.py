@@ -24,11 +24,13 @@ import copy as _copy
 
 from collections import defaultdict, deque
 from functools import wraps
+from werkzeug.security import check_password_hash, generate_password_hash
 
 from .app import flask_app
 from .auth import get_session, require_auth
 from .helpers import (
     _bot_stats,
+    _get_guild_config,
     _build_overview,
     _build_module_form,
     _build_welcome_content,
@@ -403,7 +405,8 @@ def home():
     if bot_ready() and db:
         try:
             cases_total = safe_collection_count(db.cases)
-            warns_total = safe_collection_count(getattr(db, "data", None), {"type": "warning"})
+            warns_coll = getattr(db, "warnings", None) or getattr(db, "warns", None)
+            warns_total = safe_collection_count(warns_coll)
         except Exception as e:
             log.error(f"[GLOBAL STATS ERROR] {e}")
 
@@ -512,275 +515,6 @@ def live_api_activity():
 
 # =========================================================
 # PRODUKT-SEITEN
-# =========================================================
-
-@flask_app.route("/features")
-def features():
-    return render_template("features.html", features=FEATURES)
-
-
-@flask_app.route("/commands")
-def commands():
-    return render_template("commands.html", cmds=CMDS_PREVIEW)
-
-
-@flask_app.route("/ai")
-def ai_features():
-    return render_template("ai.html")
-
-
-@flask_app.route("/economy")
-def economy():
-    return render_template("economy.html")
-
-
-@flask_app.route("/badges")
-def badges():
-    return render_template("badges.html")
-
-
-@flask_app.route("/security")
-def security():
-    return render_template("security.html")
-
-
-@flask_app.route("/premium")
-def premium():
-    return render_template("premium.html")
-
-
-@flask_app.route("/pricing")
-def pricing():
-    return render_template("pricing.html")
-
-
-# =========================================================
-# TOOLS & INTEGRATIONEN
-# =========================================================
-
-@flask_app.route("/templates")
-def server_templates():
-    # Load public backups from DB
-    public_backups = []
-    db = get_db()
-    if db:
-        try:
-            col = db.client["ModForge"]["public_backups"]
-            raw = safe_async(col.find({}).sort("downloads",-1).to_list(50), []) or []
-            for b in raw:
-                public_backups.append({
-                    "id": b.get("backup_id","?"),
-                    "name": b.get("name","Unnamed"),
-                    "description": b.get("description",""),
-                    "category": b.get("category","general"),
-                    "guild_name": b.get("guild_name","?"),
-                    "guild_icon": b.get("guild_icon",""),
-                    "shared_by": b.get("shared_by","?"),
-                    "roles": b.get("roles_count",0),
-                    "channels": b.get("channels_count",0),
-                    "categories": b.get("categories_count",0),
-                    "emojis": b.get("emojis_count",0),
-                    "downloads": b.get("downloads",0),
-                    "shared_at": str(int(b["shared_at"].timestamp())) if b.get("shared_at") and hasattr(b["shared_at"],"timestamp") else "",
-                })
-        except Exception as e:
-            log.debug(f"Public backups load: {e}")
-    # Categories
-    cats = {}
-    for b in public_backups:
-        cat = b["category"]
-        if cat not in cats: cats[cat] = []
-        cats[cat].append(b)
-    return render_template("templates.html", public_backups=public_backups, categories=cats)
-
-
-@flask_app.route("/integrations")
-def integrations():
-    return render_template("integrations.html")
-
-
-@flask_app.route("/widgets")
-def widgets():
-    return render_template("widgets.html")
-
-
-@flask_app.route("/migrate")
-def migrate():
-    return render_template("migrate.html")
-
-
-@flask_app.route("/emojis")
-def emojis():
-    return render_template("emojis.html")
-
-
-@flask_app.route("/api-docs")
-def api_docs():
-    return render_template("api-docs.html")
-
-
-@flask_app.route("/branding")
-def branding():
-    return render_template("branding.html")
-
-
-# =========================================================
-# DOCS (Unterseiten)
-# =========================================================
-
-@flask_app.route("/docs")
-def docs():
-    return render_template("docs.html")
-
-
-@flask_app.route("/docs/automod")
-def docs_automod():
-    return render_template("docs/automod.html")
-
-
-@flask_app.route("/docs/tickets")
-def docs_tickets():
-    return render_template("docs/tickets.html")
-
-
-@flask_app.route("/docs/music")
-def docs_music():
-    return render_template("docs/music.html")
-
-
-@flask_app.route("/docs/moderation")
-def docs_moderation():
-    return render_template("docs/moderation.html")
-
-
-@flask_app.route("/docs/setup")
-def docs_setup():
-    return render_template("docs/setup.html")
-
-
-# =========================================================
-# RESSOURCEN
-# =========================================================
-
-@flask_app.route("/tutorials")
-def tutorials():
-    return render_template("tutorials.html")
-
-
-@flask_app.route("/faq")
-def faq():
-    return render_template("faq.html")
-
-
-@flask_app.route("/changelog")
-def changelog():
-    return render_template("changelog.html", versions=VERSIONS)
-
-
-@flask_app.route("/roadmap")
-def roadmap():
-    return render_template("roadmap.html")
-
-
-@flask_app.route("/blog")
-def blog():
-    return render_template("blog.html")
-
-
-@flask_app.route("/downloads")
-def downloads():
-    return render_template("downloads.html")
-
-
-# =========================================================
-# COMMUNITY
-# =========================================================
-
-@flask_app.route("/partners")
-def partners():
-    return render_template("partners.html")
-
-
-@flask_app.route("/affiliate")
-def affiliate():
-    return render_template("affiliate.html")
-
-
-@flask_app.route("/suggest")
-def suggest():
-    return render_template("suggest.html")
-
-
-@flask_app.route("/contact")
-def contact():
-    return render_template("contact.html")
-
-
-@flask_app.route("/showcase")
-def showcase():
-    return render_template("showcase.html")
-
-
-@flask_app.route("/testimonials")
-def testimonials():
-    return render_template("testimonials.html")
-
-
-@flask_app.route("/leaderboard")
-def leaderboard():
-    return render_template("leaderboard.html")
-
-
-@flask_app.route("/team")
-def team():
-    return render_template("team.html")
-
-
-@flask_app.route("/jobs")
-def jobs():
-    return render_template("jobs.html")
-
-
-@flask_app.route("/events")
-def events():
-    return render_template("events.html")
-
-
-# =========================================================
-# SUPPORT & STATUS
-# =========================================================
-
-@flask_app.route("/support")
-def support():
-    return render_template("support.html")
-
-
-@flask_app.route("/uptime")
-def uptime():
-    gc, mc, uptime_seconds, lat = _base_stats()
-    uptime_pct = _uptime_pct()
-    return render_template(
-        "uptime.html",
-        uptime_pct=f"{uptime_pct:.3f}",
-        up_s=uptime_seconds,
-        api_latency=round(lat or 0),
-        guild_count=gc,
-        member_count=mc,
-    )
-
-
-@flask_app.route("/status/incidents")
-def status_incidents():
-    return render_template("status/incidents.html")
-
-
-@flask_app.route("/status/maintenance")
-def status_maintenance():
-    return render_template("status/maintenance.html")
-
-
-# =========================================================
-# RECHTLICHES
 # =========================================================
 
 @flask_app.route("/terms")
@@ -1058,6 +792,7 @@ def admin_guild_detail(guild_id):
     cfg = _direct_load_config(guild_id)
     active_modules = sum(1 for k in ["anti_spam","anti_nuke","anti_raid","anti_mention","anti_scam","automod"]
                          if cfg.get(k, {}).get("enabled"))
+    import json as _json
     try:
         config_json = _json.dumps(cfg, indent=2, default=str, ensure_ascii=False)
     except Exception:
@@ -2271,21 +2006,6 @@ def guild_embed(guild_id):
 
 # PUBLIC PAGES (new)
 
-@flask_app.route("/demo")
-def demo():
-    return render_template("demo.html")
-
-@flask_app.route("/server-check")
-def server_check():
-    return render_template("server_check.html")
-
-
-# =========================================================
-
-@flask_app.route("/compare")
-def compare():
-    return render_template("compare.html")
-
 @flask_app.route("/public-stats")
 def public_stats():
     gc, mc, up, lat = _base_stats()
@@ -2333,6 +2053,7 @@ def api_guild_config(guild_id):
         return jsonify({"error": "forbidden"}), 403
     data = request.json or {}
     cfg = _direct_load_config(guild_id)
+    from bot.utils import _run_async
 
     # Handle special keys with _ prefix
     if "_reset" in data:
@@ -2433,6 +2154,7 @@ def api_guild_automod(guild_id):
         return jsonify({"error": "forbidden"}), 403
     data = request.json or {}
     cfg = _direct_load_config(guild_id)
+    from bot.utils import _run_async
     am = cfg.get("automod", {})
     action = data.get("action")
     if action == "add_word":
@@ -2471,6 +2193,7 @@ def api_guild_autoresponse(guild_id):
         return jsonify({"error": "forbidden"}), 403
     data = request.json or {}
     cfg = _direct_load_config(guild_id)
+    from bot.utils import _run_async
     ars = cfg.get("auto_responses", [])
     action = data.get("action")
     if action == "add":
@@ -2496,6 +2219,7 @@ def api_guild_roles(guild_id):
         return jsonify({"error": "forbidden"}), 403
     data = request.json or {}
     cfg = _direct_load_config(guild_id)
+    from bot.utils import _run_async
     action = data.get("action")
     rid = int(data.get("role_id", 0))
     if action == "add_auto":
@@ -2609,7 +2333,7 @@ def guild_members(guild_id):
                 try:
                     if m.timed_out_until and m.timed_out_until.timestamp() > now.timestamp():
                         timeout_str = str(int(m.timed_out_until.timestamp()))
-                except Exception: pass
+                except: pass
 
                 # Voice
                 voice_ch = ""
@@ -2649,11 +2373,11 @@ def guild_members(guild_id):
                 try:
                     db = get_db()
                     if db:
-                        user_cases = safe_collection_count(db.cases, {"guild_id": g.id, "user_id": m.id})
-                        user_warns = safe_collection_count(getattr(db, "data", None), {"type": "warning", "guild_id": g.id, "user_id": m.id})
+                        user_cases = safe_collection_count(db.cases, {"guild_id": str(g.id), "user_id": str(m.id)})
+                        user_warns = safe_collection_count(getattr(db, "warnings", None), {"guild_id": str(g.id), "user_id": str(m.id)})
                         if user_cases: risk = min(risk + user_cases * 5, 100)
                         if user_warns: risk = min(risk + user_warns * 8, 100)
-                except Exception:
+                except:
                     pass
 
                 members.append({
@@ -2879,9 +2603,9 @@ def guild_stats_page(guild_id):
     boosts = g.premium_subscription_count or 0 if g and hasattr(g,'premium_subscription_count') else 0
     warns_count = 0
     try:
-        wc = getattr(db,'data',None) if db else None
-        if wc: warns_count = safe_collection_count(wc, {"type": "warning", "guild_id": int(guild_id)})
-    except Exception: pass
+        wc = getattr(db,'warnings',None) if db else None
+        if wc: warns_count = safe_collection_count(wc, {"guild_id":str(guild_id)})
+    except: pass
     log_channels_count = len(cfg.get("log_channels",{}) or {})
     sec_level = cfg.get("security_level",0)
 
@@ -3035,7 +2759,7 @@ def guild_livefeed(guild_id):
         raw = ACTIVITY.snapshot(30)
         if isinstance(raw, list):
             activities = [a for a in raw if str(a.get("guild_id","")) == str(guild_id)][:20]
-    except Exception: pass
+    except: pass
     return render_template("dashboard/livefeed.html", guild=g, cfg=cfg, user=us["user"],
         activities=activities, active="livefeed")
 
@@ -3061,17 +2785,17 @@ def api_guild_whitelist(guild_id):
         if action == "add":
             items = wl.get(cat, [])
             try: item_id = int(item_id)
-            except Exception: pass
+            except: pass
             if item_id not in items:
                 items.append(item_id)
             wl[cat] = items
         elif action == "del":
             try: item_id = int(item_id)
-            except Exception: pass
+            except: pass
             wl[cat] = [x for x in wl.get(cat, []) if str(x) != str(item_id)]
         try:
-            _run_async(bot.db.set_whitelist(int(guild_id), wl))
-        except Exception:
+            _run_async(bot.db.whitelist_col.replace_one({"guild_id": int(guild_id)}, {"guild_id": int(guild_id), **wl}, upsert=True))
+        except:
             bot.db._whitelist_cache[int(guild_id)] = wl
         return jsonify({"ok": True})
     except Exception as e:
@@ -3122,7 +2846,7 @@ def admin_server_dashboard(guild_id, subpage=""):
         try:
             wl = bot.db.get_whitelist(int(guild_id)) if bot_ready() else {}
             wl_count = sum(len(v) for v in wl.values() if isinstance(v,list))
-        except Exception: pass
+        except: pass
         return render_template("dashboard/security.html", guild=g, cfg=cfg, user=admin_user,
             modules=modules, active_count=sum(1 for m in modules if m["enabled"]), wl_count=wl_count, active="security")
 
@@ -3147,7 +2871,7 @@ def admin_server_dashboard(guild_id, subpage=""):
                 raw = safe_async(db.cases.find({"guild_id":str(guild_id)}).sort("case_id",-1).to_list(200),[]) or []
                 for cc in raw: cc["timestamp"] = str(cc.get("timestamp",""))[:19]
                 cases = raw
-            except Exception: pass
+            except: pass
         return render_template("dashboard/cases.html", guild=g, cfg=cfg, user=admin_user, cases=cases, active="cases")
 
     elif subpage == "warns":
@@ -3261,7 +2985,7 @@ def admin_server_dashboard(guild_id, subpage=""):
         wl = {}
         if bot_ready():
             try: wl = bot.db.get_whitelist(int(guild_id))
-            except Exception: pass
+            except: pass
         return render_template("dashboard/whitelist.html", guild=g, cfg=cfg, user=admin_user, whitelist=wl, active="whitelist")
 
     elif subpage == "stats":
@@ -3281,7 +3005,7 @@ def admin_server_dashboard(guild_id, subpage=""):
                     day = now - _dt.timedelta(days=i)
                     days_labels.append(day.strftime("%a"))
                     days_data.append(sum(1 for cs in all_cases if cs.get("timestamp") and cs["timestamp"].date()==day.date()))
-            except Exception: pass
+            except: pass
         active_mods = sum(1 for k in ["anti_spam","anti_nuke","anti_raid","anti_mention","anti_scam","automod"] if cfg.get(k,{}).get("enabled"))
         return render_template("dashboard/stats.html", guild=g, cfg=cfg, user=admin_user,
             cases_count=cases_count, case_types=case_types, top_mods=top_mods,
@@ -3340,7 +3064,7 @@ def admin_server_dashboard(guild_id, subpage=""):
             from bot.config import ACTIVITY
             raw = ACTIVITY.snapshot(30)
             if isinstance(raw,list): activities = [a for a in raw if str(a.get("guild_id",""))==str(guild_id)][:20]
-        except Exception: pass
+        except: pass
         return render_template("dashboard/livefeed.html", guild=g, cfg=cfg, user=admin_user, activities=activities, active="livefeed")
 
     elif subpage == "design":
@@ -3405,17 +3129,17 @@ def api_member_action(guild_id, member_id):
         if action == "warn":
             case_id = _run_async(bot.db.acreate_case(g.id, member.id, int(user_session["user"]["id"]), "warn", reason))
             count = _run_async(bot.db.aadd_warning(g.id, member.id, reason, int(user_session["user"]["id"])))
-            _run_async(bot.log_action(g, "⚠️ Warn (Dashboard)", f"{member.mention} verwarnt.\nGrund: {reason}\nVerwarnungen: {count}", 0xeab308, module="moderation"))
+            _run_async(bot.log_action(g, f"⚠️ Warn (Dashboard)", f"{member.mention} verwarnt.\nGrund: {reason}\nVerwarnungen: {count}", 0xeab308, module="moderation"))
             return jsonify({"ok": True, "action": "warn", "case_id": case_id, "warn_count": count})
         elif action == "kick":
             _run_async(member.kick(reason=f"Dashboard: {reason}"))
             case_id = _run_async(bot.db.acreate_case(g.id, member.id, int(user_session["user"]["id"]), "kick", reason))
-            _run_async(bot.log_action(g, "👢 Kick (Dashboard)", f"{member.mention} gekickt.\nGrund: {reason}", 0xef4444, module="moderation"))
+            _run_async(bot.log_action(g, f"👢 Kick (Dashboard)", f"{member.mention} gekickt.\nGrund: {reason}", 0xef4444, module="moderation"))
             return jsonify({"ok": True, "action": "kick", "case_id": case_id})
         elif action == "ban":
             _run_async(member.ban(reason=f"Dashboard: {reason}", delete_message_seconds=86400))
             case_id = _run_async(bot.db.acreate_case(g.id, member.id, int(user_session["user"]["id"]), "ban", reason))
-            _run_async(bot.log_action(g, "🔨 Ban (Dashboard)", f"{member.mention} gebannt.\nGrund: {reason}", 0xef4444, module="moderation"))
+            _run_async(bot.log_action(g, f"🔨 Ban (Dashboard)", f"{member.mention} gebannt.\nGrund: {reason}", 0xef4444, module="moderation"))
             return jsonify({"ok": True, "action": "ban", "case_id": case_id})
         elif action == "timeout":
             import datetime as _dt
@@ -3423,27 +3147,27 @@ def api_member_action(guild_id, member_id):
             until = _dt.datetime.now(_dt.timezone.utc) + _dt.timedelta(seconds=dur)
             _run_async(member.timeout(until, reason=f"Dashboard: {reason}"))
             case_id = _run_async(bot.db.acreate_case(g.id, member.id, int(user_session["user"]["id"]), "timeout", reason, duration=dur))
-            _run_async(bot.log_action(g, "🔇 Timeout (Dashboard)", f"{member.mention} getimeoutet ({dur}s).\nGrund: {reason}", 0xf59e0b, module="moderation"))
+            _run_async(bot.log_action(g, f"🔇 Timeout (Dashboard)", f"{member.mention} getimeoutet ({dur}s).\nGrund: {reason}", 0xf59e0b, module="moderation"))
             return jsonify({"ok": True, "action": "timeout", "case_id": case_id})
         elif action == "untimeout":
-            _run_async(member.timeout(None, reason="Dashboard: Timeout aufgehoben"))
-            _run_async(bot.log_action(g, "🔊 Timeout aufgehoben (Dashboard)", f"{member.mention}", 0x22c55e, module="moderation"))
+            _run_async(member.timeout(None, reason=f"Dashboard: Timeout aufgehoben"))
+            _run_async(bot.log_action(g, f"🔊 Timeout aufgehoben (Dashboard)", f"{member.mention}", 0x22c55e, module="moderation"))
             return jsonify({"ok": True, "action": "untimeout"})
         elif action == "add_role":
             role = g.get_role(int(data.get("role_id", 0)))
             if role:
-                _run_async(member.add_roles(role, reason="Dashboard: Rolle gegeben"))
+                _run_async(member.add_roles(role, reason=f"Dashboard: Rolle gegeben"))
                 return jsonify({"ok": True, "action": "add_role"})
             return jsonify({"error": "Rolle nicht gefunden"}), 404
         elif action == "remove_role":
             role = g.get_role(int(data.get("role_id", 0)))
             if role:
-                _run_async(member.remove_roles(role, reason="Dashboard: Rolle entfernt"))
+                _run_async(member.remove_roles(role, reason=f"Dashboard: Rolle entfernt"))
                 return jsonify({"ok": True, "action": "remove_role"})
             return jsonify({"error": "Rolle nicht gefunden"}), 404
         elif action == "nick":
             new_nick = data.get("nick", "")
-            _run_async(member.edit(nick=new_nick or None, reason="Dashboard: Nickname geändert"))
+            _run_async(member.edit(nick=new_nick or None, reason=f"Dashboard: Nickname geändert"))
             return jsonify({"ok": True, "action": "nick"})
         else:
             return jsonify({"error": f"Unbekannte Aktion: {action}"}), 400
@@ -3460,6 +3184,7 @@ def api_noprefix(guild_id):
         return jsonify({"error": "forbidden"}), 403
     data = request.json or {}
     cfg = _direct_load_config(guild_id)
+    from bot.utils import _run_async
     if "enabled" in data:
         cfg["no_prefix"] = bool(data["enabled"])
     if "action" in data:
@@ -3473,7 +3198,7 @@ def api_noprefix(guild_id):
         cfg["no_prefix_users"] = np_users
     try:
         _direct_save_config(guild_id, cfg)
-    except Exception:
+    except:
         pass
     return jsonify({"ok": True, "no_prefix": cfg.get("no_prefix", False)})
 
@@ -3489,7 +3214,7 @@ def api_guild_activity(guild_id):
             raw = []
         filtered = [a for a in raw if str(a.get("guild_id","")) == str(guild_id)]
         return jsonify(filtered[:50])
-    except Exception:
+    except Exception as e:
         return jsonify([])
 
 # ═══════════════════════════════════════════════════════════════════
@@ -3609,8 +3334,6 @@ def api_guild_autonick(guild_id):
         if an.get("enabled"):
             guild_obj = bot.get_guild(int(guild_id))
             if guild_obj:
-                import asyncio
-                from bot.bot import _bulk_apply_autonick
                 try:
                     future = asyncio.run_coroutine_threadsafe(
                         _bulk_apply_autonick(guild_obj, an, role_id=role_id),
