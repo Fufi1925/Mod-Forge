@@ -15,7 +15,7 @@
   .theme-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 12px; }
   .theme-tile { position: relative; border-radius: 16px; border: 2px solid var(--border); background: rgba(255,255,255,0.02); padding: 12px; cursor: pointer; transition: all .2s cubic-bezier(0.4,0,0.2,1); text-align: center; }
   .theme-tile:hover { border-color: rgba(255,255,255,0.2); transform: translateY(-3px); }
-  .theme-tile.active { border-color: var(--v); background: rgba(124,58,237,0.08); box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+  .theme-tile.active { border-color: var(--v); background: rgba(59,130,246,0.08); box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
   .theme-swatch { width: 100%; aspect-ratio: 1.5; border-radius: 10px; margin-bottom: 10px; position: relative; overflow: hidden; }
   .theme-swatch::after { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent); }
   .theme-name { font-size: .75rem; font-weight: 700; color: #fff; }
@@ -24,7 +24,7 @@
   .seg { display: flex; background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 14px; padding: 4px; gap: 4px; }
   .seg button { flex: 1; padding: 10px; border-radius: 10px; border: none; background: transparent; color: var(--muted); font-size: .75rem; font-weight: 700; cursor: pointer; transition: .2s; font-family: inherit; }
   .seg button:hover { color: #fff; background: rgba(255,255,255,0.05); }
-  .seg button.active { background: var(--v); color: #fff; box-shadow: 0 4px 12px rgba(124,58,237,0.3); }
+  .seg button.active { background: var(--v); color: #fff; box-shadow: 0 4px 12px rgba(59,130,246,0.3); }
 
   /* ── PREVIEW ── */
   .preview-box { position: sticky; top: 24px; background: rgba(8,8,20,0.6); border: 1px solid var(--border); border-radius: 24px; overflow: hidden; box-shadow: 0 30px 60px rgba(0,0,0,0.4); }

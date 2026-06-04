@@ -14,20 +14,20 @@
     /* ── SIDEBAR ── */
     .db-sidebar{position:fixed;top:0;left:0;bottom:0;width:var(--sidebar-w);background:rgba(8,8,20,0.97);backdrop-filter:blur(30px);border-right:1px solid var(--border);z-index:9999;display:flex;flex-direction:column;overflow-y:auto}
     .db-sidebar::-webkit-scrollbar{width:3px}
-    .db-sidebar::-webkit-scrollbar-thumb{background:rgba(124,58,237,0.2);border-radius:9px}
+    .db-sidebar::-webkit-scrollbar-thumb{background:rgba(59,130,246,0.2);border-radius:9px}
     .db-brand{padding:18px 20px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border)}
-    .db-brand-icon{width:32px;height:32px;border-radius:10px;background:linear-gradient(135deg,var(--v),var(--p));display:flex;align-items:center;justify-content:center;font-size:.9rem;box-shadow:0 4px 14px rgba(124,58,237,0.4)}
+    .db-brand-icon{width:32px;height:32px;border-radius:10px;background:linear-gradient(135deg,var(--v),var(--p));display:flex;align-items:center;justify-content:center;font-size:.9rem;box-shadow:0 4px 14px rgba(59,130,246,0.4)}
     .db-brand-text{font-size:.92rem;font-weight:800}
     .db-server{padding:14px 20px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);background:rgba(255,255,255,0.02)}
     .db-server img{width:32px;height:32px;border-radius:50%;object-fit:cover}
-    .db-server-fallback{width:32px;height:32px;border-radius:50%;background:rgba(124,58,237,0.2);display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--vl);font-size:.8rem}
+    .db-server-fallback{width:32px;height:32px;border-radius:50%;background:rgba(59,130,246,0.2);display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--vl);font-size:.8rem}
     .db-server-name{font-size:.78rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .db-server-sub{font-size:.62rem;color:var(--muted)}
     .db-nav{padding:12px 0;flex:1}
     .db-nav-label{padding:6px 20px;font-size:.58rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;margin-top:8px}
     .db-nav a{display:flex;align-items:center;gap:10px;padding:9px 20px;font-size:.8rem;font-weight:500;color:var(--muted);transition:all .15s;border-left:3px solid transparent}
     .db-nav a:hover{color:var(--fg);background:rgba(255,255,255,0.03)}
-    .db-nav a.active{color:var(--vl);background:rgba(124,58,237,0.06);border-left-color:var(--v);font-weight:700}
+    .db-nav a.active{color:var(--vl);background:rgba(59,130,246,0.06);border-left-color:var(--v);font-weight:700}
     .db-nav a .nav-icon{width:18px;text-align:center;font-size:.85rem;flex-shrink:0}
     .db-user{padding:14px 20px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.01)}
     .db-user img{width:30px;height:30px;border-radius:50%}
@@ -43,14 +43,14 @@
 
     /* ── CARDS ── */
     .db-card{background:rgba(255,255,255,0.035);backdrop-filter:blur(16px);border:1px solid var(--border);border-radius:16px;padding:24px;transition:all var(--r)}
-    .db-card:hover{border-color:rgba(139,92,246,0.2);box-shadow:0 8px 32px rgba(0,0,0,0.15)}
+    .db-card:hover{border-color:rgba(96,165,250,0.2);box-shadow:0 8px 32px rgba(0,0,0,0.15)}
     .db-card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
     .db-card-title{font-size:.95rem;font-weight:700;display:flex;align-items:center;gap:8px}
     .db-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:20px}
 
     /* ── CONFIG ROW ── */
     .cfg-row{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:14px;margin-bottom:8px;transition:all var(--r);gap:12px}
-    .cfg-row:hover{border-color:rgba(139,92,246,0.18);background:rgba(255,255,255,0.045)}
+    .cfg-row:hover{border-color:rgba(96,165,250,0.18);background:rgba(255,255,255,0.045)}
     .cfg-label{font-size:.85rem;font-weight:600}
     .cfg-desc{font-size:.72rem;color:var(--muted);margin-top:2px}
 
@@ -59,14 +59,14 @@
     .toggle input{opacity:0;width:0;height:0;position:absolute}
     .toggle .slider{position:absolute;inset:0;background:rgba(255,255,255,0.08);border-radius:999px;cursor:pointer;transition:all .25s;border:1px solid rgba(255,255,255,0.08)}
     .toggle .slider::before{content:'';position:absolute;width:18px;height:18px;border-radius:50%;background:var(--muted);left:2px;top:2px;transition:all .25s}
-    .toggle input:checked+.slider{background:rgba(124,58,237,0.35);border-color:rgba(124,58,237,0.5)}
-    .toggle input:checked+.slider::before{transform:translateX(20px);background:var(--vl);box-shadow:0 0 8px rgba(124,58,237,0.5)}
+    .toggle input:checked+.slider{background:rgba(59,130,246,0.35);border-color:rgba(59,130,246,0.5)}
+    .toggle input:checked+.slider::before{transform:translateX(20px);background:var(--vl);box-shadow:0 0 8px rgba(59,130,246,0.5)}
 
     /* ── INPUTS ── */
     .cfg-input{padding:9px 14px;border-radius:10px;background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--fg);font-size:.82rem;outline:none;font-family:inherit;transition:all var(--r);max-width:200px}
-    .cfg-input:focus{border-color:rgba(124,58,237,0.5);box-shadow:0 0 0 3px rgba(124,58,237,0.1);background:rgba(124,58,237,0.04)}
+    .cfg-input:focus{border-color:rgba(59,130,246,0.5);box-shadow:0 0 0 3px rgba(59,130,246,0.1);background:rgba(59,130,246,0.04)}
     .cfg-select{padding:9px 14px;border-radius:10px;background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--fg);font-size:.82rem;outline:none;font-family:inherit;transition:all var(--r)}
-    .cfg-select:focus{border-color:rgba(124,58,237,0.5)}
+    .cfg-select:focus{border-color:rgba(59,130,246,0.5)}
 
     /* ── STAT CARDS ── */
     .db-stat{text-align:center;padding:20px;border-radius:14px;background:rgba(255,255,255,0.03);border:1px solid var(--border)}
@@ -177,7 +177,7 @@
       <div style="width:10px;height:10px;border-radius:50%;background:var(--amberl);animation:pulse 1.5s ease infinite;flex-shrink:0"></div>
       <span style="color:var(--amberl);font-size:.82rem;font-weight:600;flex:1">Ungespeicherte Änderungen</span>
       <button onclick="discardChanges()" style="padding:8px 16px;border-radius:10px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);color:var(--muted);font-size:.78rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s" onmouseover="this.style.background='rgba(255,255,255,0.1)';this.style.color='var(--fg)'" onmouseout="this.style.background='rgba(255,255,255,0.05)';this.style.color='var(--muted)'">✕ Verwerfen</button>
-      <button onclick="saveConfig()" style="padding:8px 20px;border-radius:10px;background:linear-gradient(135deg,rgba(109,40,217,0.8),rgba(30,64,175,0.8));border:1px solid rgba(139,92,246,0.4);color:#fff;font-size:.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s;box-shadow:0 2px 12px rgba(109,40,217,0.3)" onmouseover="this.style.boxShadow='0 4px 20px rgba(109,40,217,0.5)'" onmouseout="this.style.boxShadow='0 2px 12px rgba(109,40,217,0.3)'">💾 Speichern</button>
+      <button onclick="saveConfig()" style="padding:8px 20px;border-radius:10px;background:linear-gradient(135deg,rgba(37,99,235,0.8),rgba(30,64,175,0.8));border:1px solid rgba(96,165,250,0.4);color:#fff;font-size:.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s;box-shadow:0 2px 12px rgba(37,99,235,0.3)" onmouseover="this.style.boxShadow='0 4px 20px rgba(37,99,235,0.5)'" onmouseout="this.style.boxShadow='0 2px 12px rgba(37,99,235,0.3)'">💾 Speichern</button>
     </div>
   </div>
 
@@ -227,7 +227,7 @@
         err: { bg: 'rgba(239,68,68,0.15)', border: 'rgba(239,68,68,0.3)', text: '#f87171', icon: '❌' },
         info: { bg: 'rgba(59,130,246,0.15)', border: 'rgba(59,130,246,0.3)', text: '#60a5fa', icon: 'ℹ️' },
         warn: { bg: 'rgba(245,158,11,0.15)', border: 'rgba(245,158,11,0.3)', text: '#fbbf24', icon: '⚠️' },
-        save: { bg: 'rgba(139,92,246,0.15)', border: 'rgba(139,92,246,0.3)', text: '#a78bfa', icon: '💾' },
+        save: { bg: 'rgba(96,165,250,0.15)', border: 'rgba(96,165,250,0.3)', text: '#a78bfa', icon: '💾' },
       };
       const c = colors[type] || colors.ok;
       const container = document.getElementById('mfToast');
@@ -278,7 +278,7 @@
           <div style="color:var(--muted);font-size:.9rem;line-height:1.6">Du hast Einstellungen verändert, aber noch nicht gespeichert. Willst du sie jetzt sichern oder verwerfen?</div>
         </div>
         <div style="display:flex;flex-direction:column;gap:10px">
-          <button onclick="closeModal();saveConfig()" style="width:100%;padding:14px;border-radius:14px;background:linear-gradient(135deg,var(--v),var(--p));border:1px solid rgba(255,255,255,0.1);color:#fff;font-size:.9rem;font-weight:800;cursor:pointer;font-family:inherit;transition:.2s;box-shadow:0 4px 15px rgba(124,58,237,0.3)">💾 Jetzt Speichern</button>
+          <button onclick="closeModal();saveConfig()" style="width:100%;padding:14px;border-radius:14px;background:linear-gradient(135deg,var(--v),var(--p));border:1px solid rgba(255,255,255,0.1);color:#fff;font-size:.9rem;font-weight:800;cursor:pointer;font-family:inherit;transition:.2s;box-shadow:0 4px 15px rgba(59,130,246,0.3)">💾 Jetzt Speichern</button>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
             <button onclick="closeModal()" style="padding:12px;border-radius:14px;background:rgba(255,255,255,0.05);border:1px solid var(--border);color:var(--fg);font-size:.85rem;font-weight:600;cursor:pointer;font-family:inherit;transition:.15s">Weiter bearbeiten</button>
             <button onclick="closeModal();discardChanges()" style="padding:12px;border-radius:14px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);color:#f87171;font-size:.85rem;font-weight:600;cursor:pointer;font-family:inherit;transition:.15s">❌ Verwerfen</button>

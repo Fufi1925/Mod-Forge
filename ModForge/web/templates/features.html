@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Features – ModForge{% endblock %}
+{% block content %}
+<div class="container" style="max-width:1100px;padding-top:40px;padding-bottom:80px">
+  <div class="sec-head reveal" style="text-align:center;margin-bottom:50px">
+    <div class="sec-badge" style="margin-bottom:12px">⚡ Features</div>
+    <h1 style="font-size:clamp(1.8rem,4vw,2.8rem);font-weight:800;margin-bottom:12px">Alles, was ModForge kann</h1>
+    <p style="color:var(--muted);max-width:600px;margin:0 auto">Enterprise-Level Sicherheit und Moderation für jeden Discord-Server – kostenlos.</p>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:24px">
+    {% for f in features %}
+    <div class="glass-card reveal" style="padding:28px;border-radius:var(--radius);background:var(--glass2);border:1px solid var(--border);transition:all var(--r)">
+      <div style="font-size:2rem;margin-bottom:12px">{{ f.icon }}</div>
+      <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:8px">{{ f.name }}</h3>
+      <p style="color:var(--muted);font-size:.88rem;line-height:1.6">{{ f.desc }}</p>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div style="text-align:center;margin-top:48px" class="reveal">
+    <a href="/commands" class="btn-glass btn-glass-primary btn-lg">Alle Commands ansehen →</a>
+  </div>
+</div>
+{% endblock %}

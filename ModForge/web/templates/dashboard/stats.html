@@ -147,8 +147,8 @@ if (ctx) {
       datasets: [{
         label: 'Cases',
         data: {{ days_data|tojson }},
-        backgroundColor: 'rgba(124,58,237,0.3)',
-        borderColor: 'rgba(124,58,237,0.7)',
+        backgroundColor: 'rgba(59,130,246,0.3)',
+        borderColor: 'rgba(59,130,246,0.7)',
         borderWidth: 1,
         borderRadius: 8,
         borderSkipped: false,
@@ -172,8 +172,8 @@ const growthLabels = {{ growth_labels|tojson }};
 const growthData   = {{ growth_data|tojson }};
 if (growthCtx && growthLabels.length > 1) {
   const grad = growthCtx.getContext('2d').createLinearGradient(0, 0, 0, 240);
-  grad.addColorStop(0, 'rgba(124,58,237,0.45)');
-  grad.addColorStop(1, 'rgba(124,58,237,0.00)');
+  grad.addColorStop(0, 'rgba(59,130,246,0.45)');
+  grad.addColorStop(1, 'rgba(59,130,246,0.00)');
 
   new Chart(growthCtx, {
     type: 'line',
@@ -204,7 +204,7 @@ if (growthCtx && growthLabels.length > 1) {
           backgroundColor: 'rgba(10,10,26,0.95)',
           titleColor: '#fff',
           bodyColor: '#a78bfa',
-          borderColor: 'rgba(124,58,237,0.4)',
+          borderColor: 'rgba(59,130,246,0.4)',
           borderWidth: 1,
           padding: 10,
           displayColors: false,

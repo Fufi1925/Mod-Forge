@@ -14,7 +14,7 @@
   <div class="cfg-row"><div><span class="cfg-label">Log-Kanal</span><div class="cfg-desc">Transkripte werden hierhin gesendet</div></div>
     <select class="cfg-select" id="tLog" style="min-width:200px" onchange="showSaveBar()"><option value="">— Wählen —</option>{% for ch in channels %}<option value="{{ ch.id }}" {% if ch.id|string==cfg.get('ticket_system',{}).get('log_channel_id','')|string %}selected{% endif %}>#{{ ch.name }}</option>{% endfor %}</select></div>
 </div>
-<div class="db-card" style="padding:14px;margin-top:14px;background:rgba(124,58,237,0.02);border-color:rgba(124,58,237,0.08)">
+<div class="db-card" style="padding:14px;margin-top:14px;background:rgba(59,130,246,0.02);border-color:rgba(59,130,246,0.08)">
   <div style="font-size:.72rem;color:var(--muted);line-height:1.6"><strong style="color:var(--fg)">💡</strong> Nach dem Speichern nutze <code style="color:var(--vl)">/setup_tickets</code> in Discord um das Ticket-Panel zu senden.</div>
 </div>
 {% block scripts %}

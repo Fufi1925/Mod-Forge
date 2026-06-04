@@ -7,7 +7,7 @@
 {% block head %}
 <style>
   .bk-card{padding:14px 16px;border-radius:14px;background:rgba(255,255,255,0.03);border:1px solid var(--border);margin-bottom:8px;transition:all .15s;position:relative}
-  .bk-card:hover{border-color:rgba(139,92,246,0.25);background:rgba(255,255,255,0.045)}
+  .bk-card:hover{border-color:rgba(96,165,250,0.25);background:rgba(255,255,255,0.045)}
   .bk-card.expanded .bk-details{display:block}
   .bk-details{display:none;margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.05)}
   .bk-stat{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:999px;font-size:.62rem;font-weight:600;background:rgba(255,255,255,0.04);border:1px solid var(--border)}
@@ -16,7 +16,7 @@
   .bk-progress-bar{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--v),var(--cl));transition:width .3s ease}
   .bk-row-actions{display:flex;gap:6px;flex-wrap:wrap}
   .bk-row-actions button,.bk-row-actions a{font-family:inherit}
-  .bk-icon-wrap{width:42px;height:42px;border-radius:12px;background:rgba(124,58,237,0.12);display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;overflow:hidden}
+  .bk-icon-wrap{width:42px;height:42px;border-radius:12px;background:rgba(59,130,246,0.12);display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;overflow:hidden}
   .bk-icon-wrap img{width:100%;height:100%;object-fit:cover}
 </style>
 {% endblock %}
@@ -91,7 +91,7 @@
 
     <div class="bk-details">
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:6px;margin-bottom:10px">
-        <div style="text-align:center;padding:8px;border-radius:8px;background:rgba(124,58,237,0.04);border:1px solid rgba(124,58,237,0.1)">
+        <div style="text-align:center;padding:8px;border-radius:8px;background:rgba(59,130,246,0.04);border:1px solid rgba(59,130,246,0.1)">
           <div style="font-size:1.1rem;font-weight:900;color:var(--vl)">{{ b.roles }}</div>
           <div style="font-size:.55rem;color:var(--muted)">Rollen</div>
         </div>
@@ -302,7 +302,7 @@ function shareBackup(id, label) {
     </div>
     <div style="display:flex;gap:8px">
       <button onclick="closeModal()" style="flex:1;padding:10px;border-radius:10px;background:rgba(255,255,255,0.05);border:1px solid var(--border);color:var(--fg);font-size:.82rem;cursor:pointer;font-family:inherit">Abbrechen</button>
-      <button onclick="closeModal();doShare('${id}')" style="flex:1;padding:10px;border-radius:10px;background:linear-gradient(135deg,rgba(109,40,217,0.7),rgba(30,64,175,0.7));border:1px solid rgba(139,92,246,0.3);color:#fff;font-size:.82rem;cursor:pointer;font-family:inherit;font-weight:700">🌐 Teilen</button>
+      <button onclick="closeModal();doShare('${id}')" style="flex:1;padding:10px;border-radius:10px;background:linear-gradient(135deg,rgba(37,99,235,0.7),rgba(30,64,175,0.7));border:1px solid rgba(96,165,250,0.3);color:#fff;font-size:.82rem;cursor:pointer;font-family:inherit;font-weight:700">🌐 Teilen</button>
     </div>`);
 }
 

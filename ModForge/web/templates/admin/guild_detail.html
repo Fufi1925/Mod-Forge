@@ -8,7 +8,7 @@
 
 <div style="display:flex;align-items:center;gap:14px;margin-bottom:24px">
   {% if guild.icon %}<img src="{{ guild.icon.url }}" style="width:52px;height:52px;border-radius:50%;object-fit:cover">
-  {% else %}<div style="width:52px;height:52px;border-radius:50%;background:rgba(124,58,237,0.2);display:flex;align-items:center;justify-content:center;font-weight:900;color:var(--vl);font-size:1.3rem">{{ guild.name[0] }}</div>{% endif %}
+  {% else %}<div style="width:52px;height:52px;border-radius:50%;background:rgba(59,130,246,0.2);display:flex;align-items:center;justify-content:center;font-weight:900;color:var(--vl);font-size:1.3rem">{{ guild.name[0] }}</div>{% endif %}
   <div><h2 style="font-size:1.2rem;font-weight:800">{{ guild.name }}</h2><p style="font-size:.75rem;color:var(--muted)">Owner: {{ guild.owner_id }}</p></div>
 </div>
 

@@ -19,7 +19,7 @@
 </div>
 
 <!-- PLATZHALTER-INFO -->
-<div class="db-card" style="padding:14px;margin-bottom:14px;background:rgba(124,58,237,0.02);border-color:rgba(124,58,237,0.08)">
+<div class="db-card" style="padding:14px;margin-bottom:14px;background:rgba(59,130,246,0.02);border-color:rgba(59,130,246,0.08)">
   <div style="font-size:.78rem;color:var(--muted);line-height:1.7">
     <strong style="color:var(--fg)">Verfügbare Platzhalter:</strong>
     <code style="color:var(--vl)">{mention}</code>,
@@ -116,7 +116,7 @@
   <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px" id="wc-role-tags">
     {% for rid in (wc.get('add_roles') or []) %}
       {% set rname = (guild_roles|selectattr('id','equalto',rid|string)|first or {}).get('name') or rid %}
-      <span style="padding:4px 12px;border-radius:999px;font-size:.7rem;font-weight:600;background:rgba(124,58,237,0.08);color:var(--vl);border:1px solid rgba(124,58,237,0.18);display:inline-flex;align-items:center;gap:6px" data-rid="{{ rid }}">
+      <span style="padding:4px 12px;border-radius:999px;font-size:.7rem;font-weight:600;background:rgba(59,130,246,0.08);color:var(--vl);border:1px solid rgba(59,130,246,0.18);display:inline-flex;align-items:center;gap:6px" data-rid="{{ rid }}">
         @{{ rname }}
         <span style="cursor:pointer;color:var(--redl);font-weight:800" onclick="rmRole({{ rid }})">×</span>
       </span>
@@ -193,7 +193,7 @@ function addRole() {
   if (!sel.value) return showToast('❌ Rolle wählen', 'err');
   const wrap = document.getElementById('wc-role-tags');
   const tag = document.createElement('span');
-  tag.style.cssText = 'padding:4px 12px;border-radius:999px;font-size:.7rem;font-weight:600;background:rgba(124,58,237,0.08);color:var(--vl);border:1px solid rgba(124,58,237,0.18);display:inline-flex;align-items:center;gap:6px;animation:fadeUp .2s ease';
+  tag.style.cssText = 'padding:4px 12px;border-radius:999px;font-size:.7rem;font-weight:600;background:rgba(59,130,246,0.08);color:var(--vl);border:1px solid rgba(59,130,246,0.18);display:inline-flex;align-items:center;gap:6px;animation:fadeUp .2s ease';
   tag.dataset.rid = sel.value;
   tag.innerHTML = '@' + sel.options[sel.selectedIndex].text.replace(/^@/,'') +
     ` <span style="cursor:pointer;color:var(--redl);font-weight:800" onclick="rmRole(${sel.value})">×</span>`;

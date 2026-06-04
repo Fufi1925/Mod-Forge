@@ -9,8 +9,8 @@
 <style>
   .m-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
   .m-card{display:flex;align-items:center;gap:14px;padding:14px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:18px;transition:all .2s cubic-bezier(0.4,0,0.2,1);cursor:pointer;position:relative;overflow:hidden}
-  .m-card:hover{border-color:rgba(139,92,246,0.3);background:rgba(255,255,255,0.045);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,0.2)}
-  .m-card.sel{border-color:var(--v);background:rgba(124,58,237,0.06);box-shadow:0 0 0 1px var(--v)}
+  .m-card:hover{border-color:rgba(96,165,250,0.3);background:rgba(255,255,255,0.045);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,0.2)}
+  .m-card.sel{border-color:var(--v);background:rgba(59,130,246,0.06);box-shadow:0 0 0 1px var(--v)}
   .m-av-container{position:relative;flex-shrink:0}
   .m-av{width:48px;height:48px;border-radius:16px;object-fit:cover;background:var(--border)}
   .m-dot{position:absolute;bottom:-3px;right:-3px;width:16px;height:16px;border-radius:50%;border:3px solid #0b0b1a}
@@ -40,7 +40,7 @@
   .mp-section-title::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--border),transparent)}
   .mp-grid-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
   .mp-stat-card{background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:14px;padding:12px;text-align:center;transition:.2s}
-  .mp-stat-card:hover{background:rgba(255,255,255,0.05);border-color:rgba(124,58,237,0.3)}
+  .mp-stat-card:hover{background:rgba(255,255,255,0.05);border-color:rgba(59,130,246,0.3)}
   .mp-stat-v{font-size:1.2rem;font-weight:900;font-family:'Geist Mono',monospace;color:#fff}
   .mp-stat-l{font-size:.55rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:2px}
   .mp-data-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.03);font-size:.82rem;gap:10px}
@@ -62,7 +62,7 @@
   .mp-tabs{display:flex;gap:4px;margin-bottom:15px;border-bottom:1px solid var(--border);padding-bottom:10px;flex-wrap:wrap}
   .mp-tab{padding:8px 12px;border-radius:10px;font-size:.75rem;font-weight:700;color:var(--muted);cursor:pointer;border:none;background:none;font-family:inherit;transition:.15s}
   .mp-tab:hover{color:#fff;background:rgba(255,255,255,0.03)}
-  .mp-tab.a{color:var(--vl);background:rgba(124,58,237,0.08)}
+  .mp-tab.a{color:var(--vl);background:rgba(59,130,246,0.08)}
   .mp-tp{display:none}
   .mp-tp.a{display:block}
 
@@ -113,7 +113,7 @@
       <option value="online">🟢 Online</option>
     </select>
 
-    <div style="background:rgba(124,58,237,0.1);color:var(--vl);padding:10px 18px;border-radius:14px;font-weight:800;font-size:.85rem;border:1px solid rgba(124,58,237,0.2);white-space:nowrap;flex-shrink:0">
+    <div style="background:rgba(59,130,246,0.1);color:var(--vl);padding:10px 18px;border-radius:14px;font-weight:800;font-size:.85rem;border:1px solid rgba(59,130,246,0.2);white-space:nowrap;flex-shrink:0">
       <span id="mVisible">{{ members | length }}</span>
       <span style="font-weight:500;opacity:.7"> / {{ members | length }}</span>
     </div>

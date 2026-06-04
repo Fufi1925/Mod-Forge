@@ -7,16 +7,16 @@
 {% block head %}
 <style>
   .tpl-card{padding:14px 16px;border-radius:14px;background:rgba(255,255,255,0.03);border:1px solid var(--border);transition:all .15s;display:flex;flex-direction:column;gap:10px;height:100%}
-  .tpl-card:hover{border-color:rgba(139,92,246,0.28);background:rgba(255,255,255,0.05);transform:translateY(-2px)}
+  .tpl-card:hover{border-color:rgba(96,165,250,0.28);background:rgba(255,255,255,0.05);transform:translateY(-2px)}
   .tpl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
-  .tpl-icon{width:42px;height:42px;border-radius:12px;background:rgba(124,58,237,0.12);display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;overflow:hidden}
+  .tpl-icon{width:42px;height:42px;border-radius:12px;background:rgba(59,130,246,0.12);display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;overflow:hidden}
   .tpl-icon img{width:100%;height:100%;object-fit:cover}
   .tpl-cat{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:999px;font-size:.6rem;font-weight:700;background:rgba(34,211,238,0.08);color:var(--cl);border:1px solid rgba(34,211,238,0.18);text-transform:uppercase;letter-spacing:.04em}
   .tpl-stat{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:999px;font-size:.6rem;font-weight:600;background:rgba(255,255,255,0.03);border:1px solid var(--border)}
   .tpl-empty{text-align:center;padding:36px;border-radius:14px;background:rgba(255,255,255,0.02);border:1px dashed var(--border)}
   .cat-pill{padding:6px 14px;border-radius:999px;font-size:.72rem;font-weight:700;border:1px solid var(--border);background:rgba(255,255,255,0.03);color:var(--muted);cursor:pointer;transition:.15s;white-space:nowrap}
   .cat-pill:hover{background:rgba(255,255,255,0.06);color:var(--fg)}
-  .cat-pill.active{background:rgba(124,58,237,0.12);color:var(--vl);border-color:rgba(124,58,237,0.35)}
+  .cat-pill.active{background:rgba(59,130,246,0.12);color:var(--vl);border-color:rgba(59,130,246,0.35)}
 </style>
 {% endblock %}
 
@@ -29,7 +29,7 @@
 } %}
 
 <!-- INTRO -->
-<div class="db-card" style="padding:14px 18px;margin-bottom:14px;background:rgba(124,58,237,0.03);border-color:rgba(124,58,237,0.12)">
+<div class="db-card" style="padding:14px 18px;margin-bottom:14px;background:rgba(59,130,246,0.03);border-color:rgba(59,130,246,0.12)">
   <div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap">
     <div style="font-size:1.4rem">🌐</div>
     <div style="flex:1;min-width:240px">
@@ -195,7 +195,7 @@ function importTpl(id, name) {
     </div>
     <div style="display:flex;gap:8px">
       <button onclick="closeModal()" style="flex:1;padding:10px;border-radius:10px;background:rgba(255,255,255,0.05);border:1px solid var(--border);color:var(--fg);font-size:.82rem;cursor:pointer;font-family:inherit">Abbrechen</button>
-      <button onclick="closeModal();doImport('${id}')" style="flex:1;padding:10px;border-radius:10px;background:linear-gradient(135deg,rgba(109,40,217,0.8),rgba(30,64,175,0.8));border:1px solid rgba(139,92,246,0.4);color:#fff;font-size:.82rem;cursor:pointer;font-family:inherit;font-weight:700">⬇️ Import starten</button>
+      <button onclick="closeModal();doImport('${id}')" style="flex:1;padding:10px;border-radius:10px;background:linear-gradient(135deg,rgba(37,99,235,0.8),rgba(30,64,175,0.8));border:1px solid rgba(96,165,250,0.4);color:#fff;font-size:.82rem;cursor:pointer;font-family:inherit;font-weight:700">⬇️ Import starten</button>
     </div>`);
 }
 

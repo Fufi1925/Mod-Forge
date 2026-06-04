@@ -3763,7 +3763,7 @@ async def on_guild_join(guild: discord.Guild) -> None:
         value=(
             "🌐 **[Dashboard öffnen](https://mod-forge.up.railway.app/login)**"
             "　・　"
-            f"{E.TEXT} **[Support Server](https://discord.gg/gwryX3dbkt)**"
+            f"{E.TEXT} **[Support Server](https://discord.gg/CYqH8QTmR3)**"
             "　・　"
             f"{E.FILE} **[Terms of Service](https://mod-forge.up.railway.app/terms)**"
         ),

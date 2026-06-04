@@ -517,6 +517,19 @@ def live_api_activity():
 # PRODUKT-SEITEN
 # =========================================================
 
+@flask_app.route("/features")
+def features():
+    from bot.config import FEATURES
+    return render_template("features.html", features=FEATURES)
+
+@flask_app.route("/premium")
+def premium():
+    return render_template("premium.html")
+
+@flask_app.route("/partners")
+def partners():
+    return render_template("partners.html")
+
 @flask_app.route("/terms")
 def terms():
     return render_template(

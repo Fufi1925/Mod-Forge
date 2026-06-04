@@ -41,9 +41,9 @@
   transition: .15s;
   font-family: inherit;
 }
-.af-btn:hover { color: var(--fg); border-color: rgba(124,58,237,0.3); }
+.af-btn:hover { color: var(--fg); border-color: rgba(59,130,246,0.3); }
 .af-btn.active { color: #fff; }
-.af-btn.af-all.active    { background: rgba(124,58,237,0.15); border-color: var(--v); }
+.af-btn.af-all.active    { background: rgba(59,130,246,0.15); border-color: var(--v); }
 .af-btn.af-ban.active    { background: rgba(239,68,68,0.15);  border-color: #ef4444; color: #fca5a5; }
 .af-btn.af-kick.active   { background: rgba(249,115,22,0.12); border-color: #f97316; color: #fdba74; }
 .af-btn.af-warn.active   { background: rgba(234,179,8,0.12);  border-color: #eab308; color: #fcd34d; }
@@ -293,8 +293,8 @@
 }
 .cp-action-btn.copy  { background: rgba(255,255,255,0.04); border-color: var(--border); color: var(--fg); }
 .cp-action-btn.copy:hover { background: rgba(255,255,255,0.08); }
-.cp-action-btn.edit  { background: rgba(124,58,237,0.1); border-color: rgba(124,58,237,0.25); color: var(--vl); }
-.cp-action-btn.edit:hover { background: rgba(124,58,237,0.18); }
+.cp-action-btn.edit  { background: rgba(59,130,246,0.1); border-color: rgba(59,130,246,0.25); color: var(--vl); }
+.cp-action-btn.edit:hover { background: rgba(59,130,246,0.18); }
 .cp-action-btn.del   { background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.2); color: #f87171; }
 .cp-action-btn.del:hover { background: rgba(239,68,68,0.15); }
 
@@ -329,12 +329,12 @@
   font-family: inherit;
 }
 .page-btn:hover:not(:disabled) {
-  background: rgba(124,58,237,0.1);
-  border-color: rgba(124,58,237,0.3);
+  background: rgba(59,130,246,0.1);
+  border-color: rgba(59,130,246,0.3);
   color: var(--vl);
 }
 .page-btn.active {
-  background: rgba(124,58,237,0.15);
+  background: rgba(59,130,246,0.15);
   border-color: var(--v);
   color: #fff;
 }
@@ -644,7 +644,7 @@ function openCase(idx) {
     r.style.background = '';
   });
   const row = document.querySelector(`[data-idx="${idx}"]`);
-  if (row) row.style.background = 'rgba(124,58,237,0.06)';
+  if (row) row.style.background = 'rgba(59,130,246,0.06)';
 
   const action = (c.action || '?').toLowerCase();
   const mid    = c.mod_id || c.moderator_id || '—';
