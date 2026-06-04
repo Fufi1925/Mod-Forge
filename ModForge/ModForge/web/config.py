@@ -1,3 +1,5 @@
+from dotenv import load_dotenv
+load_dotenv()
 import os
 
 DISCORD_CLIENT_ID = os.getenv("DISCORD_CLIENT_ID")

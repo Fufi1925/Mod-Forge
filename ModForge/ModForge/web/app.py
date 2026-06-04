@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from flask_socketio import SocketIO
 
 from .config import SESSION_SECRET
-from .auth import auth_bp, get_session, require_auth
+from .auth import auth_bp
 
 log = logging.getLogger("ModForge.Web.App")
 
@@ -52,7 +52,9 @@ def _collect_status() -> dict:
     except Exception:
         BOT_REF = None
 
-    bot_online = bool(BOT_REF is not None and getattr(BOT_REF, "is_ready", lambda: False)())
+    bot_online = bool(
+        BOT_REF is not None and getattr(BOT_REF, "is_ready", lambda: False)()
+    )
     latency_ms = 0
     guild_count = 0
     member_count = 0
@@ -95,6 +97,7 @@ def _collect_status() -> dict:
     activity = []
     try:
         from bot.config import ACTIVITY
+
         activity = ACTIVITY.snapshot(20)
     except Exception:
         activity = []
@@ -102,7 +105,9 @@ def _collect_status() -> dict:
     return {
         "systems": {
             "bot": bot_online,
-            "database": bool(BOT_REF is not None and getattr(BOT_REF, "db", None) is not None),
+            "database": bool(
+                BOT_REF is not None and getattr(BOT_REF, "db", None) is not None
+            ),
             "api": True,
             "raid": bot_online,
             "automod": bot_online,

@@ -185,3 +185,12 @@
 2026-05-31 09:28:20,575 [WARNING] discord.client: davey is not installed, voice will NOT be supported
 2026-05-31 09:28:28,291 [WARNING] discord.client: PyNaCl is not installed, voice will NOT be supported
 2026-05-31 09:28:28,291 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-06-04 17:58:04,855 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-06-04 17:58:04,911 [INFO] ModForge: ModForge v3.0.0 startet…
+2026-06-04 17:58:04,912 [INFO] discord.client: logging in using static token
+2026-06-04 18:07:55,897 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-06-04 18:07:55,954 [INFO] ModForge: ModForge v3.0.0 startet…
+2026-06-04 18:07:55,954 [INFO] discord.client: logging in using static token
+2026-06-04 20:07:01,540 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-06-04 20:07:01,588 [INFO] ModForge: ModForge v3.0.0 startet…
+2026-06-04 20:07:01,588 [INFO] discord.client: logging in using static token

@@ -24,13 +24,11 @@ import copy as _copy
 
 from collections import defaultdict, deque
 from functools import wraps
-from werkzeug.security import check_password_hash, generate_password_hash
 
 from .app import flask_app
 from .auth import get_session, require_auth
 from .helpers import (
     _bot_stats,
-    _get_guild_config,
     _build_overview,
     _build_module_form,
     _build_welcome_content,
@@ -405,8 +403,7 @@ def home():
     if bot_ready() and db:
         try:
             cases_total = safe_collection_count(db.cases)
-            warns_coll = getattr(db, "warnings", None) or getattr(db, "warns", None)
-            warns_total = safe_collection_count(warns_coll)
+            warns_total = safe_collection_count(getattr(db, "data", None), {"type": "warning"})
         except Exception as e:
             log.error(f"[GLOBAL STATS ERROR] {e}")
 
@@ -1061,7 +1058,6 @@ def admin_guild_detail(guild_id):
     cfg = _direct_load_config(guild_id)
     active_modules = sum(1 for k in ["anti_spam","anti_nuke","anti_raid","anti_mention","anti_scam","automod"]
                          if cfg.get(k, {}).get("enabled"))
-    import json as _json
     try:
         config_json = _json.dumps(cfg, indent=2, default=str, ensure_ascii=False)
     except Exception:
@@ -1101,144 +1097,258 @@ def admin_stats():
         shard_count=getattr(bot, "shard_count", None) or 1,
     )
 
-
-# =========================================================
-# GUILD-DASHBOARD (Auth User)
-# =========================================================
-
-# =========================================================
-# GUILD-DASHBOARD (Auth User)
-# =========================================================
-
 @flask_app.route("/dashboard/<guild_id>")
 @require_auth
 def guild_dashboard(guild_id):
     us, g, cfg, err = _dash_guard(guild_id)
-    if err: return err
-    import datetime as _dt
+    if err:
+        return err
 
-    # Server stats
+    # ── Guild-Basis-Stats ────────────────────────────────────────
     text_ch = voice_ch = cats = bots = humans = online_count = boosters = 0
     roles_count = emojis_count = 0
     created = ""
     owner_name = "?"
-    boost_tier = 0
-    boost_count = 0
+    owner_id   = 0
+    boost_tier = boost_count = 0
     features_list = []
-    verification = "?"
-    
-    if g and hasattr(g, 'channels') and g.channels:
-        text_ch = len([c for c in g.channels if hasattr(c,'type') and str(c.type)=='text'])
-        voice_ch = len([c for c in g.channels if hasattr(c,'type') and str(c.type)=='voice'])
-        cats = len(g.categories) if hasattr(g,'categories') else 0
-    if g and hasattr(g, 'members') and g.members:
-        bots = sum(1 for m in g.members if m.bot)
-        humans = (g.member_count or 0) - bots
-        online_count = sum(1 for m in g.members if hasattr(m,'status') and str(m.status)!='offline')
-    if g and hasattr(g, 'roles'):
-        roles_count = len(g.roles) - 1 if g.roles else 0
-    if g and hasattr(g, 'emojis'):
-        emojis_count = len(g.emojis) if g.emojis else 0
-    if g and hasattr(g, 'created_at') and g.created_at:
-        created = str(int(g.created_at.timestamp()))
-    if g and hasattr(g, 'owner') and g.owner:
-        owner_name = str(g.owner)
-    if g and hasattr(g, 'premium_tier'):
-        boost_tier = g.premium_tier or 0
-    if g and hasattr(g, 'premium_subscription_count'):
-        boost_count = g.premium_subscription_count or 0
-    if g and hasattr(g, 'premium_subscribers') and g.premium_subscribers:
-        boosters = len(g.premium_subscribers)
-    if g and hasattr(g, 'features') and g.features:
-        features_list = list(g.features)[:10]
-    if g and hasattr(g, 'verification_level'):
-        verification = str(g.verification_level).replace("VerificationLevel.","").title()
+    verification  = "?"
+    voice_active  = 0   # Mitglieder aktuell im Voice
+    in_timeout    = 0   # Mitglieder mit aktivem Timeout
 
-    # ModForge stats from config
-    security_modules = ["anti_spam","anti_nuke","anti_raid","anti_mention","anti_scam","anti_webhook","anti_ghost_ping","anti_url_shortener","anti_vpn","automod"]
-    active_mods = [(m, cfg.get(m,{}).get("enabled",False)) for m in security_modules]
-    active_count = sum(1 for _,e in active_mods if e)
-    sec_level = cfg.get("security_level", 0)
-    log_channels_count = len(cfg.get("log_channels",{}) or {})
-    has_default_log = bool(cfg.get("log_channel"))
-    webhook_logging = cfg.get("webhook_logging",{}).get("enabled",False)
-    prefix = cfg.get("prefix","!")
-    no_prefix = cfg.get("no_prefix",False)
+    if g:
+        # Channels
+        if hasattr(g, 'channels') and g.channels:
+            text_ch  = sum(1 for c in g.channels if hasattr(c,'type') and str(c.type) == 'text')
+            voice_ch = sum(1 for c in g.channels if hasattr(c,'type') and str(c.type) == 'voice')
+        if hasattr(g, 'categories') and g.categories:
+            cats = len(g.categories)
 
-    # DB stats
+        # Members
+        if hasattr(g, 'members') and g.members:
+            bots         = sum(1 for m in g.members if m.bot)
+            humans       = max((g.member_count or 0) - bots, 0)
+            online_count = sum(1 for m in g.members
+                               if hasattr(m, 'status') and str(m.status) != 'offline')
+            voice_active = sum(1 for m in g.members
+                               if hasattr(m, 'voice') and m.voice and m.voice.channel)
+            in_timeout   = sum(1 for m in g.members
+                               if hasattr(m, 'timed_out_until') and m.timed_out_until)
+
+        # Roles / Emojis
+        roles_count  = max(len(g.roles) - 1, 0) if hasattr(g, 'roles') and g.roles else 0
+        emojis_count = len(g.emojis) if hasattr(g, 'emojis') and g.emojis else 0
+
+        # Created / Owner
+        if hasattr(g, 'created_at') and g.created_at:
+            created = str(int(g.created_at.timestamp()))
+        if hasattr(g, 'owner') and g.owner:
+            owner_name = str(g.owner)
+            owner_id   = g.owner.id
+        elif hasattr(g, 'owner_id') and g.owner_id:
+            owner_id = g.owner_id
+
+        # Boosts
+        boost_tier  = getattr(g, 'premium_tier', 0) or 0
+        boost_count = getattr(g, 'premium_subscription_count', 0) or 0
+        if hasattr(g, 'premium_subscribers') and g.premium_subscribers:
+            boosters = len(g.premium_subscribers)
+
+        # Features / Verification
+        if hasattr(g, 'features') and g.features:
+            features_list = list(g.features)[:12]
+        if hasattr(g, 'verification_level') and g.verification_level is not None:
+            verification = str(g.verification_level).replace("VerificationLevel.", "").title()
+
+    # ── Config-Stats ─────────────────────────────────────────────
+    SECURITY_MODULES = [
+        ("anti_spam",           "🚫 Anti-Spam"),
+        ("anti_nuke",           "💣 Anti-Nuke"),
+        ("anti_raid",           "🛡️ Anti-Raid"),
+        ("anti_mention",        "📢 Anti-Mention"),
+        ("anti_scam",           "🎣 Anti-Scam"),
+        ("anti_webhook",        "🔗 Anti-Webhook"),
+        ("anti_ghost_ping",     "👻 Anti-Ghost-Ping"),
+        ("anti_url_shortener",  "🔗 Anti-URL-Shortener"),
+        ("anti_vpn",            "🌐 Anti-VPN"),
+        ("automod",             "🤖 AutoMod"),
+    ]
+    active_mods  = [(label, cfg.get(key, {}).get("enabled", False))
+                    for key, label in SECURITY_MODULES]
+    active_count = sum(1 for _, e in active_mods if e)
+
+    sec_level          = cfg.get("security_level", 0)
+    log_channels_count = len(cfg.get("log_channels", {}) or {})
+    has_default_log    = bool(cfg.get("log_channel"))
+    webhook_logging    = cfg.get("webhook_logging", {}).get("enabled", False)
+    prefix             = cfg.get("prefix", "!")
+    no_prefix          = cfg.get("no_prefix", False)
+
+    # Auto-Nickname
+    an_cfg         = cfg.get("auto_nickname", {})
+    an_enabled     = an_cfg.get("enabled", False)
+    an_rules_count = len(an_cfg.get("rules", []))
+
+    # Whitelist
+    wl             = cfg.get("whitelist", {})
+    wl_users       = len(wl.get("users", []))
+    wl_roles       = len(wl.get("roles", []))
+
+    # ── DB-Stats (echte Zahlen) ───────────────────────────────────
     cases_count = warns_count = 0
-    recent_cases = []
+    recent_cases   = []
+    active_bans    = 0
+    active_mutes   = 0
+    cases_7d       = 0   # Cases der letzten 7 Tage
+    top_moderators = []  # Top 3 Mods by case count
+
     db = get_db()
     if db:
-        try:
-            cases_count = safe_collection_count(db.cases, {"guild_id": str(guild_id)})
-        except: pass
-        try:
-            warns_coll = getattr(db, "warnings", None)
-            if warns_coll:
-                warns_count = safe_collection_count(warns_coll, {"guild_id": str(guild_id)})
-        except: pass
-        try:
-            recent_cases = safe_async(db.cases.find({"guild_id":str(guild_id)}).sort("case_id",-1).to_list(5), []) or []
-        except: pass
+        import datetime as _dt
+        gid_str  = str(guild_id)
+        gid_int  = int(guild_id)
+        week_ago = _dt.datetime.utcnow() - _dt.timedelta(days=7)
 
-    # Security score
-    score = 20  # base
-    if active_count >= 3: score += 15
-    if active_count >= 6: score += 15
-    if has_default_log: score += 10
-    if log_channels_count >= 3: score += 10
-    if sec_level >= 1: score += 10
-    if webhook_logging: score += 5
-    if boost_tier >= 1: score += 5
-    if verification not in ("None","none",""): score += 10
+        try:
+            cases_count = safe_collection_count(db.cases, {"guild_id": gid_str})
+        except Exception:
+            pass
+
+        try:
+            cases_7d = safe_collection_count(db.cases, {
+                "guild_id":   gid_str,
+                "created_at": {"$gte": week_ago}
+            })
+        except Exception:
+            pass
+
+        try:
+            warns_count = safe_collection_count(
+                db.data,
+                {"type": "warning", "guild_id": gid_int}
+            )
+        except Exception:
+            pass
+
+        try:
+            active_bans = safe_collection_count(
+                db.tempactions,
+                {"guild_id": gid_int, "action": "ban", "active": True}
+            )
+        except Exception:
+            pass
+
+        try:
+            active_mutes = safe_collection_count(
+                db.data,
+                {"type": "mute", "guild_id": gid_int, "active": True}
+            )
+        except Exception:
+            pass
+
+        try:
+            raw_cases = safe_async(
+                db.cases.find({"guild_id": gid_str})
+                        .sort("case_id", -1)
+                        .to_list(6),
+                []
+            ) or []
+            recent_cases = raw_cases
+        except Exception:
+            pass
+
+        # Top Moderatoren (Aggregation nach mod_id)
+        try:
+            pipeline = [
+                {"$match": {"guild_id": gid_str}},
+                {"$group": {"_id": "$mod_id", "count": {"$sum": 1}}},
+                {"$sort": {"count": -1}},
+                {"$limit": 3},
+            ]
+            top_mods_raw = safe_async(
+                db.cases.aggregate(pipeline).to_list(3), []
+            ) or []
+            for tm in top_mods_raw:
+                mod_id   = tm.get("_id", 0)
+                mod_name = str(mod_id)
+                if g and hasattr(g, 'get_member') and g.get_member(int(mod_id or 0)):
+                    mod_name = g.get_member(int(mod_id)).display_name
+                top_moderators.append({"name": mod_name, "count": tm["count"]})
+        except Exception:
+            pass
+
+    # ── Security Score (erweitert & realistisch) ──────────────────
+    score = 10  # Basis
+    if active_count >= 1:  score += 10
+    if active_count >= 3:  score += 10
+    if active_count >= 6:  score += 10
+    if active_count >= 8:  score += 10
+    if has_default_log:    score += 8
+    if log_channels_count >= 3: score += 7
+    if sec_level >= 1:     score += 8
+    if sec_level >= 2:     score += 7
+    if webhook_logging:    score += 5
+    if boost_tier >= 1:    score += 3
+    if verification not in ("None", "none", "", "?"):
+        score += 5
+    if wl_users > 0 or wl_roles > 0:
+        score += 5  # Hat Whitelist konfiguriert
+    if an_enabled and an_rules_count > 0:
+        score += 2
     score = min(score, 100)
+
+    # Score-Label
+    if score >= 80:
+        score_label = "Sehr gut geschützt"
+        score_color = "var(--green)"
+    elif score >= 60:
+        score_label = "Gut geschützt"
+        score_color = "#86efac"
+    elif score >= 40:
+        score_label = "Ausbaufähig"
+        score_color = "var(--amberl)"
+    else:
+        score_label = "Gefährdet"
+        score_color = "var(--red)"
+
+    # ── Aktivitäts-Prozentsätze für Mini-Bars ─────────────────────
+    total_members = max((g.member_count if g and hasattr(g, 'member_count') and g.member_count else 0), 1)
+    online_pct    = round((online_count / total_members) * 100)
+    bot_pct       = round((bots / total_members) * 100)
+    voice_pct     = round((voice_active / total_members) * 100) if total_members > 0 else 0
 
     return render_template(
         "dashboard/overview.html",
         guild=g, cfg=cfg, user=us["user"], active="overview",
+        # Member stats
         text_ch=text_ch, voice_ch=voice_ch, cats=cats,
         bots=bots, humans=humans, online_count=online_count,
+        voice_active=voice_active, in_timeout=in_timeout,
         roles_count=roles_count, emojis_count=emojis_count,
-        created=created, owner_name=owner_name,
+        # Server info
+        created=created, owner_name=owner_name, owner_id=owner_id,
         boost_tier=boost_tier, boost_count=boost_count, boosters=boosters,
         features_list=features_list, verification=verification,
+        # Security
         active_mods=active_mods, active_count=active_count,
         sec_level=sec_level, log_channels_count=log_channels_count,
         has_default_log=has_default_log, webhook_logging=webhook_logging,
         prefix=prefix, no_prefix=no_prefix,
+        # Config extras
+        an_enabled=an_enabled, an_rules_count=an_rules_count,
+        wl_users=wl_users, wl_roles=wl_roles,
+        # DB stats
         cases_count=cases_count, warns_count=warns_count,
-        recent_cases=recent_cases, score=score,
-    )
+        recent_cases=recent_cases, cases_7d=cases_7d,
+        active_bans=active_bans, active_mutes=active_mutes,
+        top_moderators=top_moderators,
+        # Score
+        score=score, score_label=score_label, score_color=score_color,
+        # Prozente
+        online_pct=online_pct, bot_pct=bot_pct, voice_pct=voice_pct,
+        total_members=total_members,
+            )
 
-
-@flask_app.route("/dashboard/<guild_id>/modules")
-@require_auth
-def guild_modules(guild_id):
-    us, g, cfg, err = _dash_guard(guild_id)
-    if err: return err
-    section = request.args.get("section", "antispam")
-    form = _build_module_form(section, cfg, guild_id)
-
-    # Liste aller verfügbaren Sektionen (für Dropdown / Tab-Liste)
-    sections = [
-        {"key": "antispam",     "icon": "⚡", "label": "Anti-Spam"},
-        {"key": "antinuke",     "icon": "💥", "label": "Anti-Nuke"},
-        {"key": "antiraid",     "icon": "🚨", "label": "Anti-Raid"},
-        {"key": "antimention",  "icon": "🔔", "label": "Anti-Mention"},
-        {"key": "antiscam",     "icon": "🎣", "label": "Anti-Scam"},
-        {"key": "automod",      "icon": "🤖", "label": "AutoMod"},
-        {"key": "verify",       "icon": "✅", "label": "Verify"},
-        {"key": "tickets",      "icon": "🎫", "label": "Tickets"},
-        {"key": "autorole",     "icon": "🏷️", "label": "Auto-Rolle"},
-        {"key": "warns",        "icon": "⚠️", "label": "Warn-System"},
-        {"key": "logs",         "icon": "📢", "label": "Logging"},
-    ]
-    return render_template(
-        "dashboard/modules.html",
-        guild=g, cfg=cfg, form=form, user=us["user"], active="modules",
-        sections=sections, current_section=section,
-    )
 
 
 @flask_app.route("/dashboard/<guild_id>/welcome")
@@ -1311,71 +1421,6 @@ def _dash_guard(guild_id):
     cfg = _direct_load_config(guild_id)
     return user_session, g, cfg, None
 
-@flask_app.route("/dashboard/<guild_id>/security")
-@require_auth
-def guild_security(guild_id):
-    us, g, cfg, err = _dash_guard(guild_id)
-    if err: return err
-    modules = []
-    mod_defs = [
-        ("anti_spam", "⚡", "Anti-Spam", "Spam, CAPS, Emoji-Spam und Duplikate erkennen", [
-            {"key":"msg_limit","label":"Nachrichten-Limit","type":"number","min":2,"max":30},
-            {"key":"msg_window","label":"Zeitfenster (s)","type":"number","min":3,"max":60},
-            {"key":"caps_pct","label":"CAPS-Schwelle (%)","type":"number","min":50,"max":100},
-            {"key":"emoji_max","label":"Max Emojis","type":"number","min":3,"max":50},
-            {"key":"duplicate_max","label":"Max Duplikate","type":"number","min":1,"max":10},
-            {"key":"timeout_duration","label":"Timeout (s)","type":"number","min":10,"max":86400},
-            {"key":"punishment","label":"Bestrafung","type":"select","options":["warn","timeout","kick","ban"]},
-        ]),
-        ("anti_nuke", "💥", "Anti-Nuke", "Massen-Bans, Channel-Löschungen, Rollen-Änderungen. Auto-Lockdown + Owner-DM", [
-            {"key":"threshold","label":"Aktions-Schwelle","type":"number","min":2,"max":20},
-            {"key":"window","label":"Zeitfenster (s)","type":"number","min":5,"max":120},
-            {"key":"remove_roles","label":"Rollen entfernen","type":"select","options":["true","false"]},
-            {"key":"punishment","label":"Bestrafung","type":"select","options":["warn","timeout","kick","ban"]},
-        ]),
-        ("anti_raid", "🚨", "Anti-Raid", "Massen-Joins erkennen, neue Accounts filtern, Lockdown", [
-            {"key":"join_threshold","label":"Join-Schwelle","type":"number","min":3,"max":50},
-            {"key":"window","label":"Zeitfenster (s)","type":"number","min":5,"max":120},
-            {"key":"min_account_age","label":"Min Account-Alter (Tage)","type":"number","min":0,"max":90},
-            {"key":"auto_kick","label":"Auto-Kick neue Accounts","type":"select","options":["true","false"]},
-            {"key":"lockdown","label":"Auto-Lockdown","type":"select","options":["true","false"]},
-            {"key":"suspicious_name_check","label":"Verdächtige Namen prüfen","type":"select","options":["true","false"]},
-        ]),
-        ("anti_mention", "🔔", "Anti-Mention", "Mass-Mentions und @everyone-Missbrauch", [
-            {"key":"mention_limit","label":"Max Mentions","type":"number","min":2,"max":30},
-            {"key":"window","label":"Zeitfenster (s)","type":"number","min":3,"max":60},
-            {"key":"timeout_duration","label":"Timeout (s)","type":"number","min":10,"max":86400},
-            {"key":"punishment","label":"Bestrafung","type":"select","options":["warn","timeout","kick","ban"]},
-        ]),
-        ("anti_scam", "🎣", "Anti-Scam", "Phishing, Fake-Nitro, bekannte Scam-Domains", [
-            {"key":"punishment","label":"Bestrafung","type":"select","options":["warn","timeout","kick","ban"]},
-        ]),
-        ("anti_webhook", "🔌", "Anti-Webhook", "Erkennt verdächtige Webhook-Erstellungen", [
-            {"key":"threshold","label":"Schwelle","type":"number","min":1,"max":10},
-            {"key":"window","label":"Zeitfenster (s)","type":"number","min":5,"max":120},
-        ]),
-        ("anti_ghost_ping", "👻", "Anti-Ghost-Ping", "Erkennt gelöschte Mentions (Ghost-Pings)", []),
-        ("anti_url_shortener", "🔗", "Anti-URL-Shortener", "Blockiert URL-Shortener (bit.ly, tinyurl etc.)", [
-            {"key":"punishment","label":"Bestrafung","type":"select","options":["warn","timeout","kick","ban"]},
-        ]),
-        ("anti_vpn", "🌐", "Anti-VPN", "Verdächtige Accounts (VPN/Proxy-Heuristik) erkennen", [
-            {"key":"action","label":"Aktion","type":"select","options":["kick","ban","log"]},
-        ]),
-        ("automod", "🤖", "AutoMod", "Wortfilter, Regex, Link/Invite-Filter", [
-            {"key":"punishment","label":"Bestrafung","type":"select","options":["warn","timeout","kick","ban"]},
-        ]),
-    ]
-    for key, icon, label, desc, params in mod_defs:
-        mcfg = cfg.get(key, {})
-        for p in params:
-            p["value"] = mcfg.get(p["key"], "")
-        modules.append({"key":key,"icon":icon,"label":label,"desc":desc,"enabled":mcfg.get("enabled",False),"params":params})
-    wl = bot.db.get_whitelist(int(guild_id)) if bot_ready() else {}
-    wl_count = sum(len(v) for v in wl.values() if isinstance(v, list))
-    active_count = sum(1 for m in modules if m["enabled"])
-    total_modules = len(modules)
-    return render_template("dashboard/security.html", guild=g, cfg=cfg, user=us["user"],
-                           modules=modules, active_count=active_count, wl_count=wl_count, active="security")
 
 @flask_app.route("/dashboard/<guild_id>/automod")
 @require_auth
@@ -1384,96 +1429,497 @@ def guild_automod(guild_id):
     if err: return err
     return render_template("dashboard/automod.html", guild=g, cfg=cfg, user=us["user"], active="automod")
 
+@flask_app.route("/dashboard/<guild_id>/security")
+@require_auth
+def guild_security(guild_id):
+    us, g, cfg, err = _dash_guard(guild_id)
+    if err:
+        return err
+
+    # ── Modul-Definitionen mit Defaults ──────────────────────────
+    MOD_DEFS = [
+        {
+            "key":   "anti_spam",
+            "icon":  "⚡",
+            "label": "Anti-Spam",
+            "desc":  "Erkennt Spam, CAPS-Missbrauch, Emoji-Flooding und Duplikate. Bestraft automatisch.",
+            "color": "#f59e0b",
+            "params": [
+                {"key": "msg_limit",        "label": "Nachrichten-Limit",    "type": "number", "min": 2,  "max": 30,    "default": 5,       "unit": "msgs"},
+                {"key": "msg_window",       "label": "Zeitfenster",          "type": "number", "min": 3,  "max": 60,    "default": 5,       "unit": "s"},
+                {"key": "caps_pct",         "label": "CAPS-Schwelle",        "type": "number", "min": 50, "max": 100,   "default": 70,      "unit": "%"},
+                {"key": "emoji_max",        "label": "Max Emojis",           "type": "number", "min": 3,  "max": 50,    "default": 10,      "unit": ""},
+                {"key": "duplicate_max",    "label": "Max Duplikate",        "type": "number", "min": 1,  "max": 10,    "default": 3,       "unit": ""},
+                {"key": "timeout_duration", "label": "Timeout-Dauer",        "type": "number", "min": 10, "max": 86400, "default": 300,     "unit": "s"},
+                {"key": "punishment",       "label": "Bestrafung",           "type": "select", "options": ["warn", "timeout", "kick", "ban"], "default": "timeout"},
+            ],
+        },
+        {
+            "key":   "anti_nuke",
+            "icon":  "💣",
+            "label": "Anti-Nuke",
+            "desc":  "Schützt vor Massen-Bans, Channel-Löschungen und Rollen-Änderungen. Automatischer Lockdown + Owner-DM.",
+            "color": "#ef4444",
+            "params": [
+                {"key": "threshold",    "label": "Aktions-Schwelle",  "type": "number", "min": 2,  "max": 20,  "default": 5,     "unit": ""},
+                {"key": "window",       "label": "Zeitfenster",       "type": "number", "min": 5,  "max": 120, "default": 10,    "unit": "s"},
+                {"key": "remove_roles", "label": "Rollen entfernen",  "type": "toggle", "default": True},
+                {"key": "auto_lockdown","label": "Auto-Lockdown",     "type": "toggle", "default": True},
+                {"key": "punishment",   "label": "Bestrafung",        "type": "select", "options": ["ban", "kick", "timeout"], "default": "ban"},
+            ],
+        },
+        {
+            "key":   "anti_raid",
+            "icon":  "🚨",
+            "label": "Anti-Raid",
+            "desc":  "Erkennt Massen-Joins, filtert neue Accounts, aktiviert automatischen Lockdown.",
+            "color": "#f97316",
+            "params": [
+                {"key": "join_threshold",       "label": "Join-Schwelle",           "type": "number", "min": 3,  "max": 50, "default": 10,    "unit": "/Zeitfenster"},
+                {"key": "window",               "label": "Zeitfenster",             "type": "number", "min": 5,  "max": 120,"default": 10,    "unit": "s"},
+                {"key": "min_account_age",      "label": "Min. Account-Alter",      "type": "number", "min": 0,  "max": 90, "default": 7,     "unit": "Tage"},
+                {"key": "auto_kick",            "label": "Neue Accounts kicken",    "type": "toggle", "default": True},
+                {"key": "lockdown",             "label": "Auto-Lockdown",           "type": "toggle", "default": True},
+                {"key": "suspicious_name_check","label": "Verdächtige Namen prüfen","type": "toggle", "default": True},
+            ],
+        },
+        {
+            "key":   "anti_mention",
+            "icon":  "🔔",
+            "label": "Anti-Mention",
+            "desc":  "Verhindert Mass-Mentions und @everyone/@here-Missbrauch.",
+            "color": "#a78bfa",
+            "params": [
+                {"key": "mention_limit",    "label": "Max Mentions",    "type": "number", "min": 2,  "max": 30,    "default": 5,   "unit": ""},
+                {"key": "window",           "label": "Zeitfenster",     "type": "number", "min": 3,  "max": 60,    "default": 10,  "unit": "s"},
+                {"key": "timeout_duration", "label": "Timeout-Dauer",   "type": "number", "min": 10, "max": 86400, "default": 600, "unit": "s"},
+                {"key": "punishment",       "label": "Bestrafung",      "type": "select", "options": ["warn", "timeout", "kick", "ban"], "default": "timeout"},
+            ],
+        },
+        {
+            "key":   "anti_scam",
+            "icon":  "🎣",
+            "label": "Anti-Scam",
+            "desc":  "Erkennt Phishing-Links, Fake-Nitro und bekannte Scam-Domains automatisch.",
+            "color": "#06b6d4",
+            "params": [
+                {"key": "punishment",    "label": "Bestrafung",     "type": "select", "options": ["warn", "timeout", "kick", "ban"], "default": "ban"},
+                {"key": "delete_msg",    "label": "Nachricht löschen","type": "toggle", "default": True},
+                {"key": "notify_user",   "label": "User benachrichtigen","type": "toggle", "default": True},
+            ],
+        },
+        {
+            "key":   "anti_webhook",
+            "icon":  "🔌",
+            "label": "Anti-Webhook",
+            "desc":  "Erkennt verdächtige Webhook-Erstellungen und -Missbrauch.",
+            "color": "#8b5cf6",
+            "params": [
+                {"key": "threshold", "label": "Schwelle",       "type": "number", "min": 1, "max": 10,  "default": 3,  "unit": ""},
+                {"key": "window",    "label": "Zeitfenster",    "type": "number", "min": 5, "max": 120, "default": 30, "unit": "s"},
+            ],
+        },
+        {
+            "key":   "anti_ghost_ping",
+            "icon":  "👻",
+            "label": "Anti-Ghost-Ping",
+            "desc":  "Erkennt gelöschte Mentions (Ghost-Pings) und loggt/bestraft diese.",
+            "color": "#64748b",
+            "params": [
+                {"key": "punishment",  "label": "Bestrafung",     "type": "select", "options": ["log", "warn", "timeout"], "default": "warn"},
+                {"key": "notify",      "label": "Im Chat anzeigen","type": "toggle", "default": True},
+            ],
+        },
+        {
+            "key":   "anti_url_shortener",
+            "icon":  "🔗",
+            "label": "Anti-URL-Shortener",
+            "desc":  "Blockiert bekannte URL-Shortener (bit.ly, tinyurl, etc.) aus Sicherheitsgründen.",
+            "color": "#10b981",
+            "params": [
+                {"key": "punishment",  "label": "Bestrafung",        "type": "select", "options": ["warn", "timeout", "kick", "ban"], "default": "warn"},
+                {"key": "delete_msg",  "label": "Nachricht löschen", "type": "toggle", "default": True},
+            ],
+        },
+        {
+            "key":   "anti_vpn",
+            "icon":  "🌐",
+            "label": "Anti-VPN",
+            "desc":  "Erkennt verdächtige VPN/Proxy-Verbindungen bei neuen Mitgliedern.",
+            "color": "#0ea5e9",
+            "params": [
+                {"key": "action", "label": "Aktion", "type": "select", "options": ["log", "kick", "ban"], "default": "kick"},
+            ],
+        },
+        {
+            "key":   "automod",
+            "icon":  "🤖",
+            "label": "AutoMod",
+            "desc":  "Wortfilter, Regex-Filter, Link- und Invite-Blocking mit Custom-Regeln.",
+            "color": "#f472b6",
+            "params": [
+                {"key": "punishment",     "label": "Bestrafung",         "type": "select", "options": ["warn", "timeout", "kick", "ban"], "default": "warn"},
+                {"key": "block_invites",  "label": "Invites blockieren", "type": "toggle", "default": True},
+                {"key": "block_links",    "label": "Links blockieren",   "type": "toggle", "default": False},
+                {"key": "log_only",       "label": "Nur loggen",         "type": "toggle", "default": False},
+            ],
+        },
+    ]
+
+    # ── Config-Werte einfüllen ────────────────────────────────────
+    modules = []
+    for mod_def in MOD_DEFS:
+        mcfg = cfg.get(mod_def["key"], {}) or {}
+        params = []
+        for p in mod_def["params"]:
+            p = dict(p)  # Copy
+            raw = mcfg.get(p["key"])
+            if raw is None:
+                raw = p.get("default", "")
+            # Booleans für toggles
+            if p["type"] == "toggle":
+                p["value"] = bool(raw)
+            elif p["type"] == "number":
+                try:
+                    p["value"] = int(raw)
+                except (ValueError, TypeError):
+                    p["value"] = p.get("default", 0)
+            else:
+                p["value"] = str(raw)
+            params.append(p)
+
+        modules.append({
+            "key":     mod_def["key"],
+            "icon":    mod_def["icon"],
+            "label":   mod_def["label"],
+            "desc":    mod_def["desc"],
+            "color":   mod_def["color"],
+            "enabled": bool(mcfg.get("enabled", False)),
+            "params":  params,
+        })
+
+    # ── Whitelist-Zähler ─────────────────────────────────────────
+    wl_count = 0
+    try:
+        if bot_ready():
+            wl = bot.db.get_whitelist(int(guild_id))
+            wl_count = sum(len(v) for v in wl.values() if isinstance(v, list))
+    except Exception:
+        pass
+
+    active_count  = sum(1 for m in modules if m["enabled"])
+    security_level = int(cfg.get("security_level", 0))
+
+    # Kanal-Liste für Log-Channel Auswahl
+    text_channels = []
+    if g and hasattr(g, "text_channels") and g.text_channels:
+        text_channels = [
+            {"id": str(c.id), "name": c.name}
+            for c in sorted(g.text_channels, key=lambda c: c.position)
+        ]
+
+    return render_template(
+        "dashboard/security.html",
+        guild=g, cfg=cfg, user=us["user"],
+        modules=modules,
+        active_count=active_count,
+        total_count=len(modules),
+        wl_count=wl_count,
+        security_level=security_level,
+        text_channels=text_channels,
+        active="security",
+    )
+
+# ═══════════════════════════════════════════════════════════════════
+# LOGS
+# ═══════════════════════════════════════════════════════════════════
 @flask_app.route("/dashboard/<guild_id>/logs")
 @require_auth
 def guild_logs(guild_id):
     us, g, cfg, err = _dash_guard(guild_id)
-    if err: return err
-    channels = [{"id":str(ch.id),"name":ch.name} for ch in g.text_channels] if g else []
-    log_channels = cfg.get("log_channels", {}) or {}
-    from bot.config import LOG_MODULES, LOG_MODULES_EXTRA
+    if err:
+        return err
 
-    # Module mit Kategorien, Beschreibungen, Icons
+    text_channels = []
+    if g and hasattr(g, 'text_channels') and g.text_channels:
+        text_channels = [
+            {"id": str(c.id), "name": c.name}
+            for c in sorted(g.text_channels, key=lambda c: c.position)
+        ]
+
+    log_channels = cfg.get("log_channels", {}) or {}
+
     categories = {
-        "Security": [
-            {"key":"antispam","icon":"⚡","label":"Anti-Spam","desc":"Spam-Erkennung, CAPS, Duplikate"},
-            {"key":"antinuke","icon":"💥","label":"Anti-Nuke","desc":"Massen-Bans, Channel-Löschungen"},
-            {"key":"antiraid","icon":"🚨","label":"Anti-Raid","desc":"Massen-Joins, Lockdown"},
-            {"key":"antimention","icon":"🔔","label":"Anti-Mention","desc":"Mass-Mentions, @everyone"},
-            {"key":"antiscam","icon":"🎣","label":"Anti-Scam","desc":"Phishing, Fake-Nitro"},
-            {"key":"antishortener","icon":"🔗","label":"URL-Shortener","desc":"bit.ly, tinyurl blockiert"},
+        "🛡️ Security": [
+            {"key": "antispam",      "icon": "⚡", "label": "Anti-Spam",       "desc": "Spam, CAPS, Duplikate"},
+            {"key": "antinuke",      "icon": "💣", "label": "Anti-Nuke",       "desc": "Massen-Bans, Löschungen"},
+            {"key": "antiraid",      "icon": "🚨", "label": "Anti-Raid",       "desc": "Massen-Joins, Lockdown"},
+            {"key": "antimention",   "icon": "🔔", "label": "Anti-Mention",    "desc": "Mass-Mentions, @everyone"},
+            {"key": "antiscam",      "icon": "🎣", "label": "Anti-Scam",       "desc": "Phishing, Fake-Nitro"},
+            {"key": "antishortener", "icon": "🔗", "label": "URL-Shortener",   "desc": "bit.ly, tinyurl etc."},
+            {"key": "antivpn",       "icon": "🌐", "label": "Anti-VPN",        "desc": "VPN/Proxy-Erkennung"},
         ],
-        "Moderation": [
-            {"key":"moderation","icon":"🛡️","label":"Moderation","desc":"Ban, Kick, Mute, Warn"},
-            {"key":"warns","icon":"⚠️","label":"Warns","desc":"Verwarnungen"},
-            {"key":"cases","icon":"📋","label":"Cases","desc":"Moderation-Cases"},
-            {"key":"automod","icon":"🤖","label":"AutoMod","desc":"Wortfilter, Regex, Links"},
-            {"key":"appeal","icon":"📬","label":"Ban-Appeal","desc":"Entbannungsanträge"},
+        "⚖️ Moderation": [
+            {"key": "moderation", "icon": "🛡️", "label": "Moderation",  "desc": "Ban, Kick, Mute, Warn"},
+            {"key": "warns",      "icon": "⚠️", "label": "Warns",       "desc": "Verwarnungen"},
+            {"key": "cases",      "icon": "📋", "label": "Cases",       "desc": "Moderation-Cases"},
+            {"key": "automod",    "icon": "🤖", "label": "AutoMod",     "desc": "Wortfilter, Regex"},
+            {"key": "appeal",     "icon": "📬", "label": "Ban-Appeal",  "desc": "Entbannungsanträge"},
         ],
-        "Server": [
-            {"key":"members","icon":"👥","label":"Members","desc":"Join, Leave, Update"},
-            {"key":"nicknames","icon":"📝","label":"Nicknames","desc":"Nickname-Änderungen"},
-            {"key":"roles","icon":"🏷️","label":"Rollen","desc":"Rollen-Änderungen"},
-            {"key":"channels","icon":"📁","label":"Kanäle","desc":"Kanal erstellt/gelöscht/geändert"},
-            {"key":"permissions","icon":"🔐","label":"Berechtigungen","desc":"Permission-Änderungen"},
-            {"key":"webhooks","icon":"🔌","label":"Webhooks","desc":"Webhook-Änderungen"},
+        "👥 Server": [
+            {"key": "members",     "icon": "👥", "label": "Members",       "desc": "Join, Leave, Update"},
+            {"key": "nicknames",   "icon": "📝", "label": "Nicknames",     "desc": "Nickname-Änderungen"},
+            {"key": "roles",       "icon": "🏷️", "label": "Rollen",        "desc": "Rollen-Änderungen"},
+            {"key": "channels",    "icon": "📁", "label": "Kanäle",        "desc": "Erstellt/Gelöscht/Geändert"},
+            {"key": "permissions", "icon": "🔐", "label": "Berechtigungen","desc": "Permission-Änderungen"},
+            {"key": "webhooks",    "icon": "🔌", "label": "Webhooks",      "desc": "Webhook-Änderungen"},
         ],
-        "Voice": [
-            {"key":"voice","icon":"🎤","label":"Voice","desc":"Join, Leave, Mute, Deaf, Stream"},
+        "🎤 Voice": [
+            {"key": "voice", "icon": "🎤", "label": "Voice", "desc": "Join, Leave, Mute, Deaf, Stream"},
         ],
-        "Nachrichten": [
-            {"key":"messages","icon":"💬","label":"Nachrichten","desc":"Gelöschte/Bearbeitete Nachrichten"},
-            {"key":"messages_sent","icon":"📨","label":"Gesendete","desc":"Alle gesendeten Nachrichten"},
-            {"key":"ghostping","icon":"👻","label":"Ghost-Ping","desc":"Gelöschte Mentions"},
+        "💬 Nachrichten": [
+            {"key": "messages",      "icon": "💬", "label": "Nachrichten",  "desc": "Gelöscht/Bearbeitet"},
+            {"key": "messages_sent", "icon": "📨", "label": "Gesendet",     "desc": "Alle Nachrichten"},
+            {"key": "ghostping",     "icon": "👻", "label": "Ghost-Ping",   "desc": "Gelöschte Mentions"},
         ],
-        "System": [
-            {"key":"default","icon":"📌","label":"Standard","desc":"Fallback für alle Module"},
-            {"key":"verify","icon":"✅","label":"Verifizierung","desc":"Captcha, One-Click"},
-            {"key":"tickets","icon":"🎫","label":"Tickets","desc":"Ticket erstellt/geschlossen"},
-            {"key":"welcome","icon":"👋","label":"Welcome","desc":"Begrüßungsnachrichten"},
-            {"key":"leave","icon":"🚪","label":"Leave","desc":"Abschiedsnachrichten"},
-            {"key":"backup","icon":"💾","label":"Backup","desc":"Backup erstellt/wiederhergestellt"},
-            {"key":"audit","icon":"🔍","label":"Audit","desc":"Audit-Log Einträge"},
-            {"key":"errors","icon":"❌","label":"Fehler","desc":"Bot-Fehler und Warnungen"},
+        "⚙️ System": [
+            {"key": "default", "icon": "📌", "label": "Standard",      "desc": "Fallback alle Module"},
+            {"key": "verify",  "icon": "✅", "label": "Verifizierung", "desc": "Captcha, One-Click"},
+            {"key": "tickets", "icon": "🎫", "label": "Tickets",       "desc": "Erstellt/Geschlossen"},
+            {"key": "welcome", "icon": "👋", "label": "Welcome",       "desc": "Begrüßungsnachrichten"},
+            {"key": "leave",   "icon": "🚪", "label": "Leave",         "desc": "Abschiedsnachrichten"},
+            {"key": "backup",  "icon": "💾", "label": "Backup",        "desc": "Backup-Ereignisse"},
+            {"key": "audit",   "icon": "🔍", "label": "Audit",         "desc": "Audit-Log Einträge"},
+            {"key": "errors",  "icon": "❌", "label": "Fehler",        "desc": "Bot-Fehler und Warnungen"},
         ],
     }
 
-    # Status berechnen
+    total_modules    = sum(len(v) for v in categories.values())
     total_configured = sum(1 for v in log_channels.values() if v)
-    default_channel = cfg.get("log_channel")
-    webhook_enabled = cfg.get("webhook_logging", {}).get("enabled", False)
+    default_channel  = cfg.get("log_channel")
+    webhook_enabled  = cfg.get("webhook_logging", {}).get("enabled", False)
 
-    return render_template("dashboard/logs.html", guild=g, cfg=cfg, user=us["user"],
-                           channels=channels, log_channels=log_channels,
-                           categories=categories,
-                           total_configured=total_configured,
-                           default_channel=default_channel,
-                           webhook_enabled=webhook_enabled,
-                           active="logs")
+    return render_template(
+        "dashboard/logs.html",
+        guild=g, cfg=cfg, user=us["user"],
+        channels=text_channels,
+        log_channels=log_channels,
+        categories=categories,
+        total_modules=total_modules,
+        total_configured=total_configured,
+        default_channel=default_channel,
+        webhook_enabled=webhook_enabled,
+        active="logs",
+    )
 
 @flask_app.route("/dashboard/<guild_id>/cases")
 @require_auth
 def guild_cases(guild_id):
     us, g, cfg, err = _dash_guard(guild_id)
-    if err: return err
-    cases = []
+    if err:
+        return err
+
+    import datetime as _dt
+
+    cases      = []
+    stats      = {
+        "total": 0, "ban": 0, "kick": 0, "warn": 0,
+        "timeout": 0, "softban": 0, "tempban": 0, "other": 0,
+    }
+    cases_7d   = 0
+    cases_30d  = 0
+
     db = get_db()
     if db:
         try:
-            raw = safe_async(db.cases.find({"guild_id":str(guild_id)}).sort("case_id",-1).to_list(200), []) or []
+            raw = safe_async(
+                db.cases.find({"guild_id": str(guild_id)})
+                        .sort("case_id", -1)
+                        .to_list(500),
+                []
+            ) or []
+
+            now      = _dt.datetime.utcnow()
+            week_ago  = now - _dt.timedelta(days=7)
+            month_ago = now - _dt.timedelta(days=30)
+
             for c in raw:
-                c["timestamp"] = str(c.get("timestamp",""))[:19]
-            cases = raw
+                # Timestamp formatieren
+                ts = c.get("created_at") or c.get("timestamp")
+                ts_str = ""
+                ts_iso = ""
+                if ts:
+                    if isinstance(ts, _dt.datetime):
+                        ts_str = ts.strftime("%d.%m.%Y %H:%M")
+                        ts_iso = ts.isoformat()
+                        if ts >= week_ago:
+                            cases_7d += 1
+                        if ts >= month_ago:
+                            cases_30d += 1
+                    else:
+                        ts_str = str(ts)[:19]
+                        ts_iso = str(ts)
+
+                c["ts_str"] = ts_str
+                c["ts_iso"] = ts_iso
+
+                # _id entfernen (nicht JSON-serialisierbar)
+                c.pop("_id", None)
+
+                # User-Namen aus Guild auflösen wenn möglich
+                uid = c.get("user_id")
+                mid = c.get("mod_id") or c.get("moderator_id")
+
+                c["user_name"] = ""
+                c["mod_name"]  = ""
+
+                if g and uid:
+                    try:
+                        member = g.get_member(int(uid))
+                        if member:
+                            c["user_name"] = member.display_name
+                    except Exception:
+                        pass
+
+                if g and mid:
+                    try:
+                        mod = g.get_member(int(mid))
+                        if mod:
+                            c["mod_name"] = mod.display_name
+                    except Exception:
+                        pass
+
+                # Stats zählen
+                action = str(c.get("action", "other")).lower()
+                if action in stats:
+                    stats[action] += 1
+                else:
+                    stats["other"] += 1
+                stats["total"] += 1
+
+                cases.append(c)
+
         except Exception as e:
             log.error(f"[CASES PAGE] {e}")
-    return render_template("dashboard/cases.html", guild=g, cfg=cfg, user=us["user"], cases=cases, active="cases")
 
+    return render_template(
+        "dashboard/cases.html",
+        guild=g, cfg=cfg, user=us["user"],
+        cases=cases,
+        stats=stats,
+        cases_7d=cases_7d,
+        cases_30d=cases_30d,
+        active="cases",
+    )
+
+# ═══════════════════════════════════════════════════════════════════
+# WARNS
+# ═══════════════════════════════════════════════════════════════════
 @flask_app.route("/dashboard/<guild_id>/warns")
 @require_auth
 def guild_warns(guild_id):
     us, g, cfg, err = _dash_guard(guild_id)
-    if err: return err
-    return render_template("dashboard/warns.html", guild=g, cfg=cfg, user=us["user"], active="warns")
+    if err:
+        return err
+
+    import datetime as _dt
+
+    ws         = cfg.get("warn_system", {}) or {}
+    thresholds = ws.get("thresholds", {}) or {}
+    decay      = cfg.get("warn_decay", {}) or {}
+
+    # Thresholds sortiert
+    sorted_th = sorted(
+        [{"count": int(k), "action": v} for k, v in thresholds.items()],
+        key=lambda x: x["count"]
+    )
+
+    # Echte Warn-Statistiken aus DB
+    total_warns   = 0
+    warns_7d      = 0
+    top_warned    = []  # Top 5 User mit meisten Warns
+    recent_warns  = []
+
+    db = get_db()
+    if db:
+        gid_int  = int(guild_id)
+        week_ago = _dt.datetime.utcnow() - _dt.timedelta(days=7)
+
+        try:
+            total_warns = safe_collection_count(
+                db.data,
+                {"type": "warning", "guild_id": gid_int}
+            )
+        except Exception:
+            pass
+
+        try:
+            warns_7d = safe_collection_count(
+                db.data,
+                {"type": "warning", "guild_id": gid_int,
+                 "timestamp": {"$gte": week_ago}}
+            )
+        except Exception:
+            pass
+
+        try:
+            pipeline = [
+                {"$match": {"type": "warning", "guild_id": gid_int}},
+                {"$group": {"_id": "$user_id", "count": {"$sum": 1}}},
+                {"$sort": {"count": -1}},
+                {"$limit": 5},
+            ]
+            top_raw = safe_async(db.data.aggregate(pipeline).to_list(5), []) or []
+            for item in top_raw:
+                uid  = item.get("_id", 0)
+                name = str(uid)
+                if g and uid:
+                    try:
+                        m = g.get_member(int(uid))
+                        if m:
+                            name = m.display_name
+                    except Exception:
+                        pass
+                top_warned.append({"id": uid, "name": name, "count": item["count"]})
+        except Exception:
+            pass
+
+        try:
+            raw_warns = safe_async(
+                db.data.find({"type": "warning", "guild_id": gid_int})
+                        .sort("timestamp", -1)
+                        .to_list(10),
+                []
+            ) or []
+            for w in raw_warns:
+                w.pop("_id", None)
+                ts = w.get("timestamp")
+                w["ts_str"] = ts.strftime("%d.%m.%Y %H:%M") if isinstance(ts, _dt.datetime) else str(ts)[:19]
+                uid = w.get("user_id", 0)
+                w["user_name"] = ""
+                if g and uid:
+                    try:
+                        m = g.get_member(int(uid))
+                        if m:
+                            w["user_name"] = m.display_name
+                    except Exception:
+                        pass
+                recent_warns.append(w)
+        except Exception:
+            pass
+
+    return render_template(
+        "dashboard/warns.html",
+        guild=g, cfg=cfg, user=us["user"],
+        ws=ws,
+        sorted_th=sorted_th,
+        decay=decay,
+        total_warns=total_warns,
+        warns_7d=warns_7d,
+        top_warned=top_warned,
+        recent_warns=recent_warns,
+        active="warns",
+    )
 
 @flask_app.route("/dashboard/<guild_id>/tickets")
 @require_auth
@@ -1493,16 +1939,66 @@ def guild_autoresponse(guild_id):
     return render_template("dashboard/autoresponse.html", guild=g, cfg=cfg, user=us["user"],
                            auto_responses=cfg.get("auto_responses",[]), active="autoresponse")
 
+# ═══════════════════════════════════════════════════════════════════
+# ROLES
+# ═══════════════════════════════════════════════════════════════════
 @flask_app.route("/dashboard/<guild_id>/roles")
 @require_auth
 def guild_roles(guild_id):
     us, g, cfg, err = _dash_guard(guild_id)
-    if err: return err
-    guild_roles = [{"id":str(r.id),"name":r.name} for r in g.roles if not r.is_default() and not r.managed] if g else []
-    ar = cfg.get("auto_role",{}).get("roles",[])
-    sr = cfg.get("sticky_roles",[])
-    return render_template("dashboard/roles.html", guild=g, cfg=cfg, user=us["user"],
-                           guild_roles=guild_roles, auto_roles=ar, sticky_roles=sr, active="roles")
+    if err:
+        return err
+
+    guild_roles = []
+    if g and hasattr(g, 'roles') and g.roles:
+        guild_roles = [
+            {
+                "id":    str(r.id),
+                "name":  r.name,
+                "color": str(r.color) if r.color and r.color.value else "",
+                "pos":   r.position,
+            }
+            for r in sorted(g.roles, key=lambda r: r.position, reverse=True)
+            if not r.is_default() and not r.managed
+        ]
+
+    role_map = {r["id"]: r["name"] for r in guild_roles}
+
+    # Auto-Roles
+    ar_ids    = cfg.get("auto_role", {}).get("roles", []) or []
+    auto_roles = [
+        {"id": str(rid), "name": role_map.get(str(rid), str(rid))}
+        for rid in ar_ids
+    ]
+
+    # Sticky-Roles
+    sr_ids       = cfg.get("sticky_roles", []) or []
+    sticky_roles = [
+        {"id": str(rid), "name": role_map.get(str(rid), str(rid))}
+        for rid in sr_ids
+    ]
+
+    # Verify-Config
+    vs = cfg.get("verify_system", {}) or {}
+
+    # Text-Channels für Verify-Setup
+    text_channels = []
+    if g and hasattr(g, 'text_channels') and g.text_channels:
+        text_channels = [
+            {"id": str(c.id), "name": c.name}
+            for c in sorted(g.text_channels, key=lambda c: c.position)
+        ]
+
+    return render_template(
+        "dashboard/roles.html",
+        guild=g, cfg=cfg, user=us["user"],
+        guild_roles=guild_roles,
+        auto_roles=auto_roles,
+        sticky_roles=sticky_roles,
+        vs=vs,
+        text_channels=text_channels,
+        active="roles",
+    )
 
 def _backups_col():
     """MongoDB-Collection für Server-Backups (Bot + Direct-DB-Fallback)."""
@@ -1705,13 +2201,49 @@ def guild_templates(guild_id):
         bot_ready=bot_ready(),
     )
 
+# ═══════════════════════════════════════════════════════════════════
+# SETTINGS
+# ═══════════════════════════════════════════════════════════════════
 @flask_app.route("/dashboard/<guild_id>/settings")
 @require_auth
 def guild_settings(guild_id):
     us, g, cfg, err = _dash_guard(guild_id)
-    if err: return err
-    channels = [{"id":str(ch.id),"name":ch.name} for ch in g.text_channels] if g else []
-    return render_template("dashboard/settings.html", guild=g, cfg=cfg, user=us["user"], channels=channels, active="settings")
+    if err:
+        return err
+
+    # Kanal-Listen
+    text_channels = []
+    categories    = []
+    if g:
+        if hasattr(g, 'text_channels') and g.text_channels:
+            text_channels = [
+                {"id": str(c.id), "name": c.name}
+                for c in sorted(g.text_channels, key=lambda c: c.position)
+            ]
+        if hasattr(g, 'categories') and g.categories:
+            categories = [
+                {"id": str(c.id), "name": c.name}
+                for c in g.categories
+            ]
+
+    # Config-Sektionen
+    ws  = cfg.get("warn_system",      {}) or {}
+    st  = cfg.get("server_tag",       {}) or {}
+    ma  = cfg.get("message_archive",  {}) or {}
+    wl  = cfg.get("webhook_logging",  {}) or {}
+    ab  = cfg.get("auto_ban_appeal",  {}) or {}
+    it  = cfg.get("invite_tracking",  {}) or {}
+    bs  = cfg.get("backup_system",    {}) or {}
+    vs  = cfg.get("verify_system",    {}) or {}
+
+    return render_template(
+        "dashboard/settings.html",
+        guild=g, cfg=cfg, user=us["user"],
+        channels=text_channels,
+        categories=categories,
+        ws=ws, st=st, ma=ma, wl=wl, ab=ab, it=it, bs=bs, vs=vs,
+        active="settings",
+    )
 
 
 @flask_app.route("/dashboard/<guild_id>/design")
@@ -1801,7 +2333,6 @@ def api_guild_config(guild_id):
         return jsonify({"error": "forbidden"}), 403
     data = request.json or {}
     cfg = _direct_load_config(guild_id)
-    from bot.utils import _run_async
 
     # Handle special keys with _ prefix
     if "_reset" in data:
@@ -1902,7 +2433,6 @@ def api_guild_automod(guild_id):
         return jsonify({"error": "forbidden"}), 403
     data = request.json or {}
     cfg = _direct_load_config(guild_id)
-    from bot.utils import _run_async
     am = cfg.get("automod", {})
     action = data.get("action")
     if action == "add_word":
@@ -1941,7 +2471,6 @@ def api_guild_autoresponse(guild_id):
         return jsonify({"error": "forbidden"}), 403
     data = request.json or {}
     cfg = _direct_load_config(guild_id)
-    from bot.utils import _run_async
     ars = cfg.get("auto_responses", [])
     action = data.get("action")
     if action == "add":
@@ -1967,7 +2496,6 @@ def api_guild_roles(guild_id):
         return jsonify({"error": "forbidden"}), 403
     data = request.json or {}
     cfg = _direct_load_config(guild_id)
-    from bot.utils import _run_async
     action = data.get("action")
     rid = int(data.get("role_id", 0))
     if action == "add_auto":
@@ -2081,7 +2609,7 @@ def guild_members(guild_id):
                 try:
                     if m.timed_out_until and m.timed_out_until.timestamp() > now.timestamp():
                         timeout_str = str(int(m.timed_out_until.timestamp()))
-                except: pass
+                except Exception: pass
 
                 # Voice
                 voice_ch = ""
@@ -2121,11 +2649,11 @@ def guild_members(guild_id):
                 try:
                     db = get_db()
                     if db:
-                        user_cases = safe_collection_count(db.cases, {"guild_id": str(g.id), "user_id": str(m.id)})
-                        user_warns = safe_collection_count(getattr(db, "warnings", None), {"guild_id": str(g.id), "user_id": str(m.id)})
+                        user_cases = safe_collection_count(db.cases, {"guild_id": g.id, "user_id": m.id})
+                        user_warns = safe_collection_count(getattr(db, "data", None), {"type": "warning", "guild_id": g.id, "user_id": m.id})
                         if user_cases: risk = min(risk + user_cases * 5, 100)
                         if user_warns: risk = min(risk + user_warns * 8, 100)
-                except:
+                except Exception:
                     pass
 
                 members.append({
@@ -2351,9 +2879,9 @@ def guild_stats_page(guild_id):
     boosts = g.premium_subscription_count or 0 if g and hasattr(g,'premium_subscription_count') else 0
     warns_count = 0
     try:
-        wc = getattr(db,'warnings',None) if db else None
-        if wc: warns_count = safe_collection_count(wc, {"guild_id":str(guild_id)})
-    except: pass
+        wc = getattr(db,'data',None) if db else None
+        if wc: warns_count = safe_collection_count(wc, {"type": "warning", "guild_id": int(guild_id)})
+    except Exception: pass
     log_channels_count = len(cfg.get("log_channels",{}) or {})
     sec_level = cfg.get("security_level",0)
 
@@ -2376,17 +2904,125 @@ def guild_stats_page(guild_id):
         growth_total=growth_total, server_created_ts=server_created_ts,
         active="stats")
 
+# ═══════════════════════════════════════════════════════════════════
+# WHITELIST
+# ═══════════════════════════════════════════════════════════════════
 @flask_app.route("/dashboard/<guild_id>/whitelist")
 @require_auth
 def guild_whitelist(guild_id):
     us, g, cfg, err = _dash_guard(guild_id)
-    if err: return err
+    if err:
+        return err
+
     wl = {}
     if bot_ready():
-        try: wl = bot.db.get_whitelist(int(guild_id))
-        except: pass
-    return render_template("dashboard/whitelist.html", guild=g, cfg=cfg, user=us["user"],
-        whitelist=wl, active="whitelist")
+        try:
+            wl = bot.db.get_whitelist(int(guild_id))
+        except Exception:
+            pass
+
+    # Rollen + User-Namen aus Guild auflösen
+    role_map   = {}
+    member_map = {}
+    if g:
+        if hasattr(g, 'roles') and g.roles:
+            role_map = {str(r.id): r.name for r in g.roles}
+        if hasattr(g, 'members') and g.members:
+            member_map = {str(m.id): m.display_name for m in g.members}
+
+    # Kategorien anreichern
+    cats = [
+        {
+            "key":         "users",
+            "label":       "User",
+            "icon":        "👤",
+            "desc":        "Alle Security-Module werden für diese User deaktiviert",
+            "placeholder": "User-ID eingeben…",
+            "color":       "124,58,237",
+            "entries": [
+                {"id": str(uid), "name": member_map.get(str(uid), "")}
+                for uid in wl.get("users", [])
+            ],
+        },
+        {
+            "key":         "roles",
+            "label":       "Rollen",
+            "icon":        "🏷️",
+            "desc":        "Mitglieder mit diesen Rollen werden von allen Modulen ignoriert",
+            "placeholder": "Rollen-ID eingeben…",
+            "color":       "34,211,238",
+            "entries": [
+                {"id": str(rid), "name": role_map.get(str(rid), "")}
+                for rid in wl.get("roles", [])
+            ],
+        },
+        {
+            "key":         "channels",
+            "label":       "Kanäle",
+            "icon":        "📁",
+            "desc":        "In diesen Kanälen sind alle Security-Module inaktiv",
+            "placeholder": "Kanal-ID eingeben…",
+            "color":       "74,222,128",
+            "entries": [
+                {"id": str(cid), "name": ""}
+                for cid in wl.get("channels", [])
+            ],
+        },
+        {
+            "key":         "bypass_antinuke",
+            "label":       "Bypass Anti-Nuke",
+            "icon":        "💣",
+            "desc":        "Dürfen Massenaktionen durchführen ohne gesperrt zu werden",
+            "placeholder": "User-ID eingeben…",
+            "color":       "239,68,68",
+            "entries": [
+                {"id": str(uid), "name": member_map.get(str(uid), "")}
+                for uid in wl.get("bypass_antinuke", [])
+            ],
+        },
+        {
+            "key":         "bypass_antispam",
+            "label":       "Bypass Anti-Spam",
+            "icon":        "⚡",
+            "desc":        "Anti-Spam-Filter wird für diese User komplett ignoriert",
+            "placeholder": "User-ID eingeben…",
+            "color":       "245,158,11",
+            "entries": [
+                {"id": str(uid), "name": member_map.get(str(uid), "")}
+                for uid in wl.get("bypass_antispam", [])
+            ],
+        },
+    ]
+
+    total_entries = sum(len(c["entries"]) for c in cats)
+
+    # Rollen-Liste für Dropdown
+    guild_roles = []
+    if g and hasattr(g, 'roles') and g.roles:
+        guild_roles = [
+            {"id": str(r.id), "name": r.name}
+            for r in sorted(g.roles, key=lambda r: r.position, reverse=True)
+            if not r.is_default() and not r.managed
+        ]
+
+    # Kanal-Liste für Dropdown
+    guild_channels = []
+    if g and hasattr(g, 'text_channels') and g.text_channels:
+        guild_channels = [
+            {"id": str(c.id), "name": c.name}
+            for c in sorted(g.text_channels, key=lambda c: c.position)
+        ]
+
+    return render_template(
+        "dashboard/whitelist.html",
+        guild=g, cfg=cfg, user=us["user"],
+        whitelist=wl,
+        cats=cats,
+        total_entries=total_entries,
+        guild_roles=guild_roles,
+        guild_channels=guild_channels,
+        active="whitelist",
+    )
 
 @flask_app.route("/dashboard/<guild_id>/livefeed")
 @require_auth
@@ -2399,7 +3035,7 @@ def guild_livefeed(guild_id):
         raw = ACTIVITY.snapshot(30)
         if isinstance(raw, list):
             activities = [a for a in raw if str(a.get("guild_id","")) == str(guild_id)][:20]
-    except: pass
+    except Exception: pass
     return render_template("dashboard/livefeed.html", guild=g, cfg=cfg, user=us["user"],
         activities=activities, active="livefeed")
 
@@ -2425,17 +3061,17 @@ def api_guild_whitelist(guild_id):
         if action == "add":
             items = wl.get(cat, [])
             try: item_id = int(item_id)
-            except: pass
+            except Exception: pass
             if item_id not in items:
                 items.append(item_id)
             wl[cat] = items
         elif action == "del":
             try: item_id = int(item_id)
-            except: pass
+            except Exception: pass
             wl[cat] = [x for x in wl.get(cat, []) if str(x) != str(item_id)]
         try:
-            _run_async(bot.db.whitelist_col.replace_one({"guild_id": int(guild_id)}, {"guild_id": int(guild_id), **wl}, upsert=True))
-        except:
+            _run_async(bot.db.set_whitelist(int(guild_id), wl))
+        except Exception:
             bot.db._whitelist_cache[int(guild_id)] = wl
         return jsonify({"ok": True})
     except Exception as e:
@@ -2486,7 +3122,7 @@ def admin_server_dashboard(guild_id, subpage=""):
         try:
             wl = bot.db.get_whitelist(int(guild_id)) if bot_ready() else {}
             wl_count = sum(len(v) for v in wl.values() if isinstance(v,list))
-        except: pass
+        except Exception: pass
         return render_template("dashboard/security.html", guild=g, cfg=cfg, user=admin_user,
             modules=modules, active_count=sum(1 for m in modules if m["enabled"]), wl_count=wl_count, active="security")
 
@@ -2511,7 +3147,7 @@ def admin_server_dashboard(guild_id, subpage=""):
                 raw = safe_async(db.cases.find({"guild_id":str(guild_id)}).sort("case_id",-1).to_list(200),[]) or []
                 for cc in raw: cc["timestamp"] = str(cc.get("timestamp",""))[:19]
                 cases = raw
-            except: pass
+            except Exception: pass
         return render_template("dashboard/cases.html", guild=g, cfg=cfg, user=admin_user, cases=cases, active="cases")
 
     elif subpage == "warns":
@@ -2625,7 +3261,7 @@ def admin_server_dashboard(guild_id, subpage=""):
         wl = {}
         if bot_ready():
             try: wl = bot.db.get_whitelist(int(guild_id))
-            except: pass
+            except Exception: pass
         return render_template("dashboard/whitelist.html", guild=g, cfg=cfg, user=admin_user, whitelist=wl, active="whitelist")
 
     elif subpage == "stats":
@@ -2645,7 +3281,7 @@ def admin_server_dashboard(guild_id, subpage=""):
                     day = now - _dt.timedelta(days=i)
                     days_labels.append(day.strftime("%a"))
                     days_data.append(sum(1 for cs in all_cases if cs.get("timestamp") and cs["timestamp"].date()==day.date()))
-            except: pass
+            except Exception: pass
         active_mods = sum(1 for k in ["anti_spam","anti_nuke","anti_raid","anti_mention","anti_scam","automod"] if cfg.get(k,{}).get("enabled"))
         return render_template("dashboard/stats.html", guild=g, cfg=cfg, user=admin_user,
             cases_count=cases_count, case_types=case_types, top_mods=top_mods,
@@ -2704,7 +3340,7 @@ def admin_server_dashboard(guild_id, subpage=""):
             from bot.config import ACTIVITY
             raw = ACTIVITY.snapshot(30)
             if isinstance(raw,list): activities = [a for a in raw if str(a.get("guild_id",""))==str(guild_id)][:20]
-        except: pass
+        except Exception: pass
         return render_template("dashboard/livefeed.html", guild=g, cfg=cfg, user=admin_user, activities=activities, active="livefeed")
 
     elif subpage == "design":
@@ -2769,17 +3405,17 @@ def api_member_action(guild_id, member_id):
         if action == "warn":
             case_id = _run_async(bot.db.acreate_case(g.id, member.id, int(user_session["user"]["id"]), "warn", reason))
             count = _run_async(bot.db.aadd_warning(g.id, member.id, reason, int(user_session["user"]["id"])))
-            _run_async(bot.log_action(g, f"⚠️ Warn (Dashboard)", f"{member.mention} verwarnt.\nGrund: {reason}\nVerwarnungen: {count}", 0xeab308, module="moderation"))
+            _run_async(bot.log_action(g, "⚠️ Warn (Dashboard)", f"{member.mention} verwarnt.\nGrund: {reason}\nVerwarnungen: {count}", 0xeab308, module="moderation"))
             return jsonify({"ok": True, "action": "warn", "case_id": case_id, "warn_count": count})
         elif action == "kick":
             _run_async(member.kick(reason=f"Dashboard: {reason}"))
             case_id = _run_async(bot.db.acreate_case(g.id, member.id, int(user_session["user"]["id"]), "kick", reason))
-            _run_async(bot.log_action(g, f"👢 Kick (Dashboard)", f"{member.mention} gekickt.\nGrund: {reason}", 0xef4444, module="moderation"))
+            _run_async(bot.log_action(g, "👢 Kick (Dashboard)", f"{member.mention} gekickt.\nGrund: {reason}", 0xef4444, module="moderation"))
             return jsonify({"ok": True, "action": "kick", "case_id": case_id})
         elif action == "ban":
             _run_async(member.ban(reason=f"Dashboard: {reason}", delete_message_seconds=86400))
             case_id = _run_async(bot.db.acreate_case(g.id, member.id, int(user_session["user"]["id"]), "ban", reason))
-            _run_async(bot.log_action(g, f"🔨 Ban (Dashboard)", f"{member.mention} gebannt.\nGrund: {reason}", 0xef4444, module="moderation"))
+            _run_async(bot.log_action(g, "🔨 Ban (Dashboard)", f"{member.mention} gebannt.\nGrund: {reason}", 0xef4444, module="moderation"))
             return jsonify({"ok": True, "action": "ban", "case_id": case_id})
         elif action == "timeout":
             import datetime as _dt
@@ -2787,27 +3423,27 @@ def api_member_action(guild_id, member_id):
             until = _dt.datetime.now(_dt.timezone.utc) + _dt.timedelta(seconds=dur)
             _run_async(member.timeout(until, reason=f"Dashboard: {reason}"))
             case_id = _run_async(bot.db.acreate_case(g.id, member.id, int(user_session["user"]["id"]), "timeout", reason, duration=dur))
-            _run_async(bot.log_action(g, f"🔇 Timeout (Dashboard)", f"{member.mention} getimeoutet ({dur}s).\nGrund: {reason}", 0xf59e0b, module="moderation"))
+            _run_async(bot.log_action(g, "🔇 Timeout (Dashboard)", f"{member.mention} getimeoutet ({dur}s).\nGrund: {reason}", 0xf59e0b, module="moderation"))
             return jsonify({"ok": True, "action": "timeout", "case_id": case_id})
         elif action == "untimeout":
-            _run_async(member.timeout(None, reason=f"Dashboard: Timeout aufgehoben"))
-            _run_async(bot.log_action(g, f"🔊 Timeout aufgehoben (Dashboard)", f"{member.mention}", 0x22c55e, module="moderation"))
+            _run_async(member.timeout(None, reason="Dashboard: Timeout aufgehoben"))
+            _run_async(bot.log_action(g, "🔊 Timeout aufgehoben (Dashboard)", f"{member.mention}", 0x22c55e, module="moderation"))
             return jsonify({"ok": True, "action": "untimeout"})
         elif action == "add_role":
             role = g.get_role(int(data.get("role_id", 0)))
             if role:
-                _run_async(member.add_roles(role, reason=f"Dashboard: Rolle gegeben"))
+                _run_async(member.add_roles(role, reason="Dashboard: Rolle gegeben"))
                 return jsonify({"ok": True, "action": "add_role"})
             return jsonify({"error": "Rolle nicht gefunden"}), 404
         elif action == "remove_role":
             role = g.get_role(int(data.get("role_id", 0)))
             if role:
-                _run_async(member.remove_roles(role, reason=f"Dashboard: Rolle entfernt"))
+                _run_async(member.remove_roles(role, reason="Dashboard: Rolle entfernt"))
                 return jsonify({"ok": True, "action": "remove_role"})
             return jsonify({"error": "Rolle nicht gefunden"}), 404
         elif action == "nick":
             new_nick = data.get("nick", "")
-            _run_async(member.edit(nick=new_nick or None, reason=f"Dashboard: Nickname geändert"))
+            _run_async(member.edit(nick=new_nick or None, reason="Dashboard: Nickname geändert"))
             return jsonify({"ok": True, "action": "nick"})
         else:
             return jsonify({"error": f"Unbekannte Aktion: {action}"}), 400
@@ -2824,7 +3460,6 @@ def api_noprefix(guild_id):
         return jsonify({"error": "forbidden"}), 403
     data = request.json or {}
     cfg = _direct_load_config(guild_id)
-    from bot.utils import _run_async
     if "enabled" in data:
         cfg["no_prefix"] = bool(data["enabled"])
     if "action" in data:
@@ -2838,7 +3473,7 @@ def api_noprefix(guild_id):
         cfg["no_prefix_users"] = np_users
     try:
         _direct_save_config(guild_id, cfg)
-    except:
+    except Exception:
         pass
     return jsonify({"ok": True, "no_prefix": cfg.get("no_prefix", False)})
 
@@ -2854,23 +3489,59 @@ def api_guild_activity(guild_id):
             raw = []
         filtered = [a for a in raw if str(a.get("guild_id","")) == str(guild_id)]
         return jsonify(filtered[:50])
-    except Exception as e:
+    except Exception:
         return jsonify([])
 
+# ═══════════════════════════════════════════════════════════════════
+# AUTO-NICKNAME ROUTES
+# Ersetze die KOMPLETTEN alten guild_autonick + api_guild_autonick
+# Funktionen – keine doppelten Routes!
+# ═══════════════════════════════════════════════════════════════════
 
 @flask_app.route("/dashboard/<guild_id>/autonick")
 @require_auth
 def guild_autonick(guild_id):
     us, g, cfg, err = _dash_guard(guild_id)
-    if err: return err
-    rules = cfg.get("auto_nickname", {}).get("rules", [])
-    enabled = cfg.get("auto_nickname", {}).get("enabled", False)
+    if err:
+        return err
+
+    an      = cfg.get("auto_nickname", {})
+    rules   = an.get("rules", [])
+    enabled = an.get("enabled", False)
+
+    # Rollen-Liste für Dropdowns (nach Position sortiert, höchste zuerst)
     guild_roles = []
-    if g and hasattr(g, 'roles') and g.roles:
-        guild_roles = [{"id": str(r.id), "name": r.name, "color": str(r.color) if r.color and r.color.value else ""}
-                       for r in g.roles if not r.is_default() and not r.managed]
-    return render_template("dashboard/autonick.html", guild=g, cfg=cfg, user=us["user"],
-        rules=rules, enabled=enabled, guild_roles=guild_roles, active="autonick")
+    if g and hasattr(g, "roles") and g.roles:
+        guild_roles = [
+            {
+                "id":    str(r.id),
+                "name":  r.name,
+                "color": str(r.color) if r.color and r.color.value else "",
+            }
+            for r in sorted(g.roles, key=lambda r: r.position, reverse=True)
+            if not r.is_default() and not r.managed
+        ]
+
+    # Ausnahme-Rollen mit Namen anreichern
+    role_map        = {str(r.id): r.name for r in g.roles} if g else {}
+    exempt_role_ids = [str(x) for x in an.get("exempt_roles", [])]
+    exempt_roles    = [
+        {"id": eid, "name": role_map.get(eid, f"Unbekannte Rolle ({eid})")}
+        for eid in exempt_role_ids
+    ]
+
+    return render_template(
+        "dashboard/autonick.html",
+        guild=g,
+        cfg=cfg,
+        user=us["user"],
+        rules=rules,
+        enabled=enabled,
+        guild_roles=guild_roles,
+        exempt_roles=exempt_roles,
+        active="autonick",
+    )
+
 
 @flask_app.route("/api/guild/<guild_id>/autonick", methods=["POST"])
 @require_auth
@@ -2878,47 +3549,149 @@ def api_guild_autonick(guild_id):
     user_session = get_session()
     if not user_session or not _user_can_manage_guild_in_session(user_session, guild_id):
         return jsonify({"error": "forbidden"}), 403
-    data = request.json or {}
-    cfg = _direct_load_config(guild_id)
-    from bot.utils import _run_async
-    an = cfg.get("auto_nickname", {"enabled": False, "rules": []})
-    action = data.get("action")
 
+    data   = request.json or {}
+    action = data.get("action", "").strip()
+
+    if not action:
+        return jsonify({"ok": False, "error": "action fehlt"}), 400
+
+    cfg = _direct_load_config(guild_id)
+    an  = cfg.get("auto_nickname", {})
+
+    # Defaults sicherstellen
+    an.setdefault("enabled",      False)
+    an.setdefault("rules",        [])
+    an.setdefault("exempt_roles", [])
+
+    # ── toggle ──────────────────────────────────────────────────────
     if action == "toggle":
         an["enabled"] = bool(data.get("enabled", False))
-        # Preserve existing rules
-        if "rules" not in an:
-            an["rules"] = []
+
+    # ── add ─────────────────────────────────────────────────────────
     elif action == "add":
-        rule = {
-            "role_id": data.get("role_id"),
-            "role_name": data.get("role_name", ""),
-            "prefix": data.get("prefix", ""),
-            "suffix": data.get("suffix", ""),
-            "priority": data.get("priority", len(an.get("rules", [])) + 1),
+        role_id = str(data.get("role_id", "")).strip()
+        prefix  = data.get("prefix", "")
+        suffix  = data.get("suffix", "")
+
+        if not role_id:
+            return jsonify({"ok": False, "error": "role_id fehlt"}), 400
+        if not prefix and not suffix:
+            return jsonify({"ok": False, "error": "Prefix oder Suffix wird benötigt"}), 400
+
+        # Doppelte Regel verhindern
+        existing_ids = [str(r.get("role_id", "")) for r in an["rules"]]
+        if role_id in existing_ids:
+            return jsonify({
+                "ok":    False,
+                "error": "Für diese Rolle existiert bereits eine Regel"
+            }), 400
+
+        new_rule = {
+            "role_id":   role_id,
+            "role_name": str(data.get("role_name", "")),
+            "prefix":    prefix,
+            "suffix":    suffix,
+            "priority":  len(an["rules"]) + 1,
         }
-        if rule["role_id"]:
-            an.setdefault("rules", []).append(rule)
+        an["rules"].append(new_rule)
+
+        # Zuerst speichern
+        cfg["auto_nickname"] = an
+        try:
+            _direct_save_config(guild_id, cfg)
+        except Exception as e:
+            log.error(f"autonick save (add) Fehler: {e}")
+            return jsonify({"ok": False, "error": "Speichern fehlgeschlagen"}), 500
+
+        # Dann Bulk-Apply im Hintergrund wenn System aktiv
+        stats = {"applied": 0, "skipped": 0, "failed": 0, "total": 0}
+        if an.get("enabled"):
+            guild_obj = bot.get_guild(int(guild_id))
+            if guild_obj:
+                import asyncio
+                from bot.bot import _bulk_apply_autonick
+                try:
+                    future = asyncio.run_coroutine_threadsafe(
+                        _bulk_apply_autonick(guild_obj, an, role_id=role_id),
+                        bot.loop
+                    )
+                    # Max 2s warten, Rest läuft im Hintergrund
+                    try:
+                        stats = future.result(timeout=2.0)
+                    except Exception:
+                        pass  # Läuft im Hintergrund weiter
+                except Exception as e:
+                    log.error(f"Bulk apply Fehler: {e}")
+
+        return jsonify({
+            "ok":      True,
+            "rules":   an["rules"],
+            "enabled": an["enabled"],
+            "applied": stats["applied"],
+            "skipped": stats["skipped"],
+            "failed":  stats["failed"],
+            "total":   stats["total"],
+        })
+
+    # ── delete ──────────────────────────────────────────────────────
     elif action == "delete":
         idx = data.get("index", -1)
-        rules = an.get("rules", [])
-        if 0 <= idx < len(rules):
-            rules.pop(idx)
-        an["rules"] = rules
+        if not isinstance(idx, int) or not (0 <= idx < len(an["rules"])):
+            return jsonify({"ok": False, "error": "Ungültiger Index"}), 400
+        an["rules"].pop(idx)
+        # Prioritäten neu vergeben
+        for i, r in enumerate(an["rules"]):
+            r["priority"] = i + 1
+
+    # ── reorder ─────────────────────────────────────────────────────
     elif action == "reorder":
         new_order = data.get("order", [])
-        rules = an.get("rules", [])
-        if len(new_order) == len(rules):
+        rules     = an["rules"]
+        if not isinstance(new_order, list) or len(new_order) != len(rules):
+            return jsonify({"ok": False, "error": "Ungültige Reihenfolge"}), 400
+        try:
             an["rules"] = [rules[i] for i in new_order if 0 <= i < len(rules)]
-    elif action == "save_all":
-        an["enabled"] = data.get("enabled", an.get("enabled", False))
-        an["rules"] = data.get("rules", an.get("rules", []))
+            for i, r in enumerate(an["rules"]):
+                r["priority"] = i + 1
+        except (IndexError, TypeError) as e:
+            return jsonify({"ok": False, "error": f"Reorder Fehler: {e}"}), 400
 
+    # ── add_exempt ──────────────────────────────────────────────────
+    elif action == "add_exempt":
+        role_id = str(data.get("role_id", "")).strip()
+        if not role_id:
+            return jsonify({"ok": False, "error": "role_id fehlt"}), 400
+        exempt = [str(x) for x in an["exempt_roles"]]
+        if role_id not in exempt:
+            exempt.append(role_id)
+        an["exempt_roles"] = exempt
+
+    # ── remove_exempt ───────────────────────────────────────────────
+    elif action == "remove_exempt":
+        role_id = str(data.get("role_id", "")).strip()
+        if not role_id:
+            return jsonify({"ok": False, "error": "role_id fehlt"}), 400
+        an["exempt_roles"] = [str(x) for x in an["exempt_roles"] if str(x) != role_id]
+
+    # ── Unbekannte Aktion ───────────────────────────────────────────
+    else:
+        return jsonify({"ok": False, "error": f"Unbekannte Aktion: {action}"}), 400
+
+    # Speichern für alle Aktionen außer 'add' (bereits oben gespeichert)
     cfg["auto_nickname"] = an
     try:
         _direct_save_config(guild_id, cfg)
-    except: pass
-    return jsonify({"ok": True, "rules": an.get("rules", []), "enabled": an.get("enabled", False)})
+    except Exception as e:
+        log.error(f"autonick save Fehler: {e}")
+        return jsonify({"ok": False, "error": "Speichern fehlgeschlagen"}), 500
+
+    return jsonify({
+        "ok":      True,
+        "rules":   an.get("rules", []),
+        "enabled": an.get("enabled", False),
+    })
+
 
 # =========================================================
 # BACKUP API – Erstellen / Restore / Löschen / Download

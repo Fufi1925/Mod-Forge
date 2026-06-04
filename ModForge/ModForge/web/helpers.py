@@ -1,10 +1,8 @@
 # web/helpers.py
-import datetime
 import logging
 import copy
-from typing import Optional
 
-from bot.config import DEFAULT_CONFIG, VALID_PUNISHMENTS, get_uptime, BOT_START_TIME
+from bot.config import DEFAULT_CONFIG, VALID_PUNISHMENTS, get_uptime
 from bot.utils import _run_async
 
 log = logging.getLogger("ModForge.Web.Helpers")
@@ -15,6 +13,7 @@ def _bot_stats():
     gc = mc = up = lat = 0
     try:
         from bot.bot import BOT_REF
+
         if BOT_REF is not None and BOT_REF.is_ready():
             gc = len(BOT_REF.guilds)
             mc = sum(g.member_count or 0 for g in BOT_REF.guilds)
@@ -33,7 +32,8 @@ def _get_guild_config(guild_id) -> dict:
     """Lädt die Config – gibt IMMER ein gültiges Dict zurück, nie einen Crash."""
     try:
         from bot.bot import BOT_REF
-        if BOT_REF is not None and hasattr(BOT_REF, 'db') and BOT_REF.db is not None:
+
+        if BOT_REF is not None and hasattr(BOT_REF, "db") and BOT_REF.db is not None:
             cfg = _run_async(BOT_REF.db.aget_config(int(guild_id)))
             if cfg and isinstance(cfg, dict):
                 return cfg
@@ -47,18 +47,35 @@ def _build_overview(cfg: dict, guild_id: str) -> str:
     if not isinstance(cfg, dict):
         cfg = copy.deepcopy(DEFAULT_CONFIG)
 
-    mods = ["anti_spam", "anti_nuke", "anti_raid", "anti_mention", "automod", "anti_scam"]
+    mods = [
+        "anti_spam",
+        "anti_nuke",
+        "anti_raid",
+        "anti_mention",
+        "automod",
+        "anti_scam",
+    ]
     rows = ""
     for m in mods:
-        enabled = cfg.get(m, {}).get("enabled") if isinstance(cfg.get(m), dict) else False
+        enabled = (
+            cfg.get(m, {}).get("enabled") if isinstance(cfg.get(m), dict) else False
+        )
         rows += f"""<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.04)">
-            <span style="font-size:.85rem">{m.replace('_',' ').title()}</span>
+            <span style="font-size:.85rem">{m.replace("_", " ").title()}</span>
             <span>{"✅" if enabled else "❌"} {"Aktiv" if enabled else "Inaktiv"}</span>
         </div>"""
 
-    active = sum(1 for m in mods if isinstance(cfg.get(m), dict) and cfg.get(m, {}).get('enabled'))
-    sec_level = cfg.get('security_level', 0) if isinstance(cfg.get('security_level'), int) else 0
-    log_ch = cfg.get('log_channels')
+    active = sum(
+        1
+        for m in mods
+        if isinstance(cfg.get(m), dict) and cfg.get(m, {}).get("enabled")
+    )
+    sec_level = (
+        cfg.get("security_level", 0)
+        if isinstance(cfg.get("security_level"), int)
+        else 0
+    )
+    log_ch = cfg.get("log_channels")
     log_count = len(log_ch) if isinstance(log_ch, dict) else 0
 
     return f"""<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;margin-bottom:22px">
@@ -75,10 +92,17 @@ def _build_module_form(section: str, cfg: dict, guild_id: str) -> str:
         cfg = copy.deepcopy(DEFAULT_CONFIG)
 
     mod_map = {
-        "antispam": "anti_spam", "antinuke": "anti_nuke", "antiraid": "anti_raid",
-        "antimention": "anti_mention", "antiscam": "anti_scam", "automod": "automod",
-        "verify": "verify_system", "tickets": "ticket_system", "autorole": "auto_role",
-        "logs": "log_channels", "warns": "warn_system"
+        "antispam": "anti_spam",
+        "antinuke": "anti_nuke",
+        "antiraid": "anti_raid",
+        "antimention": "anti_mention",
+        "antiscam": "anti_scam",
+        "automod": "automod",
+        "verify": "verify_system",
+        "tickets": "ticket_system",
+        "autorole": "auto_role",
+        "logs": "log_channels",
+        "warns": "warn_system",
     }
     mod = mod_map.get(section, section)
     mcfg = cfg.get(mod, {})
@@ -88,17 +112,26 @@ def _build_module_form(section: str, cfg: dict, guild_id: str) -> str:
     enabled = mcfg.get("enabled", False)
     punishment = mcfg.get("punishment", "warn")
     icon = {
-        "antispam": "⚡", "antinuke": "💥", "antiraid": "🚨",
-        "antimention": "🔔", "antiscam": "🎣", "automod": "🤖",
-        "verify": "✅", "tickets": "🎫", "autorole": "🏷️",
-        "logs": "📢", "warns": "⚠️"
+        "antispam": "⚡",
+        "antinuke": "💥",
+        "antiraid": "🚨",
+        "antimention": "🔔",
+        "antiscam": "🎣",
+        "automod": "🤖",
+        "verify": "✅",
+        "tickets": "🎫",
+        "autorole": "🏷️",
+        "logs": "📢",
+        "warns": "⚠️",
     }.get(section, "⚙️")
 
-    pun_opts = "".join(f'<option value="{p}" {"selected" if punishment == p else ""}>{p}</option>'
-                       for p in VALID_PUNISHMENTS)
+    pun_opts = "".join(
+        f'<option value="{p}" {"selected" if punishment == p else ""}>{p}</option>'
+        for p in VALID_PUNISHMENTS
+    )
 
     return f"""<div class="db-card" style="margin-bottom:16px">
-    <div class="db-card-header"><span class="db-card-title">{icon} {section.replace('anti','Anti-').title()}</span></div>
+    <div class="db-card-header"><span class="db-card-title">{icon} {section.replace("anti", "Anti-").title()}</span></div>
     <div class="cfg-row"><div><span class="cfg-label">Aktiviert</span><div class="cfg-desc">Modul ein-/ausschalten</div></div>
     <label class="toggle"><input type="checkbox" id="en" {"checked" if enabled else ""}><span class="slider"></span></label></div>
     <div class="cfg-row"><div><span class="cfg-label">Bestrafung</span></div>
@@ -125,22 +158,22 @@ def _build_welcome_content(cfg: dict, guild_id: str) -> str:
 <div class="db-card" style="margin-bottom:20px">
     <div class="db-card-header"><span class="db-card-title">👋 Welcome-Nachricht</span></div>
     <div class="cfg-row"><div><span class="cfg-label">Aktiviert</span></div>
-    <label class="toggle"><input type="checkbox" id="wc-en" {"checked" if wc.get('enabled') else ""}><span class="slider"></span></label></div>
+    <label class="toggle"><input type="checkbox" id="wc-en" {"checked" if wc.get("enabled") else ""}><span class="slider"></span></label></div>
     <div class="cfg-row"><div><span class="cfg-label">Titel</span></div>
-    <input class="cfg-input" id="wc-title" value="{wc.get('embed_title','👋 Willkommen!')}" style="max-width:300px;width:100%"></div>
+    <input class="cfg-input" id="wc-title" value="{wc.get("embed_title", "👋 Willkommen!")}" style="max-width:300px;width:100%"></div>
     <div class="cfg-row"><div><span class="cfg-label">Beschreibung</span></div>
-    <input class="cfg-input" id="wc-desc" value="{wc.get('embed_description','Willkommen!')}" style="max-width:400px;width:100%"></div>
+    <input class="cfg-input" id="wc-desc" value="{wc.get("embed_description", "Willkommen!")}" style="max-width:400px;width:100%"></div>
     <div class="cfg-row"><div><span class="cfg-label">Farbe</span></div>
     <input type="color" id="wc-col" value="{wc_col}" style="width:50px;height:32px;border:none;border-radius:8px;cursor:pointer"></div>
     <div class="cfg-row"><div><span class="cfg-label">DM senden</span></div>
-    <label class="toggle"><input type="checkbox" id="wc-dm" {"checked" if wc.get('dm_enabled') else ""}><span class="slider"></span></label></div>
+    <label class="toggle"><input type="checkbox" id="wc-dm" {"checked" if wc.get("dm_enabled") else ""}><span class="slider"></span></label></div>
 </div>
 <div class="db-card">
     <div class="db-card-header"><span class="db-card-title">👋 Leave-Nachricht</span></div>
     <div class="cfg-row"><div><span class="cfg-label">Aktiviert</span></div>
-    <label class="toggle"><input type="checkbox" id="lv-en" {"checked" if lc.get('enabled') else ""}><span class="slider"></span></label></div>
+    <label class="toggle"><input type="checkbox" id="lv-en" {"checked" if lc.get("enabled") else ""}><span class="slider"></span></label></div>
     <div class="cfg-row"><div><span class="cfg-label">Titel</span></div>
-    <input class="cfg-input" id="lv-title" value="{lc.get('embed_title','👋 Auf Wiedersehen!')}" style="max-width:300px;width:100%"></div>
+    <input class="cfg-input" id="lv-title" value="{lc.get("embed_title", "👋 Auf Wiedersehen!")}" style="max-width:300px;width:100%"></div>
     <div class="cfg-row"><div><span class="cfg-label">Farbe</span></div>
     <input type="color" id="lv-col" value="{lc_col}" style="width:50px;height:32px;border:none;border-radius:8px;cursor:pointer"></div>
 </div>"""

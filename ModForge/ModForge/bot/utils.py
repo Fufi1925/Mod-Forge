@@ -7,7 +7,7 @@ import random
 import string
 import re
 import datetime
-from typing import Optional, Tuple, Any, Union, List, Dict, Callable, Awaitable
+from typing import Optional, Tuple, Any, Union, List, Callable, Awaitable
 import discord
 from PIL import Image, ImageDraw, ImageFont
 
@@ -15,6 +15,7 @@ from bot.config import COLOR_PRIMARY, FOOTER_TEXT, FOOTER_ICON, log
 
 # Zentrales Rate-Limit-System
 GLOBAL_API_SEMAPHORE = asyncio.Semaphore(5)
+
 
 async def rate_limited(
     coro_func: Callable[..., Awaitable[Any]],
@@ -44,6 +45,7 @@ async def rate_limited(
                     continue
                 raise
 
+
 def create_embed(
     title: str,
     description: str = "",
@@ -53,13 +55,13 @@ def create_embed(
     image: Optional[str] = None,
     author_name: Optional[str] = None,
     author_icon: Optional[str] = None,
-    user: Optional[Union[discord.Member, discord.User]] = None
+    user: Optional[Union[discord.Member, discord.User]] = None,
 ) -> discord.Embed:
     embed = discord.Embed(
         title=title,
         description=description,
         color=color,
-        timestamp=datetime.datetime.now(datetime.timezone.utc)
+        timestamp=datetime.datetime.now(datetime.timezone.utc),
     )
     embed.set_footer(text=FOOTER_TEXT, icon_url=FOOTER_ICON)
     if fields:
@@ -70,41 +72,69 @@ def create_embed(
     if image:
         embed.set_image(url=image)
     if author_name:
-        embed.set_author(name=author_name, icon_url=author_icon or discord.utils.MISSING)
+        embed.set_author(
+            name=author_name, icon_url=author_icon or discord.utils.MISSING
+        )
     if user:
         embed.set_author(name=f"{user.name}", icon_url=user.display_avatar.url)
     return embed
 
+
 def generate_captcha(difficulty: str = "medium") -> Tuple[str, io.BytesIO]:
     length = 6 if difficulty == "medium" else (4 if difficulty == "easy" else 8)
-    code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=length))
+    code = "".join(random.choices(string.ascii_uppercase + string.digits, k=length))
     width, height = 250, 100
-    img = Image.new('RGB', (width, height), color=(255, 255, 255))
+    img = Image.new("RGB", (width, height), color=(255, 255, 255))
     d = ImageDraw.Draw(img)
     try:
         font = ImageFont.truetype("arial.ttf", 40)
     except (OSError, IOError):
         font = ImageFont.load_default()
     d.text((width // 4, height // 3), code, fill=(0, 0, 0), font=font)
-    noise_level = 100 if difficulty == "easy" else (300 if difficulty == "medium" else 600)
+    noise_level = (
+        100 if difficulty == "easy" else (300 if difficulty == "medium" else 600)
+    )
     for _ in range(noise_level):
-        d.point((random.randint(0, width), random.randint(0, height)),
-                fill=(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)))
+        d.point(
+            (random.randint(0, width), random.randint(0, height)),
+            fill=(
+                random.randint(0, 255),
+                random.randint(0, 255),
+                random.randint(0, 255),
+            ),
+        )
     if difficulty == "hard":
         for _ in range(5):
-            d.line((random.randint(0, width), random.randint(0, height),
-                    random.randint(0, width), random.randint(0, height)),
-                   fill=(0, 0, 0), width=2)
+            d.line(
+                (
+                    random.randint(0, width),
+                    random.randint(0, height),
+                    random.randint(0, width),
+                    random.randint(0, height),
+                ),
+                fill=(0, 0, 0),
+                width=2,
+            )
     buf = io.BytesIO()
-    img.save(buf, format='PNG')
+    img.save(buf, format="PNG")
     buf.seek(0)
     return code, buf
 
+
 async def check_phishing_url(url: str) -> bool:
-    scam_keywords = ["discord-nitro", "free-nitro", "gift-nitro", "steam-promo", "discord-gift"]
+    scam_keywords = [
+        "discord-nitro",
+        "free-nitro",
+        "gift-nitro",
+        "steam-promo",
+        "discord-gift",
+    ]
     return any(kw in url.lower() for kw in scam_keywords)
 
-def can_moderate(actor: discord.Member, target: discord.Member, bot_member: discord.Member) -> Tuple[bool, str]:
+
+def can_moderate(
+    actor: discord.Member, target: discord.Member, bot_member: discord.Member
+) -> Tuple[bool, str]:
     if target.id == actor.guild.owner_id:
         return False, "Der Server-Owner kann nicht moderiert werden."
     if target.id == bot_member.id:
@@ -117,6 +147,7 @@ def can_moderate(actor: discord.Member, target: discord.Member, bot_member: disc
         return False, "Meine höchste Rolle ist nicht über der des Ziels."
     return True, ""
 
+
 def parse_duration(text: str) -> Optional[int]:
     if not text:
         return None
@@ -128,9 +159,11 @@ def parse_duration(text: str) -> Optional[int]:
     unit = m.group(2) or "s"
     return val * {"s": 1, "m": 60, "h": 3600, "d": 86400, "w": 604800}[unit]
 
+
 def _run_async(coro, timeout: float = 8.0):
     """Führt eine Coroutine threadsafe aus (für Flask)."""
     from bot.bot import BOT_REF as bot_ref
+
     if bot_ref is None or not bot_ref.loop or not bot_ref.loop.is_running():
         return None
     try:
@@ -139,8 +172,10 @@ def _run_async(coro, timeout: float = 8.0):
         log.debug(f"_run_async: {ex}")
         return None
 
+
 class RingLogHandler(logging.Handler):
     """Speichert die letzten `max_entries` Logs in einer Liste."""
+
     def __init__(self, max_entries=200):
         super().__init__()
         self.max_entries = max_entries
@@ -148,18 +183,22 @@ class RingLogHandler(logging.Handler):
 
     def emit(self, record):
         msg = self.format(record)
-        self.entries.append({
-            "time": datetime.datetime.utcnow().strftime("%H:%M:%S"),
-            "level": record.levelname,
-            "name": record.name,
-            "msg": msg
-        })
+        self.entries.append(
+            {
+                "time": datetime.datetime.utcnow().strftime("%H:%M:%S"),
+                "level": record.levelname,
+                "name": record.name,
+                "msg": msg,
+            }
+        )
+
 
 # Globalen Handler erstellen und zum Root-Logger hinzufügen
 _live_handler = RingLogHandler(max_entries=200)
 _live_handler.setFormatter(logging.Formatter("%(message)s"))
 _live_handler.setLevel(logging.DEBUG)
 logging.getLogger().addHandler(_live_handler)
+
 
 def get_live_logs():
     return list(_live_handler.entries)

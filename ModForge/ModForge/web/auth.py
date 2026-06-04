@@ -16,7 +16,9 @@ log = logging.getLogger("ModForge.Auth")
 # Umgebungsvariablen
 DISCORD_CLIENT_ID = os.getenv("DISCORD_CLIENT_ID")
 DISCORD_CLIENT_SECRET = os.getenv("DISCORD_CLIENT_SECRET")
-DASHBOARD_BASE_URL = os.getenv("DASHBOARD_BASE_URL", "http://mod-forge.up.railway.app").rstrip("/")
+DASHBOARD_BASE_URL = os.getenv(
+    "DASHBOARD_BASE_URL", "http://mod-forge.up.railway.app"
+).rstrip("/")
 
 REDIRECT_URI = f"{DASHBOARD_BASE_URL}/dashboard/auth/callback"
 DISCORD_API = "https://discord.com/api/v10"
@@ -60,8 +62,13 @@ def _api_request(url, method="GET", data=None, headers=None):
 def login():
     """Leitet zu Discord OAuth2 weiter."""
     if not DISCORD_CLIENT_ID or not DISCORD_CLIENT_SECRET:
-        log.error(f"OAuth not configured: ID={bool(DISCORD_CLIENT_ID)} SECRET={bool(DISCORD_CLIENT_SECRET)}")
-        return "Dashboard auth not configured. Set DISCORD_CLIENT_ID and DISCORD_CLIENT_SECRET.", 503
+        log.error(
+            f"OAuth not configured: ID={bool(DISCORD_CLIENT_ID)} SECRET={bool(DISCORD_CLIENT_SECRET)}"
+        )
+        return (
+            "Dashboard auth not configured. Set DISCORD_CLIENT_ID and DISCORD_CLIENT_SECRET.",
+            503,
+        )
 
     state = secrets.token_urlsafe(16)
     flask_session["oauth_state"] = state
@@ -96,7 +103,9 @@ def callback():
     # State-Prüfung
     if not code:
         log.warning("OAuth2 callback: kein code")
-        return redirect("/login?error=Kein Autorisierungs-Code erhalten. Bitte erneut versuchen.")
+        return redirect(
+            "/login?error=Kein Autorisierungs-Code erhalten. Bitte erneut versuchen."
+        )
 
     if state != session_state:
         log.warning(f"OAuth2 state mismatch: got={state}, expected={session_state}")
@@ -123,7 +132,9 @@ def callback():
     access_token = token_data.get("access_token")
     if not access_token:
         log.error(f"No access_token in response: {token_data}")
-        err_desc = token_data.get("error_description", token_data.get("error", "Unbekannt"))
+        err_desc = token_data.get(
+            "error_description", token_data.get("error", "Unbekannt")
+        )
         return redirect(f"/login?error=Discord Token-Fehler: {err_desc}")
 
     # --- User-Profil laden ---
@@ -134,7 +145,7 @@ def callback():
         )
     except Exception as e:
         log.error(f"User fetch failed: {e}")
-        return redirect(f"/login?error=Profil konnte nicht geladen werden.")
+        return redirect("/login?error=Profil konnte nicht geladen werden.")
 
     # --- Serverliste laden ---
     try:
@@ -169,7 +180,9 @@ def callback():
         "guilds": guilds if isinstance(guilds, list) else [],
     }
 
-    log.info(f"Login OK: {user.get('username')} ({user_id}), {len(guilds) if isinstance(guilds, list) else 0} guilds")
+    log.info(
+        f"Login OK: {user.get('username')} ({user_id}), {len(guilds) if isinstance(guilds, list) else 0} guilds"
+    )
 
     # Cookie setzen
     resp = make_response(redirect("/dashboard"))
@@ -212,4 +225,5 @@ def require_auth(f):
         if not get_session():
             return redirect("/dashboard/login")
         return f(*args, **kwargs)
+
     return wrapper
