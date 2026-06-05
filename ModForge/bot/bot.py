@@ -494,6 +494,7 @@ class ModForge(commands.Bot):
         return cfg.get("prefix", "!")
 
     async def setup_hook(self) -> None:
+        self.add_view(TempVoiceView(self))
         self.add_view(VerifyView(self))
         self.add_view(TicketView(self))
         self.add_view(TicketCloseView(self))
@@ -2878,7 +2879,8 @@ async def on_guild_join(guild: discord.Guild) -> None:
             "`/case` `/cases` `/warnlist` `/clearwarn` `/massban`\n"
             "`/audit-perms` `/security view` `/setup` `/whitelist`\n"
             "`/logsetup` `/warnsetup` `/backupsetup` `/forcereset`\n"
-            "`/ticket-setup` `/verify-setup` `/logban` `/help`"
+            "`/ticket-setup` `/verify-setup` `/setup_tempvoice`
+            `/logban` `/help`"
         ),
         inline=False,
     )

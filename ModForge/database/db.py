@@ -368,6 +368,37 @@ class Database:
         except PyMongoError as e:
             log.error(f"DB adeactivate_mute Fehler: {e}")
 
+    # ── Temp Voice ─────────────────────────────────────────
+    async def aadd_temp_voice(self, guild_id: int, channel_id: int, owner_id: int) -> None:
+        try:
+            await self.data.insert_one({
+                "type": "temp_voice",
+                "guild_id": guild_id,
+                "channel_id": channel_id,
+                "owner_id": owner_id,
+                "created_at": datetime.datetime.utcnow()
+            })
+        except PyMongoError as e:
+            log.error(f"DB aadd_temp_voice Fehler: {e}")
+
+    async def aget_temp_voice(self, channel_id: int) -> Optional[dict]:
+        try:
+            return await self.data.find_one({"type": "temp_voice", "channel_id": channel_id})
+        except PyMongoError:
+            return None
+
+    async def aremove_temp_voice(self, channel_id: int) -> None:
+        try:
+            await self.data.delete_one({"type": "temp_voice", "channel_id": channel_id})
+        except PyMongoError:
+            pass
+            
+    async def aupdate_temp_voice_owner(self, channel_id: int, new_owner_id: int) -> None:
+        try:
+            await self.data.update_one({"type": "temp_voice", "channel_id": channel_id}, {"$set": {"owner_id": new_owner_id}})
+        except PyMongoError:
+            pass
+
     # ── TempActions ─────────────────────────────────────────
     async def aadd_tempaction(
         self,

@@ -205,6 +205,26 @@ def _direct_load_config(guild_id):
 
 
 
+@flask_app.route("/dashboard/<guild_id>/tempvoice")
+@require_auth
+def guild_tempvoice(guild_id):
+    us, g, cfg, err = _dash_guard(guild_id)
+    if err:
+        return err
+
+    categories = [{"id": str(c.id), "name": c.name} for c in g.categories] if g else []
+    voice_channels = [{"id": str(c.id), "name": c.name} for c in g.voice_channels] if g else []
+
+    return render_template(
+        "dashboard/tempvoice.html",
+        guild=g,
+        cfg=cfg,
+        user=us["user"],
+        categories=categories,
+        voice_channels=voice_channels,
+        active="tempvoice"
+    )
+
 # =========================================================
 # SAFE ASYNC
 # =========================================================
@@ -2142,6 +2162,11 @@ def api_guild_config(guild_id):
         ma = cfg.get("message_archive",{})
         ma["enabled"] = data["_message_archive"].get("enabled", False)
         cfg["message_archive"] = ma
+    if "_temp_voice" in data:
+        tv = cfg.get("temp_voice", {})
+        for k, v in data["_temp_voice"].items():
+            tv[k] = v
+        cfg["temp_voice"] = tv
     if "_webhook_logging" in data:
         wl = cfg.get("webhook_logging", {"enabled": False, "webhooks": {}})
         wl["enabled"] = data["_webhook_logging"].get("enabled", False)
