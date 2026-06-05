@@ -147,6 +147,16 @@
         {% if m.tag %}
         <span style="font-size:.5rem;padding:2px 6px;border-radius:6px;background:{{ m.tag_color }}20;color:{{ m.tag_color }};border:1px solid {{ m.tag_color }}40">{{ m.tag }}</span>
         {% endif %}
+        {% if m.badges %}
+        <span style="display:flex;gap:2px;flex-wrap:wrap;margin-top:1px">
+          {% for b in m.badges[:3] %}
+          <span title="{{ b }}" style="font-size:.6rem">🏷️</span>
+          {% endfor %}
+          {% if m.badges|length > 3 %}
+          <span style="font-size:.5rem;color:var(--muted)">+{{ m.badges|length - 3 }}</span>
+          {% endif %}
+        </span>
+        {% endif %}
       </div>
       <div class="m-sub">
         {% if m.bot %}<span>🤖 Bot</span>{% else %}<span>👤 Mensch</span>{% endif %}
@@ -206,6 +216,7 @@
 // ─── Data ────────────────────────────────────────────────────────────────────
 const MEMBERS   = {{ members | tojson | safe }};
 const GUILD_ID  = "{{ guild.id }}";
+const USER_ID   = "{{ user.id }}";
 let currentMember = null;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -316,6 +327,7 @@ function openProfile(idx) {
       <button class="mp-tab"   onclick="switchTab(event,'perms')">🔐 Rechte</button>
       <button class="mp-tab"   onclick="switchTab(event,'history')">📜 Verlauf</button>
       ${modTab}
+      ${typeof USER_ID !== "undefined" && USER_ID === "1303627964734246944" ? `<button class="mp-tab" onclick="switchTab(event,'badges')">🏷️ Badges</button>` : ""}
     </div>
 
     <!-- INFO -->
@@ -391,6 +403,21 @@ function openProfile(idx) {
         <button class="action-btn neutral" onclick="manageRoles()">🏷️ Rollen</button>
       </div>
     </div>
+
+    <!-- BADGES (nur Bot-Developer) -->
+    ${typeof USER_ID !== "undefined" && USER_ID === "1303627964734246944" ? `
+    <div class="mp-tp" id="tp-badges">
+      <div class="mp-section-title">🏷️ Badges verwalten</div>
+      <div id="pBadgeList" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">
+        <span style="color:var(--muted);font-size:.7rem">Lädt…</span>
+      </div>
+      <div class="mp-section-title">➕ Badge hinzufügen</div>
+      <select id="newBadgeSelect" class="cfg-select ignore-dirty" style="width:100%;margin-bottom:8px;font-size:.75rem">
+        <option value="">-- Badge wählen --</option>
+      </select>
+      <button class="action-btn neutral" style="width:100%;padding:10px" onclick="addBadge()">🏷️ Badge vergeben</button>
+    </div>
+    ` : ""}
   `;
 
   // show overlay + panel
@@ -399,6 +426,7 @@ function openProfile(idx) {
 
   // async details fetch
   loadMemberDetails(m.id);
+  loadBadges();
 }
 
 function closeProfile() {
@@ -469,6 +497,74 @@ async function loadMemberDetails(memberId) {
     if (notesList) notesList.innerHTML = '<span style="color:#f87171;font-size:.7rem">Fehler beim Laden</span>';
     if (casesList) casesList.innerHTML = '<span style="color:#f87171;font-size:.7rem">Fehler beim Laden</span>';
   }
+}
+
+
+// ─── Badge Management ──────────────────────────────────────────────────────────
+let MEMBER_BADGES = [];
+let ALL_BADGES = [];
+
+async function loadBadges() {
+  if (!currentMember) return;
+  try {
+    const r = await fetch(`/api/guild/${GUILD_ID}/member/${currentMember.id}/badges`);
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.error);
+    MEMBER_BADGES = d.badges || [];
+    ALL_BADGES = d.all_badges || [];
+
+    // Render current badges
+    const listEl = document.getElementById('pBadgeList');
+    if (listEl) {
+      if (MEMBER_BADGES.length === 0) {
+        listEl.innerHTML = '<span style="color:var(--muted);font-size:.7rem">Keine Badges</span>';
+      } else {
+        listEl.innerHTML = MEMBER_BADGES.map(b =>
+          `<span title="${b.desc || ''}" style="display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border-radius:10px;background:${b.color}20;border:1px solid ${b.color}50;cursor:pointer;font-size:.72rem" onclick="removeBadge('${b.id}')">
+            ${b.emoji} ${b.name} <span style="font-size:.55rem;opacity:.5">×</span>
+          </span>`
+        ).join('');
+      }
+    }
+
+    // Render available badges dropdown
+    const sel = document.getElementById('newBadgeSelect');
+    if (sel) {
+      const existingIds = new Set(MEMBER_BADGES.map(b => b.id));
+      sel.innerHTML = '<option value="">-- Badge wählen --</option>' +
+        ALL_BADGES.filter(b => !existingIds.has(b.id))
+          .map(b => `<option value="${b.id}">${b.emoji} ${b.name}</option>`).join('');
+    }
+  } catch (e) {
+    console.warn('loadBadges:', e);
+  }
+}
+
+async function addBadge() {
+  if (!currentMember) return;
+  const sel = document.getElementById('newBadgeSelect');
+  const badgeId = sel?.value;
+  if (!badgeId) return showToast('Bitte ein Badge wählen', 'err');
+  try {
+    const r = await fetch(`/api/guild/${GUILD_ID}/member/${currentMember.id}/badges`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({badge_id: badgeId})
+    });
+    const d = await r.json();
+    if (d.ok) { showToast('Badge hinzugefügt', 'ok'); await loadBadges(); }
+    else if (d.duplicate) showToast('Badge bereits vorhanden', 'err');
+    else showToast(d.error || 'Fehler', 'err');
+  } catch (e) { showToast('Netzwerkfehler', 'err'); }
+}
+
+async function removeBadge(badgeId) {
+  if (!currentMember || !confirm('Badge wirklich entfernen?')) return;
+  try {
+    const r = await fetch(`/api/guild/${GUILD_ID}/member/${currentMember.id}/badges/${badgeId}`, {method:'DELETE'});
+    const d = await r.json();
+    if (d.ok) { showToast('Badge entfernt', 'ok'); await loadBadges(); }
+    else showToast(d.error || 'Fehler', 'err');
+  } catch (e) { showToast('Netzwerkfehler', 'err'); }
 }
 
 // ─── Copy ID ──────────────────────────────────────────────────────────────────

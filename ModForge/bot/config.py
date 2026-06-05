@@ -52,6 +52,36 @@ COLOR_WARNING = 0xFEE75C
 COLOR_DANGER = 0xED4245
 COLOR_INFO = 0x00B0F4
 COLOR_PURPLE = 0x9B59B6
+# ═══════════════════════════════════════════════════════════════
+# BADGE SYSTEM – 25 Badges für User-Tags
+# ═══════════════════════════════════════════════════════════════
+BADGES = {
+    "bug_hunter":       {"name": "Bug Hunter",       "emoji": "🐛", "color": "#22d3ee", "desc": "Hat einen kritischen Bug gemeldet"},
+    "premium":          {"name": "Premium",           "emoji": "💎", "color": "#c084fc", "desc": "Premium-Mitglied"},
+    "early_supporter":  {"name": "Early Supporter",   "emoji": "🌟", "color": "#fbbf24", "desc": "ModForge seit Tag 1"},
+    "contributor":      {"name": "Contributor",       "emoji": "🔧", "color": "#34d399", "desc": "Hat zum Code beigetragen"},
+    "translator":       {"name": "Translator",        "emoji": "🌍", "color": "#60a5fa", "desc": "Hat Übersetzungen erstellt"},
+    "designer":         {"name": "Designer",          "emoji": "🎨", "color": "#f472b6", "desc": "Hat UI/UX beigesteuert"},
+    "moderator":        {"name": "Moderator",         "emoji": "🛡️", "color": "#818cf8", "desc": "Community-Moderator"},
+    "veteran":          {"name": "Veteran",           "emoji": "🏆", "color": "#f59e0b", "desc": "1+ Jahr aktives Mitglied"},
+    "challenger":       {"name": "Challenger",        "emoji": "⚔️", "color": "#ef4444", "desc": "Hat alle Challenges gemeistert"},
+    "event_winner":     {"name": "Event Winner",      "emoji": "🥇", "color": "#facc15", "desc": "Hat ein Event gewonnen"},
+    "nitro_booster":    {"name": "Nitro Booster",     "emoji": "💜", "color": "#d946ef", "desc": "Boostet ModForge mit Nitro"},
+    "verified":         {"name": "Verified",          "emoji": "✅", "color": "#22c55e", "desc": "Verifiziertes Mitglied"},
+    "partner":          {"name": "Partner",           "emoji": "🤝", "color": "#fb923c", "desc": "Offizieller Partner"},
+    "staff":            {"name": "Staff",             "emoji": "👔", "color": "#a78bfa", "desc": "ModForge-Team-Mitglied"},
+    "developer":        {"name": "Developer",         "emoji": "💻", "color": "#38bdf8", "desc": "Entwickelt Bots/Plugins"},
+    "streamer":         {"name": "Streamer",          "emoji": "🎥", "color": "#e879f9", "desc": "Aktiver Streamer"},
+    "artist":           {"name": "Artist",            "emoji": "🖌️", "color": "#fb7185", "desc": "Kreativer Künstler"},
+    "musician":         {"name": "Musician",          "emoji": "🎵", "color": "#2dd4bf", "desc": "Musik-Talent"},
+    "gamer":            {"name": "Gamer",             "emoji": "🎮", "color": "#4ade80", "desc": "Aktiver Gamer"},
+    "collector":        {"name": "Collector",         "emoji": "🏅", "color": "#fbbf24", "desc": "Sammelt alle Badges"},
+    "helper":           {"name": "Helper",            "emoji": "🙋", "color": "#38bdf8", "desc": "Hilft anderen Mitgliedern"},
+    "innovator":        {"name": "Innovator",         "emoji": "💡", "color": "#a3e635", "desc": "Hat innovative Ideen eingebracht"},
+    "beta_tester":      {"name": "Beta Tester",       "emoji": "🧪", "color": "#94a3b8", "desc": "Testet neue Features vor Release"},
+    "donator":          {"name": "Donator",           "emoji": "❤️", "color": "#f43f5e", "desc": "Hat ModForge gespendet"},
+    "og_member":        {"name": "OG Member",          "emoji": "👑", "color": "#eab308", "desc": "Eines der ersten 100 Mitglieder"},
+}
 
 FOOTER_TEXT = "Powered by BotForge 🔒"
 FOOTER_ICON = "https://cdn.discordapp.com/attachments/1509625552120840315/1511461866512056460/178042110349811.png?ex=6a208a0e&is=6a1f388e&hm=2e4a3f12ba9013ea8991f5835c39a5542b8e1c3385521d9a6ac88f0361a8a5eb"

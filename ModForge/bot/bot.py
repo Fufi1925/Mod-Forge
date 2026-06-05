@@ -7418,6 +7418,53 @@ async def ar_handler(msg):
             break
 
 
+
+# ═══════════════════════════════════════════════════════════════════
+# BADGE SYSTEM – Nur Bot-Developer
+# ═══════════════════════════════════════════════════════════════════
+@bot.tree.command(name="badge_add", description="[DEV] Badge zu einem User hinzufügen")
+@app_commands.describe(user="Ziel-User", badge="Badge-ID (z.B. bug_hunter)")
+@app_commands.choices(badge=[app_commands.Choice(name=f"{v['emoji']} {v['name']}", value=k) for k, v in BADGES.items()])
+async def slash_badge_add(interaction: discord.Interaction, user: discord.Member, badge: str):
+    if interaction.user.id != _BOT_DEV_ID:
+        return await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", "Nur der Bot-Developer kann Badges verwalten.", COLOR_DANGER), ephemeral=True)
+    if badge not in BADGES:
+        return await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", f"Ungültiges Badge: `{badge}`", COLOR_DANGER), ephemeral=True)
+    ok = await bot.db.badge_add(interaction.guild.id, user.id, badge, interaction.user.id)
+    if ok:
+        bd = BADGES[badge]
+        await interaction.response.send_message(embed=create_embed(f"{E.OK} Badge vergeben", f"{bd['emoji']} **{bd['name']}** → {user.mention}", COLOR_SUCCESS), ephemeral=True)
+        await bot.log_action(interaction.guild, f"{bd['emoji']} Badge vergeben", f"{interaction.user.mention} → {user.mention}: {bd['name']}", COLOR_INFO, user=user, module="moderation")
+    else:
+        await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", f"{user.mention} hat dieses Badge bereits.", COLOR_DANGER), ephemeral=True)
+
+@bot.tree.command(name="badge_remove", description="[DEV] Badge von einem User entfernen")
+@app_commands.describe(user="Ziel-User", badge="Badge-ID")
+@app_commands.choices(badge=[app_commands.Choice(name=f"{v['emoji']} {v['name']}", value=k) for k, v in BADGES.items()])
+async def slash_badge_remove(interaction: discord.Interaction, user: discord.Member, badge: str):
+    if interaction.user.id != _BOT_DEV_ID:
+        return await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", "Nur der Bot-Developer kann Badges verwalten.", COLOR_DANGER), ephemeral=True)
+    ok = await bot.db.badge_remove(interaction.guild.id, user.id, badge)
+    bd = BADGES.get(badge, {"name": badge, "emoji": "🏷️"})
+    if ok:
+        await interaction.response.send_message(embed=create_embed(f"{E.OK} Badge entfernt", f"{bd['emoji']} **{bd['name']}** von {user.mention} entfernt.", COLOR_SUCCESS), ephemeral=True)
+    else:
+        await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", f"{user.mention} hat dieses Badge nicht.", COLOR_DANGER), ephemeral=True)
+
+@bot.tree.command(name="badge_list", description="Badges eines Users anzeigen")
+@app_commands.describe(user="Ziel-User")
+async def slash_badge_list(interaction: discord.Interaction, user: discord.Member):
+    badges = await bot.db.badge_get_all(interaction.guild.id, user.id)
+    if not badges:
+        return await interaction.response.send_message(embed=create_embed(f"🏷️ Badges", f"{user.mention} hat keine Badges.", COLOR_INFO), ephemeral=True)
+    lines = []
+    for b_id in badges:
+        bd = BADGES.get(b_id, {"name": b_id, "emoji": "🏷️"})
+        lines.append(f"{bd['emoji']} **{bd['name']}**")
+    embed = discord.Embed(title=f"🏷️ Badges von {user.display_name}", description="\n".join(lines), color=COLOR_PRIMARY)
+    embed.set_footer(text=f"{len(badges)} Badges")
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
 # ═══════════════════════════════════════════════════════════════════
 # NOTE SYSTEM
 # ═══════════════════════════════════════════════════════════════════

@@ -2429,6 +2429,19 @@ def guild_members(guild_id):
             except Exception as ex:
                 log.debug(f"Member parse error: {ex}")
 
+                # ── Badges laden ──
+        guild_badges = {}
+        try:
+            db = get_db()
+            if db:
+                guild_badges = safe_async(db.badge_get_all_guild(int(guild_id)), {}) or {}
+        except Exception:
+            pass
+        for m in members:
+            m["badges"] = guild_badges.get(m["id"], [])
+            # Badge-Träger sortieren: hinter Owner (sp=0,1,2), vor Bots (sp=5)
+            if m["badges"] and m["sort_priority"] >= 5:
+                m["sort_priority"] = 4
         members.sort(key=lambda x: (x["sort_priority"], -x["risk"], x["name"].lower()))
     return render_template("dashboard/members.html", guild=g, cfg=cfg, user=us["user"], members=members, guild_owner_id=guild_owner_id, active="members")
 
@@ -3639,6 +3652,70 @@ def api_template_import(guild_id, backup_id):
     except Exception as e:
         log.error(f"[TEMPLATE IMPORT] {e}")
         return jsonify({"error": str(e)}), 500
+
+# =========================================================
+# BADGE API (nur Bot-Developer)
+# =========================================================
+
+@flask_app.route("/api/guild/<guild_id>/member/<member_id>/badges", methods=["GET"])
+@require_auth
+def api_member_badges_get(guild_id, member_id):
+    """Alle Badges eines Users abrufen."""
+    user_session = get_session()
+    if not user_session or not _user_can_manage_guild_in_session(user_session, guild_id):
+        return jsonify({"error": "forbidden"}), 403
+    db = get_db()
+    if not db:
+        return jsonify({"error": "database offline"}), 503
+    try:
+        badges = safe_async(db.badge_get_all(int(guild_id), int(member_id)), []) or []
+        result = []
+        for b_id in badges:
+            bd = BADGES.get(b_id, {"name": b_id, "emoji": "🏷️", "color": "#94a3b8", "desc": ""})
+            result.append({"id": b_id, "name": bd["name"], "emoji": bd["emoji"], "color": bd["color"], "desc": bd["desc"]})
+        return jsonify({"ok": True, "badges": result, "all_badges": [
+            {"id": k, "name": v["name"], "emoji": v["emoji"], "color": v["color"], "desc": v["desc"]}
+            for k, v in sorted(BADGES.items(), key=lambda x: x[1]["name"])
+        ]})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@flask_app.route("/api/guild/<guild_id>/member/<member_id>/badges", methods=["POST"])
+@require_auth
+def api_member_badge_add(guild_id, member_id):
+    """Badge zu einem User hinzufügen (nur Bot-Developer)."""
+    user_session = get_session()
+    if not user_session or str(user_session["user"]["id"]) != "1303627964734246944":
+        return jsonify({"error": "Nur der Bot-Developer kann Badges verwalten."}), 403
+    data = request.json or {}
+    badge_id = (data.get("badge_id") or "").strip()
+    if not badge_id or badge_id not in BADGES:
+        return jsonify({"error": f"Ungültiges Badge: {badge_id}"}), 400
+    db = get_db()
+    if not db:
+        return jsonify({"error": "database offline"}), 503
+    try:
+        ok = safe_async(db.badge_add(int(guild_id), int(member_id), badge_id, int(user_session["user"]["id"])), False)
+        return jsonify({"ok": ok, "duplicate": not ok})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@flask_app.route("/api/guild/<guild_id>/member/<member_id>/badges/<badge_id>", methods=["DELETE"])
+@require_auth
+def api_member_badge_remove(guild_id, member_id, badge_id):
+    """Badge von einem User entfernen (nur Bot-Developer)."""
+    user_session = get_session()
+    if not user_session or str(user_session["user"]["id"]) != "1303627964734246944":
+        return jsonify({"error": "Nur der Bot-Developer kann Badges verwalten."}), 403
+    db = get_db()
+    if not db:
+        return jsonify({"error": "database offline"}), 503
+    try:
+        ok = safe_async(db.badge_remove(int(guild_id), int(member_id), badge_id), False)
+        return jsonify({"ok": ok})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @flask_app.route("/api/guild/<guild_id>/member/<member_id>/details")
 @require_auth
 def api_member_details(guild_id, member_id):

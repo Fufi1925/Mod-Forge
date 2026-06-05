@@ -449,6 +449,50 @@ class Database:
             log.error(f"DB adeactivate_tempaction Fehler: {e}")
 
 
+
+    # ── Badges ──────────────────────────────────────────────
+    async def badge_add(self, guild_id: int, user_id: int, badge_id: str, added_by: int) -> bool:
+        """Fügt ein Badge hinzu. Gibt False zurück wenn bereits vorhanden."""
+        try:
+            existing = await self.db["badges"].find_one({"guild_id": guild_id, "user_id": user_id, "badge_id": badge_id})
+            if existing:
+                return False
+            await self.db["badges"].insert_one({
+                "guild_id": guild_id, "user_id": user_id, "badge_id": badge_id,
+                "added_by": added_by, "added_at": datetime.datetime.utcnow(),
+            })
+            return True
+        except PyMongoError as e:
+            log.error(f"badge_add: {e}"); return False
+
+    async def badge_remove(self, guild_id: int, user_id: int, badge_id: str) -> bool:
+        """Entfernt ein Badge. Gibt True zurück wenn gelöscht."""
+        try:
+            r = await self.db["badges"].delete_one({"guild_id": guild_id, "user_id": user_id, "badge_id": badge_id})
+            return r.deleted_count > 0
+        except PyMongoError as e:
+            log.error(f"badge_remove: {e}"); return False
+
+    async def badge_get_all(self, guild_id: int, user_id: int) -> list:
+        """Alle Badges eines Users in einer Guild."""
+        try:
+            docs = await self.db["badges"].find({"guild_id": guild_id, "user_id": user_id}).to_list(length=50)
+            return [d["badge_id"] for d in docs]
+        except PyMongoError as e:
+            log.error(f"badge_get_all: {e}"); return []
+
+    async def badge_get_all_guild(self, guild_id: int) -> dict:
+        """Alle Badges in einer Guild: {user_id: [badge_ids]}."""
+        try:
+            docs = await self.db["badges"].find({"guild_id": guild_id}).to_list(length=5000)
+            result = {}
+            for d in docs:
+                uid = str(d["user_id"])
+                result.setdefault(uid, []).append(d["badge_id"])
+            return result
+        except PyMongoError as e:
+            log.error(f"badge_get_all_guild: {e}"); return {}
+
     # ── Notes ──────────────────────────────────────────────
     async def add_note(self, guild_id: int, user_id: int, mod_id: int, text: str) -> str:
         try:
@@ -615,6 +659,10 @@ class Database:
                 )
             except Exception as e:
                 log.warning(f"Backup-Index Fehler (nicht kritisch): {e}")
+            await self.db["badges"].create_index(
+                [("guild_id", ASCENDING), ("user_id", ASCENDING), ("badge_id", ASCENDING)], unique=True, name="badges_unique")
+            await self.db["badges"].create_index(
+                [("guild_id", ASCENDING), ("badge_id", ASCENDING)], name="badges_guild_lookup")
             await self.db["notes"].create_index(
                 [("guild_id", ASCENDING), ("user_id", ASCENDING), ("created_at", DESCENDING)], name="notes_user_lookup")
             await self.tempvoice_channels.create_index(
