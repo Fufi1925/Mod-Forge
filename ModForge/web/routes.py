@@ -47,6 +47,7 @@ from bot.config import (
     CMDS_PREVIEW,
     LOG_MODS,
     ACTIVITY,
+    BADGES,
 )
 
 from bot.utils import _run_async

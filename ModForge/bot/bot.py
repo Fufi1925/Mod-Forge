@@ -21,7 +21,8 @@ from bot.config import (
     E, URL_REGEX, INVITE_REGEX, ZALGO_REGEX, SUSPICIOUS_NAME_REGEX,
     SCAM_DOMAINS, URL_SHORTENERS, VALID_PUNISHMENTS, LOG_MODULES,
     LOG_MODULES_EXTRA,
-    DEFAULT_CONFIG, HELP_DATA, get_uptime, log
+    DEFAULT_CONFIG, HELP_DATA, get_uptime, log,
+    BADGES,
 )
 from bot.utils import (
     rate_limited, create_embed,
