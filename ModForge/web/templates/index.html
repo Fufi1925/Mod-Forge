@@ -350,9 +350,9 @@
         <a href="/login" class="btn-glass btn-lg magnetic">📊 Dashboard</a>
       </div>
       <div class="stats-strip" style="margin-top:2.5rem;justify-content:flex-start;gap:3rem;padding:0;">
-        <div class="stat-block"><div class="num" data-count="150">0</div><div class="lbl">Server geschützt</div></div>
-        <div class="stat-block"><div class="num">99.9%</div><div class="lbl">Uptime</div></div>
-        <div class="stat-block"><div class="num" data-count="100">0</div><div class="lbl">+ Commands</div></div>
+        <div class="stat-block"><div class="num">{{ gc }}</div><div class="lbl">Server</div></div>
+        <div class="stat-block"><div class="num">{{ mc }}</div><div class="lbl">User</div></div>
+        <div class="stat-block"><div class="num">{{ cases }}</div><div class="lbl">Aktionen geloggt</div></div>
       </div>
     </div>
     <div class="hero-terminal-wrap">
@@ -697,7 +697,7 @@
 <section class="cta-v2">
   <div class="container">
     <h2>Bereit für Next‑Level Security?</h2>
-    <p>Join über 150+ Servern, die ModForge bereits vertrauen. Setup dauert unter 2 Minuten.</p>
+    <p>Join über {{ gc }} Servern, die ModForge bereits vertrauen. Setup dauert unter 2 Minuten.</p>
     <div class="btn-row" style="justify-content:center;">
       <a href="https://discord.com/oauth2/authorize?client_id=1491447622442160248&scope=bot+applications.commands&permissions=8" target="_blank" class="btn-glass btn-glass-primary btn-xl magnetic">🛡️ Kostenlos einladen</a>
       <a href="/login" class="btn-glass btn-xl magnetic">⭐ Dashboard Login</a>
@@ -743,7 +743,7 @@ const gt=document.querySelector('.glitch-target');if(gt){setInterval(()=>{gt.sty
 const counterObs=new IntersectionObserver(entries=>{entries.forEach(en=>{if(!en.isIntersecting)return;counterObs.unobserve(en.target);const el=en.target,target=+(el.dataset.target||el.dataset.count),dur=1800,start=performance.now();(function tick(now){const p=Math.min((now-start)/dur,1),ease=1-Math.pow(1-p,4);el.textContent=Math.round(ease*target);if(p<1)requestAnimationFrame(tick)})(start)})},{threshold:.5});document.querySelectorAll('[data-target],[data-count]').forEach(el=>counterObs.observe(el));
 
 /* ── 9. MARQUEE ── */
-(function(){const track=document.getElementById('marqueeTrack');if(!track)return;const items=[{t:'Anti‑Nuke aktiv',i:'🛡️'},{t:'99.9% Uptime',i:'📈'},{t:'150+ Server',i:'🌐'},{t:'AI AutoMod',i:'🤖'},{t:'24/7 Support',i:'💬'},{t:'Slash Commands',i:'⚡'},{t:'DSGVO konform',i:'🔒'},{t:'Open API',i:'🔌'}];let html='';[...items,...items,...items,...items].forEach(it=>{html+=`<div class="marquee-item"><span style="font-size:1.1rem">${it.i}</span><span>${it.t}</span></div>`});track.innerHTML=html})();
+(function(){const track=document.getElementById('marqueeTrack');if(!track)return;const items=[{t:'Anti‑Nuke aktiv',i:'🛡️'},{t:'99.9% Uptime',i:'📈'},{t:'{{ gc }} Server',i:'🌐'},{t:'AI AutoMod',i:'🤖'},{t:'24/7 Support',i:'💬'},{t:'Slash Commands',i:'⚡'},{t:'DSGVO konform',i:'🔒'},{t:'Open API',i:'🔌'}];let html='';[...items,...items,...items,...items].forEach(it=>{html+=`<div class="marquee-item"><span style="font-size:1.1rem">${it.i}</span><span>${it.t}</span></div>`});track.innerHTML=html})();
 
 /* ── 10. HERO TERMINAL TYPING ── */
 const termOut=document.getElementById('termTyped');if(termOut){const lines=['scanning guilds...','modules loaded.','AI model v2.1 ready.','connecting to Lavalink...','dashboard online.'];let li=0,ci=0,del=false;(function typeTerm(){const cur=lines[li];termOut.textContent=cur.substring(0,ci);if(!del&&ci<cur.length){ci++;setTimeout(typeTerm,60+Math.random()*40)}else if(del&&ci>0){ci--;setTimeout(typeTerm,30)}else{del=!del;if(!del)li=(li+1)%lines.length;setTimeout(typeTerm,del?2000:400)}})()}
@@ -784,13 +784,7 @@ document.querySelectorAll('a[href^="#"]').forEach(a=>{a.addEventListener('click'
 /* ════════════════════════════════════════════
    18. SERVER TICKER
 ═══════════════════════════════════════════════ */
-const TRUSTED_SERVERS = [
-  {name:'Elite Gaming Hub',members:12000,online:8500,security:'99%',avatar_url:'https://cdn.discordapp.com/icons/123/abc.png'},
-  {name:'Dev Community',members:8500,online:6200,security:'98%',avatar_url:'https://cdn.discordapp.com/icons/456/def.png'},
-  {name:'Global Lounge',members:15000,online:11000,security:'99.5%',avatar_url:'https://cdn.discordapp.com/icons/789/ghi.png'},
-  {name:'Gaming DE',members:9500,online:7000,security:'97%',avatar_url:'https://cdn.discordapp.com/icons/101/jkl.png'},
-  {name:'Anime World',members:20000,online:15000,security:'99.8%',avatar_url:'https://cdn.discordapp.com/icons/202/mno.png'}
-];
+const TRUSTED_SERVERS = {{ guilds | tojson | safe }};
 (function buildServerTicker(){
   const ticker=document.getElementById('server-ticker');if(!ticker)return;
   let html='';
@@ -873,7 +867,7 @@ buildDnD();
 /* ════════════════════════════════════════════
    21. CASE EXPLORER
 ═══════════════════════════════════════════════ */
-const CASES=[{id:'#001',type:'ban',user:'dark_spam#0666',mod:'Admin_Lukas',reason:'Phishing-Link verbreitet',date:'08.05.2025 14:32',color:'#ef4444',badge:'badge-ban',log:['Link erkannt','Nachricht gelöscht','Nutzer gebannt','Case erstellt']},{id:'#002',type:'warn',user:'rage_kid#1337',mod:'Mod_Sara',reason:'Massen-Erwähnungen',date:'07.05.2025 09:15',color:'#fbbf24',badge:'badge-warn',log:['Spam erkannt','Nachrichten entfernt','1. Verwarnung']},{id:'#003',type:'mute',user:'troll99#4200',mod:'AutoMod',reason:'Wiederholte Beleidigungen',date:'06.05.2025 22:58',color:'#818cf8',badge:'badge-mute',log:['Beleidigung erkannt','60 Min. stummgeschaltet','DM gesendet']},{id:'#004',type:'kick',user:'new_raider#0000',mod:'ModForge',reason:'Raid-Beteiligung',date:'05.05.2025 03:12',color:'#f59e0b',badge:'badge-warn',log:['Raid erkannt','Auto-Kick ausgeführt']}];
+const CASES={{ recent_cases | tojson | safe }};
 function buildCases(){
   const list=document.getElementById('case-list');
   CASES.forEach((c,i)=>{const div=document.createElement('div');div.className='case-item'+(i===0?' active':'');div.innerHTML=`<div style="font-weight:700;color:var(--p);">${c.id}</div><div style="font-size:.8rem;">${c.user}</div>`;div.onclick=()=>{document.querySelectorAll('.case-item').forEach(x=>x.classList.remove('active'));div.classList.add('active');showCase(c)};list.appendChild(div)});
