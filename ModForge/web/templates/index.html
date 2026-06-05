@@ -351,7 +351,10 @@
       </div>
       <div class="stats-strip" style="margin-top:2.5rem;justify-content:flex-start;gap:3rem;padding:0;">
         <div class="stat-block"><div class="num">{{ gc }}</div><div class="lbl">Server</div></div>
-        <div class="stat-block"><div class="num">{{ mc }}</div><div class="lbl">User</div></div>
+        <div class="stat-block" style="transform: scale(1.15); margin: 0 10px; position: relative;">
+          <div style="position:absolute; inset:-10px; background:radial-gradient(circle, rgba(59,130,246,0.3), transparent 70%); z-index:-1; filter:blur(10px);"></div>
+          <div class="num glow-text">{{ mc }}</div><div class="lbl" style="color:#fff; font-weight:700;">Beschützte User</div>
+        </div>
         <div class="stat-block"><div class="num">{{ cases }}</div><div class="lbl">Aktionen geloggt</div></div>
       </div>
     </div>
@@ -495,18 +498,6 @@
 
 <div class="divider"></div>
 
-<!-- ══════ DRAG & DROP MODULES (NEU) ══════ -->
-<section class="section section-alt">
-  <div class="container">
-    <div class="section-head"><div class="section-label">🧩 Modulares System</div><h2>Drag & Drop – Baue deinen Bot</h2><p>Ziehe Module in deinen Server und aktiviere nur was du brauchst.</p></div>
-    <div class="dnd-area" data-aos="fade-up">
-      <div class="dnd-modules"><div style="font-size:.8rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;">Verfügbare Module</div><div class="dnd-module-list" id="dnd-modules"></div></div>
-      <div class="dnd-server" id="dnd-server"><div class="dnd-server-title">⬅ Module hierher ziehen</div><div id="dnd-dropzone" style="min-height:150px;"></div><button class="btn-glass" style="margin-top:12px;width:100%;font-size:.8rem;" onclick="dndReset()">Reset</button></div>
-    </div>
-  </div>
-</section>
-
-<div class="divider"></div>
 
 <!-- ══════ FLOW DIAGRAM (NEU) ══════ -->
 <section class="section">
@@ -582,33 +573,7 @@
 
 <div class="divider"></div>
 
-<!-- ══════ REPLAY (NEU) ══════ -->
-<section class="section">
-  <div class="container">
-    <div class="section-head"><div class="section-label">▶ Replay</div><h2>Mod-Log Replay</h2><p>Sieh, wie ModForge einen Raid in Echtzeit stoppt.</p></div>
-    <div class="replay-wrapper" data-aos="zoom-in">
-      <div class="replay-header"><div class="replay-title"><span class="live-dot" style="width:8px;height:8px;background:var(--green);border-radius:50%;display:inline-block;"></span> Raid erkannt – Server: Elite Gaming Hub</div><span style="font-size:.78rem;color:var(--muted);" id="replay-timer">00:00</span></div>
-      <div class="replay-body"><div class="replay-timeline" id="replay-events"></div></div>
-      <div class="replay-controls"><button class="btn-glass btn-glass-primary" onclick="startReplay()">▶ Replay starten</button><button class="btn-glass" onclick="resetReplay()">↺ Reset</button></div>
-    </div>
-  </div>
-</section>
 
-<div class="divider"></div>
-
-<!-- ══════ NEUES EIGENES FEATURE: LIVE THREAT MAP ══════ -->
-<section class="section section-alt">
-  <div class="container">
-    <div class="section-head"><div class="section-label">🌐 Live Threat Map</div><h2>Angriffe weltweit in Echtzeit</h2><p>Simulierte Darstellung der globalen Bedrohungen, die ModForge abwehrt.</p></div>
-    <div class="threat-map" id="threat-map" data-aos="zoom-in">
-      <div class="threat-line" style="top:20%;left:0;"></div>
-      <div class="threat-line" style="top:50%;left:0;animation-delay:2s;"></div>
-      <div class="threat-line" style="top:70%;left:0;animation-delay:1s;"></div>
-    </div>
-  </div>
-</section>
-
-<div class="divider"></div>
 
 <!-- ══════ NEUES EIGENES FEATURE: SECURITY CALCULATOR ══════ -->
 <section class="section">
@@ -659,15 +624,6 @@
 
 <div class="divider"></div>
 
-<!-- ══════ ROADMAP (NEU) ══════ -->
-<section class="section section-alt">
-  <div class="container">
-    <div class="section-head"><div class="section-label">🗺 Roadmap</div><h2>Was kommt als Nächstes?</h2><p>Bleib auf dem Laufenden über neue Features.</p></div>
-    <div class="roadmap" data-aos="fade-up" id="roadmap-list"></div>
-  </div>
-</section>
-
-<div class="divider"></div>
 
 <!-- ══════ INVITE GENERATOR (NEU) ══════ -->
 <section class="section">
@@ -834,35 +790,6 @@ document.getElementById('quiz-prev').onclick=()=>{if(qStep>0){qStep--;renderQ()}
 document.getElementById('quiz-reset-btn').onclick=()=>{document.getElementById('quiz-result').style.display='none';document.getElementById('quiz-main').style.display='block';qStep=0;qAnswers=[];renderQ()};
 renderQ();
 
-/* ════════════════════════════════════════════
-   20. DRAG & DROP
-═══════════════════════════════════════════════ */
-const DND_MODULES=[{icon:'🛡️',name:'Anti-Nuke'},{icon:'🚫',name:'Anti-Raid'},{icon:'🤖',name:'AutoMod'},{icon:'📝',name:'Logging'},{icon:'📁',name:'Case System'},{icon:'🔒',name:'Channel Lock'},{icon:'📢',name:'Warn System'},{icon:'🎭',name:'Rollen'},{icon:'✅',name:'Verifikation'}];
-let draggedElement=null;
-function buildDnD(){
-  const modsContainer=document.getElementById('dnd-modules');
-  DND_MODULES.forEach(m=>{
-    const div=document.createElement('div');div.className='dnd-mod';div.draggable=true;div.innerHTML=`<span>${m.icon}</span><span>${m.name}</span>`;div.dataset.name=m.name;div.dataset.icon=m.icon;
-    div.addEventListener('dragstart',function(e){e.dataTransfer.setData('text/plain',JSON.stringify({name:this.dataset.name,icon:this.dataset.icon}));this.classList.add('dragging');draggedElement=this});
-    div.addEventListener('dragend',function(){this.classList.remove('dragging');draggedElement=null});
-    div.addEventListener('touchstart',function(e){e.preventDefault();this.classList.add('dragging');draggedElement=this},{passive:false});
-    div.addEventListener('touchmove',function(e){e.preventDefault()},{passive:false});
-    div.addEventListener('touchend',function(e){e.preventDefault();if(!draggedElement)return;const touch=e.changedTouches[0];const dropZone=document.getElementById('dnd-server');const rect=dropZone.getBoundingClientRect();if(touch.clientX>rect.left&&touch.clientX<rect.right&&touch.clientY>rect.top&&touch.clientY<rect.bottom){addModuleToServer(draggedElement.dataset.name,draggedElement.dataset.icon)}draggedElement.classList.remove('dragging');draggedElement=null});
-    modsContainer.appendChild(div);
-  });
-  const dropZone=document.getElementById('dnd-server');
-  dropZone.addEventListener('dragover',e=>e.preventDefault());
-  dropZone.addEventListener('drop',function(e){e.preventDefault();const data=JSON.parse(e.dataTransfer.getData('text/plain'));addModuleToServer(data.name,data.icon);if(draggedElement)draggedElement.classList.remove('dragging')});
-  dropZone.addEventListener('touchmove',e=>e.preventDefault(),{passive:false});
-  dropZone.addEventListener('touchend',function(e){e.preventDefault();if(!draggedElement)return;const touch=e.changedTouches[0];const rect=dropZone.getBoundingClientRect();if(touch.clientX>rect.left&&touch.clientX<rect.right&&touch.clientY>rect.top&&touch.clientY<rect.bottom){addModuleToServer(draggedElement.dataset.name,draggedElement.dataset.icon)}draggedElement.classList.remove('dragging');draggedElement=null});
-}
-function addModuleToServer(name,icon){
-  const container=document.getElementById('dnd-dropzone');
-  if([...container.querySelectorAll('.dnd-placed')].some(el=>el.dataset.name===name))return;
-  const placed=document.createElement('div');placed.className='dnd-placed';placed.dataset.name=name;placed.innerHTML=`<span>${icon} ${name}</span><button class="dnd-remove" onclick="this.parentElement.remove()">✕</button>`;container.appendChild(placed);
-}
-function dndReset(){document.getElementById('dnd-dropzone').innerHTML=''}
-buildDnD();
 
 /* ════════════════════════════════════════════
    21. CASE EXPLORER
@@ -898,15 +825,6 @@ initBaSlider();
 ═══════════════════════════════════════════════ */
 function runBenchmark(){document.getElementById('b1').style.width='0%';document.getElementById('b2').style.width='0%';document.getElementById('b3').style.width='0%';setTimeout(()=>document.getElementById('b1').style.width='4%',100);setTimeout(()=>document.getElementById('b3').style.width='36%',300);setTimeout(()=>document.getElementById('b2').style.width='100%',600)}
 
-/* ════════════════════════════════════════════
-   25. REPLAY
-═══════════════════════════════════════════════ */
-const REPLAY_EVENTS=[{time:'00:00',color:'#ef4444',text:'🚨 Raid erkannt – 25 Accounts in 3s beigetreten'},{time:'00:02',color:'#fbbf24',text:'⚡ Anti‑Raid aktiviert – Join‑Gate eingeschaltet'},{time:'00:03',color:'#ef4444',text:'🔨 23 Raid‑Accounts automatisch gebannt'},{time:'00:04',color:'#818cf8',text:'🔒 Server‑Joins für 5 Minuten gesperrt'},{time:'00:06',color:'#22c55e',text:'📢 Mod‑Team via DM alarmiert – Case #999 angelegt'},{time:'00:08',color:'#4ade80',text:'✅ Alle Bedrohungen neutralisiert – Normalbetrieb'}];
-function buildReplayEvents(){const container=document.getElementById('replay-events');REPLAY_EVENTS.forEach(e=>{container.innerHTML+=`<div class="replay-event"><span class="re-time">${e.time}</span><div class="re-dot" style="background:${e.color};"></div><span>${e.text}</span></div>`})}
-buildReplayEvents();
-let replayRunning=false,replayTimer,replaySec=0;
-function startReplay(){if(replayRunning)return;replayRunning=true;resetReplayVisual();const events=document.querySelectorAll('.replay-event');events.forEach((ev,i)=>setTimeout(()=>ev.classList.add('show'),i*900));replaySec=0;document.getElementById('replay-timer').innerText='00:00';replayTimer=setInterval(()=>{replaySec++;document.getElementById('replay-timer').innerText=`00:${String(replaySec).padStart(2,'0')}`},1000);setTimeout(()=>{clearInterval(replayTimer);replayRunning=false},REPLAY_EVENTS.length*900+500)}
-function resetReplay(){clearInterval(replayTimer);replayRunning=false;replaySec=0;document.getElementById('replay-timer').innerText='00:00';resetReplayVisual()}
 function resetReplayVisual(){document.querySelectorAll('.replay-event').forEach(e=>e.classList.remove('show'))}
 
 /* ════════════════════════════════════════════
@@ -921,46 +839,5 @@ switchApi('get',document.querySelector('.api-tab.active'));
 ═══════════════════════════════════════════════ */
 (function(){const grid=document.getElementById('privacy-grid');const PRIVACY=[{icon:'✅',tag:'tag-yes',title:'Server- & User-IDs',text:'Notwendig für Cases & Konfigurationen.'},{icon:'✅',tag:'tag-yes',title:'Moderationsfälle',text:'Alle Aktionen werden dokumentiert.'},{icon:'❌',tag:'tag-no',title:'Nachrichteninhalte',text:'Wir speichern niemals Chat-Inhalte.'},{icon:'❌',tag:'tag-no',title:'Passwörter',text:'Keine Zugangsdaten werden gespeichert.'}];PRIVACY.forEach(p=>{grid.innerHTML+=`<div class="privacy-card"><h4 style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">${p.icon} ${p.title} <span class="${p.tag}">${p.tag==='tag-yes'?'GESPEICHERT':'NIEMALS'}</span></h4><p style="font-size:.8rem;color:var(--muted);">${p.text}</p></div>`})})();
 
-/* ════════════════════════════════════════════
-   28. ROADMAP
-═══════════════════════════════════════════════ */
-(function(){const container=document.getElementById('roadmap-list');const ROADMAP=[{month:'März 2025',title:'Anti‑Nuke Ultra v2',status:'done',dot:'done'},{month:'Mai 2025',title:'Case System v3',status:'done',dot:'done'},{month:'Juli 2025',title:'Premium Launch',status:'soon',dot:'soon'},{month:'Q4 2025',title:'Mobile Dashboard',status:'future',dot:''}];ROADMAP.forEach(r=>{container.innerHTML+=`<div class="rm-item"><div class="rm-dot ${r.dot}"></div><div class="rm-month">${r.month}</div><div class="rm-title">${r.title} <span class="rm-status rm-${r.status}">${r.status==='done'?'✅ Fertig':r.status==='soon'?'🔄 Bald':'🔮 Geplant'}</span></div></div>`})})();
-
-/* ════════════════════════════════════════════
-   29. INVITE GENERATOR
-═══════════════════════════════════════════════ */
-function generateInvite(){const name=document.getElementById('server-name-input').value.trim();const res=document.getElementById('invite-result');const link=document.getElementById('invite-link');if(name){link.innerText=`https://discord.com/oauth2/authorize?client_id=1491447622442160248&scope=bot+applications.commands&permissions=8&guild_name=${encodeURIComponent(name.toLowerCase().replace(/\s+/g,'-'))}`;res.style.display='block'}else{res.style.display='none'}}
-function copyInvite(){navigator.clipboard.writeText(document.getElementById('invite-link').innerText);const btn=document.querySelector('.invite-result .btn-glass');if(btn){btn.innerText='✅ Kopiert!';setTimeout(()=>btn.innerText='📋 Link kopieren',2000)}}
-
-/* ════════════════════════════════════════════
-   30. THREAT MAP (NEUES EIGENES FEATURE)
-═══════════════════════════════════════════════ */
-(function initThreatMap(){
-  const map=document.getElementById('threat-map');if(!map)return;
-  const cities=[{name:'Frankfurt',x:48,y:25},{name:'New York',x:25,y:30},{name:'Tokyo',x:82,y:35},{name:'Moscow',x:55,y:18},{name:'Sao Paulo',x:32,y:72},{name:'Sydney',x:85,y:78},{name:'Los Angeles',x:12,y:38},{name:'Mumbai',x:68,y:52}];
-  cities.forEach(c=>{
-    const dot=document.createElement('div');dot.className='threat-dot';dot.style.left=c.x+'%';dot.style.top=c.y+'%';dot.style.animationDelay=(Math.random()*3)+'s';dot.title=c.name;map.appendChild(dot);
-    // simulate new attacks
-    setInterval(()=>{
-      dot.style.transform='scale(3)';dot.style.opacity='1';
-      setTimeout(()=>{dot.style.transform='scale(1)';dot.style.opacity='.6'},600);
-    },4000+Math.random()*3000);
-  });
-})();
-
-/* ════════════════════════════════════════════
-   31. SECURITY CALCULATOR (NEUES EIGENES FEATURE)
-═══════════════════════════════════════════════ */
-window.calcSecScore = function(){
-  const checks=document.querySelectorAll('#sec-calc input[type=checkbox]');
-  let total=0;checks.forEach(cb=>{if(cb.checked)total+=parseInt(cb.dataset.points)});
-  document.getElementById('sec-score').innerText=total+'%';
-  const fb=document.getElementById('sec-feedback');
-  if(total>=80)fb.innerText='🛡️ Exzellent! Dein Server ist bestens geschützt.';
-  else if(total>=50)fb.innerText='⚠️ Solide Basis – aber da geht noch mehr!';
-  else fb.innerText='🔴 Kritisch! Dein Server ist verwundbar.';
-};
-
-})();
 </script>
 {% endblock %}
