@@ -5813,50 +5813,6 @@ async def slash_stickyrole_remove(interaction: discord.Interaction, role: discor
 # ═══════════════════════════════════════════════════════════════════
 # 5) TEMPORARY VOICE CHANNELS
 # ═══════════════════════════════════════════════════════════════════
-class TempVoiceDropdown(discord.ui.Select):
-    def __init__(self) -> None:
-        options = [
-            discord.SelectOption(label="🎤 Kanal erstellen", value="create", description="Temp-Voice-Setup starten", emoji="🎤"),
-            discord.SelectOption(label=f"{E.GEAR}️ Einstellungen", value="settings", description="Temp-Voice konfigurieren", emoji="{E.GEAR}️"),
-            discord.SelectOption(label="🗑️ Setup entfernen", value="remove", description="Temp-Voice deaktivieren", emoji="🗑️"),
-        ]
-        super().__init__(placeholder="Temp-Voice Aktion...", options=options, min_values=1, max_values=1)
-    async def callback(self, interaction: discord.Interaction) -> None:
-        val = self.values[0]
-        if val == "create":
-            await interaction.response.send_message(embed=create_embed("🎤 Temp-Voice Setup", "Nutze `/tempvoice_setup <channel>` um einen Join-to-Create Kanal einzurichten.", COLOR_INFO), ephemeral=True)
-        elif val == "settings":
-            cfg = bot.db.get_config(interaction.guild.id)
-            tv = cfg.get("temp_voice", {})
-            fields = [("Aktiviert", f"{'{E.OK}' if tv.get('enabled') else '{E.FAIL}'}", True), ("Join-Kanal", f"<#{tv.get('channel_id')}>" if tv.get('channel_id') else "Nicht gesetzt", True), ("Kategorie", f"<#{tv.get('category_id')}>" if tv.get('category_id') else "Auto", True)]
-            await interaction.response.edit_message(embed=create_embed(f"{E.GEAR}️ Temp-Voice Einstellungen", "", COLOR_INFO, fields), view=None)
-        elif val == "remove":
-            cfg = bot.db.get_config(interaction.guild.id)
-            cfg["temp_voice"] = {"enabled": False}
-            await bot.db.set_config(interaction.guild.id, cfg)
-            await interaction.response.edit_message(embed=create_embed(f"{E.OK} Temp-Voice deaktiviert", "Temporäre Voice-Kanäle sind jetzt deaktiviert.", COLOR_SUCCESS), view=None)
-
-class TempVoiceMenuView(discord.ui.View):
-    def __init__(self, bot=None) -> None:
-        super().__init__(timeout=120 if bot is None else None)
-        self.bot = bot
-        self.add_item(TempVoiceDropdown())
-
-@bot.tree.command(name="tempvoice", description="Interaktives Temp-Voice Menü")
-@app_commands.default_permissions(administrator=True)
-async def slash_tempvoice_menu(interaction: discord.Interaction) -> None:
-    await interaction.response.send_message(embed=create_embed("🎤 Temp-Voice System", "Wähle eine Aktion:", COLOR_PRIMARY), view=TempVoiceMenuView(), ephemeral=True)
-
-@bot.tree.command(name="tempvoice_setup", description="Richtet temporäre Voice-Kanäle ein")
-@app_commands.describe(channel="Der Join-to-Create Kanal", category="Kategorie für temporäre Kanäle")
-@app_commands.default_permissions(administrator=True)
-async def slash_tempvoice_setup(interaction: discord.Interaction, channel: discord.VoiceChannel, category: Optional[discord.CategoryChannel] = None) -> None:
-    cfg = bot.db.get_config(interaction.guild.id)
-    cfg["temp_voice"] = {"enabled": True, "channel_id": channel.id, "category_id": category.id if category else None}
-    await bot.db.set_config(interaction.guild.id, cfg)
-    embed = create_embed(f"{E.OK} Temp-Voice eingerichtet", f"Join-to-Create: {channel.mention}\nKategorie: {category.mention if category else 'Automatisch'}", COLOR_SUCCESS)
-    await interaction.response.send_message(embed=embed)
-    await bot.log_action(interaction.guild, f"{E.OK} Temp-Voice Setup", f"{channel.mention} als Join-to-Create von {interaction.user.mention}.", COLOR_SUCCESS, user=interaction.user, module="moderation")
 
 # ═══════════════════════════════════════════════════════════════════
 # 8) MASS-BAN COMMAND
