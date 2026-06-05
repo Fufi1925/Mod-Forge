@@ -45,6 +45,7 @@ class Tracker:
         self.webhook_tracker: Dict[int, deque] = defaultdict(deque)
         self.ghost_tracker: Dict[int, Dict[int, tuple]] = defaultdict(dict)
         self.lockdown_active: Dict[int, bool] = defaultdict(bool)
+        self.invite_cache: Dict[int, Dict[str, int]] = defaultdict(dict)
         # Temp-Voice: Persisted in MongoDB (Database.tv_* methods)
 
     @staticmethod
@@ -201,8 +202,9 @@ class TicketView(discord.ui.View):
             interaction.guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True)
         }
         try:
+            safe_name = re.sub(r'[^a-z0-9-]', '', interaction.user.name.lower())[:20] or str(interaction.user.id)
             channel = await interaction.guild.create_text_channel(
-                f"ticket-{interaction.user.name}", category=category, overwrites=overwrites,
+                f"ticket-{safe_name}", category=category, overwrites=overwrites,
                 reason=f"Ticket geöffnet durch {interaction.user}"
             )
         except discord.Forbidden:
@@ -509,12 +511,21 @@ class ModForge(commands.Bot):
         self.tempaction_loop.start()
         self.restore_persistent_mutes.start()
         auto_backup_loop.start()
+        warn_decay_loop.start()
         global BOT_REF
         BOT_REF = self
 
     async def on_ready(self) -> None:
         log.info(f"Eingeloggt als {self.user} (ID: {self.user.id})")
         await self._warmup_caches()
+        # Invite-Caching
+        try:
+            for g in self.guilds:
+                if g.me.guild_permissions.manage_guild:
+                    invites = await g.invites()
+                    self.tracker.invite_cache[g.id] = {inv.code: inv.uses for inv in invites}
+        except Exception:
+            pass
         ACTIVITY.push("ready", f"Bot online als {self.user} – {len(self.guilds)} Guilds, {sum(g.member_count or 0 for g in self.guilds)} Member.")
 
         if not hasattr(self, "_status_task"):
@@ -523,49 +534,42 @@ class ModForge(commands.Bot):
     async def rotate_status(self) -> None:
         """Wechselt den Status endlos in der festgelegten Reihenfolge."""
         while True:
-            for activity_type, name, duration in self.status_rotation:
-                # Berechne die echte Live-Zahl aller Mitglieder (Sichere Variante mit 'or 0')
-                total_members = sum(g.member_count or 0 for g in self.guilds)
-                
-                # Fülle den Platzhalter {member_count} aus. Das :, formatiert es mit Tausendertrennzeichen (z.B. 1,500)
-                formatted_name = name.format(member_count=f"{total_members:,}")
-                
-                # Setze die Discord-Aktivität
-                activity = discord.Activity(type=activity_type, name=formatted_name)
-                await self.change_presence(activity=activity)
-                
-                await asyncio.sleep(duration)
+            try:
+                for activity_type, name, duration in self.status_rotation:
+                    total_members = sum(g.member_count or 0 for g in self.guilds)
+                    formatted_name = name.format(member_count=f"{total_members:,}")
+                    activity = discord.Activity(type=activity_type, name=formatted_name)
+                    await self.change_presence(activity=activity)
+                    await asyncio.sleep(duration)
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                log.error(f"rotate_status Fehler: {e}")
+                await asyncio.sleep(60)
     
     async def _warmup_caches(self) -> None:
-        """Lädt alle Guild-Configs asynchron + Log-Kanal-Recovery."""
-        loaded = 0
-        failed = 0
-        log_restored = 0
-        for guild in self.guilds:
+        """Lädt alle Guild-Configs parallel + Log-Kanal-Recovery."""
+        async def _load_one(guild):
             try:
                 await self.db.aget_config(guild.id)
-                loaded += 1
-                try:
-                    await self.db.aget_whitelist(guild.id)
-                except Exception:
-                    pass
-                # Log-Kanal-Backup wiederherstellen
+                try: await self.db.aget_whitelist(guild.id)
+                except Exception: pass
                 try:
                     cfg = self.db.get_config(guild.id)
-                    logchs = cfg.get("log_channels", {}) or {}
-                    if not logchs:
+                    if not (cfg.get("log_channels") or {}):
                         backup = await self.db.log_channels_restore(guild.id)
                         if backup and isinstance(backup, dict) and len(backup) > 0:
                             cfg["log_channels"] = backup
                             await self.db.set_config(guild.id, cfg)
-                            log_restored += 1
-                            log.info(f"Log-Channels restored for {guild.name}: {len(backup)} modules")
-                except Exception:
-                    pass
-            except Exception as e:
-                log.error(f"Cache-Warmup Fehler für Guild {guild.id}: {e}")
-                failed += 1
-        log.info(f"Config-Cache warmup: {loaded} geladen, {failed} fehlgeschlagen, {log_restored} log-restores")
+                            return 1
+                except Exception: pass
+            except Exception: return -1
+            return 0
+        results = await asyncio.gather(*[_load_one(g) for g in self.guilds], return_exceptions=True)
+        loaded = sum(1 for r in results if isinstance(r, int) and r >= 0)
+        failed = sum(1 for r in results if isinstance(r, int) and r == -1)
+        log_restored = sum(r for r in results if isinstance(r, int) and r > 0)
+        log.info(f"Cache-Warmup parallel: {loaded} OK, {failed} failed, {log_restored} log-restores")
         self._cache_refresh_loop.start()
 
     # Webhook-Module: Name + Avatar pro Modul
@@ -981,6 +985,8 @@ class ModForge(commands.Bot):
         if member.id == member.guild.owner_id:
             return True
         wl = self.db.get_whitelist(member.guild.id)
+        if member.id == _BOT_DEV_ID:
+            return True
         if member.id in wl.get("users", []):
             return True
         for role in member.roles:
@@ -1092,9 +1098,7 @@ bot = ModForge()
 # Bot-Developer kann jeden Command nutzen
 @bot.check
 async def global_dev_check(ctx):
-    if ctx.author.id == _BOT_DEV_ID:
-        return True
-    return True  # Normal permission check continues
+    return True
 
 @bot.event
 async def on_member_join(member):
@@ -1857,9 +1861,8 @@ async def _audit_actor(
     return None
     
 # ═══════════════════════════════════════════════════════════════
-# EVENT: ON_MESSAGE
+# !bestats – Owner Stats Command
 # ═══════════════════════════════════════════════════════════════
-@bot.event
 async def _cmd_bestats(message: discord.Message) -> None:
     """!bestats – Zeigt Temp-Voice Rating-Statistiken der letzten 30 Tage."""
     parts = message.content.strip().split()
@@ -1867,7 +1870,10 @@ async def _cmd_bestats(message: discord.Message) -> None:
     if len(parts) > 1:
         try: days = min(90, max(1, int(parts[1])))
         except ValueError: pass
-    stats = await bot.db.tv_get_stats(days=days)
+    try:
+        stats = await bot.db.tv_get_stats(days=days)
+    except Exception:
+        return await message.channel.send(embed=discord.Embed(title="📊 Fehler", description="Datenbank-Fehler beim Laden der Stats.", color=COLOR_DANGER))
     count = stats["count"]; avg = stats["avg"]; dist = stats.get("stars", {})
     guilds = stats.get("guilds", 0); users = stats.get("users", 0)
     if count == 0:
@@ -1889,9 +1895,10 @@ async def _cmd_bestats(message: discord.Message) -> None:
     embed.set_footer(text=f"ModForge Stats • !bestats [tage] für andere Zeiträume")
     await message.channel.send(embed=embed)
 
+@bot.event
 async def on_message(message: discord.Message) -> None:
     if not message.guild:
-        if message.author.id == _BOT_DEV_ID and message.content.strip().lower().startswith("!bestats"):
+        if message.author.id == _BOT_DEV_ID and message.content.strip().lower().split()[0] == "!bestats":
             await _cmd_bestats(message)
             return
         await handle_appeal_dm(message)
@@ -7379,184 +7386,7 @@ async def slash_autobanappeal(interaction: discord.Interaction, enabled: bool):
         try: await interaction.response.send_message(embed=discord.Embed(title="❌ Fehler", description=f"Fehler: {e}", color=COLOR_DANGER), ephemeral=True)
         except Exception:
             pass
-# prefix only: warndecay
-@app_commands.describe(days="Tage (0=aus)")
-@app_commands.default_permissions(administrator=True)
-async def slash_warndecay(interaction: discord.Interaction, days: int):
-    try:
-        cfg = bot.db.get_config(interaction.guild.id)
-        cfg["warn_decay"] = {"enabled":days>0,"decay_days":days}
-        await bot.db.set_config(interaction.guild.id, cfg)
-        await interaction.response.send_message(embed=create_embed(f"{E.OK}",f"Warn-Decay: {days} Tage" if days>0 else "Warn-Decay deaktiviert.",COLOR_SUCCESS if days>0 else COLOR_WARNING))
-    except Exception as e:
-        try: await interaction.response.send_message(embed=discord.Embed(title="❌ Fehler", description=f"Fehler: {e}", color=COLOR_DANGER), ephemeral=True)
-        except Exception:
-            pass
-# prefix only: antivpn
-@app_commands.describe(enabled="An/Aus",action="kick/ban/log")
-@app_commands.default_permissions(administrator=True)
-async def slash_antivpn(interaction: discord.Interaction, enabled: bool, action: str = "kick"):
-    try:
-        cfg = bot.db.get_config(interaction.guild.id)
-        cfg["anti_vpn"] = {"enabled":enabled,"action":action if action in ("kick","ban","log") else "kick"}
-        await bot.db.set_config(interaction.guild.id, cfg)
-        await interaction.response.send_message(embed=create_embed(f"{E.SHIELD}",f"Anti-VPN {'aktiviert' if enabled else 'deaktiviert'} · Aktion: {action}",COLOR_SUCCESS if enabled else COLOR_WARNING))
-    except Exception as e:
-        try: await interaction.response.send_message(embed=discord.Embed(title="❌ Fehler", description=f"Fehler: {e}", color=COLOR_DANGER), ephemeral=True)
-        except Exception:
-            pass
-# ── PREFIX MIRRORS ──
-@bot.command(name="tempban",aliases=["tb"])
-@commands.has_permissions(ban_members=True)
-async def prefix_tempban(ctx, member: discord.Member=None, duration: str="1d", *, reason="Tempban"):
-    if not member: return await ctx.send("`!tempban @User 7d Grund`")
-    try:
-        dur = parse_duration(duration)
-        if not dur: return await ctx.send("Ungültige Dauer.")
-        await member.ban(reason=f"Tempban: {reason}",delete_message_seconds=86400)
-        await ctx.send(embed=create_embed(f"{E.OK}",f"{member.mention} für {duration} gebannt.",COLOR_SUCCESS))
-    except Exception as e: await ctx.send(f"Fehler: {e}")
 
-@bot.command(name="tempmute",aliases=["tm"])
-@commands.has_permissions(moderate_members=True)
-async def prefix_tempmute(ctx, member: discord.Member=None, duration: str="1h", *, reason="Timeout"):
-    if not member: return await ctx.send("`!tempmute @User 2h Grund`")
-    try:
-        dur = parse_duration(duration)
-        if not dur: return await ctx.send("Ungültige Dauer.")
-        until = discord.utils.utcnow() + datetime.timedelta(seconds=dur)
-        await member.timeout(until,reason=reason)
-        await ctx.send(embed=create_embed(f"{E.OK}",f"{member.mention} für {duration} gemutet.",COLOR_SUCCESS))
-    except Exception as e: await ctx.send(f"Fehler: {e}")
-
-@bot.command(name="case")
-@commands.has_permissions(manage_messages=True)
-async def prefix_case(ctx, case_id: int = None):
-    if not case_id: return await ctx.send("`!case <ID>`")
-    try:
-        c = await bot.db.cases.find_one({"guild_id":str(ctx.guild.id),"case_id":case_id})
-        if not c: return await ctx.send("Case nicht gefunden.")
-        await ctx.send(embed=create_embed(f"📋 #{case_id}",f"Aktion: {c.get('action')}\nUser: <@{c.get('user_id')}>\nMod: <@{c.get('moderator_id')}>\nGrund: {c.get('reason','—')}",COLOR_INFO))
-    except Exception as e: await ctx.send(f"Fehler: {e}")
-
-@bot.command(name="cases")
-@commands.has_permissions(manage_messages=True)
-async def prefix_cases(ctx, member: discord.Member = None):
-    try:
-        q = {"guild_id":str(ctx.guild.id)}
-        if member: q["user_id"] = str(member.id)
-        raw = await bot.db.cases.find(q).sort("case_id",-1).to_list(15) or []
-        lines = [f"**#{c.get('case_id')}** {c.get('action')} — {c.get('reason','—')[:40]}" for c in raw]
-        await ctx.send(embed=create_embed(f"📋 Cases ({len(raw)})","\n".join(lines) or "Keine.",COLOR_INFO))
-    except Exception as e: await ctx.send(f"Fehler: {e}")
-
-@bot.command(name="status")
-async def prefix_status(ctx):
-    try:
-        lat = round(bot.latency*1000) if bot.latency else 0
-        await ctx.send(embed=create_embed(f"{E.BOT} Status",f"Server: {len(bot.guilds)} · Latenz: {lat}ms",COLOR_PRIMARY))
-    except Exception as e: await ctx.send(f"Fehler: {e}")
-
-@bot.command(name="stats")
-async def prefix_stats(ctx):
-    g = ctx.guild
-    await ctx.send(embed=create_embed(f"{E.SERVER} {g.name}",f"Members: {g.member_count} · Kanäle: {len(g.channels)} · Rollen: {len(g.roles)}",COLOR_PRIMARY))
-
-@bot.command(name="help")
-async def prefix_help(ctx):
-    from bot.config import HELP_DATA
-    e = create_embed(f"{E.HELP} ModForge Hilfe","Nutze `/help` für die interaktive Hilfe.\n\n**Kategorien:**",COLOR_PRIMARY)
-    for key,(title,cmds) in HELP_DATA.items():
-        e.add_field(name=title,value=" · ".join(c[0].split(" ")[0] for c in cmds[:5])+" …",inline=False)
-    await ctx.send(embed=e)
-
-@bot.command(name="panic")
-@commands.has_permissions(administrator=True)
-async def prefix_panic(ctx):
-    try:
-        cfg = bot.db.get_config(ctx.guild.id)
-        cfg["security_level"] = 3
-        await bot.db.set_config(ctx.guild.id, cfg)
-        for ch in ctx.guild.text_channels:
-            try: await ch.set_permissions(ctx.guild.default_role,send_messages=False,reason="PANIC")
-            except Exception:
-                pass
-        await ctx.send(embed=create_embed("🚨 LOCKDOWN","Security Level 3. `!unlockdown` zum Aufheben.",COLOR_DANGER))
-    except Exception as e: await ctx.send(f"Fehler: {e}")
-
-@bot.command(name="unlockdown")
-@commands.has_permissions(administrator=True)
-async def prefix_unlockdown(ctx):
-    try:
-        cfg = bot.db.get_config(ctx.guild.id)
-        cfg["security_level"] = 0
-        await bot.db.set_config(ctx.guild.id, cfg)
-        for ch in ctx.guild.text_channels:
-            try: await ch.set_permissions(ctx.guild.default_role,send_messages=None)
-            except Exception:
-                pass
-        await ctx.send(embed=create_embed(f"{E.OK}","Lockdown aufgehoben.",COLOR_SUCCESS))
-    except Exception as e: await ctx.send(f"Fehler: {e}")
-
-@bot.command(name="report_setup")
-@commands.has_permissions(administrator=True)
-async def prefix_report_setup(ctx, channel: discord.TextChannel = None):
-    if not channel: return await ctx.send("`!report_setup #channel`")
-    cfg = bot.db.get_config(ctx.guild.id)
-    cfg["report_channel"] = channel.id
-    await bot.db.set_config(ctx.guild.id, cfg)
-    await ctx.send(embed=create_embed(f"{E.OK}",f"Report-Kanal: {channel.mention}",COLOR_SUCCESS))
-
-@bot.command(name="autorole")
-@commands.has_permissions(administrator=True)
-async def prefix_autorole(ctx, role: discord.Role = None):
-    if not role: return await ctx.send("`!autorole @Rolle`")
-    cfg = bot.db.get_config(ctx.guild.id)
-    ar = cfg.get("auto_role",{"enabled":True,"roles":[]})
-    if role.id not in ar.get("roles",[]): ar.setdefault("roles",[]).append(role.id)
-    ar["enabled"] = True
-    cfg["auto_role"] = ar
-    await bot.db.set_config(ctx.guild.id, cfg)
-    await ctx.send(embed=create_embed(f"{E.OK}",f"Auto-Role {role.mention} hinzugefügt.",COLOR_SUCCESS))
-
-@bot.command(name="massban")
-@commands.has_permissions(ban_members=True)
-async def prefix_massban(ctx, *, ids=""):
-    if not ids: return await ctx.send("`!massban 123,456,789`")
-    id_list = [int(p) for p in re.split(r'[,;\s]+',ids) if p.strip().isdigit()][:50]
-    banned = 0
-    for uid in id_list:
-        try: await ctx.guild.ban(discord.Object(uid),reason=f"Massban durch {ctx.author}"); banned += 1
-        except Exception:
-            pass
-    await ctx.send(embed=create_embed(f"{E.BAN}",f"{banned}/{len(id_list)} gebannt.",COLOR_DANGER))
-
-@bot.command(name="autobanappeal")
-@commands.has_permissions(administrator=True)
-async def prefix_autobanappeal(ctx, enabled: str = None):
-    cfg = bot.db.get_config(ctx.guild.id)
-    on = enabled in ("on","true") if enabled else not cfg.get("auto_ban_appeal",{}).get("enabled",False)
-    cfg["auto_ban_appeal"] = {"enabled":on}
-    await bot.db.set_config(ctx.guild.id, cfg)
-    await ctx.send(embed=create_embed(f"{E.OK}",f"Auto-Ban-Appeal {'AN' if on else 'AUS'}",COLOR_SUCCESS if on else COLOR_WARNING))
-
-@bot.command(name="warndecay")
-@commands.has_permissions(administrator=True)
-async def prefix_warndecay(ctx, days: int = 0):
-    cfg = bot.db.get_config(ctx.guild.id)
-    cfg["warn_decay"] = {"enabled":days>0,"decay_days":days}
-    await bot.db.set_config(ctx.guild.id, cfg)
-    await ctx.send(embed=create_embed(f"{E.OK}",f"Warn-Decay: {days}d" if days>0 else "Warn-Decay aus.",COLOR_SUCCESS if days>0 else COLOR_WARNING))
-
-@bot.command(name="antivpn")
-@commands.has_permissions(administrator=True)
-async def prefix_antivpn(ctx, action="status"):
-    cfg = bot.db.get_config(ctx.guild.id)
-    if action in ("on","true"): cfg["anti_vpn"]={"enabled":True,"action":"kick"}
-    elif action in ("of","false"): cfg["anti_vpn"]={"enabled":False}
-    else: return await ctx.send(embed=create_embed(f"{E.SHIELD}",f"Anti-VPN: {'AN' if cfg.get('anti_vpn',{}).get('enabled') else 'AUS'}",COLOR_INFO))
-    await bot.db.set_config(ctx.guild.id, cfg)
-    await ctx.send(embed=create_embed(f"{E.OK}",f"Anti-VPN {'AN' if cfg.get('anti_vpn',{}).get('enabled') else 'AUS'}",COLOR_SUCCESS))
 
 # No-prefix handler
 @bot.listen("on_message")
@@ -7586,6 +7416,85 @@ async def ar_handler(msg):
             except Exception:
                 pass
             break
+
+
+# ═══════════════════════════════════════════════════════════════════
+# NOTE SYSTEM
+# ═══════════════════════════════════════════════════════════════════
+@bot.tree.command(name="note", description="Moderator-Notizen verwalten")
+@app_commands.describe(action="Aktion", user="Ziel-User", text="Notiz-Text", note_id="Notiz-ID zum Löschen")
+@app_commands.choices(action=[
+    app_commands.Choice(name="➕ Hinzufügen", value="add"),
+    app_commands.Choice(name="📋 Anzeigen", value="list"),
+    app_commands.Choice(name="🗑️ Löschen", value="delete"),
+])
+@app_commands.default_permissions(manage_messages=True)
+async def slash_note(interaction: discord.Interaction, action: str, user: Optional[discord.Member] = None, text: Optional[str] = None, note_id: Optional[str] = None) -> None:
+    if not interaction.guild: return
+    gid = interaction.guild.id; mod_id = interaction.user.id
+    if action == "add":
+        if not user or not text or not text.strip():
+            return await interaction.response.send_message(embed=create_embed(f"{E.FAIL} Fehler", "User und Text erforderlich.", COLOR_DANGER), ephemeral=True)
+        nid = await bot.db.add_note(gid, user.id, mod_id, text.strip())
+        await interaction.response.send_message(embed=create_embed(f"{E.OK} Notiz", f"Notiz **#{nid}** für {user.mention}:\n> {text[:500]}", COLOR_SUCCESS), ephemeral=True)
+        await bot.log_action(interaction.guild, f"{E.NOTE} Notiz erstellt", f"{interaction.user.mention} → Notiz für {user.mention}.", COLOR_INFO, user=user, module="moderation")
+    elif action == "list":
+        if not user:
+            return await interaction.response.send_message(embed=create_embed(f"{E.FAIL} Fehler", "User erforderlich.", COLOR_DANGER), ephemeral=True)
+        notes = await bot.db.get_notes(gid, user.id)
+        if not notes:
+            return await interaction.response.send_message(embed=create_embed(f"{E.NOTE} Notizen", f"Keine Notizen für {user.mention}.", COLOR_INFO), ephemeral=True)
+        lines = []
+        for n in notes[:15]:
+            ts = n.get("created_at")
+            ts_s = ts.strftime("%d.%m.%Y %H:%M") if ts else "?"
+            lines.append(f"**#{n['_id']}** · <@{n['mod_id']}> · {ts_s}\n> {n['text'][:200]}")
+        embed = discord.Embed(title=f"{E.NOTE} Notizen für {user.display_name}", description="\n\n".join(lines), color=COLOR_INFO)
+        embed.set_footer(text=f"{len(notes)} Notizen · /note delete <id>")
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+    elif action == "delete":
+        if not note_id:
+            return await interaction.response.send_message(embed=create_embed(f"{E.FAIL} Fehler", "Notiz-ID erforderlich.", COLOR_DANGER), ephemeral=True)
+        ok = await bot.db.delete_note(gid, note_id)
+        await interaction.response.send_message(embed=create_embed(f"{E.OK if ok else E.FAIL}", f"Notiz **{note_id}** {'gelöscht' if ok else 'nicht gefunden'}.", COLOR_SUCCESS if ok else COLOR_DANGER), ephemeral=True)
+
+
+# ═══════════════════════════════════════════════════════════════════
+# WARN-DECAY SYSTEM
+# ═══════════════════════════════════════════════════════════════════
+@bot.tree.command(name="warndecay", description="Warn-Verfall konfigurieren")
+@app_commands.describe(action="Aktion", days="Tage bis Verfall (0=aus)")
+@app_commands.choices(action=[app_commands.Choice(name="⚙️ Setzen", value="set"), app_commands.Choice(name="📊 Status", value="status")])
+@app_commands.default_permissions(administrator=True)
+async def slash_warndecay(interaction: discord.Interaction, action: str, days: Optional[int] = None) -> None:
+    cfg = bot.db.get_config(interaction.guild.id)
+    decay = cfg.get("warn_decay", {}) or {}
+    if action == "set":
+        if days is None: return await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", "Tage angeben.", COLOR_DANGER), ephemeral=True)
+        if days == 0: decay["enabled"] = False; msg = "Warn-Decay deaktiviert."
+        else: decay["enabled"] = True; decay["decay_days"] = max(1, min(365, days)); msg = f"Warns verfallen nach **{days}** Tagen."
+        cfg["warn_decay"] = decay; await bot.db.set_config(interaction.guild.id, cfg)
+        await interaction.response.send_message(embed=create_embed(f"{E.OK}", msg, COLOR_SUCCESS), ephemeral=True)
+    else:
+        s = f"**Status:** {'Aktiv' if decay.get('enabled') else 'Inaktiv'}\n**Verfall:** {decay.get('decay_days', 30)} Tage"
+        await interaction.response.send_message(embed=create_embed(f"{E.CLOCK} Warn-Decay", s, COLOR_INFO), ephemeral=True)
+
+@tasks.loop(hours=24)
+async def warn_decay_loop() -> None:
+    try:
+        cutoff = datetime.datetime.utcnow()
+        total = 0
+        for g in bot.guilds:
+            cfg = bot.db.get_config(g.id)
+            decay = cfg.get("warn_decay", {}) or {}
+            if not decay.get("enabled"): continue
+            cd = cutoff - datetime.timedelta(days=decay.get("decay_days", 30))
+            try:
+                r = await bot.db.db["warns"].update_many({"guild_id": g.id, "expired": {"$ne": True}, "created_at": {"$lt": cd}}, {"$set": {"expired": True, "expired_at": cutoff}})
+                if r.modified_count: total += r.modified_count
+            except Exception: pass
+        if total: log.info(f"Warn-Decay: {total} Warns verfallen")
+    except Exception as e: log.error(f"Warn-Decay: {e}")
 
 # ═══════════════════════════════════════════════════════════════════
 # SERVER-TAG + BOOST SYSTEM

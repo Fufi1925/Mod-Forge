@@ -307,6 +307,10 @@ DEFAULT_CONFIG = {
         "phishing_check": True,
         "punishment": "warn",
     },
+    "warn_decay": {
+        "enabled": False,
+        "decay_days": 30,
+    },
     "warn_system": {
         "enabled": True,
         "thresholds": {"3": "timeout", "5": "kick", "7": "ban"},
@@ -369,6 +373,11 @@ DEFAULT_CONFIG = {
     "no_prefix": False,
     "no_prefix_users": [],
     "report_channel": None,
+    "auto_slowmode": {
+        "enabled": False,
+        "channels": [],
+        "thresholds": {"30": 5, "60": 15, "100": 30},
+    },
     "auto_responses": [],
     "invite_tracking": {"enabled": False, "channel_id": None},
     "warn_decay": {"enabled": False, "decay_days": 30},

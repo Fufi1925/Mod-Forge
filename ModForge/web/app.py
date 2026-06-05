@@ -4,7 +4,7 @@ import threading
 import logging
 from datetime import datetime, timezone
 
-# Flask-SocketIO – gevent statt deprecated eventlet
+# Flask-SocketIO – gevent (eventlet ist deprecated)
 from flask_socketio import SocketIO
 
 from .config import SESSION_SECRET
@@ -182,7 +182,7 @@ def _ensure_emitter():
 def run_flask():
     port = int(os.getenv("PORT", "7860"))
     _ensure_emitter()
-    # gevent WSGI server (zuverlässiger als eventlet)
+    # gevent WSGI server (zuverlässig)
     socketio.run(flask_app, host="0.0.0.0", port=port, debug=False, allow_unsafe_werkzeug=True)
 
 

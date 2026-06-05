@@ -448,6 +448,34 @@ class Database:
         except PyMongoError as e:
             log.error(f"DB adeactivate_tempaction Fehler: {e}")
 
+
+    # ── Notes ──────────────────────────────────────────────
+    async def add_note(self, guild_id: int, user_id: int, mod_id: int, text: str) -> str:
+        try:
+            result = await self.db["notes"].insert_one({
+                "guild_id": guild_id, "user_id": user_id, "mod_id": mod_id,
+                "text": text, "created_at": datetime.datetime.utcnow()})
+            return str(result.inserted_id)
+        except PyMongoError as e:
+            log.error(f"add_note: {e}"); return "error"
+
+    async def get_notes(self, guild_id: int, user_id: int) -> list:
+        try:
+            from bson.objectid import ObjectId
+            docs = await self.db["notes"].find({"guild_id": guild_id, "user_id": user_id}).sort("created_at", DESCENDING).to_list(length=100)
+            for d in docs: d["_id"] = str(d["_id"])
+            return docs
+        except PyMongoError as e:
+            log.error(f"get_notes: {e}"); return []
+
+    async def delete_note(self, guild_id: int, note_id: str) -> bool:
+        try:
+            from bson.objectid import ObjectId
+            result = await self.db["notes"].delete_one({"_id": ObjectId(note_id), "guild_id": guild_id})
+            return result.deleted_count > 0
+        except PyMongoError as e:
+            log.error(f"delete_note: {e}"); return False
+
     # ── Temp-Voice Channels (DB) ─────────────────────────
     async def tv_get_channel(self, guild_id: int, user_id: int):
         try:
@@ -587,6 +615,8 @@ class Database:
                 )
             except Exception as e:
                 log.warning(f"Backup-Index Fehler (nicht kritisch): {e}")
+            await self.db["notes"].create_index(
+                [("guild_id", ASCENDING), ("user_id", ASCENDING), ("created_at", DESCENDING)], name="notes_user_lookup")
             await self.tempvoice_channels.create_index(
                 [("guild_id", ASCENDING), ("user_id", ASCENDING)], unique=True, name="tv_channels_unique")
             await self.tempvoice_settings.create_index(

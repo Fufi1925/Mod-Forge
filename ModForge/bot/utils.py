@@ -9,6 +9,7 @@ import re
 import datetime
 from typing import Optional, Tuple, Any, Union, List, Callable, Awaitable
 import discord
+import aiohttp
 from PIL import Image, ImageDraw, ImageFont
 
 from bot.config import COLOR_PRIMARY, FOOTER_TEXT, FOOTER_ICON, log
@@ -86,9 +87,21 @@ def generate_captcha(difficulty: str = "medium") -> Tuple[str, io.BytesIO]:
     width, height = 250, 100
     img = Image.new("RGB", (width, height), color=(255, 255, 255))
     d = ImageDraw.Draw(img)
-    try:
-        font = ImageFont.truetype("arial.ttf", 40)
-    except (OSError, IOError):
+    font = None
+    font_paths = [
+        "arial.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+        "/usr/share/fonts/TTF/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    ]
+    for path in font_paths:
+        try:
+            font = ImageFont.truetype(path, 40)
+            break
+        except (OSError, IOError):
+            continue
+    if font is None:
         font = ImageFont.load_default()
     d.text((width // 4, height // 3), code, fill=(0, 0, 0), font=font)
     noise_level = (
@@ -121,15 +134,33 @@ def generate_captcha(difficulty: str = "medium") -> Tuple[str, io.BytesIO]:
     return code, buf
 
 
-async def check_phishing_url(url: str) -> bool:
+
+def normalize_text(text: str) -> str:
+    """Normalisiert Text für AutoMod (Leetspeak, Spam, Trennzeichen)."""
+    leet = {"4": "a", "3": "e", "1": "i", "0": "o", "5": "s", "@": "a", "$": "s", "7": "t", "8": "b"}
+    text = "".join(leet.get(c, c) for c in text.lower())
+    text = re.sub(r"(.)\1{2,}", r"\1", text)
+    text = re.sub(r"[\s.\-_]+", "", text)
+    return text
+
+async def check_phishing_url(url: str, session=None) -> bool:
+    import os as _os
     scam_keywords = [
-        "discord-nitro",
-        "free-nitro",
-        "gift-nitro",
-        "steam-promo",
-        "discord-gift",
+        "discord-nitro", "free-nitro", "gift-nitro", "steam-promo", "discord-gift",
+        "discordgift", "nitro-free", "dlscord", "discrod", "steamcommuniuty",
     ]
-    return any(kw in url.lower() for kw in scam_keywords)
+    if any(kw in url.lower() for kw in scam_keywords):
+        return True
+    api_key = _os.getenv("PHISHTANK_API_KEY")
+    if api_key and session:
+        try:
+            timeout = aiohttp.ClientTimeout(total=3)
+            async with session.post("https://checkurl.phishtank.com/checkurl/", data={"url": url, "format": "json", "app_key": api_key}, timeout=timeout) as resp:
+                data = await resp.json()
+                return data.get("results", {}).get("in_database", False)
+        except Exception:
+            pass
+    return False
 
 
 def can_moderate(
@@ -157,7 +188,8 @@ def parse_duration(text: str) -> Optional[int]:
         return None
     val = int(m.group(1))
     unit = m.group(2) or "s"
-    return val * {"s": 1, "m": 60, "h": 3600, "d": 86400, "w": 604800}[unit]
+    MAX_SECONDS = 60 * 60 * 24 * 28  # = 2419200 (28 Tage)
+    return min(val * {"s": 1, "m": 60, "h": 3600, "d": 86400, "w": 604800}[unit], MAX_SECONDS)
 
 
 def _run_async(coro, timeout: float = 8.0):
