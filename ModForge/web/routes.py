@@ -24,13 +24,11 @@ import copy as _copy
 
 from collections import defaultdict, deque
 from functools import wraps
-from werkzeug.security import check_password_hash, generate_password_hash
 
 from .app import flask_app
 from .auth import get_session, require_auth
 from .helpers import (
     _bot_stats,
-    _get_guild_config,
     _build_overview,
     _build_module_form,
     _build_welcome_content,
@@ -47,7 +45,6 @@ from bot.bot import bot
 from bot.config import (
     FEATURES,
     CMDS_PREVIEW,
-    VERSIONS,
     LOG_MODS,
     ACTIVITY,
 )
@@ -809,7 +806,6 @@ def admin_guild_detail(guild_id):
     cfg = _direct_load_config(guild_id)
     active_modules = sum(1 for k in ["anti_spam","anti_nuke","anti_raid","anti_mention","anti_scam","automod"]
                          if cfg.get(k, {}).get("enabled"))
-    import json as _json
     try:
         config_json = _json.dumps(cfg, indent=2, default=str, ensure_ascii=False)
     except Exception:
@@ -2070,7 +2066,6 @@ def api_guild_config(guild_id):
         return jsonify({"error": "forbidden"}), 403
     data = request.json or {}
     cfg = _direct_load_config(guild_id)
-    from bot.utils import _run_async
 
     # Handle special keys with _ prefix
     if "_reset" in data:
@@ -2171,7 +2166,6 @@ def api_guild_automod(guild_id):
         return jsonify({"error": "forbidden"}), 403
     data = request.json or {}
     cfg = _direct_load_config(guild_id)
-    from bot.utils import _run_async
     am = cfg.get("automod", {})
     action = data.get("action")
     if action == "add_word":
@@ -2210,7 +2204,6 @@ def api_guild_autoresponse(guild_id):
         return jsonify({"error": "forbidden"}), 403
     data = request.json or {}
     cfg = _direct_load_config(guild_id)
-    from bot.utils import _run_async
     ars = cfg.get("auto_responses", [])
     action = data.get("action")
     if action == "add":
@@ -2236,7 +2229,6 @@ def api_guild_roles(guild_id):
         return jsonify({"error": "forbidden"}), 403
     data = request.json or {}
     cfg = _direct_load_config(guild_id)
-    from bot.utils import _run_async
     action = data.get("action")
     rid = int(data.get("role_id", 0))
     if action == "add_auto":
@@ -2350,7 +2342,8 @@ def guild_members(guild_id):
                 try:
                     if m.timed_out_until and m.timed_out_until.timestamp() > now.timestamp():
                         timeout_str = str(int(m.timed_out_until.timestamp()))
-                except: pass
+                except Exception:
+                    pass
 
                 # Voice
                 voice_ch = ""
@@ -2394,7 +2387,7 @@ def guild_members(guild_id):
                         user_warns = safe_collection_count(getattr(db, "warnings", None), {"guild_id": str(g.id), "user_id": str(m.id)})
                         if user_cases: risk = min(risk + user_cases * 5, 100)
                         if user_warns: risk = min(risk + user_warns * 8, 100)
-                except:
+                except Exception:
                     pass
 
                 members.append({
@@ -2622,7 +2615,8 @@ def guild_stats_page(guild_id):
     try:
         wc = getattr(db,'warnings',None) if db else None
         if wc: warns_count = safe_collection_count(wc, {"guild_id":str(guild_id)})
-    except: pass
+    except Exception:
+        pass
     log_channels_count = len(cfg.get("log_channels",{}) or {})
     sec_level = cfg.get("security_level",0)
 
@@ -2776,7 +2770,8 @@ def guild_livefeed(guild_id):
         raw = ACTIVITY.snapshot(30)
         if isinstance(raw, list):
             activities = [a for a in raw if str(a.get("guild_id","")) == str(guild_id)][:20]
-    except: pass
+    except Exception:
+        pass
     return render_template("dashboard/livefeed.html", guild=g, cfg=cfg, user=us["user"],
         activities=activities, active="livefeed")
 
@@ -2802,13 +2797,15 @@ def api_guild_whitelist(guild_id):
         if action == "add":
             items = wl.get(cat, [])
             try: item_id = int(item_id)
-            except: pass
+            except Exception:
+                pass
             if item_id not in items:
                 items.append(item_id)
             wl[cat] = items
         elif action == "del":
             try: item_id = int(item_id)
-            except: pass
+            except Exception:
+                pass
             wl[cat] = [x for x in wl.get(cat, []) if str(x) != str(item_id)]
         try:
             _run_async(bot.db.whitelist_col.replace_one({"guild_id": int(guild_id)}, {"guild_id": int(guild_id), **wl}, upsert=True))
@@ -2863,7 +2860,8 @@ def admin_server_dashboard(guild_id, subpage=""):
         try:
             wl = bot.db.get_whitelist(int(guild_id)) if bot_ready() else {}
             wl_count = sum(len(v) for v in wl.values() if isinstance(v,list))
-        except: pass
+        except Exception:
+            pass
         return render_template("dashboard/security.html", guild=g, cfg=cfg, user=admin_user,
             modules=modules, active_count=sum(1 for m in modules if m["enabled"]), wl_count=wl_count, active="security")
 
@@ -2888,7 +2886,8 @@ def admin_server_dashboard(guild_id, subpage=""):
                 raw = safe_async(db.cases.find({"guild_id":str(guild_id)}).sort("case_id",-1).to_list(200),[]) or []
                 for cc in raw: cc["timestamp"] = str(cc.get("timestamp",""))[:19]
                 cases = raw
-            except: pass
+            except Exception:
+                pass
         return render_template("dashboard/cases.html", guild=g, cfg=cfg, user=admin_user, cases=cases, active="cases")
 
     elif subpage == "warns":
@@ -3002,7 +3001,8 @@ def admin_server_dashboard(guild_id, subpage=""):
         wl = {}
         if bot_ready():
             try: wl = bot.db.get_whitelist(int(guild_id))
-            except: pass
+            except Exception:
+                pass
         return render_template("dashboard/whitelist.html", guild=g, cfg=cfg, user=admin_user, whitelist=wl, active="whitelist")
 
     elif subpage == "stats":
@@ -3022,7 +3022,8 @@ def admin_server_dashboard(guild_id, subpage=""):
                     day = now - _dt.timedelta(days=i)
                     days_labels.append(day.strftime("%a"))
                     days_data.append(sum(1 for cs in all_cases if cs.get("timestamp") and cs["timestamp"].date()==day.date()))
-            except: pass
+            except Exception:
+                pass
         active_mods = sum(1 for k in ["anti_spam","anti_nuke","anti_raid","anti_mention","anti_scam","automod"] if cfg.get(k,{}).get("enabled"))
         return render_template("dashboard/stats.html", guild=g, cfg=cfg, user=admin_user,
             cases_count=cases_count, case_types=case_types, top_mods=top_mods,
@@ -3081,7 +3082,8 @@ def admin_server_dashboard(guild_id, subpage=""):
             from bot.config import ACTIVITY
             raw = ACTIVITY.snapshot(30)
             if isinstance(raw,list): activities = [a for a in raw if str(a.get("guild_id",""))==str(guild_id)][:20]
-        except: pass
+        except Exception:
+            pass
         return render_template("dashboard/livefeed.html", guild=g, cfg=cfg, user=admin_user, activities=activities, active="livefeed")
 
     elif subpage == "design":
@@ -3146,17 +3148,17 @@ def api_member_action(guild_id, member_id):
         if action == "warn":
             case_id = _run_async(bot.db.acreate_case(g.id, member.id, int(user_session["user"]["id"]), "warn", reason))
             count = _run_async(bot.db.aadd_warning(g.id, member.id, reason, int(user_session["user"]["id"])))
-            _run_async(bot.log_action(g, f"⚠️ Warn (Dashboard)", f"{member.mention} verwarnt.\nGrund: {reason}\nVerwarnungen: {count}", 0xeab308, module="moderation"))
+            _run_async(bot.log_action(g, "⚠️ Warn (Dashboard)", f"{member.mention} verwarnt.\nGrund: {reason}\nVerwarnungen: {count}", 0xeab308, module="moderation"))
             return jsonify({"ok": True, "action": "warn", "case_id": case_id, "warn_count": count})
         elif action == "kick":
             _run_async(member.kick(reason=f"Dashboard: {reason}"))
             case_id = _run_async(bot.db.acreate_case(g.id, member.id, int(user_session["user"]["id"]), "kick", reason))
-            _run_async(bot.log_action(g, f"👢 Kick (Dashboard)", f"{member.mention} gekickt.\nGrund: {reason}", 0xef4444, module="moderation"))
+            _run_async(bot.log_action(g, "👢 Kick (Dashboard)", f"{member.mention} gekickt.\nGrund: {reason}", 0xef4444, module="moderation"))
             return jsonify({"ok": True, "action": "kick", "case_id": case_id})
         elif action == "ban":
             _run_async(member.ban(reason=f"Dashboard: {reason}", delete_message_seconds=86400))
             case_id = _run_async(bot.db.acreate_case(g.id, member.id, int(user_session["user"]["id"]), "ban", reason))
-            _run_async(bot.log_action(g, f"🔨 Ban (Dashboard)", f"{member.mention} gebannt.\nGrund: {reason}", 0xef4444, module="moderation"))
+            _run_async(bot.log_action(g, "🔨 Ban (Dashboard)", f"{member.mention} gebannt.\nGrund: {reason}", 0xef4444, module="moderation"))
             return jsonify({"ok": True, "action": "ban", "case_id": case_id})
         elif action == "timeout":
             import datetime as _dt
@@ -3164,27 +3166,27 @@ def api_member_action(guild_id, member_id):
             until = _dt.datetime.now(_dt.timezone.utc) + _dt.timedelta(seconds=dur)
             _run_async(member.timeout(until, reason=f"Dashboard: {reason}"))
             case_id = _run_async(bot.db.acreate_case(g.id, member.id, int(user_session["user"]["id"]), "timeout", reason, duration=dur))
-            _run_async(bot.log_action(g, f"🔇 Timeout (Dashboard)", f"{member.mention} getimeoutet ({dur}s).\nGrund: {reason}", 0xf59e0b, module="moderation"))
+            _run_async(bot.log_action(g, "🔇 Timeout (Dashboard)", f"{member.mention} getimeoutet ({dur}s).\nGrund: {reason}", 0xf59e0b, module="moderation"))
             return jsonify({"ok": True, "action": "timeout", "case_id": case_id})
         elif action == "untimeout":
-            _run_async(member.timeout(None, reason=f"Dashboard: Timeout aufgehoben"))
-            _run_async(bot.log_action(g, f"🔊 Timeout aufgehoben (Dashboard)", f"{member.mention}", 0x22c55e, module="moderation"))
+            _run_async(member.timeout(None, reason="Dashboard: Timeout aufgehoben"))
+            _run_async(bot.log_action(g, "🔊 Timeout aufgehoben (Dashboard)", f"{member.mention}", 0x22c55e, module="moderation"))
             return jsonify({"ok": True, "action": "untimeout"})
         elif action == "add_role":
             role = g.get_role(int(data.get("role_id", 0)))
             if role:
-                _run_async(member.add_roles(role, reason=f"Dashboard: Rolle gegeben"))
+                _run_async(member.add_roles(role, reason="Dashboard: Rolle gegeben"))
                 return jsonify({"ok": True, "action": "add_role"})
             return jsonify({"error": "Rolle nicht gefunden"}), 404
         elif action == "remove_role":
             role = g.get_role(int(data.get("role_id", 0)))
             if role:
-                _run_async(member.remove_roles(role, reason=f"Dashboard: Rolle entfernt"))
+                _run_async(member.remove_roles(role, reason="Dashboard: Rolle entfernt"))
                 return jsonify({"ok": True, "action": "remove_role"})
             return jsonify({"error": "Rolle nicht gefunden"}), 404
         elif action == "nick":
             new_nick = data.get("nick", "")
-            _run_async(member.edit(nick=new_nick or None, reason=f"Dashboard: Nickname geändert"))
+            _run_async(member.edit(nick=new_nick or None, reason="Dashboard: Nickname geändert"))
             return jsonify({"ok": True, "action": "nick"})
         else:
             return jsonify({"error": f"Unbekannte Aktion: {action}"}), 400
@@ -3201,7 +3203,6 @@ def api_noprefix(guild_id):
         return jsonify({"error": "forbidden"}), 403
     data = request.json or {}
     cfg = _direct_load_config(guild_id)
-    from bot.utils import _run_async
     if "enabled" in data:
         cfg["no_prefix"] = bool(data["enabled"])
     if "action" in data:
@@ -3215,7 +3216,7 @@ def api_noprefix(guild_id):
         cfg["no_prefix_users"] = np_users
     try:
         _direct_save_config(guild_id, cfg)
-    except:
+    except Exception:
         pass
     return jsonify({"ok": True, "no_prefix": cfg.get("no_prefix", False)})
 
@@ -3231,7 +3232,7 @@ def api_guild_activity(guild_id):
             raw = []
         filtered = [a for a in raw if str(a.get("guild_id","")) == str(guild_id)]
         return jsonify(filtered[:50])
-    except Exception as e:
+    except Exception:
         return jsonify([])
 
 # ═══════════════════════════════════════════════════════════════════
@@ -3351,6 +3352,8 @@ def api_guild_autonick(guild_id):
         if an.get("enabled"):
             guild_obj = bot.get_guild(int(guild_id))
             if guild_obj:
+                import asyncio
+                from bot.bot import _bulk_apply_autonick
                 try:
                     future = asyncio.run_coroutine_threadsafe(
                         _bulk_apply_autonick(guild_obj, an, role_id=role_id),

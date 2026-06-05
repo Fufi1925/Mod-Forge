@@ -1,4 +1,3 @@
-import re
 
 with open('bot/bot.py', 'r', encoding='utf-8') as f:
     code = f.read()

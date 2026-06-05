@@ -1,17 +1,13 @@
 # -*- coding: utf-8 -*-
 import asyncio
-import copy
 import datetime
-import hashlib
-import json
-import logging
 import random
 import re
 import time
 import traceback
 import unicodedata
 from collections import defaultdict, deque
-from typing import Any, Dict, List, Optional, Tuple, Union, Callable, Awaitable
+from typing import Any, Dict, List, Optional, Tuple, Union, Callable
 
 import discord
 from discord.ext import commands, tasks
@@ -20,15 +16,15 @@ from discord import app_commands
 from bot.config import ACTIVITY
 
 from bot.config import (
-    BOT_TOKEN, COLOR_PRIMARY, COLOR_SUCCESS, COLOR_WARNING, COLOR_DANGER,
-    COLOR_INFO, COLOR_PURPLE, FOOTER_TEXT, FOOTER_ICON, VERIFY_BANNER_URL,
+    COLOR_PRIMARY, COLOR_SUCCESS, COLOR_WARNING, COLOR_DANGER,
+    COLOR_INFO, FOOTER_TEXT, FOOTER_ICON, VERIFY_BANNER_URL,
     E, URL_REGEX, INVITE_REGEX, ZALGO_REGEX, SUSPICIOUS_NAME_REGEX,
     SCAM_DOMAINS, URL_SHORTENERS, VALID_PUNISHMENTS, LOG_MODULES,
     LOG_MODULES_EXTRA,
-    DEFAULT_CONFIG, HELP_DATA, get_uptime, BOT_START_TIME, EXTRA_UPTIME, log
+    DEFAULT_CONFIG, HELP_DATA, get_uptime, log
 )
 from bot.utils import (
-    GLOBAL_API_SEMAPHORE, rate_limited, create_embed,
+    rate_limited, create_embed,
     generate_captcha, check_phishing_url, can_moderate, parse_duration
 )
 
@@ -877,9 +873,9 @@ class ModForge(commands.Bot):
                 appeal_text = ""
                 if autoappeal.get("enabled"):
                     appeal_text = (
-                        f"\n\n**📋 Ban-Appeal:**\n"
-                        f"Du kannst einen Entbannungsantrag stellen.\n"
-                        f"Sende `!start` in diese DM um den Prozess zu starten."
+                        "\n\n**📋 Ban-Appeal:**\n"
+                        "Du kannst einen Entbannungsantrag stellen.\n"
+                        "Sende `!start` in diese DM um den Prozess zu starten."
                     )
                 dm_e = create_embed(
                     f"{E.BAN} Du wurdest gebannt",
@@ -1546,11 +1542,11 @@ async def _notify_owner_nuke(
         name="⏳  Lockdown-Status",
 
         value=(
-            f"Der Lockdown **läuft automatisch aus** – "
-            f"Mitglieder können währenddessen "
-            f"**keine Nachrichten senden**.\n"
+            "Der Lockdown **läuft automatisch aus** – "
+            "Mitglieder können währenddessen "
+            "**keine Nachrichten senden**.\n"
 
-            f"Vorzeitig aufheben: `/unlockdown`"
+            "Vorzeitig aufheben: `/unlockdown`"
         ),
 
         inline=False
@@ -1562,20 +1558,20 @@ async def _notify_owner_nuke(
         name="📋  Empfohlene Maßnahmen",
 
         value=(
-            f"`1`  Audit-Log prüfen "
-            f"→ *Servereinstellungen → Audit-Log*\n"
+            "`1`  Audit-Log prüfen "
+            "→ *Servereinstellungen → Audit-Log*\n"
 
-            f"`2`  Rollen & Berechtigungen "
-            f"des Täters überprüfen\n"
+            "`2`  Rollen & Berechtigungen "
+            "des Täters überprüfen\n"
 
-            f"`3`  Sicherheitsstufe erhöhen "
-            f"→ `/security_level 2`\n"
+            "`3`  Sicherheitsstufe erhöhen "
+            "→ `/security_level 2`\n"
 
-            f"`4`  Admin-Team über den Vorfall "
-            f"informieren\n"
+            "`4`  Admin-Team über den Vorfall "
+            "informieren\n"
 
-            f"`5`  Case einsehen "
-            f"→ `/case <id>`"
+            "`5`  Case einsehen "
+            "→ `/case <id>`"
         ),
 
         inline=False
@@ -2326,7 +2322,8 @@ async def on_voice_state_update(member: discord.Member, before: discord.VoiceSta
             status = "Server-stummgeschaltet 🔇" if after.mute else "Server-entstummgeschaltet"
             color = COLOR_WARNING if after.mute else COLOR_SUCCESS
             await bot.log_action(guild, title, f"**{member.mention}** wurde **{status}**{mod_info}", color, user=member, module="voice")
-        except Exception: pass
+        except Exception:
+            pass
 
     # ── Server Deafen / Undeafen ──
     if before.deaf != after.deaf:
@@ -2344,7 +2341,8 @@ async def on_voice_state_update(member: discord.Member, before: discord.VoiceSta
             status = "Server-taubgeschaltet" if after.deaf else "Server-Taub aufgehoben"
             color = COLOR_WARNING if after.deaf else COLOR_SUCCESS
             await bot.log_action(guild, title, f"**{member.mention}** wurde **{status}**{mod_info}", color, user=member, module="voice")
-        except Exception: pass
+        except Exception:
+            pass
 
     # ── Stream / Video / Stage Suppress (Reduced noise) ──
     if before.self_stream != after.self_stream:
@@ -2352,13 +2350,15 @@ async def on_voice_state_update(member: discord.Member, before: discord.VoiceSta
             title = "📺 Stream gestartet" if after.self_stream else "📺 Stream beendet"
             desc = f"**{member.mention}** streamt in {after.channel.mention if after.channel else 'Voice'}" if after.self_stream else f"**{member.mention}** hat den Stream beendet."
             await bot.log_action(guild, title, desc, COLOR_PRIMARY if after.self_stream else COLOR_INFO, user=member, module="voice")
-        except Exception: pass
+        except Exception:
+            pass
 
     if before.self_video != after.self_video:
         try:
             title = "📹 Kamera an" if after.self_video else "📹 Kamera aus"
             await bot.log_action(guild, title, f"**{member.mention}** Kamera {'eingeschaltet' if after.self_video else 'ausgeschaltet'}", COLOR_PRIMARY if after.self_video else COLOR_INFO, user=member, module="voice")
-        except Exception: pass
+        except Exception:
+            pass
 
 @bot.event
 async def on_member_update(before: discord.Member, after: discord.Member) -> None:
@@ -4756,7 +4756,6 @@ async def on_app_command_error(interaction: discord.Interaction,
 # ═══════════════════════════════════════════════════════════════════
 
 import hashlib as _hashlib
-import json as _json
 
 # ── Passwort-Hashing für Backups ──────────────────────────────────
 def _hash_password(password: str) -> str:
@@ -4884,7 +4883,7 @@ async def _restore_from_backup(guild: discord.Guild, backup: dict, interaction: 
             existing = guild.get_channel(cat_data["category_id"])
             if existing and isinstance(existing, discord.CategoryChannel):
                 try:
-                    await existing.edit(name=cat_data["name"], overwrites=_deserialize_overwrites(guild, cat_data.get("overwrites", []), role_map), reason=f"Backup-Restore")
+                    await existing.edit(name=cat_data["name"], overwrites=_deserialize_overwrites(guild, cat_data.get("overwrites", []), role_map), reason="Backup-Restore")
                 except (discord.Forbidden, discord.HTTPException):
                     pass
                 category_map[cat_data["category_id"]] = existing
@@ -5091,7 +5090,7 @@ class BackupRestoreConfirmView(discord.ui.View):
         self.user = user
         self.has_password = has_password
 
-    @discord.ui.button(label=f"Ja, Restore bestätigen", style=discord.ButtonStyle.danger, emoji="{E.ALERT}️")
+    @discord.ui.button(label="Ja, Restore bestätigen", style=discord.ButtonStyle.danger, emoji="{E.ALERT}️")
     async def confirm_restore(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         if interaction.user.id != self.user.id:
             await interaction.response.send_message(embed=discord.Embed(title="❌ Fehler", description=f"{E.FAIL} Nur der Initiator kann bestätigen.", color=COLOR_DANGER), ephemeral=True)
@@ -5190,11 +5189,11 @@ class BackupMainDropdown(discord.ui.Select):
             discord.SelectOption(label="🔐 Passwort-Backup erstellen", value="create_pw", description="Backup mit Passwort sichern", emoji="🔐"),
             discord.SelectOption(label="📋 Backups anzeigen", value="list", description="Alle Backups auflisten", emoji="📋"),
             discord.SelectOption(label="🔍 Backup-Details", value="info", description="Details zu einem Backup anzeigen", emoji="🔍"),
-            discord.SelectOption(label=f"{E.REFRESH}️ Backup wiederherstellen", value=f"restore", description="Backup auf diesem Server restoren", emoji="{E.REFRESH}️"),
+            discord.SelectOption(label=f"{E.REFRESH}️ Backup wiederherstellen", value="restore", description="Backup auf diesem Server restoren", emoji="{E.REFRESH}️"),
             discord.SelectOption(label="🌐 Cross-Server Restore", value="restore_cross", description="Backup von einem anderen Server restoren", emoji="🌐"),
             discord.SelectOption(label="🗑️ Backup löschen", value="delete", description="Ein Backup löschen", emoji="🗑️"),
             discord.SelectOption(label="💣 Alle Backups löschen", value="purge", description="ALLE Backups dieses Servers löschen", emoji="💣"),
-            discord.SelectOption(label=f"{E.GEAR}️ Auto-Backup konfigurieren", value=f"autosetup", description="Automatische Backups einstellen", emoji="{E.GEAR}️"),
+            discord.SelectOption(label=f"{E.GEAR}️ Auto-Backup konfigurieren", value="autosetup", description="Automatische Backups einstellen", emoji="{E.GEAR}️"),
         ]
         super().__init__(placeholder="🔧 Backup-Aktion wählen...", options=options, min_values=1, max_values=1)
 
@@ -5305,7 +5304,7 @@ async def slash_backup_info(interaction: discord.Interaction, backup_id: str) ->
     stats = data.get("stats", {})
     ts = doc.get("created_at")
     ts_text = f"<t:{int(ts.timestamp())}:F>" if isinstance(ts, datetime.datetime) else str(ts)
-    pw_status = f"🔐 Ja" if doc.get("has_password") else "{E.FAIL} Nein"
+    pw_status = "🔐 Ja" if doc.get("has_password") else "{E.FAIL} Nein"
     fields = [("Backup-ID", f"`{doc.get('backup_id')}`", True), ("Label", doc.get("label", "Ohne Label"), True), ("Erstellt", ts_text, True), ("Von", f"<@{doc.get('created_by')}>", True), ("Passwortgeschützt", pw_status, True), ("Rollen", str(len(data.get("roles", []))), True), ("Kanäle", str(len(data.get("channels", []))), True), ("Kategorien", str(len(data.get("categories", []))), True), ("Emojis", str(len(data.get("emojis", []))), True)]
     roles = data.get("roles", [])
     if roles:
@@ -5369,7 +5368,7 @@ async def slash_backup_autosetup(interaction: discord.Interaction, enabled: bool
     cfg["backup_system"] = backup_cfg
     await bot.db.set_config(interaction.guild.id, cfg)
     status = f"{E.OK} **Aktiviert**" if enabled else f"{E.FAIL} **Deaktiviert**"
-    embed = create_embed(f"{E.SETTINGS} Auto-Backup", f"Automatische Backups aktualisiert.", COLOR_SUCCESS, [("Status", status, True), ("Intervall", f"{interval_hours}h", True), ("Max.", str(max_backups), True)])
+    embed = create_embed(f"{E.SETTINGS} Auto-Backup", "Automatische Backups aktualisiert.", COLOR_SUCCESS, [("Status", status, True), ("Intervall", f"{interval_hours}h", True), ("Max.", str(max_backups), True)])
     await interaction.response.send_message(embed=embed)
     await bot.log_action(interaction.guild, f"{E.SETTINGS} Auto-Backup {status}", f"{interaction.user.mention}: Intervall={interval_hours}h, Max={max_backups}", COLOR_INFO, user=interaction.user, module="backup")
 
@@ -5816,7 +5815,7 @@ class TempVoiceDropdown(discord.ui.Select):
     def __init__(self) -> None:
         options = [
             discord.SelectOption(label="🎤 Kanal erstellen", value="create", description="Temp-Voice-Setup starten", emoji="🎤"),
-            discord.SelectOption(label=f"{E.GEAR}️ Einstellungen", value=f"settings", description="Temp-Voice konfigurieren", emoji="{E.GEAR}️"),
+            discord.SelectOption(label=f"{E.GEAR}️ Einstellungen", value="settings", description="Temp-Voice konfigurieren", emoji="{E.GEAR}️"),
             discord.SelectOption(label="🗑️ Setup entfernen", value="remove", description="Temp-Voice deaktivieren", emoji="🗑️"),
         ]
         super().__init__(placeholder="Temp-Voice Aktion...", options=options, min_values=1, max_values=1)
@@ -6145,9 +6144,9 @@ async def _softban_logic(guild, moderator, target, reason, days=1):
         return create_embed(f"{E.FAIL} Fehler", "Du kannst diesen User nicht bestrafen.", COLOR_DANGER)
     try:
         await target.ban(reason=f"Softban: {reason} (durch {moderator})", delete_message_seconds=days * 86400)
-        await guild.unban(target, reason=f"Softban (auto-unban)")
+        await guild.unban(target, reason="Softban (auto-unban)")
         case_id = await bot.db.acreate_case(guild.id, target.id, moderator.id, "softban", reason)
-        await bot.log_action(guild, f"🔨 Softban", f"{target.mention} wurde von {moderator.mention} softgebannt.\nGrund: {reason}\nNachrichten: {days} Tag(e) gelöscht", COLOR_DANGER, user=target, module="moderation")
+        await bot.log_action(guild, "🔨 Softban", f"{target.mention} wurde von {moderator.mention} softgebannt.\nGrund: {reason}\nNachrichten: {days} Tag(e) gelöscht", COLOR_DANGER, user=target, module="moderation")
         return create_embed(f"{E.OK} Softban", f"{target.mention} wurde softgebannt.\nGrund: {reason}\nCase: #{case_id}", COLOR_SUCCESS)
     except discord.Forbidden:
         return create_embed(f"{E.FAIL} Fehler", "Keine Berechtigung.", COLOR_DANGER)
@@ -6217,7 +6216,7 @@ async def slash_ar_del(interaction: discord.Interaction, index: int) -> None:
     cfg = bot.db.get_config(interaction.guild.id)
     ars = cfg.get("auto_responses", [])
     if index < 1 or index > len(ars):
-        return await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", f"Ungültiger Index. Nutze `/autoresponse_list`.", COLOR_DANGER), ephemeral=True)
+        return await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", "Ungültiger Index. Nutze `/autoresponse_list`.", COLOR_DANGER), ephemeral=True)
     removed = ars.pop(index - 1)
     cfg["auto_responses"] = ars
     await bot.db.set_config(interaction.guild.id, cfg)
@@ -6499,7 +6498,7 @@ async def slash_modstats(interaction: discord.Interaction, moderator: discord.Me
 async def prefix_modstats(ctx, member: discord.Member = None):
     try:
         cases = await bot.db.cases.find({"guild_id":str(ctx.guild.id)} | ({"moderator_id":str(member.id)} if member else {})).to_list(200) or []
-        await ctx.send(embed=create_embed(f"📊 Mod-Stats",f"Total: {len(cases)} Cases",COLOR_INFO))
+        await ctx.send(embed=create_embed("📊 Mod-Stats",f"Total: {len(cases)} Cases",COLOR_INFO))
     except Exception as e: await ctx.send(f"Fehler: {e}")
 
 # ── SOFTBAN ──
@@ -6514,7 +6513,7 @@ async def slash_softban(interaction: discord.Interaction, member: discord.Member
         await member.ban(reason=f"Softban: {reason}",delete_message_seconds=days*86400)
         await interaction.guild.unban(member,reason="Softban auto-unban")
         case_id = await bot.db.acreate_case(interaction.guild.id,member.id,interaction.user.id,"softban",reason)
-        await bot.log_action(interaction.guild,f"🔨 Softban",f"{member.mention} von {interaction.user.mention}\nGrund: {reason}",COLOR_DANGER,user=member,module="moderation")
+        await bot.log_action(interaction.guild,"🔨 Softban",f"{member.mention} von {interaction.user.mention}\nGrund: {reason}",COLOR_DANGER,user=member,module="moderation")
         await interaction.response.send_message(embed=create_embed(f"{E.OK} Softban",f"{member.mention} softgebannt. Case #{case_id}",COLOR_SUCCESS))
     except Exception as e:
         try: await interaction.response.send_message(embed=discord.Embed(title="❌ Fehler", description=f"Fehler: {e}", color=COLOR_DANGER), ephemeral=True)
@@ -7154,7 +7153,7 @@ async def slash_servertag(interaction: discord.Interaction, enabled: bool, rewar
                             pass
             cfg["server_tag"] = {"enabled": False, "tag": None, "reward_role": None}
             await bot.db.set_config(interaction.guild.id, cfg)
-            msg_text = f"Tag-System ist jetzt **aus**.\n"
+            msg_text = "Tag-System ist jetzt **aus**.\n"
             if removed:
                 msg_text += f"Rolle von {removed} Usern entfernt."
             await interaction.response.send_message(embed=create_embed(
