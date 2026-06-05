@@ -36,6 +36,10 @@ class Database:
         self.message_archive: AsyncIOMotorCollection = self.db["message_archive"]
         self.guild_events: AsyncIOMotorCollection = self.db["guild_events"]
         self.server_accounts: AsyncIOMotorCollection = self.db["server_accounts"]
+        self.tempvoice_channels: AsyncIOMotorCollection = self.db["tempvoice_channels"]
+        self.tempvoice_settings: AsyncIOMotorCollection = self.db["tempvoice_settings"]
+        self.tempvoice_ratings: AsyncIOMotorCollection = self.db["tempvoice_ratings"]
+        self.log_channels_backup: AsyncIOMotorCollection = self.db["log_channels_backup"]
 
         self._config_cache: TTLCache = TTLCache(
             maxsize=self.CONFIG_CACHE_MAXSIZE, ttl=self.CONFIG_CACHE_TTL
@@ -444,6 +448,103 @@ class Database:
         except PyMongoError as e:
             log.error(f"DB adeactivate_tempaction Fehler: {e}")
 
+    # ── Temp-Voice Channels (DB) ─────────────────────────
+    async def tv_get_channel(self, guild_id: int, user_id: int):
+        try:
+            doc = await self.tempvoice_channels.find_one({"guild_id": guild_id, "user_id": user_id})
+            return doc["channel_id"] if doc else None
+        except PyMongoError:
+            return None
+
+    async def tv_set_channel(self, guild_id: int, user_id: int, channel_id: int):
+        try:
+            await self.tempvoice_channels.update_one(
+                {"guild_id": guild_id, "user_id": user_id},
+                {"$set": {"channel_id": channel_id, "updated_at": datetime.datetime.utcnow()}},
+                upsert=True)
+        except PyMongoError:
+            pass
+
+    async def tv_del_channel(self, guild_id: int, user_id: int):
+        try:
+            await self.tempvoice_channels.delete_one({"guild_id": guild_id, "user_id": user_id})
+        except PyMongoError:
+            pass
+
+    async def tv_get_all_channels(self, guild_id: int) -> dict:
+        try:
+            docs = await self.tempvoice_channels.find({"guild_id": guild_id}).to_list(length=500)
+            return {d["user_id"]: d["channel_id"] for d in docs}
+        except PyMongoError:
+            return {}
+
+    async def tv_get_settings(self, guild_id: int, user_id: int) -> dict:
+        try:
+            doc = await self.tempvoice_settings.find_one({"guild_id": guild_id, "user_id": user_id})
+            return doc.get("settings", {}) if doc else {}
+        except PyMongoError:
+            return {}
+
+    async def tv_save_settings(self, guild_id: int, user_id: int, settings: dict):
+        try:
+            await self.tempvoice_settings.update_one(
+                {"guild_id": guild_id, "user_id": user_id},
+                {"$set": {"settings": settings, "updated_at": datetime.datetime.utcnow()}},
+                upsert=True)
+        except PyMongoError:
+            pass
+
+    async def tv_save_rating(self, guild_id: int, user_id: int, stars: int, guild_name: str = ""):
+        try:
+            await self.tempvoice_ratings.insert_one({
+                "guild_id": guild_id, "user_id": user_id, "stars": stars,
+                "guild_name": guild_name, "created_at": datetime.datetime.utcnow()})
+        except PyMongoError:
+            pass
+
+    async def tv_get_rating_cd(self, guild_id: int, user_id: int):
+        try:
+            doc = await self.tempvoice_ratings.find_one(
+                {"guild_id": guild_id, "user_id": user_id},
+                sort=[("created_at", DESCENDING)])
+            return doc["created_at"].timestamp() if doc and doc.get("created_at") else None
+        except PyMongoError:
+            return None
+
+    async def tv_get_stats(self, days: int = 30) -> dict:
+        cutoff = datetime.datetime.utcnow() - datetime.timedelta(days=days)
+        try:
+            docs = await self.tempvoice_ratings.find({"created_at": {"$gte": cutoff}}).to_list(length=5000)
+            if not docs:
+                return {"count": 0, "avg": 0.0, "stars": {1:0,2:0,3:0,4:0,5:0}, "days": days}
+            stars_list = [d["stars"] for d in docs]
+            avg = round(sum(stars_list) / len(stars_list), 2)
+            distribution = {1:0, 2:0, 3:0, 4:0, 5:0}
+            for s in stars_list:
+                distribution[s] = distribution.get(s, 0) + 1
+            unique_guilds = len(set(d.get("guild_id") for d in docs))
+            unique_users = len(set(d.get("user_id") for d in docs))
+            return {"count": len(stars_list), "avg": avg, "stars": distribution,
+                    "days": days, "guilds": unique_guilds, "users": unique_users}
+        except PyMongoError:
+            return {"count": 0, "avg": 0.0, "stars": {1:0,2:0,3:0,4:0,5:0}, "days": days}
+
+    async def log_channels_snapshot(self, guild_id: int, log_channels: dict):
+        try:
+            await self.log_channels_backup.update_one(
+                {"guild_id": guild_id},
+                {"$set": {"log_channels": log_channels, "updated_at": datetime.datetime.utcnow()}},
+                upsert=True)
+        except PyMongoError:
+            pass
+
+    async def log_channels_restore(self, guild_id: int):
+        try:
+            doc = await self.log_channels_backup.find_one({"guild_id": guild_id})
+            return doc.get("log_channels") if doc else None
+        except PyMongoError:
+            return None
+
     # ── Indexes ─────────────────────────────────────────────
     async def ensure_indexes(self) -> None:
         try:
@@ -486,6 +587,16 @@ class Database:
                 )
             except Exception as e:
                 log.warning(f"Backup-Index Fehler (nicht kritisch): {e}")
+            await self.tempvoice_channels.create_index(
+                [("guild_id", ASCENDING), ("user_id", ASCENDING)], unique=True, name="tv_channels_unique")
+            await self.tempvoice_settings.create_index(
+                [("guild_id", ASCENDING), ("user_id", ASCENDING)], unique=True, name="tv_settings_unique")
+            await self.tempvoice_ratings.create_index(
+                [("created_at", DESCENDING)], name="tv_ratings_recent")
+            await self.tempvoice_ratings.create_index(
+                [("guild_id", ASCENDING), ("user_id", ASCENDING), ("created_at", DESCENDING)], name="tv_ratings_user")
+            await self.log_channels_backup.create_index(
+                "guild_id", unique=True, name="log_channels_backup_unique")
             log.info("MongoDB-Indizes erstellt/verifiziert.")
         except PyMongoError as e:
             log.error(f"DB ensure_indexes Fehler: {e}")
