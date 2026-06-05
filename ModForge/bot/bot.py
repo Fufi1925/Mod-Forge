@@ -2879,8 +2879,8 @@ async def on_guild_join(guild: discord.Guild) -> None:
             "`/case` `/cases` `/warnlist` `/clearwarn` `/massban`\n"
             "`/audit-perms` `/security view` `/setup` `/whitelist`\n"
             "`/logsetup` `/warnsetup` `/backupsetup` `/forcereset`\n"
-            "`/ticket-setup` `/verify-setup` `/setup_tempvoice`
-            `/logban` `/help`"
+            "`/ticket-setup` `/verify-setup` `/setup_tempvoice`\n"
+            "`/logban` `/help`"
         ),
         inline=False,
     )
