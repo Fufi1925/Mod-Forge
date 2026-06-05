@@ -494,7 +494,7 @@ class ModForge(commands.Bot):
         return cfg.get("prefix", "!")
 
     async def setup_hook(self) -> None:
-        self.add_view(TempVoiceMenuView(self))
+        self.add_view(TempVoiceView(self))
         self.add_view(VerifyView(self))
         self.add_view(TicketView(self))
         self.add_view(TicketCloseView(self))
