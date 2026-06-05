@@ -494,7 +494,7 @@ class ModForge(commands.Bot):
         return cfg.get("prefix", "!")
 
     async def setup_hook(self) -> None:
-        self.add_view(TempVoiceView(self))
+        self.add_view(TempVoiceMenuView(self))
         self.add_view(VerifyView(self))
         self.add_view(TicketView(self))
         self.add_view(TicketCloseView(self))
@@ -5837,8 +5837,9 @@ class TempVoiceDropdown(discord.ui.Select):
             await interaction.response.edit_message(embed=create_embed(f"{E.OK} Temp-Voice deaktiviert", "Temporäre Voice-Kanäle sind jetzt deaktiviert.", COLOR_SUCCESS), view=None)
 
 class TempVoiceMenuView(discord.ui.View):
-    def __init__(self) -> None:
-        super().__init__(timeout=120)
+    def __init__(self, bot=None) -> None:
+        super().__init__(timeout=120 if bot is None else None)
+        self.bot = bot
         self.add_item(TempVoiceDropdown())
 
 @bot.tree.command(name="tempvoice", description="Interaktives Temp-Voice Menü")

@@ -230,3 +230,10 @@
 2026-06-05 15:11:29,905 [WARNING] discord.client: davey is not installed, voice will NOT be supported
 2026-06-05 15:11:29,948 [INFO] ModForge: ModForge v3.0.0 startet…
 2026-06-05 15:11:29,949 [INFO] discord.client: logging in using static token
+2026-06-05 15:21:41,388 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-06-05 15:21:41,434 [INFO] ModForge: ModForge v3.0.0 startet…
+2026-06-05 15:21:41,435 [INFO] discord.client: logging in using static token
+2026-06-05 15:29:50,469 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-06-05 15:30:48,355 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-06-05 15:30:48,414 [INFO] ModForge: ModForge v3.0.0 startet…
+2026-06-05 15:30:48,414 [INFO] discord.client: logging in using static token
