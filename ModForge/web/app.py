@@ -4,7 +4,7 @@ import threading
 import logging
 from datetime import datetime, timezone
 
-# Flask-SocketIO importieren
+# Flask-SocketIO – gevent statt deprecated eventlet
 from flask_socketio import SocketIO
 
 from .config import SESSION_SECRET
@@ -21,14 +21,32 @@ flask_app = Flask(
 flask_app.secret_key = SESSION_SECRET
 flask_app.config["PERMANENT_SESSION_LIFETIME"] = 60 * 60 * 6
 
-# SocketIO initialisieren – async_mode wird automatisch erkannt.
-socketio = SocketIO(flask_app, cors_allowed_origins="*")
+# SocketIO mit gevent (zuverlässig, nicht deprecated)
+socketio = SocketIO(flask_app, cors_allowed_origins="*", async_mode="gevent")
 
 # Auth-Blueprint (OAuth2) registrieren
 flask_app.register_blueprint(auth_bp)
 
 # Deine bestehenden Routen (Landing, Dashboard, Live …)
-from . import routes  # noqa: E402,F401  (Seiten-Routen registrieren sich via Import)
+from . import routes  # noqa: E402,F401
+# ───────────────────────────────────────────────────────────
+# HEALTH CHECK (Railway Monitoring)
+# ───────────────────────────────────────────────────────────
+@flask_app.route("/health")
+def health():
+    """Health-Check für Railway / Uptime-Monitoring."""
+    try:
+        from bot.bot import BOT_REF
+        bot_ok = BOT_REF is not None and getattr(BOT_REF, "is_ready", lambda: False)()
+    except Exception:
+        bot_ok = False
+    from bot.config import get_uptime
+    return {
+        "status": "ok",
+        "bot": bot_ok,
+        "uptime": get_uptime(),
+        "ts": datetime.now(timezone.utc).isoformat(),
+    }
 
 
 # ───────────────────────────────────────────────────────────
@@ -164,7 +182,8 @@ def _ensure_emitter():
 def run_flask():
     port = int(os.getenv("PORT", "7860"))
     _ensure_emitter()
-    socketio.run(flask_app, host="0.0.0.0", port=port, debug=False)
+    # gevent WSGI server (zuverlässiger als eventlet)
+    socketio.run(flask_app, host="0.0.0.0", port=port, debug=False, allow_unsafe_werkzeug=True)
 
 
 def keep_alive():

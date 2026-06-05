@@ -29,6 +29,7 @@ from bot.utils import (
 )
 
 from database.db import Database
+import aiohttp
 
 # ═══════════════════════════════════════════════════════════════════
 # TRACKER (IN-MEMORY)
@@ -752,7 +753,6 @@ class ModForge(commands.Bot):
 
             if _wh_url:
                 try:
-                    import aiohttp
                     wh_name, wh_avatar = self.WEBHOOK_MODULES.get(module, self.WEBHOOK_MODULES["default"])
                     if self.user and self.user.display_avatar:
                         wh_avatar = self.user.display_avatar.url
@@ -2226,8 +2226,8 @@ async def on_voice_state_update(member: discord.Member, before: discord.VoiceSta
         try:
             cfg_tv = bot.db.get_config(guild.id)
             tv = cfg_tv.get("temp_voice", {})
-            if tv.get("enabled") and tv.get("channel_id"):
-                if after.channel and after.channel.id == tv["channel_id"]:
+            if tv.get("enabled") and tv.get("hub_channel_id"):
+                if after.channel and after.channel.id == tv["hub_channel_id"]:
                     cat = guild.get_channel(tv.get("category_id")) if tv.get("category_id") else None
                     overwrites = {
                         guild.default_role: discord.PermissionOverwrite(read_messages=True, connect=True),
@@ -5814,6 +5814,200 @@ async def slash_stickyrole_remove(interaction: discord.Interaction, role: discor
 # 5) TEMPORARY VOICE CHANNELS
 # ═══════════════════════════════════════════════════════════════════
 
+class TempVoiceView(discord.ui.View):
+    """Persistentes Button-Panel für Temp-Voice Kanal-Management."""
+
+    def __init__(self, bot_ref) -> None:
+        super().__init__(timeout=None)
+        self.bot = bot_ref
+
+    @discord.ui.button(label="🔒 Lock", style=discord.ButtonStyle.gray, custom_id="modforge:tv_lock", row=0)
+    async def lock_channel(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        await self._manage_channel(interaction, "lock")
+
+    @discord.ui.button(label="🔓 Unlock", style=discord.ButtonStyle.gray, custom_id="modforge:tv_unlock", row=0)
+    async def unlock_channel(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        await self._manage_channel(interaction, "unlock")
+
+    @discord.ui.button(label="👤 Kick", style=discord.ButtonStyle.gray, custom_id="modforge:tv_kick", row=0)
+    async def kick_user(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        await self._manage_channel(interaction, "kick")
+
+    @discord.ui.button(label="👥 Limit", style=discord.ButtonStyle.gray, custom_id="modforge:tv_limit", row=1)
+    async def set_limit(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        await interaction.response.send_modal(TempVoiceLimitModal())
+
+    @discord.ui.button(label="✏️ Rename", style=discord.ButtonStyle.gray, custom_id="modforge:tv_rename", row=1)
+    async def rename_channel(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        await interaction.response.send_modal(TempVoiceRenameModal())
+
+    async def _manage_channel(self, interaction: discord.Interaction, action: str) -> None:
+        """Verwaltet Lock/Unlock/Kick für Temp-Voice Kanäle."""
+        member = interaction.user
+        voice = member.voice
+        if not voice or not voice.channel:
+            return await interaction.response.send_message(
+                embed=discord.Embed(title="❌ Fehler", description="Du bist in keinem Voice-Kanal.", color=COLOR_DANGER),
+                ephemeral=True)
+        ch = voice.channel
+        overwrites = ch.overwrites_for(member)
+        if not overwrites.manage_channels:
+            return await interaction.response.send_message(
+                embed=discord.Embed(title="❌ Fehler", description="Du bist nicht der Besitzer dieses Kanals.", color=COLOR_DANGER),
+                ephemeral=True)
+        try:
+            if action == "lock":
+                await ch.set_permissions(interaction.guild.default_role, connect=False)
+                await interaction.response.send_message(
+                    embed=discord.Embed(title="🔒 Kanal gesperrt", description=f"{ch.mention} ist jetzt gesperrt.", color=COLOR_WARNING),
+                    ephemeral=True)
+            elif action == "unlock":
+                await ch.set_permissions(interaction.guild.default_role, connect=True)
+                await interaction.response.send_message(
+                    embed=discord.Embed(title="🔓 Kanal entsperrt", description=f"{ch.mention} ist jetzt offen.", color=COLOR_SUCCESS),
+                    ephemeral=True)
+            elif action == "kick":
+                target = None
+                for m in ch.members:
+                    if m != member and not m.bot:
+                        target = m
+                        break
+                if not target:
+                    return await interaction.response.send_message(
+                        embed=discord.Embed(title="❌ Fehler", description="Kein Nutzer zum Kicken gefunden.", color=COLOR_DANGER),
+                        ephemeral=True)
+                await target.move_to(None, reason=f"Temp-Voice Kick von {member}")
+                await interaction.response.send_message(
+                    embed=discord.Embed(title="👤 Nutzer gekickt", description=f"{target.mention} wurde aus {ch.mention} gekickt.", color=COLOR_WARNING),
+                    ephemeral=True)
+        except (discord.Forbidden, discord.HTTPException) as e:
+            await interaction.response.send_message(
+                embed=discord.Embed(title="❌ Fehler", description=f"Fehler: {e}", color=COLOR_DANGER),
+                ephemeral=True)
+
+
+class TempVoiceLimitModal(discord.ui.Modal, title="Nutzer-Limit setzen"):
+    limit = discord.ui.TextInput(label="Maximale Nutzer (0 = unbegrenzt)", placeholder="0", required=True, max_length=2)
+
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        try:
+            val = int(self.limit.value)
+            voice = interaction.user.voice
+            if not voice or not voice.channel:
+                return await interaction.response.send_message(
+                    embed=discord.Embed(title="❌ Fehler", description="Du bist in keinem Voice-Kanal.", color=COLOR_DANGER),
+                    ephemeral=True)
+            ch = voice.channel
+            overwrites = ch.overwrites_for(interaction.user)
+            if not overwrites.manage_channels:
+                return await interaction.response.send_message(
+                    embed=discord.Embed(title="❌ Fehler", description="Du bist nicht der Besitzer.", color=COLOR_DANGER),
+                    ephemeral=True)
+            await ch.edit(user_limit=val)
+            await interaction.response.send_message(
+                embed=discord.Embed(title="👥 Limit gesetzt", description=f"Nutzer-Limit für {ch.mention}: **{val}**", color=COLOR_SUCCESS),
+                ephemeral=True)
+        except ValueError:
+            await interaction.response.send_message(
+                embed=discord.Embed(title="❌ Fehler", description="Bitte eine gültige Zahl eingeben.", color=COLOR_DANGER),
+                ephemeral=True)
+        except (discord.Forbidden, discord.HTTPException) as e:
+            await interaction.response.send_message(
+                embed=discord.Embed(title="❌ Fehler", description=f"Fehler: {e}", color=COLOR_DANGER),
+                ephemeral=True)
+
+
+class TempVoiceRenameModal(discord.ui.Modal, title="Kanal umbenennen"):
+    name = discord.ui.TextInput(label="Neuer Name", placeholder="Mein neuer Kanal-Name", required=True, min_length=1, max_length=100)
+
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        voice = interaction.user.voice
+        if not voice or not voice.channel:
+            return await interaction.response.send_message(
+                embed=discord.Embed(title="❌ Fehler", description="Du bist in keinem Voice-Kanal.", color=COLOR_DANGER),
+                ephemeral=True)
+        ch = voice.channel
+        overwrites = ch.overwrites_for(interaction.user)
+        if not overwrites.manage_channels:
+            return await interaction.response.send_message(
+                embed=discord.Embed(title="❌ Fehler", description="Du bist nicht der Besitzer.", color=COLOR_DANGER),
+                ephemeral=True)
+        try:
+            await ch.edit(name=self.name.value)
+            await interaction.response.send_message(
+                embed=discord.Embed(title="✏️ Umbenannt", description=f"Kanal jetzt: **{self.name.value}**", color=COLOR_SUCCESS),
+                ephemeral=True)
+        except (discord.Forbidden, discord.HTTPException) as e:
+            await interaction.response.send_message(
+                embed=discord.Embed(title="❌ Fehler", description=f"Fehler: {e}", color=COLOR_DANGER),
+                ephemeral=True)
+
+
+@bot.tree.command(name="setup_tempvoice", description="Richtet das Temp-Voice System mit Hub-Kanal und Button-Panel ein")
+@app_commands.default_permissions(administrator=True)
+async def slash_setup_tempvoice(interaction: discord.Interaction) -> None:
+    """Erstellt automatisch Kategorie, Hub-Kanal und postet das Button-Panel."""
+    guild = interaction.guild
+    await interaction.response.defer(ephemeral=True)
+    try:
+        cfg = bot.db.get_config(guild.id)
+        tv = cfg.get("temp_voice", {})
+        if not isinstance(tv, dict):
+            tv = {}
+        cat = None
+        cat_id = tv.get("category_id")
+        if cat_id:
+            cat = guild.get_channel(cat_id)
+        if not cat:
+            cat = await guild.create_category_channel("🎤 Temp-Voice", reason="Temp-Voice Setup")
+            tv["category_id"] = cat.id
+        hub = None
+        hub_id = tv.get("hub_channel_id")
+        if hub_id:
+            hub = guild.get_channel(hub_id)
+        if not hub:
+            hub = await guild.create_voice_channel("➕ Join to Create", category=cat, reason="Temp-Voice Setup")
+            tv["hub_channel_id"] = hub.id
+        tv["enabled"] = True
+        tv.setdefault("name_template", "🔊 {user}'s Kanal")
+        cfg["temp_voice"] = tv
+        await bot.db.set_config(guild.id, cfg)
+        view = TempVoiceView(bot)
+        panel_text = (
+            "Nutze die Buttons unten um deinen temporären Voice-Kanal zu verwalten:\n\n"
+            "🔒 **Lock** – Kanal sperren\n"
+            "🔓 **Unlock** – Kanal entsperren\n"
+            "👤 **Kick** – Nutzer entfernen\n"
+            "👥 **Limit** – Nutzer-Limit setzen\n"
+            "✏️ **Rename** – Kanal umbenennen\n\n"
+            f"👉 Tritt **{hub.mention}** bei um einen eigenen Kanal zu erstellen!"
+        )
+        embed = discord.Embed(
+            title="🎤 Temp-Voice Panel",
+            description=panel_text,
+            color=COLOR_PRIMARY)
+        embed.set_footer(text=FOOTER_TEXT, icon_url=FOOTER_ICON)
+        panel_msg = await interaction.channel.send(embed=embed, view=view)
+        tv["panel_message_id"] = panel_msg.id
+        tv["panel_channel_id"] = interaction.channel.id
+        cfg["temp_voice"] = tv
+        await bot.db.set_config(guild.id, cfg)
+        await interaction.followup.send(
+            embed=discord.Embed(
+                title=f"{E.OK} Temp-Voice eingerichtet!",
+                description=f"Kategorie: {cat.mention}\nHub-Kanal: {hub.mention}\nPanel: in {interaction.channel.mention}",
+                color=COLOR_SUCCESS),
+            ephemeral=True)
+    except discord.Forbidden:
+        await interaction.followup.send(
+            embed=discord.Embed(title="❌ Fehler", description="Mir fehlen Rechte um Kanäle zu erstellen.", color=COLOR_DANGER),
+            ephemeral=True)
+    except Exception as e:
+        log.error(f"setup_tempvoice Fehler: {e}")
+        await interaction.followup.send(
+            embed=discord.Embed(title="❌ Fehler", description=f"Fehler: {e}", color=COLOR_DANGER),
+            ephemeral=True)
+
 # ═══════════════════════════════════════════════════════════════════
 # 8) MASS-BAN COMMAND
 # ═══════════════════════════════════════════════════════════════════
@@ -6336,7 +6530,6 @@ async def _check_vpn(ip: str) -> bool:
     if ip in _vpn_api_cache:
         return _vpn_api_cache[ip]
     try:
-        import aiohttp
         async with aiohttp.ClientSession() as session:
             async with session.get(
                 f"http://ip-api.com/json/{ip}?fields=proxy,hosting",
