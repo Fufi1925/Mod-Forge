@@ -17,7 +17,7 @@ from flask import (
 import datetime
 import logging
 import json
-import json as _json  # rückwärtskompatibel, falls Code noch _json benutzt
+
 import time
 import threading
 import copy as _copy
@@ -64,8 +64,6 @@ log = logging.getLogger("ModForge.Web.Routes")
 _direct_db_client = None          # MongoDB-Database-Handle (Singleton)
 _direct_db_tried = False          # True, sobald wir einen Verbindungsversuch gemacht haben
 _direct_db_lock = threading.Lock()
-
-
 def _get_direct_db():
     """Liefert das ``ModForge``-MongoDB-Database-Objekt oder ``None``.
 
@@ -103,8 +101,6 @@ def _get_direct_db():
             log.warning(f"Direct DB connect failed: {e}")
             _direct_db_client = None
         return _direct_db_client
-
-
 def _sanitize_cfg_for_mongo(cfg):
     """Entfernt nicht-JSON-serialisierbare Felder und Keys mit führendem ``_``."""
     cleaned = {}
@@ -117,8 +113,6 @@ def _sanitize_cfg_for_mongo(cfg):
         except (TypeError, ValueError):
             cleaned[k] = str(v)
     return cleaned
-
-
 def _direct_save_config(guild_id, cfg):
     """Speichert die Guild-Konfiguration zuverlässig.
 
@@ -165,8 +159,6 @@ def _direct_save_config(guild_id, cfg):
         log.debug(f"Bot-Cache-Update nach Save fehlgeschlagen für {gid}: {e}")
 
     return True
-
-
 def _direct_load_config(guild_id):
     """Lädt die Guild-Konfiguration.
 
@@ -203,8 +195,6 @@ def _direct_load_config(guild_id):
     from bot.config import DEFAULT_CONFIG
     return _copy.deepcopy(DEFAULT_CONFIG)
 
-
-
 @flask_app.route("/dashboard/<guild_id>/tempvoice")
 @require_auth
 def guild_tempvoice(guild_id):
@@ -235,8 +225,6 @@ def safe_async(coro, default=None):
     except Exception as e:
         log.error(f"[ASYNC ERROR] {e}")
         return default
-
-
 # =========================================================
 # HELPERS
 # =========================================================
@@ -248,26 +236,18 @@ def bot_ready():
         return bot is not None and bot.is_ready()
     except Exception:
         return False
-
-
 def get_bot_user():
     return getattr(bot, "user", None)
-
-
 def get_client_id():
     user = get_bot_user()
     if user:
         return str(user.id)
     return str(DISCORD_CLIENT_ID or "")
-
-
 def get_guild(guild_id):
     try:
         return bot.get_guild(int(guild_id))
     except Exception:
         return None
-
-
 def safe_collection_count(collection, query=None):
     """Zählt Dokumente in einer Motor-/PyMongo-Collection.
 
@@ -285,19 +265,13 @@ def safe_collection_count(collection, query=None):
     except Exception as e:
         log.error(f"[COUNT ERROR] {e}")
         return 0
-
-
 def get_db():
     return getattr(bot, "db", None)
-
-
 def bot_latency():
     try:
         return round((bot.latency or 0) * 1000)
     except Exception:
         return 0
-
-
 def _uptime_pct():
     """Berechnet den monatlichen Uptime-Prozentsatz."""
     _, _, uptime_seconds, _ = _bot_stats()
@@ -307,8 +281,6 @@ def _uptime_pct():
     ).timestamp()
     total_month_seconds = max(1, now - month_start)
     return min(100.0, round((uptime_seconds / total_month_seconds) * 100, 3))
-
-
 def _base_stats():
     """Gibt gc, mc, up, lat zurück – sicher."""
     try:
@@ -316,8 +288,6 @@ def _base_stats():
     except Exception as e:
         log.error(f"[BASE STATS ERROR] {e}")
         return 0, 0, 0, 0
-
-
 # =========================================================
 # ADMIN AUTH
 # =========================================================
@@ -325,8 +295,6 @@ def _base_stats():
 _admin_cache = {"data": None, "ts": 0}
 _login_attempts = defaultdict(deque)
 _login_lock = threading.Lock()
-
-
 def admin_required(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
@@ -334,16 +302,12 @@ def admin_required(f):
             return redirect(url_for("admin_login"))
         return f(*args, **kwargs)
     return wrapper
-
-
 def _ip():
     return (
         request.headers.get("X-Forwarded-For", request.remote_addr or "?")
         .split(",")[0]
         .strip()
     )
-
-
 def _blocked(ip):
     now = time.time()
     with _login_lock:
@@ -351,13 +315,9 @@ def _blocked(ip):
         while dq and now - dq[0] > 300:
             dq.popleft()
         return len(dq) >= 8
-
-
 def _fail(ip):
     with _login_lock:
         _login_attempts[ip].append(time.time())
-
-
 # =========================================================
 # ██████╗ ██╗   ██╗██████╗ ██╗     ██╗ ██████╗
 # ██╔══██╗██║   ██║██╔══██╗██║     ██║██╔════╝
@@ -366,8 +326,6 @@ def _fail(ip):
 # ██║     ╚██████╔╝██████╔╝███████╗██║╚██████╗
 # ╚═╝      ╚═════╝ ╚═════╝ ╚══════╝╚═╝ ╚═════╝
 # =========================================================
-
-
 # ─── HOME ─────────────────────────────────────────────────
 
 @flask_app.route("/")
@@ -494,8 +452,6 @@ def home():
         cases=f"{cases_total:,}",
         warns=f"{warns_total:,}",
     )
-
-
 # ─── STATUS ───────────────────────────────────────────────
 
 @flask_app.route("/status")
@@ -525,8 +481,6 @@ def status_page():
         guild_count=gc,
         shard_count=getattr(bot, "shard_count", None) or 1,
     )
-
-
 # ─── LIVE ─────────────────────────────────────────────────
 
 @flask_app.route("/live")
@@ -564,8 +518,6 @@ def live_activity():
         archive_count=archive_count,
         recent_activities=recent_activities,
     )
-
-
 @flask_app.route("/live/api/activity")
 def live_api_activity():
     try:
@@ -576,8 +528,6 @@ def live_api_activity():
     except Exception as e:
         log.error(f"[LIVE API ERROR] {e}")
         return jsonify([])
-
-
 # =========================================================
 # PRODUKT-SEITEN
 # =========================================================
@@ -606,8 +556,6 @@ def terms():
         title="Terms of Service",
         today=str(datetime.date.today()),
     )
-
-
 @flask_app.route("/privacy")
 def privacy():
     return render_template(
@@ -615,8 +563,6 @@ def privacy():
         title="Privacy Policy",
         today=str(datetime.date.today()),
     )
-
-
 @flask_app.route("/imprint")
 def imprint():
     return render_template(
@@ -624,8 +570,6 @@ def imprint():
         title="Impressum",
         today=str(datetime.date.today()),
     )
-
-
 @flask_app.route("/legal")
 def legal():
     return render_template(
@@ -633,8 +577,6 @@ def legal():
         title="Rechtliches",
         today=str(datetime.date.today()),
     )
-
-
 # =========================================================
 # LOGIN / LOGOUT / DASHBOARD
 # =========================================================
@@ -642,16 +584,12 @@ def legal():
 @flask_app.route("/login")
 def discord_login_page():
     return render_template("login.html", cid=get_client_id())
-
-
 @flask_app.route("/logout")
 def logout():
     session.clear()
     resp = redirect(url_for("home"))
     resp.delete_cookie("modforge_session")
     return resp
-
-
 def _user_can_manage_guild_in_session(user_session, guild_id):
     if not user_session:
         return False
@@ -669,8 +607,6 @@ def _user_can_manage_guild_in_session(user_session, guild_id):
     except Exception as e:
         log.error(f"[PERMISSION CHECK ERROR] {e}")
     return False
-
-
 @flask_app.route("/dashboard")
 @require_auth
 def user_dash_home():
@@ -718,8 +654,6 @@ def user_dash_home():
         servers=manageable,
         cid=get_client_id(),
     )
-
-
 # =========================================================
 # HEALTH & METRICS (keine Templates)
 # =========================================================
@@ -732,8 +666,6 @@ def healthz():
         "latency": bot_latency(),
         "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
     })
-
-
 @flask_app.route("/metrics")
 def metrics():
     gc, mc, up, lat = _base_stats()
@@ -754,8 +686,6 @@ def metrics():
         f"modforge_archive_messages {archive}\n"
     )
     return Response(output, mimetype="text/plain")
-
-
 # =========================================================
 # ADMIN-PANEL
 # =========================================================
@@ -797,14 +727,10 @@ def admin_login():
         return redirect(url_for("admin_dashboard"))
 
     return render_template("admin/login.html", error=None)
-
-
 @flask_app.route("/admin/logout")
 def admin_logout():
     session.pop("admin", None)
     return redirect(url_for("admin_login"))
-
-
 @flask_app.route("/admin")
 @flask_app.route("/admin/dashboard")
 @admin_required
@@ -830,8 +756,6 @@ def admin_dashboard():
         shard_count=getattr(bot, "shard_count", None) or 1,
         bot_user=get_bot_user(),
     )
-
-
 @flask_app.route("/admin/guilds")
 @admin_required
 def admin_guilds():
@@ -850,8 +774,6 @@ def admin_guilds():
                 log.error(f"[ADMIN GUILDS ERROR] {e}")
     guilds.sort(key=lambda x: x["members"], reverse=True)
     return render_template("admin/guilds.html", guilds=guilds)
-
-
 @flask_app.route("/admin/guilds/<guild_id>")
 @admin_required
 def admin_guild_detail(guild_id):
@@ -875,7 +797,7 @@ def admin_guild_detail(guild_id):
     active_modules = sum(1 for k in ["anti_spam","anti_nuke","anti_raid","anti_mention","anti_scam","automod"]
                          if cfg.get(k, {}).get("enabled"))
     try:
-        config_json = _json.dumps(cfg, indent=2, default=str, ensure_ascii=False)
+        config_json = json.dumps(cfg, indent=2, default=str, ensure_ascii=False)
     except Exception:
         config_json = "{}"
     return render_template(
@@ -886,8 +808,6 @@ def admin_guild_detail(guild_id):
         config_json=config_json,
         active_modules=active_modules,
     )
-
-
 @flask_app.route("/admin/stats")
 @admin_required
 def admin_stats():
@@ -1165,8 +1085,6 @@ def guild_dashboard(guild_id):
         total_members=total_members,
             )
 
-
-
 @flask_app.route("/dashboard/<guild_id>/welcome")
 @require_auth
 def guild_welcome(guild_id):
@@ -1193,8 +1111,6 @@ def guild_welcome(guild_id):
         guild=g, cfg=cfg, content=content, user=us["user"], active="welcome",
         channels=channels, guild_roles=guild_roles, bot_id=bot_id,
     )
-
-
 # =========================================================
 # DASHBOARD API (Settings Toggle)
 
@@ -1236,8 +1152,6 @@ def _dash_guard(guild_id):
         return None, None, None, abort(404)
     cfg = _direct_load_config(guild_id)
     return user_session, g, cfg, None
-
-
 @flask_app.route("/dashboard/<guild_id>/automod")
 @require_auth
 def guild_automod(guild_id):
@@ -1828,8 +1742,6 @@ def _backups_col():
     if direct is not None:
         return direct["backups"]
     return None
-
-
 def _public_backups_col():
     """MongoDB-Collection für öffentlich geteilte Backups."""
     db = get_db()
@@ -1842,8 +1754,6 @@ def _public_backups_col():
     if direct is not None:
         return direct["public_backups"]
     return None
-
-
 def _ts(value):
     """datetime/str → Unix-Timestamp-String (oder '')."""
     if not value:
@@ -1860,8 +1770,6 @@ def _ts(value):
         except Exception:
             return ""
     return ""
-
-
 def _enrich_backup_doc(doc):
     """Macht aus einem rohen Backup-DB-Dokument ein Template-fertiges Dict."""
     if not doc:
@@ -1885,8 +1793,6 @@ def _enrich_backup_doc(doc):
         "has_password": bool(doc.get("password_hash") or doc.get("has_password")),
         "verification": payload.get("verification_level", 0),
     }
-
-
 @flask_app.route("/dashboard/<guild_id>/backup")
 @require_auth
 def guild_backup(guild_id):
@@ -1944,8 +1850,6 @@ def guild_backup(guild_id):
         bot_ready=bot_ready(),
         active="backup",
     )
-
-
 @flask_app.route("/dashboard/<guild_id>/templates")
 @require_auth
 def guild_templates(guild_id):
@@ -2060,8 +1964,6 @@ def guild_settings(guild_id):
         ws=ws, st=st, ma=ma, wl=wl, ab=ab, it=it, bs=bs, vs=vs,
         active="settings",
     )
-
-
 @flask_app.route("/dashboard/<guild_id>/design")
 @require_auth
 def guild_design(guild_id):
@@ -2324,8 +2226,6 @@ def api_guild_roles(guild_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     return jsonify({"ok": True})
-
-
 @flask_app.route("/api/guild/<guild_id>/embed", methods=["POST"])
 @require_auth
 def api_guild_embed(guild_id):
@@ -2370,8 +2270,6 @@ def api_guild_embed(guild_id):
     except Exception as e:
         log.error(f"[EMBED API ERROR] {e}")
         return jsonify({"error": str(e)}), 500
-
-
 
 # =========================================================
 # DASHBOARD: MEMBERS PAGE
@@ -2559,10 +2457,6 @@ def public_server_page(guild_id):
         "invite": pp.get("invite_url"),
     }
     return render_template("server_public.html", server=server)
-
-
-
-
 # =========================================================
 # DASHBOARD: STATS / WHITELIST / LIVEFEED
 # =========================================================
@@ -2887,10 +2781,6 @@ def api_guild_whitelist(guild_id):
         return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-
-
-
 # =========================================================
 # ADMIN: Full Server Dashboard (same as user, no perm check)
 # =========================================================
@@ -3166,8 +3056,6 @@ def admin_server_dashboard(guild_id, subpage=""):
     overview = _build_overview(cfg, guild_id)
     return render_template("dashboard/overview.html", guild=g, cfg=cfg, user=admin_user, overview=overview, active="overview")
 
-
-
 @flask_app.route("/dashboard/refresh")
 @require_auth
 def dashboard_refresh():
@@ -3192,8 +3080,6 @@ def dashboard_refresh():
     except Exception as e:
         log.debug(f"Refresh error: {e}")
     return redirect("/dashboard")
-
-
 # =========================================================
 # MEMBER MOD-ACTION API
 # =========================================================
@@ -3266,8 +3152,6 @@ def api_member_action(guild_id, member_id):
     except Exception as e:
         log.error(f"[MOD ACTION API] {action} on {member_id}: {e}")
         return jsonify({"error": str(e)}), 500
-
-
 @flask_app.route("/api/guild/<guild_id>/noprefix", methods=["POST"])
 @require_auth
 def api_noprefix(guild_id):
@@ -3292,8 +3176,6 @@ def api_noprefix(guild_id):
     except Exception:
         pass
     return jsonify({"ok": True, "no_prefix": cfg.get("no_prefix", False)})
-
-
 @flask_app.route("/api/guild/<guild_id>/activity")
 @require_auth
 def api_guild_activity(guild_id):
@@ -3357,8 +3239,6 @@ def guild_autonick(guild_id):
         exempt_roles=exempt_roles,
         active="autonick",
     )
-
-
 @flask_app.route("/api/guild/<guild_id>/autonick", methods=["POST"])
 @require_auth
 def api_guild_autonick(guild_id):
@@ -3507,8 +3387,6 @@ def api_guild_autonick(guild_id):
         "rules":   an.get("rules", []),
         "enabled": an.get("enabled", False),
     })
-
-
 # =========================================================
 # BACKUP API – Erstellen / Restore / Löschen / Download
 # =========================================================
@@ -3538,8 +3416,6 @@ def api_backup_create(guild_id):
     except Exception as e:
         log.error(f"[BACKUP CREATE] {e}")
         return jsonify({"error": str(e)}), 500
-
-
 @flask_app.route("/api/guild/<guild_id>/backup/<backup_id>/restore", methods=["POST"])
 @require_auth
 def api_backup_restore(guild_id, backup_id):
@@ -3566,8 +3442,6 @@ def api_backup_restore(guild_id, backup_id):
     except Exception as e:
         log.error(f"[BACKUP RESTORE] {e}")
         return jsonify({"error": str(e)}), 500
-
-
 @flask_app.route("/api/guild/<guild_id>/backup/<backup_id>/delete", methods=["POST"])
 @require_auth
 def api_backup_delete(guild_id, backup_id):
@@ -3605,8 +3479,6 @@ def api_backup_delete(guild_id, backup_id):
     except Exception as e:
         log.error(f"[BACKUP DELETE] {e}")
         return jsonify({"error": str(e)}), 500
-
-
 @flask_app.route("/api/guild/<guild_id>/backup/<backup_id>/download")
 @require_auth
 def api_backup_download(guild_id, backup_id):
@@ -3636,8 +3508,6 @@ def api_backup_download(guild_id, backup_id):
     except Exception as e:
         log.error(f"[BACKUP DOWNLOAD] {e}")
         return jsonify({"error": str(e)}), 500
-
-
 # =========================================================
 # TEMPLATES API – Public-Backup teilen / unshare / importieren
 # =========================================================
@@ -3708,8 +3578,6 @@ def api_template_share(guild_id):
     except Exception as e:
         log.error(f"[TEMPLATE SHARE] {e}")
         return jsonify({"error": str(e)}), 500
-
-
 @flask_app.route("/api/guild/<guild_id>/templates/unshare/<backup_id>", methods=["POST"])
 @require_auth
 def api_template_unshare(guild_id, backup_id):
@@ -3733,8 +3601,6 @@ def api_template_unshare(guild_id, backup_id):
     except Exception as e:
         log.error(f"[TEMPLATE UNSHARE] {e}")
         return jsonify({"error": str(e)}), 500
-
-
 @flask_app.route("/api/guild/<guild_id>/templates/import/<backup_id>", methods=["POST"])
 @require_auth
 def api_template_import(guild_id, backup_id):
@@ -3773,8 +3639,6 @@ def api_template_import(guild_id, backup_id):
     except Exception as e:
         log.error(f"[TEMPLATE IMPORT] {e}")
         return jsonify({"error": str(e)}), 500
-
-
 @flask_app.route("/api/guild/<guild_id>/member/<member_id>/details")
 @require_auth
 def api_member_details(guild_id, member_id):
@@ -3833,13 +3697,9 @@ def api_member_note(guild_id, member_id):
 @flask_app.errorhandler(404)
 def page_not_found(e):
     return render_template("errors/404.html"), 404
-
-
 @flask_app.errorhandler(403)
 def forbidden(e):
     return render_template("errors/403.html"), 403
-
-
 @flask_app.errorhandler(500)
 def internal_error(e):
     log.error(f"[500 ERROR] {e}")

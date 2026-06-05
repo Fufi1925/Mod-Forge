@@ -1,0 +1,52 @@
+name: CI – Syntax & Lint Check
+
+on:
+  push:
+    branches: [ModForge, ModForge/ModForge, main, master]
+  pull_request:
+    branches: [ModForge, ModForge/ModForge, main, master]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install discord.py motor pymongo cachetools Flask Pillow python-dotenv certifi flask-socketio eventlet
+
+      - name: Check for CRLF line endings
+        run: |
+          echo "=== Scanning for CRLF ==="
+          FILES=$(grep -rIl $'\r' ModForge/ --include="*.py" --include="*.html" --include="*.css" --include="*.js" --include="*.txt" --include="*.md" 2>/dev/null | grep -v __pycache__)
+          if [ -n "$FILES" ]; then
+            echo "❌ CRLF-Dateien gefunden:"
+            echo "$FILES"
+            exit 1
+          fi
+          echo "✅ Keine CRLF-Dateien"
+
+      - name: Python Syntax Check (py_compile)
+        run: |
+          echo "=== Compiling all .py files ==="
+          FAILS=0
+          for f in $(find ModForge -name "*.py" -not -path "*__pycache__*"); do
+            python -m py_compile "$f" 2>/dev/null || { echo "❌ $f"; FAILS=$((FAILS+1)); }
+          done
+          if [ $FAILS -gt 0 ]; then
+            echo "❌ $FAILS Syntax-Fehler gefunden!"
+            exit 1
+          fi
+          echo "✅ Alle $(find ModForge -name '*.py' -not -path '*__pycache__*' | wc -l) Python-Dateien OK"
+
+      - name: Quick Import Test (bot.config)
+        run: |
+          cd ModForge
+          python -c "import sys; sys.path.insert(0,'.'); from bot.config import DEFAULT_CONFIG; print('✅ bot.config import OK')"

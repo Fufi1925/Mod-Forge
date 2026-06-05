@@ -7226,7 +7226,7 @@ async def servertag_check(before: discord.Member, after: discord.Member):
 
 
 # ═══════════════════════════════════════════════════════════════════
-# AUTO-NICKNAME SYSTE Bot Events
+# AUTO-NICKNAME SYSTEM Bot Events
 # ═══════════════════════════════════════════════════════════════════
 
 @bot.listen("on_member_update")

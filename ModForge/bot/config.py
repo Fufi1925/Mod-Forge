@@ -1,5 +1,3 @@
-from dotenv import load_dotenv
-load_dotenv()
 # -*- coding: utf-8 -*-
 import os
 import time
@@ -56,8 +54,8 @@ COLOR_INFO = 0x00B0F4
 COLOR_PURPLE = 0x9B59B6
 
 FOOTER_TEXT = "Powered by BotForge 🔒"
-FOOTER_ICON = "https://cdn.discordapp.com/attachments/1509625552120840315/1511461866512056460/178042110349811.png?ex=6a208a0e&is=6a1f388e&hm=2e4a3f12ba9013ea8991f5835c39a5542b8e1c3385521d9a6ac88f0361a8a5eb&"
-VERIFY_BANNER_URL = "https://cdn.discordapp.com/attachments/1484260674145353928/1491861030601490432/1775755687339.png?ex=69d93b5b&is=69d7e9db&hm=d65f0da063a98be84b880e8abbdaeaac62eefe7f674724835b3a7e56b20f4943&"
+FOOTER_ICON = "https://cdn.discordapp.com/attachments/1509625552120840315/1511461866512056460/178042110349811.png?ex=6a208a0e&is=6a1f388e&hm=2e4a3f12ba9013ea8991f5835c39a5542b8e1c3385521d9a6ac88f0361a8a5eb"
+VERIFY_BANNER_URL = "https://cdn.discordapp.com/attachments/1484260674145353928/1491861030601490432/1775755687339.png?ex=69d93b5b&is=69d7e9db&hm=d65f0da063a98be84b880e8abbdaeaac62eefe7f674724835b3a7e56b20f4943"
 
 
 # ═══════════════════════════════════════════════════════════════
