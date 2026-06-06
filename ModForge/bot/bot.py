@@ -5838,21 +5838,7 @@ async def slash_autorole(interaction: discord.Interaction, role: Optional[discor
             return
         await interaction.response.send_message(embed=create_embed(f"{E.LABEL} Auto-Role wählen", "Wähle eine oder mehrere Rollen:", COLOR_PRIMARY), view=AutoRoleView(manageable_roles), ephemeral=True)
 
-@bot.tree.command(name="autorole_remove", description="Entfernt eine Auto-Role")
-@app_commands.describe(role="Die zu entfernende Rolle")
-@app_commands.default_permissions(administrator=True)
-async def slash_autorole_remove(interaction: discord.Interaction, role: discord.Role) -> None:
-    cfg = bot.db.get_config(interaction.guild.id)
-    wc = cfg.get("welcome", {})
-    roles_list = wc.get("add_roles", [])
-    if role.id in roles_list:
-        roles_list.remove(role.id)
-        wc["add_roles"] = roles_list
-        cfg["welcome"] = wc
-        await bot.db.set_config(interaction.guild.id, cfg)
-        await interaction.response.send_message(embed=create_embed(f"{E.OK} Entfernt", f"{role.mention} ist keine Auto-Role mehr.", COLOR_SUCCESS))
-    else:
-        await interaction.response.send_message(embed=create_embed(f"{E.FAIL} Nicht gefunden", f"{role.mention} war keine Auto-Role.", COLOR_WARNING), ephemeral=True)
+
 
 # ═══════════════════════════════════════════════════════════════════
 # 3) CASES-LIST mit Pagination & Dropdown
@@ -5991,19 +5977,7 @@ async def slash_stickyrole(interaction: discord.Interaction, role: Optional[disc
             return
         await interaction.response.send_message(embed=create_embed("📌 Sticky-Rollen", "Wähle Rollen die nach Rejoin zurückgegeben werden:", COLOR_PRIMARY), view=StickyRoleView(manageable, sticky), ephemeral=True)
 
-@bot.tree.command(name="stickyrole_remove", description="Entfernt eine Sticky-Role")
-@app_commands.describe(role="Die zu entfernende Rolle")
-@app_commands.default_permissions(administrator=True)
-async def slash_stickyrole_remove(interaction: discord.Interaction, role: discord.Role) -> None:
-    cfg = bot.db.get_config(interaction.guild.id)
-    sticky = cfg.get("sticky_roles", [])
-    if role.id in sticky:
-        sticky.remove(role.id)
-        cfg["sticky_roles"] = sticky
-        await bot.db.set_config(interaction.guild.id, cfg)
-        await interaction.response.send_message(embed=create_embed(f"{E.OK} Entfernt", f"{role.mention} ist keine Sticky-Role mehr.", COLOR_SUCCESS))
-    else:
-        await interaction.response.send_message(embed=create_embed(f"{E.FAIL} Nicht gefunden", f"{role.mention} ist keine Sticky-Role.", COLOR_WARNING), ephemeral=True)
+
 
 # ═══════════════════════════════════════════════════════════════════
 # 5) TEMPORARY VOICE CHANNELS
@@ -6362,32 +6336,36 @@ async def slash_setup_tempvoice(interaction: discord.Interaction) -> None:
 # ═══════════════════════════════════════════════════════════════════
 # TEMPVOICE ERWEITERTE COMMANDS
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="tvfind", description="Findet den Temp-Voice Kanal eines Users")
-@app_commands.describe(user="Welcher User?")
-async def slash_tvfind(interaction: discord.Interaction, user: discord.Member):
-    cid = await bot.db.tv_get_channel(interaction.guild.id, user.id)
-    if cid:
-        ch = interaction.guild.get_channel(cid)
-        if ch:
-            return await interaction.response.send_message(embed=create_embed(f"🎤 Temp-Voice", f"{user.mention} → {ch.mention}", COLOR_SUCCESS), ephemeral=True)
-    await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", f"{user.mention} hat keinen aktiven Temp-Voice Kanal.", COLOR_DANGER), ephemeral=True)
-
-@bot.tree.command(name="tvclaim", description="Übernimmt einen Temp-Voice Kanal wenn der Owner weg ist")
-async def slash_tvclaim(interaction: discord.Interaction):
-    voice = interaction.user.voice
-    if not voice or not voice.channel:
-        return await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", "Du bist in keinem Voice-Kanal.", COLOR_DANGER), ephemeral=True)
-    ch = voice.channel; gid = interaction.guild.id
-    all_ch = await bot.db.tv_get_all_channels(gid)
-    if ch.id not in all_ch.values():
-        return await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", "Das ist kein Temp-Voice Kanal.", COLOR_DANGER), ephemeral=True)
-    owner_id = next((uid for uid, cid in all_ch.items() if cid == ch.id), None)
-    if owner_id and interaction.guild.get_member(owner_id) and interaction.guild.get_member(owner_id) in ch.members:
-        return await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", "Der Owner ist noch im Kanal.", COLOR_DANGER), ephemeral=True)
-    if owner_id: await bot.db.tv_del_channel(gid, owner_id)
-    await bot.db.tv_set_channel(gid, interaction.user.id, ch.id)
-    await ch.set_permissions(interaction.user, manage_channels=True, connect=True, move_members=True)
-    await interaction.response.send_message(embed=create_embed(f"{E.OK}", f"Du bist jetzt Owner von {ch.mention}!", COLOR_SUCCESS), ephemeral=True)
+@bot.tree.command(name="tempvoice", description="Temp-Voice Kanal finden oder übernehmen")
+@app_commands.describe(action="Aktion", user="User (für find)")
+@app_commands.choices(action=[
+    app_commands.Choice(name="🔍 Finden", value="find"),
+    app_commands.Choice(name="🤝 Übernehmen", value="claim"),
+])
+async def slash_tempvoice(interaction: discord.Interaction, action: str, user: Optional[discord.Member] = None):
+    if action == "find":
+        target = user or interaction.user
+        cid = await bot.db.tv_get_channel(interaction.guild.id, target.id)
+        if cid:
+            ch = interaction.guild.get_channel(cid)
+            if ch:
+                return await interaction.response.send_message(embed=create_embed(f"🎤 Temp-Voice", f"{target.mention} → {ch.mention}", COLOR_SUCCESS), ephemeral=True)
+        await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", f"{target.mention} hat keinen aktiven Temp-Voice Kanal.", COLOR_DANGER), ephemeral=True)
+    else:
+        voice = interaction.user.voice
+        if not voice or not voice.channel:
+            return await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", "Du bist in keinem Voice-Kanal.", COLOR_DANGER), ephemeral=True)
+        ch = voice.channel; gid = interaction.guild.id
+        all_ch = await bot.db.tv_get_all_channels(gid)
+        if ch.id not in all_ch.values():
+            return await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", "Das ist kein Temp-Voice Kanal.", COLOR_DANGER), ephemeral=True)
+        owner_id = next((uid for uid, cid in all_ch.items() if cid == ch.id), None)
+        if owner_id and interaction.guild.get_member(owner_id) and interaction.guild.get_member(owner_id) in ch.members:
+            return await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", "Der Owner ist noch im Kanal.", COLOR_DANGER), ephemeral=True)
+        if owner_id: await bot.db.tv_del_channel(gid, owner_id)
+        await bot.db.tv_set_channel(gid, interaction.user.id, ch.id)
+        await ch.set_permissions(interaction.user, manage_channels=True, connect=True, move_members=True)
+        await interaction.response.send_message(embed=create_embed(f"{E.OK}", f"Du bist jetzt Owner von {ch.mention}!", COLOR_SUCCESS), ephemeral=True)
 
 @bot.tree.command(name="tvreset", description="[Admin] Setzt Temp-Voices eines Users zurück")
 @app_commands.describe(user="Welcher User?")
@@ -6736,68 +6714,35 @@ async def slash_invites_lb(interaction: discord.Interaction) -> None:
 # ═══════════════════════════════════════════════════════════════════
 # 18) AUTO-RESPONSE SYSTEM
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="autoresponse_add", description="Fügt eine Auto-Response hinzu")
-@app_commands.describe(trigger="Trigger-Wort/Phrase", response="Die Antwort die gesendet wird")
-@app_commands.default_permissions(administrator=True)
-async def slash_ar_add(interaction: discord.Interaction, trigger: str, response: str) -> None:
-    cfg = bot.db.get_config(interaction.guild.id)
-    ars = cfg.get("auto_responses", [])
-    ars.append({"trigger": trigger.lower(), "response": response, "enabled": True})
-    cfg["auto_responses"] = ars
-    await bot.db.set_config(interaction.guild.id, cfg)
-    await interaction.response.send_message(embed=create_embed(f"{E.OK} Auto-Response hinzugefügt", f"Trigger: `{trigger}`\nAntwort: {response}", COLOR_SUCCESS))
-
-@bot.tree.command(name="autoresponse_list", description="Zeigt alle Auto-Responses")
+@bot.tree.command(name="autoresponse", description="Auto-Responses verwalten")
+@app_commands.describe(action="Aktion", trigger="Auslöser-Wort", response="Antwort-Text", index="Index zum Löschen")
+@app_commands.choices(action=[
+    app_commands.Choice(name="➕ Hinzufügen", value="add"),
+    app_commands.Choice(name="📋 Anzeigen", value="list"),
+    app_commands.Choice(name="🗑️ Löschen", value="del"),
+])
 @app_commands.default_permissions(manage_messages=True)
-async def slash_ar_list(interaction: discord.Interaction) -> None:
+async def slash_autoresponse(interaction: discord.Interaction, action: str, trigger: Optional[str] = None, response: Optional[str] = None, index: Optional[int] = None):
     cfg = bot.db.get_config(interaction.guild.id)
-    ars = cfg.get("auto_responses", [])
-    if not ars:
-        return await interaction.response.send_message(embed=create_embed("📝 Auto-Responses", "Keine eingerichtet. Nutze `/autoresponse_add`.", COLOR_INFO))
-    listing = ""
-    for i, ar in enumerate(ars, 1):
-        status = E.OK if ar.get("enabled", True) else E.FAIL
-        listing += f"`{i}.` {status} **{ar['trigger']}** → {ar['response'][:60]}\n"
-    await interaction.response.send_message(embed=create_embed("📝 Auto-Responses", listing, COLOR_INFO))
+    ar_list = cfg.get("auto_responses", [])
+    if action == "add":
+        if not trigger or not response:
+            return await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", "Trigger und Response erforderlich.", COLOR_DANGER), ephemeral=True)
+        ar_list.append({"trigger": trigger.lower().strip(), "response": response.strip(), "enabled": True})
+        cfg["auto_responses"] = ar_list; await bot.db.set_config(interaction.guild.id, cfg)
+        await interaction.response.send_message(embed=create_embed(f"{E.OK}", f"Auto-Response `{trigger}` hinzugefügt.", COLOR_SUCCESS), ephemeral=True)
+    elif action == "list":
+        if not ar_list:
+            return await interaction.response.send_message(embed=create_embed("📋 Auto-Responses", "Keine konfiguriert.", COLOR_INFO), ephemeral=True)
+        lines = [f"**{i}.** `{a['trigger']}` → {a['response'][:80]}" for i, a in enumerate(ar_list, 1)]
+        await interaction.response.send_message(embed=create_embed("📋 Auto-Responses", "\n".join(lines[:20]), COLOR_INFO), ephemeral=True)
+    else:
+        if index is None or index < 1 or index > len(ar_list):
+            return await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", "Gültigen Index angeben.", COLOR_DANGER), ephemeral=True)
+        removed = ar_list.pop(index - 1)
+        cfg["auto_responses"] = ar_list; await bot.db.set_config(interaction.guild.id, cfg)
+        await interaction.response.send_message(embed=create_embed(f"{E.OK}", f"Auto-Response `{removed['trigger']}` gelöscht.", COLOR_SUCCESS), ephemeral=True)
 
-@bot.tree.command(name="autoresponse_del", description="Löscht eine Auto-Response (Index aus /autoresponse_list)")
-@app_commands.describe(index="Index der zu löschenden Response")
-@app_commands.default_permissions(administrator=True)
-async def slash_ar_del(interaction: discord.Interaction, index: int) -> None:
-    cfg = bot.db.get_config(interaction.guild.id)
-    ars = cfg.get("auto_responses", [])
-    if index < 1 or index > len(ars):
-        return await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", "Ungültiger Index. Nutze `/autoresponse_list`.", COLOR_DANGER), ephemeral=True)
-    removed = ars.pop(index - 1)
-    cfg["auto_responses"] = ars
-    await bot.db.set_config(interaction.guild.id, cfg)
-    await interaction.response.send_message(embed=create_embed(f"{E.OK} Gelöscht", f"Trigger `{removed['trigger']}` entfernt.", COLOR_SUCCESS))
-
-# ═══════════════════════════════════════════════════════════════════
-# 19) WARN-DECAY SYSTEM
-# ═══════════════════════════════════════════════════════════════════
-# ═══════════════════════════════════════════════════════════════════
-# 20) NO-PREFIX MODE + AUTO-RESPONSE IN on_message
-# ═══════════════════════════════════════════════════════════════════
-# This is handled by injecting into the existing on_message handler.
-# We patch it via a listener instead:
-
-# ═══════════════════════════════════════════════════════════════════
-# 21) NO-PREFIX SETUP
-# ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="noprefix_add", description="Fügt einen User zur No-Prefix-Whitelist hinzu")
-@app_commands.describe(member="User der No-Prefix nutzen darf")
-@app_commands.default_permissions(administrator=True)
-async def slash_noprefix_add(interaction: discord.Interaction, member: discord.Member) -> None:
-    cfg = bot.db.get_config(interaction.guild.id)
-    np_users = cfg.get("no_prefix_users", [])
-    uid = str(member.id)
-    if uid not in [str(u) for u in np_users]:
-        np_users.append(member.id)
-    cfg["no_prefix_users"] = np_users
-    cfg["no_prefix"] = True
-    await bot.db.set_config(interaction.guild.id, cfg)
-    await interaction.response.send_message(embed=create_embed(f"{E.OK}", f"{member.mention} kann jetzt No-Prefix nutzen.", COLOR_SUCCESS))
 
 @bot.tree.command(name="noprefix_remove", description="Entfernt einen User von der No-Prefix-Whitelist")
 @app_commands.describe(member="User entfernen")
@@ -6847,74 +6792,37 @@ _snipe_cache = {}  # guild_id -> {channel_id: (message, timestamp)}
 # ═══════════════════════════════════════════════════════════════════
 # NEW: Erweiterte /purge Varianten
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="purge_user", description="Löscht Nachrichten eines bestimmten Users")
-@app_commands.describe(member="User", amount="Anzahl zu prüfender Nachrichten")
+@bot.tree.command(name="purge", description="Nachrichten löschen (gefiltert)")
+@app_commands.describe(amount="Anzahl (1-100)", type="Filter-Typ")
+@app_commands.choices(type=[
+    app_commands.Choice(name="👤 User (mit User-Angabe)", value="user"),
+    app_commands.Choice(name="🤖 Nur Bots", value="bots"),
+    app_commands.Choice(name="🔗 Nur Links", value="links"),
+    app_commands.Choice(name="🖼️ Nur Bilder/Dateien", value="images"),
+])
 @app_commands.default_permissions(manage_messages=True)
-async def slash_purge_user(interaction: discord.Interaction, member: discord.Member, amount: int = 100) -> None:
+async def slash_purge(interaction: discord.Interaction, amount: int, type: str, user: Optional[discord.Member] = None):
+    if amount < 1 or amount > 100: amount = 10
     await interaction.response.defer(ephemeral=True)
-    amount = min(amount, 500)
-    deleted = await interaction.channel.purge(limit=amount, check=lambda m: m.author.id == member.id)
-    await interaction.followup.send(embed=create_embed(f"{E.DELETE}", f"**{len(deleted)}** Nachrichten von {member.mention} gelöscht.", COLOR_SUCCESS))
-    await bot.log_action(interaction.guild, f"{E.DELETE} Purge User", f"{interaction.user.mention} hat {len(deleted)} Nachrichten von {member.mention} gelöscht.", COLOR_WARNING, user=interaction.user, module="moderation")
-
-@bot.tree.command(name="purge_bots", description="Löscht nur Bot-Nachrichten")
-@app_commands.describe(amount="Anzahl")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_purge_bots(interaction: discord.Interaction, amount: int = 100) -> None:
-    await interaction.response.defer(ephemeral=True)
-    deleted = await interaction.channel.purge(limit=min(amount, 500), check=lambda m: m.author.bot)
-    await interaction.followup.send(embed=create_embed(f"{E.DELETE}", f"**{len(deleted)}** Bot-Nachrichten gelöscht.", COLOR_SUCCESS))
-
-@bot.tree.command(name="purge_links", description="Löscht nur Nachrichten mit Links")
-@app_commands.describe(amount="Anzahl")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_purge_links(interaction: discord.Interaction, amount: int = 100) -> None:
-    await interaction.response.defer(ephemeral=True)
-    deleted = await interaction.channel.purge(limit=min(amount, 500), check=lambda m: "http" in m.content.lower())
-    await interaction.followup.send(embed=create_embed(f"{E.DELETE}", f"**{len(deleted)}** Link-Nachrichten gelöscht.", COLOR_SUCCESS))
-
-@bot.tree.command(name="purge_images", description="Löscht nur Nachrichten mit Bildern/Dateien")
-@app_commands.describe(amount="Anzahl")
-@app_commands.default_permissions(manage_messages=True)
-async def slash_purge_images(interaction: discord.Interaction, amount: int = 100) -> None:
-    await interaction.response.defer(ephemeral=True)
-    deleted = await interaction.channel.purge(limit=min(amount, 500), check=lambda m: len(m.attachments) > 0)
-    await interaction.followup.send(embed=create_embed(f"{E.DELETE}", f"**{len(deleted)}** Bild/Datei-Nachrichten gelöscht.", COLOR_SUCCESS))
-
-@bot.command(name="purge")
-@commands.has_permissions(manage_messages=True)
-async def prefix_purge(ctx, target: str = None, amount: int = 50):
-    """!purge [user @User|bots|links|images|amount] [amount]"""
-    if target and target.isdigit():
-        amount = int(target)
-        target = None
-    amount = min(max(amount, 1), 500)
-    check_fn = None
-    label = "Nachrichten"
-    if target == "bots":
-        check_fn = lambda m: m.author.bot
-        label = "Bot-Nachrichten"
-    elif target == "links":
-        check_fn = lambda m: "http" in m.content.lower()
-        label = "Link-Nachrichten"
-    elif target == "images":
-        check_fn = lambda m: len(m.attachments) > 0
-        label = "Bild-Nachrichten"
-    elif target and target.startswith("<@"):
-        uid = int(target.strip("<@!>"))
-        check_fn = lambda m: m.author.id == uid
-        label = f"Nachrichten von <@{uid}>"
+    deleted = 0
     try:
-        await ctx.message.delete()
-    except Exception:
-        pass
-    deleted = await ctx.channel.purge(limit=amount, check=check_fn)
-    msg = await ctx.send(embed=create_embed(f"{E.DELETE}", f"**{len(deleted)}** {label} gelöscht.", COLOR_SUCCESS))
-    await asyncio.sleep(5)
-    try:
-        await msg.delete()
-    except Exception:
-        pass
+        if type == "user" and user:
+            def check(m): return m.author.id == user.id
+        elif type == "bots":
+            def check(m): return m.author.bot
+        elif type == "links":
+            def check(m): return bool(URL_REGEX.search(m.content or ""))
+        elif type == "images":
+            def check(m): return bool(m.attachments) or bool(URL_REGEX.search(m.content or ""))
+        else:
+            def check(m): return True
+        deleted = len(await interaction.channel.purge(limit=amount, check=check))
+    except Exception as e:
+        await interaction.followup.send(embed=create_embed(f"{E.FAIL}", f"Fehler: {e}", COLOR_DANGER), ephemeral=True)
+        return
+    await interaction.followup.send(embed=create_embed(f"{E.OK}", f"{deleted} Nachrichten gelöscht.", COLOR_SUCCESS), ephemeral=True)
+    await bot.log_action(interaction.guild, f"{E.DELETE} Nachrichten gelöscht", f"{interaction.user.mention} hat {deleted} Nachrichten gelöscht ({type}).", COLOR_INFO, user=interaction.user, module="moderation")
+
 
 # ═══════════════════════════════════════════════════════════════════
 # ═══════════════════════════════════════════════════════════════════
@@ -7505,49 +7413,40 @@ async def ar_handler(msg):
 # ═══════════════════════════════════════════════════════════════════
 # BADGE SYSTEM – Nur Bot-Developer
 # ═══════════════════════════════════════════════════════════════════
-@bot.tree.command(name="badge_add", description="[DEV] Badge zu einem User hinzufügen")
-@app_commands.describe(user="Ziel-User", badge="Badge-ID (z.B. bug_hunter)")
+@bot.tree.command(name="badge", description="Badges verwalten")
+@app_commands.describe(action="Aktion", user="Ziel-User", badge="Badge-ID")
+@app_commands.choices(action=[
+    app_commands.Choice(name="➕ Vergeben", value="add"),
+    app_commands.Choice(name="🗑️ Entfernen", value="remove"),
+    app_commands.Choice(name="📋 Anzeigen", value="list"),
+])
 @app_commands.choices(badge=[app_commands.Choice(name=f"{v['emoji']} {v['name']}", value=k) for k, v in BADGES.items()])
-async def slash_badge_add(interaction: discord.Interaction, user: discord.Member, badge: str):
-    if interaction.user.id != _BOT_DEV_ID:
+async def slash_badge(interaction: discord.Interaction, action: str, user: Optional[discord.Member] = None, badge: Optional[str] = None):
+    if action in ("add", "remove") and interaction.user.id != _BOT_DEV_ID:
         return await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", "Nur der Bot-Developer kann Badges verwalten.", COLOR_DANGER), ephemeral=True)
-    if badge not in BADGES:
-        return await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", f"Ungültiges Badge: `{badge}`", COLOR_DANGER), ephemeral=True)
-    ok = await bot.db.badge_add(interaction.guild.id, user.id, badge, interaction.user.id)
-    if ok:
+    if action == "add":
+        if not user or not badge or badge not in BADGES:
+            return await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", "User und gültiges Badge erforderlich.", COLOR_DANGER), ephemeral=True)
+        ok = await bot.db.badge_add(interaction.guild.id, user.id, badge, interaction.user.id)
         bd = BADGES[badge]
-        await interaction.response.send_message(embed=create_embed(f"{E.OK} Badge vergeben", f"{bd['emoji']} **{bd['name']}** → {user.mention}", COLOR_SUCCESS), ephemeral=True)
-        await bot.log_action(interaction.guild, f"{bd['emoji']} Badge vergeben", f"{interaction.user.mention} → {user.mention}: {bd['name']}", COLOR_INFO, user=user, module="moderation")
+        msg = f"{bd['emoji']} **{bd['name']}** → {user.mention}" if ok else f"{user.mention} hat dieses Badge bereits."
+        await interaction.response.send_message(embed=create_embed(f"{E.OK if ok else E.FAIL}", msg, COLOR_SUCCESS if ok else COLOR_DANGER), ephemeral=True)
+    elif action == "remove":
+        if not user or not badge:
+            return await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", "User und Badge erforderlich.", COLOR_DANGER), ephemeral=True)
+        ok = await bot.db.badge_remove(interaction.guild.id, user.id, badge)
+        bd = BADGES.get(badge, {"name": badge, "emoji": "🏷️"})
+        await interaction.response.send_message(embed=create_embed(f"{E.OK if ok else E.FAIL}", f"{bd['emoji']} **{bd['name']}** {'entfernt' if ok else 'nicht gefunden'}.", COLOR_SUCCESS if ok else COLOR_DANGER), ephemeral=True)
     else:
-        await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", f"{user.mention} hat dieses Badge bereits.", COLOR_DANGER), ephemeral=True)
-
-@bot.tree.command(name="badge_remove", description="[DEV] Badge von einem User entfernen")
-@app_commands.describe(user="Ziel-User", badge="Badge-ID")
-@app_commands.choices(badge=[app_commands.Choice(name=f"{v['emoji']} {v['name']}", value=k) for k, v in BADGES.items()])
-async def slash_badge_remove(interaction: discord.Interaction, user: discord.Member, badge: str):
-    if interaction.user.id != _BOT_DEV_ID:
-        return await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", "Nur der Bot-Developer kann Badges verwalten.", COLOR_DANGER), ephemeral=True)
-    ok = await bot.db.badge_remove(interaction.guild.id, user.id, badge)
-    bd = BADGES.get(badge, {"name": badge, "emoji": "🏷️"})
-    if ok:
-        await interaction.response.send_message(embed=create_embed(f"{E.OK} Badge entfernt", f"{bd['emoji']} **{bd['name']}** von {user.mention} entfernt.", COLOR_SUCCESS), ephemeral=True)
-    else:
-        await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", f"{user.mention} hat dieses Badge nicht.", COLOR_DANGER), ephemeral=True)
-
-@bot.tree.command(name="badge_list", description="Badges eines Users anzeigen")
-@app_commands.describe(user="Ziel-User")
-async def slash_badge_list(interaction: discord.Interaction, user: discord.Member):
-    badges = await bot.db.badge_get_all(interaction.guild.id, user.id)
-    if not badges:
-        return await interaction.response.send_message(embed=create_embed(f"🏷️ Badges", f"{user.mention} hat keine Badges.", COLOR_INFO), ephemeral=True)
-    lines = []
-    for b_id in badges:
-        bd = BADGES.get(b_id, {"name": b_id, "emoji": "🏷️"})
-        lines.append(f"{bd['emoji']} **{bd['name']}**")
-    embed = discord.Embed(title=f"🏷️ Badges von {user.display_name}", description="\n".join(lines), color=COLOR_PRIMARY)
-    embed.set_footer(text=f"{len(badges)} Badges")
-    await interaction.response.send_message(embed=embed, ephemeral=True)
-
+        if not user:
+            return await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", "User erforderlich.", COLOR_DANGER), ephemeral=True)
+        badges = await bot.db.badge_get_all(interaction.guild.id, user.id)
+        if not badges:
+            return await interaction.response.send_message(embed=create_embed("🏷️ Badges", f"{user.mention} hat keine Badges.", COLOR_INFO), ephemeral=True)
+        lines = [f"{BADGES.get(b, {'name':b,'emoji':'🏷️'})['emoji']} **{BADGES.get(b, {'name':b})['name']}**" for b in badges]
+        embed = discord.Embed(title=f"🏷️ Badges von {user.display_name}", description="\n".join(lines), color=COLOR_PRIMARY)
+        embed.set_footer(text=f"{len(badges)} Badges")
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 # ═══════════════════════════════════════════════════════════════════
 # NOTE SYSTEM
 # ═══════════════════════════════════════════════════════════════════
