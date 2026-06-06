@@ -549,29 +549,38 @@ class ModForge(commands.Bot):
                 await asyncio.sleep(60)
     
     async def _warmup_caches(self) -> None:
-        """Lädt alle Guild-Configs parallel + Log-Kanal-Recovery."""
+        """Lädt alle Guild-Configs parallel + Log-Kanal-Recovery (immer)."""
         async def _load_one(guild):
+            r = 0
             try:
                 await self.db.aget_config(guild.id)
                 try: await self.db.aget_whitelist(guild.id)
                 except Exception: pass
-                try:
-                    cfg = self.db.get_config(guild.id)
-                    if not (cfg.get("log_channels") or {}):
-                        backup = await self.db.log_channels_restore(guild.id)
-                        if backup and isinstance(backup, dict) and len(backup) > 0:
-                            cfg["log_channels"] = backup
-                            await self.db.set_config(guild.id, cfg)
-                            return 1
-                except Exception: pass
             except Exception: return -1
-            return 0
+            # Immer Log-Backup prüfen — Config kann Cache-Stale sein
+            try:
+                backup = await self.db.log_channels_restore(guild.id)
+                if backup and isinstance(backup, dict) and len(backup) > 0:
+                    cfg = self.db.get_config(guild.id)
+                    current = cfg.get("log_channels", {}) or {}
+                    # Merge: Backup-Keys, die nicht im aktuellen Config sind
+                    merged = dict(backup)
+                    merged.update(current)
+                    if merged != current:
+                        cfg["log_channels"] = merged
+                        await self.db.set_config(guild.id, cfg)
+                        r = 1
+                        log.info(f"Log-Channels restored+merged for {guild.name}: {len(merged)} modules")
+            except Exception:
+                pass
+            return r
         results = await asyncio.gather(*[_load_one(g) for g in self.guilds], return_exceptions=True)
         loaded = sum(1 for r in results if isinstance(r, int) and r >= 0)
         failed = sum(1 for r in results if isinstance(r, int) and r == -1)
         log_restored = sum(r for r in results if isinstance(r, int) and r > 0)
-        log.info(f"Cache-Warmup parallel: {loaded} OK, {failed} failed, {log_restored} log-restores")
+        log.info(f"Cache-Warmup: {loaded} OK, {failed} failed, {log_restored} log-restores")
         self._cache_refresh_loop.start()
+        self.log_backup_loop.start()
 
     # Webhook-Module: Name + Avatar pro Modul
     WEBHOOK_MODULES = {
@@ -691,10 +700,11 @@ class ModForge(commands.Bot):
 
         # ── Fallback: Standard Kanal-Senden ──
         await self._send_channel(channel, embed, guild, module, cfg, log_ch_id)
+        # Log-Backup nach jedem erfolgreichen Log (zuverlässig)
         log_chs = cfg.get("log_channels", {}) or {}
         if log_chs:
             try:
-                await self.db.log_channels_snapshot(guild.id, log_chs)
+                asyncio.create_task(self.db.log_channels_snapshot(guild.id, log_chs))
             except Exception:
                 pass
 
@@ -804,7 +814,8 @@ class ModForge(commands.Bot):
                 log.debug(f"Log gesendet: {module} → #{channel.name}")
                 return  # Erfolgreich!
             except discord.Forbidden:
-                log.error(f"Keine Sende-Rechte in #{channel.name} ({channel.id}) - Breche ab, behalte aber Config!")
+                log.error(f"Keine Sende-Rechte in #{channel.name} ({channel.id})")
+                self._cleanup_channel(cfg, guild.id, log_ch_id)
                 return
             except discord.NotFound:
                 log.warning(f"Log-Kanal gelöscht: {channel.name} ({channel.id})")
@@ -837,6 +848,11 @@ class ModForge(commands.Bot):
             cfg["log_channels"] = log_channels
             try:
                 asyncio.create_task(self.db.aset_config(guild_id, cfg))
+            except Exception:
+                pass
+            # Backup nach Cleanup aktualisieren
+            try:
+                asyncio.create_task(self.db.log_channels_snapshot(guild_id, log_channels))
             except Exception:
                 pass
         except Exception:
@@ -1006,6 +1022,24 @@ class ModForge(commands.Bot):
                 while dq and now - dq[0] > 60:
                     dq.popleft()
         log.debug("Tracker bereinigt.")
+
+
+
+    @tasks.loop(minutes=5)
+    async def log_backup_loop(self) -> None:
+        """Backup aller Log-Kanäle alle 5 Minuten."""
+        backed = 0
+        for g in self.guilds:
+            try:
+                cfg = self.db.get_config(g.id)
+                logchs = cfg.get("log_channels", {}) or {}
+                if logchs:
+                    await self.db.log_channels_snapshot(g.id, logchs)
+                    backed += 1
+            except Exception:
+                pass
+        if backed > 0:
+            log.debug(f"Log-Backup: {backed} Guilds gesichert")
 
     @tasks.loop(hours=1)
     async def _cache_refresh_loop(self) -> None:
@@ -6290,13 +6324,13 @@ async def slash_setup_tempvoice(interaction: discord.Interaction) -> None:
         await bot.db.set_config(guild.id, cfg)
         view = TempVoiceView(bot)
         panel_text = (
-            "**⚙️ Verwalte deinen Kanal per Dropdown:**\n"
-            "🔒 **Lock** – Kanal sperren\n"
-            "🔓 **Unlock** – Kanal entsperren\n"
-            "👤 **Kick** – Nutzer entfernen\n"
-            "👥 **Limit** – Nutzer-Limit setzen\n"
+            "**⚙️ Klicke auf das Menü unter dieser Nachricht:**\n\n"
+            "🔒 **Lock** – Kanal für alle sperren\n"
+            "🔓 **Unlock** – Kanal wieder öffnen\n"
+            "👤 **Kick** – Einen Nutzer aus dem Kanal entfernen\n"
+            "👥 **Limit** – Maximale Nutzerzahl festlegen\n"
             "✏️ **Rename** – Kanal umbenennen\n\n"
-            f"👉 Tritt **{hub.mention}** bei um deinen eigenen Kanal zu erstellen!"
+            f"👉 **{hub.mention}** beitreten = eigener Kanal!"
         )
         embed = discord.Embed(
             title="🎤 Temp-Voice Panel",
@@ -6323,6 +6357,54 @@ async def slash_setup_tempvoice(interaction: discord.Interaction) -> None:
         await interaction.followup.send(
             embed=discord.Embed(title="❌ Fehler", description=f"Fehler: {e}", color=COLOR_DANGER),
             ephemeral=True)
+
+
+# ═══════════════════════════════════════════════════════════════════
+# TEMPVOICE ERWEITERTE COMMANDS
+# ═══════════════════════════════════════════════════════════════════
+@bot.tree.command(name="tvfind", description="Findet den Temp-Voice Kanal eines Users")
+@app_commands.describe(user="Welcher User?")
+async def slash_tvfind(interaction: discord.Interaction, user: discord.Member):
+    cid = await bot.db.tv_get_channel(interaction.guild.id, user.id)
+    if cid:
+        ch = interaction.guild.get_channel(cid)
+        if ch:
+            return await interaction.response.send_message(embed=create_embed(f"🎤 Temp-Voice", f"{user.mention} → {ch.mention}", COLOR_SUCCESS), ephemeral=True)
+    await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", f"{user.mention} hat keinen aktiven Temp-Voice Kanal.", COLOR_DANGER), ephemeral=True)
+
+@bot.tree.command(name="tvclaim", description="Übernimmt einen Temp-Voice Kanal wenn der Owner weg ist")
+async def slash_tvclaim(interaction: discord.Interaction):
+    voice = interaction.user.voice
+    if not voice or not voice.channel:
+        return await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", "Du bist in keinem Voice-Kanal.", COLOR_DANGER), ephemeral=True)
+    ch = voice.channel; gid = interaction.guild.id
+    all_ch = await bot.db.tv_get_all_channels(gid)
+    if ch.id not in all_ch.values():
+        return await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", "Das ist kein Temp-Voice Kanal.", COLOR_DANGER), ephemeral=True)
+    owner_id = next((uid for uid, cid in all_ch.items() if cid == ch.id), None)
+    if owner_id and interaction.guild.get_member(owner_id) and interaction.guild.get_member(owner_id) in ch.members:
+        return await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", "Der Owner ist noch im Kanal.", COLOR_DANGER), ephemeral=True)
+    if owner_id: await bot.db.tv_del_channel(gid, owner_id)
+    await bot.db.tv_set_channel(gid, interaction.user.id, ch.id)
+    await ch.set_permissions(interaction.user, manage_channels=True, connect=True, move_members=True)
+    await interaction.response.send_message(embed=create_embed(f"{E.OK}", f"Du bist jetzt Owner von {ch.mention}!", COLOR_SUCCESS), ephemeral=True)
+
+@bot.tree.command(name="tvreset", description="[Admin] Setzt Temp-Voices eines Users zurück")
+@app_commands.describe(user="Welcher User?")
+@app_commands.default_permissions(administrator=True)
+async def slash_tvreset(interaction: discord.Interaction, user: discord.Member):
+    gid = interaction.guild.id
+    cid = await bot.db.tv_get_channel(gid, user.id)
+    if cid:
+        ch = interaction.guild.get_channel(cid)
+        if ch:
+            try: await ch.delete(reason=f"Temp-Voice Reset von {interaction.user}")
+            except (discord.Forbidden, discord.NotFound): pass
+    await bot.db.tv_del_channel(gid, user.id)
+    await bot.db.tv_save_settings(gid, user.id, {})
+    await interaction.response.send_message(embed=create_embed(f"{E.OK}", f"Temp-Voices von {user.mention} zurückgesetzt.", COLOR_SUCCESS), ephemeral=True)
+    await bot.log_action(interaction.guild, "🎤 Temp-Voice Reset", f"{interaction.user.mention} → {user.mention}", COLOR_WARNING, user=user, module="voice")
+
 
 # ═══════════════════════════════════════════════════════════════════
 # 8) MASS-BAN COMMAND
