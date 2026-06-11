@@ -6,36 +6,25 @@ Alle Commands und Events sind in bot/cogs/ aufgeteilt.
 """
 import asyncio
 import datetime
-import random
 import re
 import time
-import traceback
-import unicodedata
 from collections import defaultdict, deque
-from typing import Any, Dict, List, Optional, Tuple, Union, Callable
+from typing import Dict, List, Optional
 
 import discord
 from discord.ext import commands, tasks
-from discord import app_commands
 
 from bot.config import ACTIVITY
 
 from bot.config import (
     COLOR_PRIMARY, COLOR_SUCCESS, COLOR_WARNING, COLOR_DANGER,
-    COLOR_INFO, FOOTER_TEXT, FOOTER_ICON, VERIFY_BANNER_URL,
-    E, URL_REGEX, INVITE_REGEX, ZALGO_REGEX, SUSPICIOUS_NAME_REGEX,
-    SCAM_DOMAINS, URL_SHORTENERS, VALID_PUNISHMENTS, LOG_MODULES,
-    LOG_MODULES_EXTRA,
-    DEFAULT_CONFIG, HELP_DATA, get_uptime, log,
-    BADGES,
+    COLOR_INFO, FOOTER_TEXT, FOOTER_ICON,
+    E, VALID_PUNISHMENTS, LOG_MODULES, LOG_MODULES_EXTRA,
+    HELP_DATA, log, dev_print, dev_banner,
 )
-from bot.utils import (
-    rate_limited, create_embed,
-    generate_captcha, check_phishing_url, can_moderate, parse_duration
-)
+from bot.utils import create_embed, generate_captcha, utcnow, to_aware_utc
 
 from database.db import Database
-import aiohttp
 
 # ═══════════════════════════════════════════════════════════════════
 # TRACKER (IN-MEMORY)
@@ -73,7 +62,7 @@ _BOT_APP_ID = 1491447622442160248
 
 async def safe_dm(user, embed, cooldown_key: str = None, cooldown_seconds: int = 30):
     """Sendet eine DM an einen User mit Duplikat-Schutz."""
-    if user.bot:
+    if user is None or getattr(user, "bot", False):
         return False
     key = cooldown_key or f"{user.id}:{embed.title or 'dm'}"
     now = time.time()
@@ -198,8 +187,19 @@ class TicketView(discord.ui.View):
     @discord.ui.button(label="Ticket öffnen", style=discord.ButtonStyle.blurple,
                        custom_id="modforge:open_ticket", emoji=E.TICKET)
     async def open_ticket(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        cfg = self.bot.db.get_config(interaction.guild.id)["ticket_system"]
-        category = interaction.guild.get_channel(cfg["category_id"]) if cfg.get("category_id") else None
+        cfg = self.bot.db.get_config(interaction.guild.id).get("ticket_system", {})
+        ticket_ext = self.bot.db.get_config(interaction.guild.id).get("ticket_extended", {})
+        max_open = int(ticket_ext.get("max_open_per_user", 3) or 3)
+        open_count = await self.bot.db.data.count_documents({
+            "type": "ticket", "guild_id": interaction.guild.id,
+            "user_id": interaction.user.id, "status": "open",
+        })
+        if open_count >= max_open:
+            return await interaction.response.send_message(
+                embed=create_embed(f"{E.FAIL} Ticket-Limit", f"Du hast bereits **{open_count}** offene Tickets.", COLOR_DANGER),
+                ephemeral=True,
+            )
+        category = interaction.guild.get_channel(cfg.get("category_id")) if cfg.get("category_id") else None
         overwrites = {
             interaction.guild.default_role: discord.PermissionOverwrite(read_messages=False),
             interaction.user: discord.PermissionOverwrite(read_messages=True, send_messages=True),
@@ -214,10 +214,20 @@ class TicketView(discord.ui.View):
         except discord.Forbidden:
             await interaction.response.send_message(embed=discord.Embed(title="❌ Fehler", description=f"{E.FAIL} Mir fehlen Rechte.", color=COLOR_DANGER), ephemeral=True)
             return
+        await self.bot.db.data.insert_one({
+            "type": "ticket", "guild_id": interaction.guild.id, "channel_id": channel.id,
+            "user_id": interaction.user.id, "category": "support", "priority": "medium",
+            "status": "open", "assigned_to": None, "created_at": utcnow(), "messages": 0,
+        })
         await interaction.response.send_message(f"{E.TICKET_OK} Ticket erstellt: {channel.mention}", ephemeral=True)
+        try:
+            from bot.cogs.tickets import TicketControlView
+            ticket_view = TicketControlView(self.bot)
+        except Exception:
+            ticket_view = TicketCloseView(self.bot)
         await channel.send(
-            embed=create_embed(f"{E.TICKET} Support Ticket", f"Willkommen {interaction.user.mention}!", COLOR_INFO),
-            view=TicketCloseView(self.bot)
+            embed=create_embed(f"{E.TICKET} Support Ticket", f"Willkommen {interaction.user.mention}! Beschreibe dein Anliegen so genau wie möglich.", COLOR_INFO),
+            view=ticket_view
         )
         await self.bot.log_action(interaction.guild, f"{E.TICKET} Ticket erstellt",
                                   f"{interaction.user.mention} hat ein Ticket geöffnet: {channel.mention}",
@@ -415,8 +425,16 @@ class LogChannelModal(discord.ui.Modal, title="Log-Kanal setzen"):
             return
         cfg = interaction.client.db.get_config(interaction.guild.id)
         cfg["log_channel"] = cid
+        cfg["log_channels"] = {module: cid for module in (list(LOG_MODULES) + list(LOG_MODULES_EXTRA))}
         await interaction.client.db.set_config(interaction.guild.id, cfg)
-        await interaction.response.send_message(embed=create_embed(f"{E.OK} Log-Kanal gesetzt", f"<#{cid}>", COLOR_SUCCESS), ephemeral=True)
+        await interaction.response.send_message(
+            embed=create_embed(
+                f"{E.OK} Log-Kanal gesetzt",
+                f"Alle Log-Module senden jetzt nach <#{cid}>.",
+                COLOR_SUCCESS,
+            ),
+            ephemeral=True,
+        )
 
 class PrefixModal(discord.ui.Modal, title="Prefix ändern"):
     prefix = discord.ui.TextInput(label="Neuer Prefix", placeholder="z.B. !", max_length=5, required=True)
@@ -446,14 +464,18 @@ class WarnSetupModal(discord.ui.Modal, title="Warn-Schwellen konfigurieren"):
 class HelpCategorySelect(discord.ui.Select):
     def __init__(self) -> None:
         options = [
-            discord.SelectOption(label="Moderation", value="mod", emoji=E.NUKE),
-            discord.SelectOption(label="Security", value="sec", emoji=E.SHIELD),
-            discord.SelectOption(label="AutoMod", value="automod", emoji=E.AUTOMOD),
-            discord.SelectOption(label="Whitelist", value="wl", emoji=E.CHANNEL),
-            discord.SelectOption(label="Logs (pro Modul)", value="logs", emoji=E.CHANNEL),
-            discord.SelectOption(label="System", value="sys", emoji=E.SYSTEM),
-            discord.SelectOption(label="Owner/Admin", value="owner", emoji=E.OWNER),
-            discord.SelectOption(label="Appeal", value="appeal", emoji=E.APPEAL),
+            discord.SelectOption(label="Moderation", value="mod", emoji=E.NUKE, description="Ban, Kick, Mute, Warn"),
+            discord.SelectOption(label="Info & Stats", value="info", emoji=E.USERS, description="Userinfo, Serverinfo, Cases"),
+            discord.SelectOption(label="Security", value="sec", emoji=E.SHIELD, description="Security-Level, Panic, Warn-Decay"),
+            discord.SelectOption(label="AutoMod", value="automod", emoji=E.AUTOMOD, description="Filter und Auto-Antworten"),
+            discord.SelectOption(label="Logging", value="logs", emoji=E.CHANNEL, description="/log für alle Logs"),
+            discord.SelectOption(label="Whitelist", value="wl", emoji=E.SHIELD, description="User/Rollen ausnehmen"),
+            discord.SelectOption(label="Community", value="community", emoji=E.USERS, description="Polls, AFK, Invites"),
+            discord.SelectOption(label="Tools", value="tools", emoji=E.GEAR, description="ReactionRole, TempVoice, Welcome"),
+            discord.SelectOption(label="Backup", value="backup", emoji=E.SAVE, description="Server-Backups"),
+            discord.SelectOption(label="System", value="sys", emoji=E.SYSTEM, description="Setup, Help, Verify"),
+            discord.SelectOption(label="Admin", value="owner", emoji=E.OWNER, description="Mass-Actions, Audit"),
+            discord.SelectOption(label="Appeal", value="appeal", emoji=E.APPEAL, description="Ban-Appeals"),
         ]
         super().__init__(placeholder="Kategorie wählen...", options=options)
 
@@ -522,10 +544,11 @@ class TempVoiceSelect(discord.ui.Select):
                 embed=discord.Embed(title="❌ Fehler", description="Du bist in keinem Voice-Kanal.", color=COLOR_DANGER),
                 ephemeral=True)
         ch = voice.channel
-        overwrites = ch.overwrites_for(member)
-        if not overwrites.manage_channels:
+        doc = await interaction.client.db.tempvoice_channels.find_one({"guild_id": interaction.guild.id, "channel_id": ch.id})
+        is_owner = bool(doc and doc.get("user_id") == member.id)
+        if not is_owner and not member.guild_permissions.manage_channels:
             return await interaction.response.send_message(
-                embed=discord.Embed(title="❌ Fehler", description="Du bist nicht der Besitzer dieses Kanals.", color=COLOR_DANGER),
+                embed=discord.Embed(title="❌ Fehler", description="Du bist nicht der Besitzer dieses Temp-Voice-Kanals.", color=COLOR_DANGER),
                 ephemeral=True)
         try:
             if action == "lock":
@@ -572,9 +595,13 @@ class TempVoiceLimitModal(discord.ui.Modal, title="Nutzer-Limit setzen"):
         if not interaction.user.voice or not interaction.user.voice.channel:
             return await interaction.response.send_message(embed=discord.Embed(title="❌", description="Nicht in einem Voice-Kanal.", color=COLOR_DANGER), ephemeral=True)
         ch = interaction.user.voice.channel
+        doc = await interaction.client.db.tempvoice_channels.find_one({"guild_id": interaction.guild.id, "channel_id": ch.id})
+        if not (doc and doc.get("user_id") == interaction.user.id) and not interaction.user.guild_permissions.manage_channels:
+            return await interaction.response.send_message(embed=discord.Embed(title="❌", description="Du bist nicht der Besitzer dieses Temp-Voice-Kanals.", color=COLOR_DANGER), ephemeral=True)
+        limit = max(0, min(val, 99))
         try:
-            await ch.edit(user_limit=max(0, min(val, 99)))
-            await interaction.response.send_message(embed=discord.Embed(title="👥 Limit gesetzt", description=f"Limit: **{val}**", color=COLOR_SUCCESS), ephemeral=True)
+            await ch.edit(user_limit=limit)
+            await interaction.response.send_message(embed=discord.Embed(title="👥 Limit gesetzt", description=f"Limit: **{limit or 'kein Limit'}**", color=COLOR_SUCCESS), ephemeral=True)
         except (discord.Forbidden, discord.HTTPException) as e:
             await interaction.response.send_message(embed=discord.Embed(title="❌", description=f"Fehler: {e}", color=COLOR_DANGER), ephemeral=True)
 
@@ -584,9 +611,13 @@ class TempVoiceRenameModal(discord.ui.Modal, title="Kanal umbenennen"):
         if not interaction.user.voice or not interaction.user.voice.channel:
             return await interaction.response.send_message(embed=discord.Embed(title="❌", description="Nicht in einem Voice-Kanal.", color=COLOR_DANGER), ephemeral=True)
         ch = interaction.user.voice.channel
+        doc = await interaction.client.db.tempvoice_channels.find_one({"guild_id": interaction.guild.id, "channel_id": ch.id})
+        if not (doc and doc.get("user_id") == interaction.user.id) and not interaction.user.guild_permissions.manage_channels:
+            return await interaction.response.send_message(embed=discord.Embed(title="❌", description="Du bist nicht der Besitzer dieses Temp-Voice-Kanals.", color=COLOR_DANGER), ephemeral=True)
+        new_name = self.name.value[:100]
         try:
-            await ch.edit(name=self.name.value[:100])
-            await interaction.response.send_message(embed=discord.Embed(title="✏️ Umbenannt", description=f"Neuer Name: **{self.name.value}**", color=COLOR_SUCCESS), ephemeral=True)
+            await ch.edit(name=new_name)
+            await interaction.response.send_message(embed=discord.Embed(title="✏️ Umbenannt", description=f"Neuer Name: **{new_name}**", color=COLOR_SUCCESS), ephemeral=True)
         except (discord.Forbidden, discord.HTTPException) as e:
             await interaction.response.send_message(embed=discord.Embed(title="❌", description=f"Fehler: {e}", color=COLOR_DANGER), ephemeral=True)
 
@@ -634,20 +665,31 @@ class ModForge(commands.Bot):
         for cog in COGS:
             try:
                 await self.load_extension(cog)
-                log.info(f"Cog geladen: {cog}")
+                dev_print(f"Cog geladen: {cog}", "success", "Cogs")
             except Exception as e:
-                log.error(f"Cog {cog} konnte nicht geladen werden: {e}")
+                dev_print(f"Cog konnte nicht geladen werden: {cog} → {e}", "error", "Cogs")
 
-        await self.tree.sync()
-        log.info("Slash-Commands synchronisiert.")
+        try:
+            await self.tree.sync()
+            dev_print("Slash-Commands erfolgreich synchronisiert.", "success", "Commands")
+        except Exception as e:
+            dev_print(f"Slash-Command Sync fehlgeschlagen: {e}", "error", "Commands")
 
-        # Tasks starten
-        self.cleanup_trackers.start()
-        self.tempaction_loop.start()
-        self.restore_persistent_mutes.start()
+        # Tasks starten (Reconnect-/Reload-sicher)
+        for task in (self.cleanup_trackers, self.tempaction_loop, self.restore_persistent_mutes):
+            if not task.is_running():
+                task.start()
 
     async def on_ready(self) -> None:
-        log.info(f"Eingeloggt als {self.user} (ID: {self.user.id})")
+        total_members = sum(g.member_count or 0 for g in self.guilds)
+        dev_banner(
+            "ModForge ist online",
+            f"Bot: {self.user} ({self.user.id})",
+            f"Server: {len(self.guilds)}",
+            f"Member: {total_members:,}",
+            level="success",
+            area="Ready",
+        )
         await self._warmup_caches()
         try:
             for g in self.guilds:
@@ -697,7 +739,7 @@ class ModForge(commands.Bot):
                         cfg["log_channels"] = merged
                         await self.db.set_config(guild.id, cfg)
                         r = 1
-                        log.info(f"Log-Channels restored+merged for {guild.name}: {len(merged)} modules")
+                        dev_print(f"Log-Channels wiederhergestellt für {guild.name}: {len(merged)} Module", "success", "Cache")
             except Exception:
                 pass
             return r
@@ -705,9 +747,11 @@ class ModForge(commands.Bot):
         loaded = sum(1 for r in results if isinstance(r, int) and r >= 0)
         failed = sum(1 for r in results if isinstance(r, int) and r == -1)
         log_restored = sum(r for r in results if isinstance(r, int) and r > 0)
-        log.info(f"Cache-Warmup: {loaded} OK, {failed} failed, {log_restored} log-restores")
-        self._cache_refresh_loop.start()
-        self.log_backup_loop.start()
+        dev_print(f"Cache-Warmup fertig: {loaded} OK, {failed} fehlgeschlagen, {log_restored} Log-Restores", "success" if failed == 0 else "warning", "Cache")
+        if not self._cache_refresh_loop.is_running():
+            self._cache_refresh_loop.start()
+        if not self.log_backup_loop.is_running():
+            self.log_backup_loop.start()
 
     # Webhook-Module: Name + Avatar pro Modul
     WEBHOOK_MODULES = {
@@ -742,12 +786,47 @@ class ModForge(commands.Bot):
         "default":        ("🛡️ ModForge", "https://cdn.discordapp.com/embed/avatars/0.png"),
     }
 
+    LOG_MODULE_ALIASES = {
+        "anti_spam": "antispam",
+        "anti_nuke": "antinuke",
+        "anti_raid": "antiraid",
+        "anti_mention": "antimention",
+        "anti_scam": "antiscam",
+        "anti_url_shortener": "antishortener",
+        "url_shortener": "antishortener",
+        "ghost_ping": "ghostping",
+        "message": "messages",
+        "messages_deleted": "messages",
+        "messages_edited": "messages",
+        "member": "members",
+        "role": "roles",
+        "channel": "channels",
+    }
+
+    @classmethod
+    def _normalize_log_module(cls, module: str) -> str:
+        raw = str(module or "default").lower().replace("-", "_").replace(" ", "_")
+        return cls.LOG_MODULE_ALIASES.get(raw, raw)
+
+    @staticmethod
+    def _channel_id_or_none(value):
+        if value is None or value == "" or value is False:
+            return None
+        if str(value) == "0":
+            return 0
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return None
+
     async def log_action(self, guild, title, description, color=COLOR_INFO, fields=None, user=None, module="default") -> None:
         if not guild:
             return
         now = time.time()
-        user_id = user.id if user else ""
-        dedup_key = f"{guild.id}:{module}:{title}:{user_id}"
+        module_key = self._normalize_log_module(module)
+        user_id = getattr(user, "id", None)
+        description_text = str(description or "Keine Beschreibung angegeben.").strip()
+        dedup_key = f"{guild.id}:{module_key}:{title}:{user_id}:{description_text[:80]}"
         if dedup_key in self._log_dedup and now - self._log_dedup[dedup_key] < 2:
             return
         self._log_dedup[dedup_key] = now
@@ -757,7 +836,7 @@ class ModForge(commands.Bot):
                 self._log_dedup.pop(k, None)
 
         try:
-            ACTIVITY.push(module, f"{title}: {description[:150]}",
+            ACTIVITY.push(module_key, f"{title}: {description_text[:150]}",
                           guild_id=guild.id, guild_name=guild.name,
                           user_id=user_id, user_name=str(user) if user else "System")
         except Exception:
@@ -770,17 +849,34 @@ class ModForge(commands.Bot):
             return
 
         try:
-            embed = discord.Embed(title=title, description=description, color=color, timestamp=discord.utils.utcnow())
+            embed = discord.Embed(
+                title=str(title)[:256],
+                description=f"**Beschreibung**\n{description_text[:3900]}",
+                color=color,
+                timestamp=utcnow(),
+            )
+            if user:
+                username = getattr(user, "display_name", None) or getattr(user, "name", str(user))
+                user_value = f"{getattr(user, 'mention', str(user))}\n**{username}**\n`({user_id})`"
+                embed.add_field(name="👤 User", value=user_value[:1024], inline=True)
+                avatar = getattr(getattr(user, "display_avatar", None), "url", None)
+                if avatar:
+                    embed.set_thumbnail(url=avatar)
+            embed.add_field(name="📌 Modul", value=f"`{module_key}`", inline=True)
+            embed.add_field(name="🆔 Server", value=f"`{guild.id}`", inline=True)
             if fields:
-                for fname, fvalue, finline in fields:
-                    embed.add_field(name=str(fname)[:256], value=str(fvalue)[:1024], inline=bool(finline))
-            if user and hasattr(user, 'display_avatar') and user.display_avatar:
-                embed.set_thumbnail(url=user.display_avatar.url)
-            embed.set_footer(text=f"{FOOTER_TEXT} • {module}", icon_url=FOOTER_ICON)
-        except Exception:
-            embed = discord.Embed(title=title, description=description, color=color)
+                for field in fields[:22]:
+                    try:
+                        fname, fvalue, finline = field
+                    except ValueError:
+                        continue
+                    embed.add_field(name=str(fname)[:256], value=(str(fvalue) or "—")[:1024], inline=bool(finline))
+            embed.set_footer(text=f"{FOOTER_TEXT} • {module_key}", icon_url=FOOTER_ICON)
+        except Exception as e:
+            log.debug(f"Log-Embed-Aufbau fehlgeschlagen: {e}")
+            embed = discord.Embed(title=str(title)[:256], description=description_text[:4096], color=color, timestamp=utcnow())
 
-        log_ch_id = self._resolve_log_channel(cfg, module)
+        log_ch_id = self._resolve_log_channel(cfg, module_key)
         if not log_ch_id:
             return
 
@@ -791,18 +887,23 @@ class ModForge(commands.Bot):
             if channel:
                 await channel.send(embed=embed)
         except (discord.Forbidden, discord.HTTPException) as e:
-            log.debug(f"Log-Send-Fehler {guild.id}/{module}: {e}")
+            log.debug(f"Log-Send-Fehler {guild.id}/{module_key}: {e}")
 
     def _resolve_log_channel(self, cfg: dict, module: str):
         log_channels = cfg.get("log_channels", {})
+        module_key = self._normalize_log_module(module)
         if isinstance(log_channels, dict):
-            module_lower = module.lower().replace("-", "_").replace(" ", "_")
-            for key in [module_lower, module, "default"]:
-                ch_id = log_channels.get(key)
-                if ch_id:
-                    return int(ch_id)
-        fallback = cfg.get("log_channel")
-        return int(fallback) if fallback else None
+            keys = [module_key, module, self.LOG_MODULE_ALIASES.get(module_key, module_key)]
+            seen = set()
+            for key in [k for k in keys if not (k in seen or seen.add(k))]:
+                if key in log_channels:
+                    ch_id = self._channel_id_or_none(log_channels.get(key))
+                    return None if ch_id == 0 else ch_id
+            if "default" in log_channels:
+                ch_id = self._channel_id_or_none(log_channels.get("default"))
+                return None if ch_id == 0 else ch_id
+        fallback = self._channel_id_or_none(cfg.get("log_channel"))
+        return None if fallback == 0 else fallback
 
     async def _resolve_channel(self, guild, channel_id: int, retries: int = 3):
         for _ in range(retries):
@@ -818,7 +919,7 @@ class ModForge(commands.Bot):
                 await asyncio.sleep(1)
         return None
 
-    async def punish(self, member, punishment, reason, duration=60, moderator_id=None) -> Optional[int]:
+    async def punish(self, member, punishment, reason, duration=60, moderator_id=None, delete_message_seconds: Optional[int] = None) -> Optional[int]:
         guild = member.guild
         mod_id = moderator_id or self.user.id
         executed = False
@@ -834,12 +935,13 @@ class ModForge(commands.Bot):
                 executed = True
                 await self._check_warn_thresholds(member, len(warns))
             elif punishment == "timeout":
+                duration = max(1, min(int(duration or 60), 60 * 60 * 24 * 28))
                 delta = datetime.timedelta(seconds=duration)
                 await member.timeout(delta, reason=reason)
                 executed = True
             elif punishment == "kick":
                 dm_e = create_embed(
-                    f"👢 Du wurdest gekickt",
+                    "👢 Du wurdest gekickt",
                     f"**Server:** {guild.name}\n**Grund:** {reason}",
                     COLOR_WARNING, thumbnail=guild.icon.url if guild.icon else None
                 )
@@ -849,12 +951,13 @@ class ModForge(commands.Bot):
             elif punishment == "ban":
                 pre_messages = await self.db.aget_user_messages(guild.id, member.id, hours=48, limit=500)
                 dm_e = create_embed(
-                    f"🔨 Du wurdest gebannt",
+                    "🔨 Du wurdest gebannt",
                     f"**Server:** {guild.name}\n**Grund:** {reason}",
                     COLOR_DANGER, thumbnail=guild.icon.url if guild.icon else None
                 )
                 await safe_dm(member, dm_e, cooldown_key=f"ban:{guild.id}:{member.id}")
-                await member.ban(reason=reason, delete_message_seconds=86400)
+                delete_seconds = 86400 if delete_message_seconds is None else max(0, min(int(delete_message_seconds), 604800))
+                await member.ban(reason=reason, delete_message_seconds=delete_seconds)
                 executed = True
                 case_id = await self.db.acreate_case(guild.id, member.id, mod_id, "ban", reason)
                 if pre_messages:
@@ -906,15 +1009,18 @@ class ModForge(commands.Bot):
     async def _check_warn_thresholds(self, member, warn_count: int) -> None:
         cfg = self.db.get_config(member.guild.id)
         thresholds = cfg.get("warn_system", {}).get("thresholds", {})
-        for threshold_str, action in sorted(thresholds.items(), key=lambda x: int(x[0])):
+        valid_thresholds = []
+        for threshold_str, action in thresholds.items():
             try:
-                if warn_count == int(threshold_str):
-                    await self.punish(member, action, f"Automatisch: {warn_count} Verwarnungen erreicht")
-                    await self.log_action(member.guild, f"{E.WARN} Warn-Schwelle erreicht",
-                                          f"{member.mention} hat **{warn_count} Verwarnungen** erreicht → **{action}**",
-                                          COLOR_WARNING, user=member, module="warns")
-            except ValueError:
+                valid_thresholds.append((int(threshold_str), action))
+            except (TypeError, ValueError):
                 continue
+        for threshold, action in sorted(valid_thresholds, key=lambda x: x[0]):
+            if warn_count == threshold and action in VALID_PUNISHMENTS:
+                await self.punish(member, action, f"Automatisch: {warn_count} Verwarnungen erreicht")
+                await self.log_action(member.guild, f"{E.WARN} Warn-Schwelle erreicht",
+                                      f"{member.mention} hat **{warn_count} Verwarnungen** erreicht → **{action}**",
+                                      COLOR_WARNING, user=member, module="warns")
 
     def is_whitelisted(self, member, bypass_type=None) -> bool:
         if member.id == self.user.id:
@@ -1008,7 +1114,7 @@ class ModForge(commands.Bot):
     async def restore_persistent_mutes(self) -> None:
         await self.wait_until_ready()
         active = await self.db.aget_active_mutes()
-        now = discord.utils.utcnow()
+        now = utcnow()
         for entry in active:
             guild = self.get_guild(entry["guild_id"])
             if not guild:
@@ -1016,7 +1122,7 @@ class ModForge(commands.Bot):
             member = guild.get_member(entry["user_id"])
             if not member:
                 continue
-            end_time = entry.get("end_time")
+            end_time = to_aware_utc(entry.get("end_time"))
             if end_time and end_time <= now:
                 try:
                     await member.timeout(None, reason="Persistent-Mute abgelaufen (Recovery)")
@@ -1029,7 +1135,7 @@ class ModForge(commands.Bot):
                     await member.timeout(end_time, reason="Persistent-Mute Wiederherstellung nach Neustart")
                 except (discord.Forbidden, discord.NotFound, discord.HTTPException):
                     pass
-        log.info(f"{len(active)} persistente Mutes geprüft.")
+        dev_print(f"{len(active)} persistente Mutes geprüft.", "success", "Mutes")
 
 
 # ═══════════════════════════════════════════════════════════════════

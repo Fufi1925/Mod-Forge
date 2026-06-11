@@ -26,6 +26,19 @@ SESSION_COOKIE = "modforge_session"
 
 # In-Memory Session Store
 sessions = {}
+SESSION_TTL = 7 * 24 * 3600
+
+
+def _cleanup_sessions() -> None:
+    now = time.time()
+    expired = [sid for sid, data in sessions.items() if now - data.get("created_at", 0) > SESSION_TTL]
+    for sid in expired:
+        sessions.pop(sid, None)
+
+
+def _cookie_secure() -> bool:
+    return request.is_secure or request.headers.get("X-Forwarded-Proto", "").split(",")[0].strip() == "https"
+
 
 auth_bp = Blueprint("auth", __name__, template_folder="templates")
 
@@ -61,6 +74,7 @@ def _api_request(url, method="GET", data=None, headers=None):
 @auth_bp.route("/dashboard/login")
 def login():
     """Leitet zu Discord OAuth2 weiter."""
+    _cleanup_sessions()
     if not DISCORD_CLIENT_ID or not DISCORD_CLIENT_SECRET:
         log.error(
             f"OAuth not configured: ID={bool(DISCORD_CLIENT_ID)} SECRET={bool(DISCORD_CLIENT_SECRET)}"
@@ -192,8 +206,8 @@ def callback():
         httponly=True,
         samesite="lax",
         path="/",
-        secure=request.is_secure,
-        max_age=7 * 24 * 3600,
+        secure=_cookie_secure(),
+        max_age=SESSION_TTL,
     )
     return resp
 
@@ -213,9 +227,10 @@ def get_session():
     if not sid:
         return None
     session = sessions.get(sid)
-    if not session or time.time() - session["created_at"] > 7 * 24 * 3600:
+    if not session or time.time() - session.get("created_at", 0) > SESSION_TTL:
         sessions.pop(sid, None)
         return None
+    session["last_seen"] = time.time()
     return session
 
 

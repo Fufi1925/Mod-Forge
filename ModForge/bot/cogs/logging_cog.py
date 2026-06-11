@@ -1,110 +1,204 @@
 # -*- coding: utf-8 -*-
-"""ModForge Logging Cog – Log-Kanal Commands inkl. /logs (alle in einen Kanal)."""
+"""ModForge Logging Cog – einfache und modulare Log-Kanal-Verwaltung."""
 import discord
 from discord.ext import commands
 from discord import app_commands
 
-from bot.config import COLOR_PRIMARY, COLOR_SUCCESS, COLOR_DANGER, COLOR_INFO, E, LOG_MODS, log
+from bot.config import (
+    COLOR_PRIMARY, COLOR_SUCCESS, COLOR_DANGER, COLOR_WARNING,
+    E, LOG_MODULES, LOG_MODULES_EXTRA, dev_print,
+)
 from bot.utils import create_embed
 
 
+ALL_LOG_MODULES = tuple(dict.fromkeys(
+    list(LOG_MODULES)
+    + list(LOG_MODULES_EXTRA)
+    + ["security", "permissions", "antivpn"]
+))
+
+MODULE_ALIASES = {
+    "anti_spam": "antispam",
+    "anti_nuke": "antinuke",
+    "anti_raid": "antiraid",
+    "anti_mention": "antimention",
+    "anti_scam": "antiscam",
+    "anti_shortener": "antishortener",
+    "anti_url_shortener": "antishortener",
+    "url_shortener": "antishortener",
+    "ghost_ping": "ghostping",
+    "message": "messages",
+    "member": "members",
+    "role": "roles",
+    "channel": "channels",
+}
+
+
 class LoggingCog(commands.Cog):
-    """Log-Kanal Verwaltung – einfach und pro Modul."""
+    """Log-Kanal Verwaltung – ein Command für alles oder genau pro Modul."""
 
     def __init__(self, bot):
         self.bot = bot
 
-    @app_commands.command(name="logs", description="Setzt EINEN Kanal für ALLE Logs (einfachste Variante)")
-    @app_commands.describe(channel="Der Kanal in den alle Logs gesendet werden")
+    @staticmethod
+    def _normalize_module(module: str) -> str:
+        key = (module or "default").lower().replace("-", "_").replace(" ", "_")
+        return MODULE_ALIASES.get(key, key)
+
+    async def _set_all_logs(self, guild_id: int, channel_id: int) -> dict:
+        cfg = self.bot.db.get_config(guild_id)
+        cfg["log_channel"] = channel_id
+        cfg["log_channels"] = {module: channel_id for module in ALL_LOG_MODULES}
+        await self.bot.db.set_config(guild_id, cfg)
+        try:
+            await self.bot.db.log_channels_snapshot(guild_id, cfg["log_channels"])
+        except Exception:
+            pass
+        return cfg
+
+    async def _handle_all_logs(self, interaction: discord.Interaction, channel: discord.TextChannel) -> None:
+        await self._handle_all_logs(interaction, channel)
+
+    async def _module_autocomplete(self, interaction: discord.Interaction, current: str):
+        cur = (current or "").lower()
+        matches = [m for m in ALL_LOG_MODULES if cur in m.lower()]
+        return [app_commands.Choice(name=m, value=m) for m in matches[:25]]
+
+    @app_commands.command(name="log", description="Setzt EINEN Kanal für ALLE Logs")
+    @app_commands.describe(channel="Kanal, in den alle Logs gesendet werden")
     @app_commands.default_permissions(administrator=True)
-    async def slash_logs(self, interaction: discord.Interaction, channel: discord.TextChannel):
-        """Punkt 4: /logs #kanal → alle Logs gehen in diesen Kanal."""
-        cfg = self.bot.db.get_config(interaction.guild.id)
-        cfg["log_channel"] = channel.id
-        # Setze auch alle Modul-Kanäle auf diesen einen Kanal
-        modules = [
-            "moderation", "antispam", "antinuke", "antiraid", "antimention",
-            "antiscam", "automod", "antishortener", "voice", "members",
-            "nicknames", "channels", "roles", "webhooks", "tickets",
-            "verify", "warns", "cases", "backup", "welcome", "leave",
-            "errors", "messages", "ghostping", "appeal", "permissions",
-            "audit", "security", "default",
-        ]
-        log_channels = {}
-        for mod in modules:
-            log_channels[mod] = channel.id
-        cfg["log_channels"] = log_channels
-        await self.bot.db.set_config(interaction.guild.id, cfg)
-
-        lines = [f"{E.OK} **Alle Logs** → {channel.mention}", ""]
-        lines.append("Folgende Module werden geloggt:")
-        for mod in modules:
-            lines.append(f"  {E.DOT} {mod}")
-
-        await interaction.response.send_message(embed=create_embed(
+    async def slash_log(self, interaction: discord.Interaction, channel: discord.TextChannel):
+        await self._set_all_logs(interaction.guild.id, channel.id)
+        dev_print(
+            f"Alle Log-Module für {interaction.guild.name} → #{channel.name}",
+            "success",
+            "Logging",
+        )
+        embed = create_embed(
             f"{E.LOGS_CMD} Logs eingerichtet",
-            "\n".join(lines[:30]),
-            COLOR_SUCCESS))
-
-        # Bestätigungsnachricht im Log-Kanal
+            f"Alle **{len(ALL_LOG_MODULES)} Log-Module** senden jetzt nach {channel.mention}.\n\n"
+            "Du kannst später einzelne Module mit `/logchannel` in eigene Kanäle verschieben.",
+            COLOR_SUCCESS,
+            [("Standard-Kanal", channel.mention, True), ("Module", str(len(ALL_LOG_MODULES)), True)],
+        )
+        await interaction.response.send_message(embed=embed, ephemeral=True)
         try:
             await channel.send(embed=create_embed(
-                f"{E.LOGS_CMD} Log-Kanal aktiviert",
-                f"Dieser Kanal empfängt jetzt **alle Logs** von ModForge.\n"
-                f"Konfiguriert von {interaction.user.mention}\n\n"
-                f"**{len(modules)} Module** aktiv.",
-                COLOR_SUCCESS))
+                f"{E.LOGS_CMD} Log-Kanal aktiv",
+                f"Dieser Kanal empfängt ab jetzt alle ModForge-Logs.\nKonfiguriert von {interaction.user.mention}.",
+                COLOR_SUCCESS,
+            ))
         except discord.Forbidden:
             pass
+
+    @app_commands.command(name="logs", description="Alias: setzt EINEN Kanal für ALLE Logs")
+    @app_commands.describe(channel="Kanal, in den alle Logs gesendet werden")
+    @app_commands.default_permissions(administrator=True)
+    async def slash_logs(self, interaction: discord.Interaction, channel: discord.TextChannel):
+        await self._handle_all_logs(interaction, channel)
 
     @app_commands.command(name="logchannel", description="Setzt den Log-Kanal für EIN bestimmtes Modul")
     @app_commands.describe(module="Log-Modul (z.B. moderation, antispam, channels)", channel="Ziel-Kanal")
     @app_commands.default_permissions(administrator=True)
     async def slash_logchannel(self, interaction: discord.Interaction,
-                                module: str, channel: discord.TextChannel):
+                               module: str, channel: discord.TextChannel):
+        module_key = self._normalize_module(module)
+        if module_key not in ALL_LOG_MODULES:
+            return await interaction.response.send_message(
+                embed=create_embed(
+                    f"{E.FAIL} Unbekanntes Modul",
+                    f"`{module}` ist kein gültiges Log-Modul. Nutze `/logmodules` für die Liste.",
+                    COLOR_DANGER,
+                ),
+                ephemeral=True,
+            )
         cfg = self.bot.db.get_config(interaction.guild.id)
-        cfg.setdefault("log_channels", {})[module.lower()] = channel.id
+        cfg.setdefault("log_channels", {})[module_key] = channel.id
         await self.bot.db.set_config(interaction.guild.id, cfg)
         await interaction.response.send_message(embed=create_embed(
-            f"{E.OK} Log-Kanal gesetzt", f"**{module}** → {channel.mention}", COLOR_SUCCESS))
+            f"{E.OK} Modul-Log gesetzt",
+            f"**{module_key}** sendet jetzt nach {channel.mention}.",
+            COLOR_SUCCESS,
+        ), ephemeral=True)
+
+    slash_logchannel.autocomplete("module")(_module_autocomplete)
 
     @app_commands.command(name="logchannels", description="Zeigt alle Log-Kanäle")
     @app_commands.default_permissions(administrator=True)
     async def slash_logchannels(self, interaction: discord.Interaction):
         cfg = self.bot.db.get_config(interaction.guild.id)
-        log_channels = cfg.get("log_channels", {})
+        log_channels = cfg.get("log_channels", {}) or {}
         fallback = cfg.get("log_channel")
         lines = []
         if fallback:
-            lines.append(f"**{E.CHANNEL} Standard-Kanal:** <#{fallback}>")
+            lines.append(f"**{E.CHANNEL} Standard:** <#{fallback}>")
             lines.append("")
         if log_channels:
-            # Gruppiere nach Kanal
             by_channel = {}
+            disabled = []
             for mod, ch_id in sorted(log_channels.items()):
-                by_channel.setdefault(ch_id, []).append(mod)
+                if str(ch_id) == "0":
+                    disabled.append(mod)
+                elif ch_id:
+                    by_channel.setdefault(ch_id, []).append(mod)
             for ch_id, mods in by_channel.items():
-                lines.append(f"<#{ch_id}>: {', '.join(mods)}")
+                shown = ", ".join(mods[:12])
+                more = f" (+{len(mods) - 12})" if len(mods) > 12 else ""
+                lines.append(f"<#{ch_id}>: {shown}{more}")
+            if disabled:
+                lines.append(f"\n**Deaktiviert:** {', '.join(disabled[:20])}")
         if not lines:
-            lines = [f"Keine Log-Kanäle konfiguriert.\n\nNutze **`/logs #kanal`** um alle Logs in einen Kanal zu senden."]
+            lines = ["Keine Log-Kanäle konfiguriert. Nutze `/log #kanal`."]
         await interaction.response.send_message(embed=create_embed(
-            f"{E.LOGS_CMD} Log-Kanäle", "\n".join(lines), COLOR_PRIMARY))
+            f"{E.LOGS_CMD} Log-Kanäle",
+            "\n".join(lines)[:4000],
+            COLOR_PRIMARY,
+        ), ephemeral=True)
 
     @app_commands.command(name="logchannel_remove", description="Entfernt den Log-Kanal für ein Modul")
     @app_commands.describe(module="Log-Modul")
     @app_commands.default_permissions(administrator=True)
     async def slash_logchannel_remove(self, interaction: discord.Interaction, module: str):
+        module_key = self._normalize_module(module)
         cfg = self.bot.db.get_config(interaction.guild.id)
-        log_channels = cfg.get("log_channels", {})
-        if module.lower() in log_channels:
-            del log_channels[module.lower()]
+        log_channels = cfg.get("log_channels", {}) or {}
+        if module_key in log_channels:
+            del log_channels[module_key]
             cfg["log_channels"] = log_channels
             await self.bot.db.set_config(interaction.guild.id, cfg)
             await interaction.response.send_message(embed=create_embed(
-                f"{E.OK}", f"Log-Kanal für **{module}** entfernt.", COLOR_SUCCESS))
+                f"{E.OK} Modul zurückgesetzt",
+                f"**{module_key}** nutzt wieder den Standard-Log-Kanal.",
+                COLOR_SUCCESS,
+            ), ephemeral=True)
         else:
             await interaction.response.send_message(embed=create_embed(
-                f"{E.FAIL}", f"Kein Log-Kanal für **{module}** gefunden.", COLOR_DANGER), ephemeral=True)
+                f"{E.FAIL} Nicht gesetzt",
+                f"Für **{module_key}** war kein eigener Kanal gesetzt.",
+                COLOR_DANGER,
+            ), ephemeral=True)
+
+    slash_logchannel_remove.autocomplete("module")(_module_autocomplete)
+
+    @app_commands.command(name="logmodules", description="Zeigt alle verfügbaren Log-Module")
+    @app_commands.default_permissions(administrator=True)
+    async def slash_logmodules(self, interaction: discord.Interaction):
+        chunks = []
+        current = []
+        for module in ALL_LOG_MODULES:
+            current.append(f"`{module}`")
+            if len(", ".join(current)) > 900:
+                chunks.append(", ".join(current))
+                current = []
+        if current:
+            chunks.append(", ".join(current))
+        fields = [(f"Module {i + 1}", chunk, False) for i, chunk in enumerate(chunks[:4])]
+        await interaction.response.send_message(embed=create_embed(
+            f"{E.LOGS_CMD} Log-Module ({len(ALL_LOG_MODULES)})",
+            "Nutze `/logchannel <modul> #kanal` für einzelne Module oder `/log #kanal` für alles.",
+            COLOR_PRIMARY,
+            fields,
+        ), ephemeral=True)
 
     @app_commands.command(name="logs_disable", description="Deaktiviert alle Logs")
     @app_commands.default_permissions(administrator=True)
@@ -114,7 +208,10 @@ class LoggingCog(commands.Cog):
         cfg["log_channels"] = {}
         await self.bot.db.set_config(interaction.guild.id, cfg)
         await interaction.response.send_message(embed=create_embed(
-            f"{E.OK} Logs deaktiviert", "Alle Log-Kanäle wurden entfernt.", COLOR_WARNING))
+            f"{E.OK} Logs deaktiviert",
+            "Alle Log-Kanäle wurden entfernt. Aktiviere sie wieder mit `/log #kanal`.",
+            COLOR_WARNING,
+        ), ephemeral=True)
 
 
 async def setup(bot):

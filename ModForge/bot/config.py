@@ -28,20 +28,126 @@ def get_uptime(start_time: float = BOT_START_TIME) -> int:
 # ═══════════════════════════════════════════════════════════════
 # TOKEN
 # ═══════════════════════════════════════════════════════════════
-BOT_TOKEN = os.getenv("DISCORD_TOKEN") or "DEIN_BOT_TOKEN_HIER"
+BOT_TOKEN = os.getenv("DISCORD_TOKEN") or ""
 
 # ═══════════════════════════════════════════════════════════════
-# LOGGING
+# DEV-/CONSOLE-LOGGING
 # ═══════════════════════════════════════════════════════════════
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    handlers=[
-        logging.FileHandler("modforge.log", encoding="utf-8"),
-        logging.StreamHandler(),
-    ],
-)
-log = logging.getLogger("ModForge")
+SUCCESS_LEVEL = 25
+logging.addLevelName(SUCCESS_LEVEL, "SUCCESS")
+
+
+def _logger_success(self, message, *args, **kwargs):
+    if self.isEnabledFor(SUCCESS_LEVEL):
+        self._log(SUCCESS_LEVEL, message, args, **kwargs)
+
+
+if not hasattr(logging.Logger, "success"):
+    logging.Logger.success = _logger_success
+
+
+class DevConsoleFormatter(logging.Formatter):
+    """Schöne, einheitliche Entwickler-Ausgabe für alle Console-Meldungen."""
+
+    ICONS = {
+        "DEBUG": "🔎",
+        "INFO": "ℹ️",
+        "SUCCESS": "✅",
+        "WARNING": "⚠️",
+        "ERROR": "❌",
+        "CRITICAL": "🚨",
+    }
+    COLORS = {
+        "DEBUG": "\033[90m",
+        "INFO": "\033[96m",
+        "SUCCESS": "\033[92m",
+        "WARNING": "\033[93m",
+        "ERROR": "\033[91m",
+        "CRITICAL": "\033[95m",
+    }
+    RESET = "\033[0m"
+    DIM = "\033[2m"
+    BOLD = "\033[1m"
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.use_color = os.getenv("NO_COLOR") is None
+
+    def _paint(self, text: str, color: str) -> str:
+        if not self.use_color:
+            return text
+        return f"{color}{text}{self.RESET}"
+
+    def format(self, record: logging.LogRecord) -> str:
+        level = record.levelname
+        icon = self.ICONS.get(level, "•")
+        color = self.COLORS.get(level, "")
+        ts = time.strftime("%H:%M:%S", time.localtime(record.created))
+        logger_name = record.name.replace("ModForge.", "").replace("ModForge", "Core")
+        logger_name = logger_name[:22]
+        message = record.getMessage()
+        prefix = f"{icon} {ts} {level:<7}"
+        if self.use_color:
+            prefix = self._paint(prefix, color)
+            logger_part = f"{self.DIM}{logger_name:<22}{self.RESET}"
+        else:
+            logger_part = f"{logger_name:<22}"
+        line = f"{prefix} {logger_part} │ {message}"
+        if record.exc_info:
+            line += "\n" + self.formatException(record.exc_info)
+        return line
+
+
+def _setup_logging() -> logging.Logger:
+    root = logging.getLogger()
+    root.setLevel(logging.INFO)
+    for handler in list(root.handlers):
+        root.removeHandler(handler)
+
+    file_handler = logging.FileHandler("modforge.log", encoding="utf-8")
+    file_handler.setFormatter(logging.Formatter(
+        "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+    ))
+
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(DevConsoleFormatter())
+
+    root.addHandler(file_handler)
+    root.addHandler(console_handler)
+    return logging.getLogger("ModForge")
+
+
+log = _setup_logging()
+
+
+def dev_print(message: str, level: str = "info", area: str = "Core") -> None:
+    """Zentrale schöne Print-/Log-Funktion für Development-Meldungen."""
+    logger = logging.getLogger(f"ModForge.{area}" if area else "ModForge")
+    level = (level or "info").lower()
+    if level in ("success", "ok", "done"):
+        logger.success(message)
+    elif level in ("warn", "warning"):
+        logger.warning(message)
+    elif level in ("err", "error", "fail"):
+        logger.error(message)
+    elif level in ("critical", "fatal"):
+        logger.critical(message)
+    elif level == "debug":
+        logger.debug(message)
+    else:
+        logger.info(message)
+
+
+def dev_banner(title: str, *lines: str, level: str = "info", area: str = "Startup") -> None:
+    """Schöner Start-/Status-Block in der Console."""
+    clean_lines = [str(line) for line in lines if str(line).strip()]
+    width = max([len(title), *(len(line) for line in clean_lines)] or [len(title)]) + 4
+    border = "═" * width
+    dev_print(f"╔{border}╗", level, area)
+    dev_print(f"║  {title:<{width-2}}║", level, area)
+    for line in clean_lines:
+        dev_print(f"║  {line:<{width-2}}║", level, area)
+    dev_print(f"╚{border}╝", level, area)
 
 # ═══════════════════════════════════════════════════════════════
 # FARBEN & KONSTANTEN
@@ -294,10 +400,11 @@ LOG_MODULES = (
     "audit",
     "backup",
     "welcome",
+    "security",
+    "antivpn",
 )
 
-# Zusätzliche Module die per /logset als String eingegeben werden können
-# (nicht als Dropdown-Choice, da Discord max 25 erlaubt)
+# Zusätzliche Log-Module für /log und /logchannel
 LOG_MODULES_EXTRA = ("messages", "messages_sent", "ghostping", "leave")
 
 DEFAULT_CONFIG = {
@@ -367,7 +474,8 @@ DEFAULT_CONFIG = {
         "bad_words": [],
         "regex_rules": [],
         "invite_filter": True,
-        "link_filter": True,
+        "link_filter": False,
+        "block_all_links": False,
         "allowed_domains": [],
         "zalgo_filter": True,
         "unicode_abuse": True,
@@ -489,6 +597,7 @@ DEFAULT_CONFIG = {
         "auto_regen_webhooks": True,
         "bot_approval_required": False,
         "bot_approval_channel": None,
+        "approved_bots": [],
         "admin_perm_monitor": True,
         "role_hierarchy_protect": True,
         "channel_topic_spam_limit": 5,
@@ -832,21 +941,23 @@ HELP_DATA = {
     "logs": (
         f"{E.CHANNEL} Logging",
         [
-            ("/logs <#channel>", "Standard-Log-Kanal", "Administrator", "/logs #log"),
+            ("/log <#channel>", "Einfach: setzt einen Kanal für alle Logs", "Administrator", "/log #logs"),
+            ("/logs <#channel>", "Alias von /log", "Administrator", "/logs #logs"),
             (
-                "/logset <modul> <#ch>",
-                "Log pro Modul",
+                "/logchannel <modul> <#ch>",
+                "Setzt einen eigenen Log-Kanal für ein Modul",
                 "Administrator",
-                "/logset antispam #spam-logs",
+                "/logchannel antispam #spam-logs",
             ),
             (
-                "/logreset <modul>",
-                "Modul-Log zurücksetzen",
+                "/logchannel_remove <modul>",
+                "Entfernt den Modul-Kanal (nutzt wieder Standard)",
                 "Administrator",
-                "/logreset antispam",
+                "/logchannel_remove antispam",
             ),
-            ("/logview", "Alle Log-Kanäle anzeigen", "Administrator", "/logview"),
-            ("/logmodules", "Verfügbare Module", "Administrator", "/logmodules"),
+            ("/logchannels", "Zeigt die aktuelle Log-Konfiguration", "Administrator", "/logchannels"),
+            ("/logmodules", "Zeigt alle verfügbaren Log-Module", "Administrator", "/logmodules"),
+            ("/logs_disable", "Deaktiviert alle Log-Kanäle", "Administrator", "/logs_disable"),
             (
                 "/report <member> <grund>",
                 "User ans Mod-Team melden",
@@ -1020,10 +1131,10 @@ HELP_DATA = {
                 "/reactionrole #roles",
             ),
             (
-                "/tempvoice_setup <#ch>",
+                "/setup_tempvoice",
                 "Temp-Voice einrichten",
                 "Administrator",
-                "/tempvoice_setup #join",
+                "/setup_tempvoice",
             ),
             (
                 "/welcome_setup",
@@ -1088,6 +1199,22 @@ HELP_DATA = {
                 "Administrator",
                 "/setarchive #archiv",
             ),
+        ],
+    ),
+    "wl": (
+        f"{E.SHIELD} Whitelist",
+        [
+            ("/whitelist add [user] [role]", "User oder Rolle whitelisten", "Administrator", "/whitelist add @Mod"),
+            ("/whitelist remove [user] [role]", "Whitelist-Eintrag entfernen", "Administrator", "/whitelist remove @Mod"),
+            ("/whitelist list", "Whitelist anzeigen", "Administrator", "/whitelist list"),
+            ("/nuke_whitelist add <user>", "Extra Anti-Nuke-Whitelist", "Administrator", "/nuke_whitelist add @Admin"),
+        ],
+    ),
+    "appeal": (
+        f"{E.APPEAL} Appeal",
+        [
+            ("/banappeal <on/off>", "Ban-Appeal DMs aktivieren", "Administrator", "/banappeal true"),
+            ("/appeal_channel <#ch>", "Appeal-Log-Kanal setzen", "Administrator", "/appeal_channel #appeals"),
         ],
     ),
 }
@@ -1273,6 +1400,8 @@ LOG_MODS = [
     "AutoMod",
     "Anti-Scam",
     "Anti-Shortener",
+    "Anti-VPN",
+    "Security",
     "Members",
     "Nicknames",
     "Channels",

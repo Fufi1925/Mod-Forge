@@ -30,7 +30,6 @@ from .auth import get_session, require_auth
 from .helpers import (
     _bot_stats,
     _build_overview,
-    _build_module_form,
     _build_welcome_content,
 )
 
@@ -114,6 +113,93 @@ def _sanitize_cfg_for_mongo(cfg):
         except (TypeError, ValueError):
             cleaned[k] = str(v)
     return cleaned
+
+
+def _deep_merge(base: dict, override: dict) -> dict:
+    """Mergt verschachtelte Configs, ohne Defaults zu verlieren."""
+    result = _copy.deepcopy(base or {})
+    for key, value in (override or {}).items():
+        if isinstance(value, dict) and isinstance(result.get(key), dict):
+            result[key] = _deep_merge(result[key], value)
+        else:
+            result[key] = _copy.deepcopy(value)
+    return result
+
+
+def _to_int_or_none(value, *, minimum=None, maximum=None):
+    if value in (None, "", False):
+        return None
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        return None
+    if minimum is not None:
+        number = max(minimum, number)
+    if maximum is not None:
+        number = min(maximum, number)
+    return number
+
+
+def _guild_id_values(guild_id):
+    try:
+        gid = int(guild_id)
+        return [gid, str(gid)]
+    except (TypeError, ValueError):
+        return [str(guild_id)]
+
+
+def _guild_query(guild_id) -> dict:
+    return {"guild_id": {"$in": _guild_id_values(guild_id)}}
+
+
+def _module_sections() -> list:
+    return [
+        {"key":"antispam", "icon":"⚡", "label":"Anti-Spam"},
+        {"key":"antinuke", "icon":"💥", "label":"Anti-Nuke"},
+        {"key":"antiraid", "icon":"🚨", "label":"Anti-Raid"},
+        {"key":"antimention", "icon":"🔔", "label":"Anti-Mention"},
+        {"key":"antiscam", "icon":"🎣", "label":"Anti-Scam"},
+        {"key":"automod", "icon":"🤖", "label":"AutoMod"},
+        {"key":"verify", "icon":"✅", "label":"Verify"},
+        {"key":"tickets", "icon":"🎫", "label":"Tickets"},
+        {"key":"autorole", "icon":"🏷️", "label":"Auto-Rolle"},
+    ]
+
+
+def _normalize_log_channels(raw: dict) -> dict:
+    channels = {}
+    for key, value in (raw or {}).items():
+        channel_id = _to_int_or_none(value)
+        if channel_id is not None:
+            channels[str(key).lower().replace("-", "_").replace(" ", "_")] = channel_id
+    return channels
+
+
+def _direct_save_whitelist(guild_id, whitelist: dict) -> bool:
+    gid = int(guild_id)
+    clean = _copy.deepcopy(whitelist or {})
+    clean.pop("_id", None)
+    for key in ("users", "roles", "channels", "bypass_antispam", "bypass_antinuke"):
+        clean.setdefault(key, [])
+    db = _get_direct_db()
+    if db is not None:
+        try:
+            db.whitelist.update_one(
+                {"_id": gid},
+                {"$set": clean, "$setOnInsert": {"_id": gid}},
+                upsert=True,
+            )
+        except Exception as e:
+            log.error(f"Whitelist direct save failed for {gid}: {e}")
+            return False
+    try:
+        from bot.bot import BOT_REF
+        if BOT_REF is not None and getattr(BOT_REF, "db", None) is not None:
+            BOT_REF.db._whitelist_cache[gid] = clean
+            _run_async(BOT_REF.db.set_whitelist(gid, clean))
+    except Exception as e:
+        log.debug(f"Whitelist cache update failed for {gid}: {e}")
+    return True
 def _direct_save_config(guild_id, cfg):
     """Speichert die Guild-Konfiguration zuverlässig.
 
@@ -125,7 +211,7 @@ def _direct_save_config(guild_id, cfg):
     """
     gid = int(guild_id)
     cleaned = _sanitize_cfg_for_mongo(cfg)
-    cleaned["_id"] = gid
+    cleaned.pop("_id", None)
 
     db = _get_direct_db()
     if db is None:
@@ -140,7 +226,11 @@ def _direct_save_config(guild_id, cfg):
         return False
 
     try:
-        db.config.update_one({"_id": gid}, {"$set": cleaned}, upsert=True)
+        db.config.update_one(
+            {"_id": gid},
+            {"$set": cleaned, "$setOnInsert": {"_id": gid}},
+            upsert=True,
+        )
     except Exception as e:
         log.error(f"Direct DB save failed for {gid}: {e}")
         return False
@@ -153,9 +243,7 @@ def _direct_save_config(guild_id, cfg):
             and getattr(BOT_REF, "db", None) is not None
             and hasattr(BOT_REF.db, "_config_cache")
         ):
-            cache_copy = _copy.deepcopy(cleaned)
-            cache_copy.pop("_id", None)
-            BOT_REF.db._config_cache[gid] = cache_copy
+            BOT_REF.db._config_cache[gid] = _copy.deepcopy(cleaned)
     except Exception as e:
         log.debug(f"Bot-Cache-Update nach Save fehlgeschlagen für {gid}: {e}")
 
@@ -185,11 +273,9 @@ def _direct_load_config(guild_id):
             doc = db.config.find_one({"_id": gid})
             if isinstance(doc, dict):
                 doc.pop("_id", None)
-                # Defaults auffüllen, damit das Dashboard alle Keys hat
+                # Defaults rekursiv auffüllen, damit verschachtelte Keys nicht fehlen.
                 from bot.config import DEFAULT_CONFIG
-                merged = _copy.deepcopy(DEFAULT_CONFIG)
-                merged.update(doc)
-                return merged
+                return _deep_merge(DEFAULT_CONFIG, doc)
     except Exception as e:
         log.debug(f"Direct DB load failed: {e}")
 
@@ -541,6 +627,10 @@ def features():
 @flask_app.route("/premium")
 def premium():
     return render_template("premium.html")
+
+@flask_app.route("/upgrade")
+def upgrade():
+    return redirect(url_for("premium"))
 
 @flask_app.route("/pricing")
 def pricing():
@@ -1086,6 +1176,20 @@ def guild_dashboard(guild_id):
         total_members=total_members,
             )
 
+@flask_app.route("/dashboard/<guild_id>/modules")
+@require_auth
+def guild_modules(guild_id):
+    us, g, cfg, err = _dash_guard(guild_id)
+    if err:
+        return err
+    return render_template(
+        "dashboard/modules.html",
+        guild=g, cfg=cfg, user=us["user"],
+        sections=_module_sections(),
+        current_section=request.args.get("section", "antispam"),
+        active="modules",
+    )
+
 @flask_app.route("/dashboard/<guild_id>/welcome")
 @require_auth
 def guild_welcome(guild_id):
@@ -1120,11 +1224,22 @@ def guild_welcome(guild_id):
 # =========================================================
 
 def _dash_guard(guild_id):
-    """Shared guard for all dashboard pages."""
+    """Shared guard for all dashboard pages (OAuth + Admin-Dashboard)."""
     user_session = get_session()
+    is_admin_session = False
+    if not user_session and session.get("admin"):
+        is_admin_session = True
+        user_session = {
+            "user": {
+                "id": "0",
+                "username": "Admin",
+                "avatar_url": "https://cdn.discordapp.com/embed/avatars/0.png",
+            },
+            "guilds": [{"id": str(guild_id), "name": "Admin"}],
+        }
     if not user_session:
         return None, None, None, redirect(url_for("discord_login_page"))
-    if not _user_can_manage_guild_in_session(user_session, guild_id):
+    if not is_admin_session and not _user_can_manage_guild_in_session(user_session, guild_id):
         return None, None, None, abort(403)
     g = get_guild(guild_id)
     # If bot is offline, create a mock guild from session data
@@ -1464,7 +1579,7 @@ def guild_cases(guild_id):
     if db:
         try:
             raw = safe_async(
-                db.cases.find({"guild_id": str(guild_id)})
+                db.cases.find(_guild_query(guild_id))
                         .sort("case_id", -1)
                         .to_list(500),
                 []
@@ -2044,19 +2159,19 @@ def api_guild_config(guild_id):
         import copy
         cfg = copy.deepcopy(DEFAULT_CONFIG)
     if "_security_level" in data:
-        cfg["security_level"] = int(data["_security_level"])
+        cfg["security_level"] = _to_int_or_none(data["_security_level"], minimum=0, maximum=3) or 0
     if "_log_channel" in data:
-        cfg["log_channel"] = int(data["_log_channel"]) if data["_log_channel"] else None
+        cfg["log_channel"] = _to_int_or_none(data["_log_channel"])
     if "_log_channels" in data:
-        cfg["log_channels"] = {k:int(v) for k,v in data["_log_channels"].items()}
+        cfg["log_channels"] = _normalize_log_channels(data.get("_log_channels") or {})
     if "_prefix" in data:
         cfg["prefix"] = str(data["_prefix"])[:5] or "!"
     if "_no_prefix" in data:
         cfg["no_prefix"] = bool(data["_no_prefix"])
     if "_report_channel" in data:
-        cfg["report_channel"] = int(data["_report_channel"]) if data["_report_channel"] else None
+        cfg["report_channel"] = _to_int_or_none(data["_report_channel"])
     if "_appeal_log_channel" in data:
-        cfg["appeal_log_channel"] = int(data["_appeal_log_channel"]) if data["_appeal_log_channel"] else None
+        cfg["appeal_log_channel"] = _to_int_or_none(data["_appeal_log_channel"])
     if "_auto_ban_appeal" in data:
         cfg["auto_ban_appeal"] = data["_auto_ban_appeal"]
     if "_invite_tracking" in data:
@@ -2355,8 +2470,8 @@ def guild_members(guild_id):
                 try:
                     db = get_db()
                     if db:
-                        user_cases = safe_collection_count(db.cases, {"guild_id": str(g.id), "user_id": str(m.id)})
-                        user_warns = safe_collection_count(getattr(db, "warnings", None), {"guild_id": str(g.id), "user_id": str(m.id)})
+                        user_cases = safe_collection_count(db.cases, {"guild_id": {"$in": _guild_id_values(g.id)}, "user_id": {"$in": [m.id, str(m.id)]}})
+                        user_warns = safe_collection_count(db.data, {"type": "warning", "guild_id": {"$in": _guild_id_values(g.id)}, "user_id": {"$in": [m.id, str(m.id)]}})
                         if user_cases: risk = min(risk + user_cases * 5, 100)
                         if user_warns: risk = min(risk + user_warns * 8, 100)
                 except Exception:
@@ -2489,7 +2604,7 @@ def guild_stats_page(guild_id):
     db = get_db()
     if db:
         try:
-            all_cases = safe_async(db.cases.find({"guild_id": str(guild_id)}).sort("case_id", -1).to_list(500), []) or []
+            all_cases = safe_async(db.cases.find(_guild_query(guild_id)).sort("case_id", -1).to_list(500), []) or []
             cases_count = len(all_cases)
             # Case types
             for cs in all_cases:
@@ -2497,15 +2612,15 @@ def guild_stats_page(guild_id):
                 case_types[a] = case_types.get(a, 0) + 1
             # Top mods
             from collections import Counter
-            mod_counter = Counter(cs.get("moderator_id") for cs in all_cases if cs.get("moderator_id"))
+            mod_counter = Counter((cs.get("mod_id") or cs.get("moderator_id")) for cs in all_cases if (cs.get("mod_id") or cs.get("moderator_id")))
             top_mods = [{"id": mid, "count": cnt} for mid, cnt in mod_counter.most_common(10)]
             # Cases per day (last 7 days)
             now = _dt.datetime.utcnow()
             for i in range(6, -1, -1):
                 day = now - _dt.timedelta(days=i)
                 label = day.strftime("%a")
-                count = sum(1 for cs in all_cases if cs.get("timestamp") and
-                    cs["timestamp"].date() == day.date())
+                count = sum(1 for cs in all_cases if (cs.get("created_at") or cs.get("timestamp")) and
+                    (cs.get("created_at") or cs.get("timestamp")).date() == day.date())
                 days_labels.append(label)
                 days_data.append(count)
         except Exception as e:
@@ -2766,35 +2881,44 @@ def api_guild_whitelist(guild_id):
     user_session = get_session()
     if not user_session or not _user_can_manage_guild_in_session(user_session, guild_id):
         return jsonify({"error": "forbidden"}), 403
+
     data = request.json or {}
     action = data.get("action")
     cat = data.get("category", "users")
     item_id = data.get("id")
-    if not action or not item_id:
-        return jsonify({"error": "missing params"}), 400
-    from bot.utils import _run_async
+    allowed = {"users", "roles", "channels", "bypass_antispam", "bypass_antinuke"}
+
+    if action not in {"add", "del"} or cat not in allowed or not item_id:
+        return jsonify({"error": "Ungültige Whitelist-Parameter"}), 400
+
     try:
-        wl = bot.db.get_whitelist(int(guild_id))
+        item_id = int(str(item_id).strip())
+    except (TypeError, ValueError):
+        return jsonify({"error": "ID muss eine Zahl sein"}), 400
+
+    try:
+        wl = safe_async(bot.db.aget_whitelist(int(guild_id)), None) if getattr(bot, "db", None) else None
+        if not isinstance(wl, dict):
+            db = _get_direct_db()
+            doc = db.whitelist.find_one({"_id": int(guild_id)}) if db is not None else None
+            wl = doc if isinstance(doc, dict) else {}
+            wl.pop("_id", None)
+        for key in allowed:
+            wl.setdefault(key, [])
+
         if action == "add":
-            items = wl.get(cat, [])
-            try: item_id = int(item_id)
-            except Exception:
-                pass
-            if item_id not in items:
-                items.append(item_id)
-            wl[cat] = items
-        elif action == "del":
-            try: item_id = int(item_id)
-            except Exception:
-                pass
+            if item_id not in wl[cat]:
+                wl[cat].append(item_id)
+        else:
             wl[cat] = [x for x in wl.get(cat, []) if str(x) != str(item_id)]
-        try:
-            _run_async(bot.db.whitelist_col.replace_one({"guild_id": int(guild_id)}, {"guild_id": int(guild_id), **wl}, upsert=True))
-        except:
-            bot.db._whitelist_cache[int(guild_id)] = wl
-        return jsonify({"ok": True})
+
+        if not _direct_save_whitelist(guild_id, wl):
+            return jsonify({"error": "Speichern fehlgeschlagen"}), 500
+        return jsonify({"ok": True, "category": cat, "count": len(wl.get(cat, []))})
     except Exception as e:
+        log.error(f"[WHITELIST API] {e}")
         return jsonify({"error": str(e)}), 500
+
 # =========================================================
 # ADMIN: Full Server Dashboard (same as user, no perm check)
 # =========================================================
@@ -2810,7 +2934,37 @@ def admin_server_dashboard(guild_id, subpage=""):
     cfg = _direct_load_config(guild_id)
     admin_user = {"id":"0","username":"Admin","avatar_url":"https://cdn.discordapp.com/embed/avatars/0.png"}
 
-    # Route to the correct sub-page
+    # Reuse the normal dashboard routes so admin/user tabs stay identical and error-free.
+    dispatch = {
+        "": globals().get("guild_dashboard"),
+        "overview": globals().get("guild_dashboard"),
+        "security": globals().get("guild_security"),
+        "automod": globals().get("guild_automod"),
+        "logs": globals().get("guild_logs"),
+        "cases": globals().get("guild_cases"),
+        "warns": globals().get("guild_warns"),
+        "settings": globals().get("guild_settings"),
+        "roles": globals().get("guild_roles"),
+        "welcome": globals().get("guild_welcome"),
+        "modules": globals().get("guild_modules"),
+        "tickets": globals().get("guild_tickets"),
+        "backup": globals().get("guild_backup"),
+        "templates": globals().get("guild_templates"),
+        "members": globals().get("guild_members"),
+        "tempvoice": globals().get("guild_tempvoice"),
+        "autoresponse": globals().get("guild_autoresponse"),
+        "stats": globals().get("guild_stats_page"),
+        "livefeed": globals().get("guild_livefeed"),
+        "whitelist": globals().get("guild_whitelist"),
+        "embed": globals().get("guild_embed"),
+        "design": globals().get("guild_design"),
+        "autonick": globals().get("guild_autonick"),
+    }
+    target = dispatch.get(subpage or "overview")
+    if target is not None and hasattr(target, "__wrapped__"):
+        return target.__wrapped__(guild_id)
+
+    # Legacy fallback for unknown sub-pages.
     if not subpage or subpage == "overview":
         overview = _build_overview(cfg, guild_id)
         return render_template("dashboard/overview.html", guild=g, cfg=cfg, user=admin_user, overview=overview, active="overview")
@@ -2884,9 +3038,11 @@ def admin_server_dashboard(guild_id, subpage=""):
         return render_template("dashboard/welcome.html", guild=g, cfg=cfg, user=admin_user, content=content, active="welcome")
 
     elif subpage == "modules":
-        section = request.args.get("section","antispam")
-        form = _build_module_form(section, cfg, guild_id)
-        return render_template("dashboard/modules.html", guild=g, cfg=cfg, user=admin_user, form=form, active="modules")
+        return render_template(
+            "dashboard/modules.html", guild=g, cfg=cfg, user=admin_user,
+            sections=_module_sections(), current_section=request.args.get("section", "antispam"),
+            active="modules"
+        )
 
     elif subpage == "tickets":
         channels = [{"id":str(ch.id),"name":ch.name} for ch in g.text_channels] if g else []

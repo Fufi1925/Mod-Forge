@@ -113,6 +113,7 @@
   {% block head %}{% endblock %}
 </head>
 <body>
+  {% set dash_base = dashboard_base|default(('/admin/server/' ~ guild.id) if user.id|string == '0' else ('/dashboard/' ~ guild.id)) %}
   <!-- SIDEBAR -->
   <aside class="db-sidebar">
     <a href="/" class="db-brand"><div class="db-brand-icon">🛡️</div><span class="db-brand-text">ModForge</span></a>
@@ -122,31 +123,31 @@
     </div>
     <nav class="db-nav">
       <div class="db-nav-label">Dashboard</div>
-      <a href="/dashboard/{{ guild.id }}" {% if active=='overview' %}class="active"{% endif %}><span class="nav-icon">📊</span><span>Übersicht</span></a>
-      <a href="/dashboard/{{ guild.id }}/security" {% if active=='security' %}class="active"{% endif %}><span class="nav-icon">🛡️</span><span>Security</span></a>
-      <a href="/dashboard/{{ guild.id }}/automod" {% if active=='automod' %}class="active"{% endif %}><span class="nav-icon">🤖</span><span>AutoMod</span></a>
-      <a href="/dashboard/{{ guild.id }}/logs" {% if active=='logs' %}class="active"{% endif %}><span class="nav-icon">📢</span><span>Logs</span></a>
-      <a href="/dashboard/{{ guild.id }}/cases" {% if active=='cases' %}class="active"{% endif %}><span class="nav-icon">📋</span><span>Cases</span></a>
+      <a href="{{ dash_base }}" {% if active=='overview' %}class="active"{% endif %}><span class="nav-icon">📊</span><span>Übersicht</span></a>
+      <a href="{{ dash_base }}/security" {% if active=='security' %}class="active"{% endif %}><span class="nav-icon">🛡️</span><span>Security</span></a>
+      <a href="{{ dash_base }}/automod" {% if active=='automod' %}class="active"{% endif %}><span class="nav-icon">🤖</span><span>AutoMod</span></a>
+      <a href="{{ dash_base }}/logs" {% if active=='logs' %}class="active"{% endif %}><span class="nav-icon">📢</span><span>Logs</span></a>
+      <a href="{{ dash_base }}/cases" {% if active=='cases' %}class="active"{% endif %}><span class="nav-icon">📋</span><span>Cases</span></a>
       <div class="db-nav-label">Konfiguration</div>
-      <a href="/dashboard/{{ guild.id }}/warns" {% if active=='warns' %}class="active"{% endif %}><span class="nav-icon">⚠️</span><span>Warns</span></a>
-      <a href="/dashboard/{{ guild.id }}/modules" {% if active=='modules' %}class="active"{% endif %}><span class="nav-icon">⚙️</span><span>Module</span></a>
-      <a href="/dashboard/{{ guild.id }}/welcome" {% if active=='welcome' %}class="active"{% endif %}><span class="nav-icon">👋</span><span>Welcome</span></a>
-      <a href="/dashboard/{{ guild.id }}/roles" {% if active=='roles' %}class="active"{% endif %}><span class="nav-icon">🏷️</span><span>Rollen</span></a>
-      <a href="/dashboard/{{ guild.id }}/autonick" {% if active=='autonick' %}class="active"{% endif %}><span class="nav-icon">📝</span><span>Auto-Nick</span></a>
-      <a href="/dashboard/{{ guild.id }}/autoresponse" {% if active=='autoresponse' %}class="active"{% endif %}><span class="nav-icon">💬</span><span>Auto-Antwort</span></a>
+      <a href="{{ dash_base }}/warns" {% if active=='warns' %}class="active"{% endif %}><span class="nav-icon">⚠️</span><span>Warns</span></a>
+      <a href="{{ dash_base }}/modules" {% if active=='modules' %}class="active"{% endif %}><span class="nav-icon">⚙️</span><span>Module</span></a>
+      <a href="{{ dash_base }}/welcome" {% if active=='welcome' %}class="active"{% endif %}><span class="nav-icon">👋</span><span>Welcome</span></a>
+      <a href="{{ dash_base }}/roles" {% if active=='roles' %}class="active"{% endif %}><span class="nav-icon">🏷️</span><span>Rollen</span></a>
+      <a href="{{ dash_base }}/autonick" {% if active=='autonick' %}class="active"{% endif %}><span class="nav-icon">📝</span><span>Auto-Nick</span></a>
+      <a href="{{ dash_base }}/autoresponse" {% if active=='autoresponse' %}class="active"{% endif %}><span class="nav-icon">💬</span><span>Auto-Antwort</span></a>
       <div class="db-nav-label">Analyse</div>
-      <a href="/dashboard/{{ guild.id }}/stats" {% if active=='stats' %}class="active"{% endif %}><span class="nav-icon">📊</span><span>Statistiken</span></a>
-      <a href="/dashboard/{{ guild.id }}/livefeed" {% if active=='livefeed' %}class="active"{% endif %}><span class="nav-icon">⚡</span><span>Live-Feed</span></a>
-      <a href="/dashboard/{{ guild.id }}/whitelist" {% if active=='whitelist' %}class="active"{% endif %}><span class="nav-icon">🔐</span><span>Whitelist</span></a>
+      <a href="{{ dash_base }}/stats" {% if active=='stats' %}class="active"{% endif %}><span class="nav-icon">📊</span><span>Statistiken</span></a>
+      <a href="{{ dash_base }}/livefeed" {% if active=='livefeed' %}class="active"{% endif %}><span class="nav-icon">⚡</span><span>Live-Feed</span></a>
+      <a href="{{ dash_base }}/whitelist" {% if active=='whitelist' %}class="active"{% endif %}><span class="nav-icon">🔐</span><span>Whitelist</span></a>
       <div class="db-nav-label">System</div>
-      <a href="/dashboard/{{ guild.id }}/members" {% if active=='members' %}class="active"{% endif %}><span class="nav-icon">👥</span><span>Mitglieder</span></a>
-      <a href="/dashboard/{{ guild.id }}/tempvoice" {% if active=='tempvoice' %}class="active"{% endif %}><span class="nav-icon">🎤</span><span>Temp-Voice</span></a>
-      <a href="/dashboard/{{ guild.id }}/tickets" {% if active=='tickets' %}class="active"{% endif %}><span class="nav-icon">🎫</span><span>Tickets</span></a>
-      <a href="/dashboard/{{ guild.id }}/backup" {% if active=='backup' %}class="active"{% endif %}><span class="nav-icon">💾</span><span>Backup</span></a>
-      <a href="/dashboard/{{ guild.id }}/templates" {% if active=='templates' %}class="active"{% endif %}><span class="nav-icon">🌐</span><span>Community Templates</span></a>
-      <a href="/dashboard/{{ guild.id }}/embed" {% if active=='embed' %}class="active"{% endif %}><span class="nav-icon">🎨</span><span>Embed Builder</span></a>
-      <a href="/dashboard/{{ guild.id }}/design" {% if active=='design' %}class="active"{% endif %}><span class="nav-icon">🖌️</span><span>Design</span></a>
-      <a href="/dashboard/{{ guild.id }}/settings" {% if active=='settings' %}class="active"{% endif %}><span class="nav-icon">⚙️</span><span>Einstellungen</span></a>
+      <a href="{{ dash_base }}/members" {% if active=='members' %}class="active"{% endif %}><span class="nav-icon">👥</span><span>Mitglieder</span></a>
+      <a href="{{ dash_base }}/tempvoice" {% if active=='tempvoice' %}class="active"{% endif %}><span class="nav-icon">🎤</span><span>Temp-Voice</span></a>
+      <a href="{{ dash_base }}/tickets" {% if active=='tickets' %}class="active"{% endif %}><span class="nav-icon">🎫</span><span>Tickets</span></a>
+      <a href="{{ dash_base }}/backup" {% if active=='backup' %}class="active"{% endif %}><span class="nav-icon">💾</span><span>Backup</span></a>
+      <a href="{{ dash_base }}/templates" {% if active=='templates' %}class="active"{% endif %}><span class="nav-icon">🌐</span><span>Community Templates</span></a>
+      <a href="{{ dash_base }}/embed" {% if active=='embed' %}class="active"{% endif %}><span class="nav-icon">🎨</span><span>Embed Builder</span></a>
+      <a href="{{ dash_base }}/design" {% if active=='design' %}class="active"{% endif %}><span class="nav-icon">🖌️</span><span>Design</span></a>
+      <a href="{{ dash_base }}/settings" {% if active=='settings' %}class="active"{% endif %}><span class="nav-icon">⚙️</span><span>Einstellungen</span></a>
     </nav>
     <div style="padding:8px 16px;border-top:1px solid var(--border)">
       <div class="db-nav-label" style="padding:0;margin:0 0 6px">Theme</div>
@@ -374,6 +375,45 @@
     setRadius (localStorage.getItem('mf-radius')  || 'rounded');
     setAnim   (localStorage.getItem('mf-anim')    || 'on');
     setSidebar(localStorage.getItem('mf-sidebar') || 'expanded');
+  })();
+  </script>
+  <script>
+  // ── Dashboard UX Polish: Shortcuts, active-nav focus, micro-ripple ──
+  (function dashboardPolish(){
+    function ready(fn){
+      if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn, {once:true});
+      else fn();
+    }
+    ready(function(){
+      document.body.classList.add('mf-dashboard-ready');
+      const active = document.querySelector('.db-nav a.active');
+      if(active) active.scrollIntoView({block:'center', inline:'nearest'});
+
+      document.addEventListener('keydown', function(e){
+        const key = (e.key || '').toLowerCase();
+        if((e.ctrlKey || e.metaKey) && key === 's'){
+          if(typeof saveConfig === 'function'){ e.preventDefault(); saveConfig(); }
+        }
+        if(key === 'escape' && typeof closeModal === 'function') closeModal();
+      });
+
+      document.querySelectorAll('button, .btn-glass, .db-nav a').forEach(el => {
+        if(el.dataset.rippleReady) return;
+        el.dataset.rippleReady = '1';
+        el.addEventListener('pointerdown', function(ev){
+          const r = this.getBoundingClientRect();
+          this.style.setProperty('--rx', ((ev.clientX - r.left) / Math.max(r.width,1) * 100) + '%');
+          this.style.setProperty('--ry', ((ev.clientY - r.top) / Math.max(r.height,1) * 100) + '%');
+          this.classList.remove('mf-ripple');
+          void this.offsetWidth;
+          this.classList.add('mf-ripple');
+        });
+      });
+
+      document.querySelectorAll('.db-card, .ov-stat, .cfg-row').forEach((el, i) => {
+        el.style.animationDelay = Math.min(i * 0.018, 0.22) + 's';
+      });
+    });
   })();
   </script>
   {% block scripts %}{% endblock %}

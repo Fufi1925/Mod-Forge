@@ -9,30 +9,60 @@
 (function () {
   'use strict';
 
-  // ── Inject Three.js ──────────────────────────────────────
+  // ── Inject Three.js mit Offline-Fallback ──────────────────
   function loadScript(src, cb) {
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      cb();
+    };
     const s = document.createElement('script');
     s.src = src;
-    s.onload = cb;
+    s.async = true;
+    s.onload = finish;
+    s.onerror = finish;
     document.head.appendChild(s);
+    // Wenn CDN/Netz blockiert ist, darf die Seite trotzdem starten.
+    window.setTimeout(finish, 1800);
   }
 
+  let booted = false;
   function init() {
-    setupCustomCursor();
-    setup3DScene();
-    setupNavbar();
-    setupScrollReveal();
-    setupFeatureCards();
-    setupCounters();
-    setupDashboardPreview();
-    setupLogChannelHovers();
-    setupCommandCards();
+    if (booted) return;
+    booted = true;
+    const start = () => {
+      setupAmbientFallback();
+      setupCustomCursor();
+      setup3DScene();
+      setupNavbar();
+      setupScrollReveal();
+      setupFeatureCards();
+      setupCounters();
+      setupDashboardPreview();
+      setupLogChannelHovers();
+      setupCommandCards();
+      setupMicroInteractions();
+      setupSmartClipboard();
+    };
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', start, { once: true });
+    } else {
+      start();
+    }
   }
 
-  loadScript(
-    'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js',
-    init
-  );
+  if (window.THREE) init();
+  else loadScript('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js', init);
+
+  function setupAmbientFallback() {
+    if (document.querySelector('.mf-ambient')) return;
+    const ambient = document.createElement('div');
+    ambient.className = 'mf-ambient';
+    ambient.setAttribute('aria-hidden', 'true');
+    ambient.innerHTML = '<span></span><span></span><span></span><i></i>';
+    document.body.prepend(ambient);
+  }
 
   /* ═══════════════════════════════════════════════════════
      CUSTOM CURSOR – Großer Farbfleck, 100% zentriert
@@ -523,6 +553,46 @@
   }
 
   /* ═══════════════════════════════════════════════════════
+     MICRO INTERACTIONS — schlicht, aber lebendig
+     ═══════════════════════════════════════════════════════ */
+  function setupMicroInteractions() {
+    const finePointer = window.matchMedia('(pointer: fine)').matches;
+    if (!finePointer) return;
+
+    document.querySelectorAll('.btn, .btn-glass, .feature-card, .stat-card, .pricing-card').forEach(el => {
+      if (el.dataset.mfTilt) return;
+      el.dataset.mfTilt = '1';
+      el.addEventListener('mousemove', e => {
+        const r = el.getBoundingClientRect();
+        const x = (e.clientX - r.left) / Math.max(r.width, 1) - 0.5;
+        const y = (e.clientY - r.top) / Math.max(r.height, 1) - 0.5;
+        el.style.setProperty('--mx', `${(x + 0.5) * 100}%`);
+        el.style.setProperty('--my', `${(y + 0.5) * 100}%`);
+        el.style.transform = `perspective(900px) rotateX(${(-y * 4).toFixed(2)}deg) rotateY(${(x * 5).toFixed(2)}deg) translateY(-2px)`;
+      });
+      el.addEventListener('mouseleave', () => {
+        el.style.transform = '';
+      });
+    });
+  }
+
+  function setupSmartClipboard() {
+    document.querySelectorAll('[data-copy], code').forEach(el => {
+      if (el.dataset.copyReady) return;
+      el.dataset.copyReady = '1';
+      el.addEventListener('click', async () => {
+        const text = el.dataset.copy || el.textContent.trim();
+        if (!text || text.length > 250) return;
+        try {
+          await navigator.clipboard.writeText(text);
+          el.classList.add('copied');
+          window.setTimeout(() => el.classList.remove('copied'), 900);
+        } catch (_) { /* ignore */ }
+      });
+    });
+  }
+
+  /* ═══════════════════════════════════════════════════════
      DOM ENHANCEMENT — Add classes & wrappers
      ═══════════════════════════════════════════════════════ */
   document.addEventListener('DOMContentLoaded', function () {
@@ -537,7 +607,8 @@
       // Move everything except canvas and cursor blob into wrapper
       Array.from(body.children).forEach(child => {
         if (child.id !== 'three-canvas' &&
-            !child.classList.contains('cursor-blob')) {
+            !child.classList.contains('cursor-blob') &&
+            !child.classList.contains('mf-ambient')) {
           wrapper.appendChild(child);
         }
       });

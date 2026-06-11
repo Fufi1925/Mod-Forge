@@ -1,11 +1,16 @@
 # web/helpers.py
 import logging
 import copy
+from html import escape
 
 from bot.config import DEFAULT_CONFIG, VALID_PUNISHMENTS, get_uptime
 from bot.utils import _run_async
 
 log = logging.getLogger("ModForge.Web.Helpers")
+
+
+def _h(value) -> str:
+    return escape(str(value or ""), quote=True)
 
 
 def _bot_stats():
@@ -151,8 +156,8 @@ def _build_welcome_content(cfg: dict, guild_id: str) -> str:
     if not isinstance(lc, dict):
         lc = {}
 
-    wc_col = wc.get("embed_color", "#22c55e")
-    lc_col = lc.get("embed_color", "#ef4444")
+    wc_col = wc.get("embed_color", "#22c55e") if str(wc.get("embed_color", "")).startswith("#") else "#22c55e"
+    lc_col = lc.get("embed_color", "#ef4444") if str(lc.get("embed_color", "")).startswith("#") else "#ef4444"
 
     return f"""
 <div class="db-card" style="margin-bottom:20px">
@@ -160,9 +165,9 @@ def _build_welcome_content(cfg: dict, guild_id: str) -> str:
     <div class="cfg-row"><div><span class="cfg-label">Aktiviert</span></div>
     <label class="toggle"><input type="checkbox" id="wc-en" {"checked" if wc.get("enabled") else ""}><span class="slider"></span></label></div>
     <div class="cfg-row"><div><span class="cfg-label">Titel</span></div>
-    <input class="cfg-input" id="wc-title" value="{wc.get("embed_title", "👋 Willkommen!")}" style="max-width:300px;width:100%"></div>
+    <input class="cfg-input" id="wc-title" value="{_h(wc.get("embed_title", "👋 Willkommen!"))}" style="max-width:300px;width:100%"></div>
     <div class="cfg-row"><div><span class="cfg-label">Beschreibung</span></div>
-    <input class="cfg-input" id="wc-desc" value="{wc.get("embed_description", "Willkommen!")}" style="max-width:400px;width:100%"></div>
+    <input class="cfg-input" id="wc-desc" value="{_h(wc.get("embed_description", "Willkommen!"))}" style="max-width:400px;width:100%"></div>
     <div class="cfg-row"><div><span class="cfg-label">Farbe</span></div>
     <input type="color" id="wc-col" value="{wc_col}" style="width:50px;height:32px;border:none;border-radius:8px;cursor:pointer"></div>
     <div class="cfg-row"><div><span class="cfg-label">DM senden</span></div>
@@ -173,7 +178,7 @@ def _build_welcome_content(cfg: dict, guild_id: str) -> str:
     <div class="cfg-row"><div><span class="cfg-label">Aktiviert</span></div>
     <label class="toggle"><input type="checkbox" id="lv-en" {"checked" if lc.get("enabled") else ""}><span class="slider"></span></label></div>
     <div class="cfg-row"><div><span class="cfg-label">Titel</span></div>
-    <input class="cfg-input" id="lv-title" value="{lc.get("embed_title", "👋 Auf Wiedersehen!")}" style="max-width:300px;width:100%"></div>
+    <input class="cfg-input" id="lv-title" value="{_h(lc.get("embed_title", "👋 Auf Wiedersehen!"))}" style="max-width:300px;width:100%"></div>
     <div class="cfg-row"><div><span class="cfg-label">Farbe</span></div>
     <input type="color" id="lv-col" value="{lc_col}" style="width:50px;height:32px;border:none;border-radius:8px;cursor:pointer"></div>
 </div>"""

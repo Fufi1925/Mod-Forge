@@ -310,11 +310,11 @@ class UtilityCog(commands.Cog):
                          user: Optional[discord.Member] = None, text: Optional[str] = None,
                          note_id: Optional[str] = None):
         if action == "add" and user and text:
-            await self.bot.db.note_add(interaction.guild.id, user.id, interaction.user.id, text)
+            await self.bot.db.add_note(interaction.guild.id, user.id, interaction.user.id, text)
             await interaction.response.send_message(embed=create_embed(
                 f"{E.NOTE} Notiz gespeichert", f"Für {user.mention}: {text[:100]}", COLOR_SUCCESS))
         elif action == "list" and user:
-            notes = await self.bot.db.note_list(interaction.guild.id, user.id)
+            notes = await self.bot.db.get_notes(interaction.guild.id, user.id)
             if not notes:
                 return await interaction.response.send_message(embed=create_embed(
                     f"{E.NOTE}", f"Keine Notizen für {user.mention}.", COLOR_INFO))
@@ -322,7 +322,7 @@ class UtilityCog(commands.Cog):
             await interaction.response.send_message(embed=create_embed(
                 f"{E.NOTE} Notizen ({len(notes)})", "\n".join(lines), COLOR_PRIMARY))
         elif action == "delete" and note_id:
-            await self.bot.db.note_delete(interaction.guild.id, note_id)
+            await self.bot.db.delete_note(interaction.guild.id, note_id)
             await interaction.response.send_message(embed=create_embed(
                 f"{E.OK}", "Notiz gelöscht.", COLOR_SUCCESS))
         else:

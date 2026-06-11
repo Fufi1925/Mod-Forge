@@ -1,5 +1,6 @@
 # database/db.py
 import asyncio
+import copy
 import datetime
 import logging
 import os
@@ -90,18 +91,22 @@ class Database:
         }
 
     @staticmethod
+    def _merge_defaults(target: dict, defaults: dict) -> None:
+        """Rekursives Default-Merge ohne geteilte mutable Objekte."""
+        for key, value in defaults.items():
+            if key not in target:
+                target[key] = copy.deepcopy(value)
+            elif isinstance(value, dict) and isinstance(target.get(key), dict):
+                Database._merge_defaults(target[key], value)
+
+    @staticmethod
     def _ensure_defaults(cfg: dict) -> dict:
-        """Stellt sicher, dass alle Standard-Keys vorhanden sind. Erzeugt eine Kopie."""
+        """Stellt sicher, dass alle Standard-Keys vorhanden sind. Erzeugt eine tiefe Kopie."""
         from bot.config import DEFAULT_CONFIG
 
-        cfg = dict(cfg)  # Shallow Copy, tiefe Werte sind unveränderlich
-        for k, v in DEFAULT_CONFIG.items():
-            if k not in cfg:
-                cfg[k] = v.copy() if isinstance(v, (dict, list)) else v
-            elif isinstance(v, dict) and isinstance(cfg[k], dict):
-                for sub_k, sub_v in v.items():
-                    cfg[k].setdefault(sub_k, sub_v)
+        cfg = copy.deepcopy(cfg or {})
         cfg.pop("_id", None)
+        Database._merge_defaults(cfg, DEFAULT_CONFIG)
         return cfg
 
     # ── Verbindungsprüfung (optional, wird in setup_hook aufgerufen) ──
@@ -120,9 +125,7 @@ class Database:
         cached = self._config_cache.get(guild_id)
         if cached is not None:
             return cached
-        from bot.config import DEFAULT_CONFIG
-
-        default = self._ensure_defaults(DEFAULT_CONFIG.copy())
+        default = self._ensure_defaults({})
         self._config_cache[guild_id] = default
         try:
             loop = asyncio.get_running_loop()
@@ -139,12 +142,13 @@ class Database:
                 log.error(f"DB fetch_config Fehler: {e}")
                 data = None
             if not data:
-                from bot.config import DEFAULT_CONFIG
-
-                data = DEFAULT_CONFIG.copy()
-                data["_id"] = guild_id
+                data = self._ensure_defaults({})
+                insert_doc = copy.deepcopy(data)
+                insert_doc["_id"] = guild_id
                 try:
-                    await self.config.insert_one(data)
+                    await self.config.update_one(
+                        {"_id": guild_id}, {"$setOnInsert": insert_doc}, upsert=True
+                    )
                 except PyMongoError as e:
                     log.error(f"DB insert_one (config) Fehler: {e}")
             cleaned = self._ensure_defaults(data)
@@ -152,13 +156,17 @@ class Database:
             return cleaned
 
     async def set_config(self, guild_id: int, cfg: dict) -> None:
-        cfg = dict(cfg)
-        cfg["_id"] = guild_id
+        cleaned = self._ensure_defaults(cfg)
+        update_doc = copy.deepcopy(cleaned)
         try:
-            await self.config.update_one({"_id": guild_id}, {"$set": cfg}, upsert=True)
+            await self.config.update_one(
+                {"_id": guild_id},
+                {"$set": update_doc, "$setOnInsert": {"_id": guild_id}},
+                upsert=True,
+            )
         except PyMongoError as e:
             log.error(f"DB set_config Fehler: {e}")
-        self._config_cache[guild_id] = self._ensure_defaults(cfg)
+        self._config_cache[guild_id] = cleaned
 
     async def update_module(
         self, guild_id: int, module: str, key: str, value: Any
@@ -222,15 +230,18 @@ class Database:
             return data
 
     async def set_whitelist(self, guild_id: int, whitelist: dict) -> None:
-        whitelist = dict(whitelist)
-        whitelist["_id"] = guild_id
+        whitelist = copy.deepcopy(whitelist or {})
+        for key, default in self._empty_whitelist().items():
+            whitelist.setdefault(key, copy.deepcopy(default))
+        update_doc = copy.deepcopy(whitelist)
         try:
             await self.whitelist.update_one(
-                {"_id": guild_id}, {"$set": whitelist}, upsert=True
+                {"_id": guild_id},
+                {"$set": update_doc, "$setOnInsert": {"_id": guild_id}},
+                upsert=True,
             )
         except PyMongoError as e:
             log.error(f"DB set_whitelist Fehler: {e}")
-        whitelist.pop("_id", None)
         self._whitelist_cache[guild_id] = whitelist
 
     async def add_whitelist(self, guild_id: int, category: str, entry_id: int) -> None:
@@ -507,7 +518,6 @@ class Database:
 
     async def get_notes(self, guild_id: int, user_id: int) -> list:
         try:
-            from bson.objectid import ObjectId
             docs = await self.notes.find({"guild_id": guild_id, "user_id": user_id}).sort("created_at", DESCENDING).to_list(length=100)
             for d in docs: d["_id"] = str(d["_id"])
             return docs
@@ -519,7 +529,7 @@ class Database:
             from bson.objectid import ObjectId
             result = await self.notes.delete_one({"_id": ObjectId(note_id), "guild_id": guild_id})
             return result.deleted_count > 0
-        except PyMongoError as e:
+        except Exception as e:
             log.error(f"delete_note: {e}"); return False
 
     # ── Temp-Voice Channels (DB) ─────────────────────────

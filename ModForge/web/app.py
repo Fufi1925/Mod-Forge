@@ -26,9 +26,14 @@ flask_app = Flask(
 flask_app.secret_key = SESSION_SECRET
 flask_app.config["PERMANENT_SESSION_LIFETIME"] = 60 * 60 * 6
 
-# SocketIO mit gevent (zuverlässig, nicht deprecated)
+# SocketIO: gevent wenn verfügbar, sonst sicherer Threading-Fallback.
 if _HAS_SOCKETIO:
-    socketio = SocketIO(flask_app, cors_allowed_origins="*", async_mode="gevent")
+    try:
+        socketio = SocketIO(flask_app, cors_allowed_origins="*", async_mode="gevent")
+        log.info("SocketIO läuft mit gevent.")
+    except ValueError:
+        socketio = SocketIO(flask_app, cors_allowed_origins="*", async_mode="threading")
+        log.warning("gevent nicht verfügbar – SocketIO nutzt threading-Fallback.")
 else:
     socketio = None
     log.warning("Flask-SocketIO nicht installiert – Live-Status deaktiviert.")
@@ -37,7 +42,8 @@ else:
 flask_app.register_blueprint(auth_bp)
 
 # Deine bestehenden Routen (Landing, Dashboard, Live …)
-from . import routes  # noqa: E402,F401
+from . import routes as _routes  # noqa: E402
+_ = _routes  # Routen-Import bewusst: registriert Flask-Endpoints
 # ───────────────────────────────────────────────────────────
 # HEALTH CHECK (Railway Monitoring)
 # ───────────────────────────────────────────────────────────

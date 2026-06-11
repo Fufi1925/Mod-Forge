@@ -55,6 +55,28 @@ async def rate_limited(
                 raise
 
 
+def utcnow() -> datetime.datetime:
+    """Gibt eine timezone-aware UTC-Zeit zurück (kompatibel mit discord.py)."""
+    return datetime.datetime.now(datetime.timezone.utc)
+
+
+def to_aware_utc(value: Optional[datetime.datetime]) -> Optional[datetime.datetime]:
+    """Normalisiert naive/aware Datetimes auf aware UTC."""
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=datetime.timezone.utc)
+    return value.astimezone(datetime.timezone.utc)
+
+
+def age_since(value: Optional[datetime.datetime]) -> datetime.timedelta:
+    """Alter seit einem Zeitpunkt; bei None wird 0 zurückgegeben."""
+    dt = to_aware_utc(value)
+    if dt is None:
+        return datetime.timedelta(0)
+    return utcnow() - dt
+
+
 def create_embed(
     title: str,
     description: str = "",
@@ -70,12 +92,16 @@ def create_embed(
         title=title,
         description=description,
         color=color,
-        timestamp=datetime.datetime.now(datetime.timezone.utc),
+        timestamp=utcnow(),
     )
     embed.set_footer(text=FOOTER_TEXT, icon_url=FOOTER_ICON)
     if fields:
-        for name, value, inline in fields:
-            embed.add_field(name=str(name), value=str(value), inline=bool(inline))
+        for field in fields[:25]:
+            try:
+                name, value, inline = field
+            except ValueError:
+                continue
+            embed.add_field(name=str(name)[:256], value=(str(value) or "—")[:1024], inline=bool(inline))
     if thumbnail:
         embed.set_thumbnail(url=thumbnail)
     if image:
