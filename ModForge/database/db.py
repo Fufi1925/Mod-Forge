@@ -40,8 +40,8 @@ class Database:
         self.tempvoice_settings: AsyncIOMotorCollection = self.db["tempvoice_settings"]
         self.tempvoice_ratings: AsyncIOMotorCollection = self.db["tempvoice_ratings"]
         self.log_channels_backup: AsyncIOMotorCollection = self.db["log_channels_backup"]
-        self.notes: AsyncIOMotorCollection = self.notes
-        self.badges: AsyncIOMotorCollection = self.badges
+        self.notes: AsyncIOMotorCollection = self.db["notes"]
+        self.badges: AsyncIOMotorCollection = self.db["badges"]
 
         self._config_cache: TTLCache = TTLCache(
             maxsize=self.CONFIG_CACHE_MAXSIZE, ttl=self.CONFIG_CACHE_TTL
