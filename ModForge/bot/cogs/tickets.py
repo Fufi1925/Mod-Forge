@@ -6,8 +6,6 @@ Multi-Category, Priority, Assignment, SLA, Transcripts, Templates, etc.
 import asyncio
 import datetime
 import io
-import time
-from typing import Optional
 
 import discord
 from discord.ext import commands, tasks
@@ -322,7 +320,6 @@ class TicketsCog(commands.Cog):
             ts = msg.created_at.strftime("%d.%m.%Y %H:%M:%S")
             content = msg.content or "[Embed/Attachment]"
             lines.append(f"[{ts}] {msg.author.display_name}: {content}")
-        transcript = "\n".join(lines)
         # HTML format (Feature 123)
         html = f"""<!DOCTYPE html><html><head><meta charset="utf-8">
 <title>Transcript – {target.name}</title>

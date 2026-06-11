@@ -887,6 +887,7 @@ HELP_DATA = {
             ("/editsnipe", "Original vor Edit", "Manage Messages", "/editsnipe"),
             ("/case <id>", "Case-Details", "Manage Messages", "/case 42"),
             ("/cases [user]", "Cases mit Filter", "Manage Messages", "/cases @User"),
+            ("/case_export [format]", "Cases als HTML/JSON exportieren", "Manage Messages", "/case_export html"),
             ("/status", "Bot-Status", "—", "/status"),
         ],
     ),
@@ -957,6 +958,7 @@ HELP_DATA = {
             ),
             ("/logchannels", "Zeigt die aktuelle Log-Konfiguration", "Administrator", "/logchannels"),
             ("/logmodules", "Zeigt alle verfügbaren Log-Module", "Administrator", "/logmodules"),
+            ("/log_test", "Sendet Test-Logs in alle Kanäle", "Administrator", "/log_test"),
             ("/logs_disable", "Deaktiviert alle Log-Kanäle", "Administrator", "/logs_disable"),
             (
                 "/report <member> <grund>",
@@ -976,6 +978,8 @@ HELP_DATA = {
         f"{E.SYSTEM} Setup & System",
         [
             ("/setup", "Interaktives Setup", "Administrator", "/setup"),
+            ("/setup-wizard", "Schnelles Setup mit Profilen", "Administrator", "/setup-wizard"),
+            ("/doctor", "Prüft Rechte, Logs, DB und Security", "Manage Server", "/doctor"),
             ("/help", "Diese Hilfe", "—", "/help"),
             (
                 "/noprefix <on/off>",

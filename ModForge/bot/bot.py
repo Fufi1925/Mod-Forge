@@ -583,7 +583,51 @@ class TempVoiceSelect(discord.ui.Select):
 class TempVoiceView(discord.ui.View):
     def __init__(self, bot_ref) -> None:
         super().__init__(timeout=None)
+        self.bot = bot_ref
         self.add_item(TempVoiceSelect(bot_ref))
+
+    async def _owned_channel(self, interaction: discord.Interaction):
+        if not interaction.user.voice or not interaction.user.voice.channel:
+            await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", "Du bist in keinem Voice-Kanal.", COLOR_DANGER), ephemeral=True)
+            return None, None
+        ch = interaction.user.voice.channel
+        doc = await interaction.client.db.tempvoice_channels.find_one({"guild_id": interaction.guild.id, "channel_id": ch.id})
+        if not doc:
+            await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", "Das ist kein Temp-Voice-Kanal.", COLOR_DANGER), ephemeral=True)
+            return None, None
+        return ch, doc
+
+    @discord.ui.button(label="Claim", style=discord.ButtonStyle.green, emoji="👑", custom_id="modforge:tv_claim")
+    async def claim(self, interaction: discord.Interaction, button: discord.ui.Button):
+        ch, doc = await self._owned_channel(interaction)
+        if not ch:
+            return
+        owner = interaction.guild.get_member(doc.get("user_id"))
+        if owner and owner in ch.members:
+            return await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", "Der aktuelle Owner ist noch im Kanal.", COLOR_DANGER), ephemeral=True)
+        await interaction.client.db.tempvoice_channels.update_one({"guild_id": interaction.guild.id, "channel_id": ch.id}, {"$set": {"user_id": interaction.user.id}}, upsert=True)
+        await ch.set_permissions(interaction.user, connect=True, manage_channels=True, move_members=True)
+        await interaction.response.send_message(embed=create_embed(f"{E.OK} Owner übernommen", f"Du bist jetzt Owner von {ch.mention}.", COLOR_SUCCESS), ephemeral=True)
+
+    @discord.ui.button(label="Lock", style=discord.ButtonStyle.secondary, emoji="🔒", custom_id="modforge:tv_lock_btn")
+    async def lock_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        ch, doc = await self._owned_channel(interaction)
+        if not ch:
+            return
+        if doc.get("user_id") != interaction.user.id and not interaction.user.guild_permissions.manage_channels:
+            return await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", "Nur der Owner kann das.", COLOR_DANGER), ephemeral=True)
+        await ch.set_permissions(interaction.guild.default_role, connect=False)
+        await interaction.response.send_message(embed=create_embed("🔒 Kanal gesperrt", ch.mention, COLOR_WARNING), ephemeral=True)
+
+    @discord.ui.button(label="Unlock", style=discord.ButtonStyle.secondary, emoji="🔓", custom_id="modforge:tv_unlock_btn")
+    async def unlock_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        ch, doc = await self._owned_channel(interaction)
+        if not ch:
+            return
+        if doc.get("user_id") != interaction.user.id and not interaction.user.guild_permissions.manage_channels:
+            return await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", "Nur der Owner kann das.", COLOR_DANGER), ephemeral=True)
+        await ch.set_permissions(interaction.guild.default_role, connect=True)
+        await interaction.response.send_message(embed=create_embed("🔓 Kanal geöffnet", ch.mention, COLOR_SUCCESS), ephemeral=True)
 
 class TempVoiceLimitModal(discord.ui.Modal, title="Nutzer-Limit setzen"):
     limit = discord.ui.TextInput(label="Maximale Nutzeranzahl (0 = kein Limit)", placeholder="z.B. 5", required=True, max_length=3)

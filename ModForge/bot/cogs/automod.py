@@ -8,17 +8,10 @@ import re
 import time
 import unicodedata
 from collections import defaultdict, deque
-from typing import Optional
-
 import discord
 from discord.ext import commands
-from discord import app_commands
-
-from bot.config import (
-    COLOR_PRIMARY, COLOR_SUCCESS, COLOR_WARNING, COLOR_DANGER,
-    COLOR_INFO, E, log,
-)
-from bot.utils import create_embed, normalize_text
+from bot.config import COLOR_WARNING, COLOR_DANGER, COLOR_INFO, E
+from bot.utils import normalize_text
 
 # ═══════════════════════════════════════════════════════════════
 # IN-MEMORY TRACKER
@@ -266,6 +259,10 @@ class AutoModCog(commands.Cog):
                 dq.append(now)
             while dq and now - dq[0] > ext.get("link_spam_window", 10):
                 dq.popleft()
+            if len(dq) == ext.get("link_spam_limit", 3):
+                await self.bot.log_action(guild, "💡 Smart AutoMod Vorschlag",
+                    "Viele Links in kurzer Zeit erkannt → Prüfe, ob der Link-Filter strenger gesetzt werden soll.",
+                    COLOR_INFO, user=member, module="automod")
             if len(dq) > ext.get("link_spam_limit", 3):
                 try:
                     await message.delete()

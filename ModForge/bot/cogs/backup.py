@@ -2,16 +2,13 @@
 """ModForge Backup Cog – Server-Backup & Restore System."""
 import asyncio
 import datetime
-import hashlib
 import uuid
-import time
-from typing import Optional
 
 import discord
 from discord.ext import commands, tasks
 from discord import app_commands
 
-from bot.config import COLOR_PRIMARY, COLOR_SUCCESS, COLOR_WARNING, COLOR_DANGER, COLOR_INFO, E, log, ACTIVITY
+from bot.config import COLOR_PRIMARY, COLOR_SUCCESS, COLOR_DANGER, COLOR_INFO, E, log
 from bot.utils import create_embed
 
 

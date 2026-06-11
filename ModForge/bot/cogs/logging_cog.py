@@ -180,6 +180,46 @@ class LoggingCog(commands.Cog):
 
     slash_logchannel_remove.autocomplete("module")(_module_autocomplete)
 
+    @app_commands.command(name="log_test", description="Sendet Test-Logs in alle konfigurierten Log-Kanäle")
+    @app_commands.default_permissions(administrator=True)
+    async def slash_log_test(self, interaction: discord.Interaction):
+        cfg = self.bot.db.get_config(interaction.guild.id)
+        configured = cfg.get("log_channels", {}) or {}
+        targets = {}
+        if cfg.get("log_channel"):
+            targets["default"] = cfg.get("log_channel")
+        for module, channel_id in configured.items():
+            if channel_id and str(channel_id) != "0":
+                targets[module] = channel_id
+        if not targets:
+            return await interaction.response.send_message(embed=create_embed(
+                f"{E.FAIL} Keine Logs eingerichtet", "Nutze zuerst `/log #kanal`.", COLOR_DANGER
+            ), ephemeral=True)
+        await interaction.response.defer(ephemeral=True)
+        ok = 0; failed = []
+        for module, channel_id in sorted(targets.items()):
+            ch = interaction.guild.get_channel(int(channel_id))
+            if not ch:
+                failed.append(f"{module}: Kanal nicht gefunden")
+                continue
+            try:
+                await ch.send(embed=create_embed(
+                    f"{E.LOGS_CMD} Test-Log · {module}",
+                    f"Dieser Test wurde von {interaction.user.mention} ausgelöst. Modul **{module}** funktioniert.",
+                    COLOR_SUCCESS, user=interaction.user,
+                ))
+                ok += 1
+            except discord.Forbidden:
+                failed.append(f"{module}: keine Schreibrechte")
+            except discord.HTTPException as e:
+                failed.append(f"{module}: {e}")
+        await interaction.followup.send(embed=create_embed(
+            f"{E.LOGS_CMD} Log-Test fertig",
+            f"✅ Erfolgreich: **{ok}**\n❌ Fehler: **{len(failed)}**",
+            COLOR_SUCCESS if not failed else COLOR_WARNING,
+            [("Fehler", "\n".join(failed[:10]) or "Keine", False)]
+        ), ephemeral=True)
+
     @app_commands.command(name="logmodules", description="Zeigt alle verfügbaren Log-Module")
     @app_commands.default_permissions(administrator=True)
     async def slash_logmodules(self, interaction: discord.Interaction):

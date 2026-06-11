@@ -7,7 +7,6 @@ import asyncio
 import datetime
 import random
 import time
-from typing import Optional
 
 import discord
 from discord.ext import commands, tasks
@@ -18,7 +17,7 @@ from bot.config import (
     COLOR_INFO, E, VERIFY_BANNER_URL, log,
 )
 from bot.utils import create_embed, generate_captcha
-from bot.bot import VerifyView, CaptchaEntryView, safe_dm, _BOT_DEV_ID
+from bot.bot import CaptchaEntryView
 
 # ═══════════════════════════════════════════════════════════════
 # PENDING VERIFICATIONS (in-memory)
@@ -120,7 +119,6 @@ class ExtendedVerifyView(discord.ui.View):
         rate_limit = ve.get("rate_limit_per_minute", 3)
         uid = interaction.user.id
         gid = interaction.guild.id
-        key = f"verify_rate:{gid}:{uid}"
         # Simple in-memory rate limit
         _pending_verify.setdefault(gid, {})
         user_data = _pending_verify[gid].get(uid, {})

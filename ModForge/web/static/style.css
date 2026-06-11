@@ -2940,3 +2940,49 @@ code.copied::after, [data-copy].copied::after {
 @keyframes mf-ripple {
   to { width: 220%; height: 220%; opacity: 0; }
 }
+
+/* Dashboard Feature Pack: health strip, command palette, bottom nav, save center */
+.mf-health-strip {
+  display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+  margin:-18px 0 24px; padding:10px 12px; border-radius:16px;
+  background:rgba(255,255,255,.028); border:1px solid var(--border);
+  box-shadow:0 12px 34px rgba(0,0,0,.14);
+}
+.mf-health { font-size:.72rem; font-weight:800; padding:6px 10px; border-radius:999px; border:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.035); }
+.mf-health.ok { color:var(--green); background:rgba(34,197,94,.08); border-color:rgba(34,197,94,.18); }
+.mf-health.warn { color:var(--amberl); background:rgba(245,158,11,.08); border-color:rgba(245,158,11,.18); }
+.mf-health.bad { color:#f87171; background:rgba(239,68,68,.08); border-color:rgba(239,68,68,.18); }
+.mf-health-action { margin-left:auto; padding:7px 11px; border-radius:999px; border:1px solid rgba(96,165,250,.22); background:rgba(59,130,246,.08); color:var(--vl); font-size:.72rem; font-weight:800; cursor:pointer; }
+.mf-health-action + .mf-health-action { margin-left:0; }
+.mf-health-action.danger { border-color:rgba(239,68,68,.22); background:rgba(239,68,68,.08); color:#fca5a5; }
+.mf-change-item { padding:8px 10px; border-radius:10px; background:rgba(255,255,255,.04); color:var(--muted); font-size:.8rem; }
+.mf-palette { position:fixed; inset:0; z-index:100000; display:flex; align-items:flex-start; justify-content:center; padding-top:10vh; background:rgba(0,0,0,.48); backdrop-filter:blur(12px); }
+.mf-palette-box { width:min(620px,92vw); border-radius:22px; padding:12px; background:rgba(8,8,22,.96); border:1px solid var(--border); box-shadow:0 30px 100px rgba(0,0,0,.55), var(--mf-glow); }
+.mf-palette input { width:100%; box-sizing:border-box; border:1px solid rgba(255,255,255,.09); border-radius:16px; padding:15px 16px; background:rgba(255,255,255,.045); color:var(--fg); outline:none; font:inherit; font-weight:700; }
+#cmdResults { display:grid; gap:6px; margin-top:10px; max-height:420px; overflow:auto; }
+.mf-pal-item { width:100%; display:flex; align-items:center; gap:12px; text-align:left; padding:12px 14px; border-radius:14px; border:1px solid transparent; color:var(--fg); background:transparent; cursor:pointer; font:inherit; }
+.mf-pal-item:hover { background:rgba(59,130,246,.10); border-color:rgba(59,130,246,.18); transform:none; }
+.mf-pal-empty { padding:18px; text-align:center; color:var(--muted); }
+.mf-bottom-nav { display:none; }
+@media(max-width:720px){
+  .db-main { padding-bottom:110px !important; }
+  .mf-health-strip { margin-top:-8px; }
+  .mf-health-action { margin-left:0; }
+  .mf-bottom-nav { position:fixed; left:10px; right:10px; bottom:10px; z-index:10020; display:grid; grid-template-columns:repeat(5,1fr); gap:4px; padding:8px; border-radius:22px; background:rgba(8,8,22,.94); border:1px solid var(--border); backdrop-filter:blur(20px); box-shadow:0 20px 60px rgba(0,0,0,.45); }
+  .mf-bottom-nav a { display:flex; flex-direction:column; align-items:center; gap:2px; padding:7px 2px; border-radius:14px; color:var(--muted); text-decoration:none; font-size:1rem; }
+  .mf-bottom-nav a span { font-size:.55rem; font-weight:800; }
+  .mf-bottom-nav a.active { color:var(--vl); background:rgba(59,130,246,.12); }
+}
+body:not(.mf-dashboard-ready) .db-main .db-card,
+body:not(.mf-dashboard-ready) .db-main .ov-stat {
+  position:relative; overflow:hidden; color:transparent !important;
+}
+body:not(.mf-dashboard-ready) .db-main .db-card::before,
+body:not(.mf-dashboard-ready) .db-main .ov-stat::before {
+  content:''; position:absolute; inset:0; background:linear-gradient(90deg, rgba(255,255,255,.02), rgba(255,255,255,.08), rgba(255,255,255,.02)); background-size:220% 100%; animation:shimmer 1.2s linear infinite;
+}
+[data-anim-preset="minimal"] .mf-ambient,
+[data-anim-preset="performance"] .mf-ambient { display:none; }
+[data-anim-preset="cyber"] .db-card { border-color:rgba(34,211,238,.22) !important; }
+[data-anim-preset="smooth"] { --mf-ease:cubic-bezier(.22,1,.36,1); }
+@keyframes toastProgress { from { transform:scaleX(1); transform-origin:left; } to { transform:scaleX(0); transform-origin:left; } }

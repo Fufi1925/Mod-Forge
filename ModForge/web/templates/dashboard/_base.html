@@ -138,6 +138,7 @@
       <div class="db-nav-label">Analyse</div>
       <a href="{{ dash_base }}/stats" {% if active=='stats' %}class="active"{% endif %}><span class="nav-icon">📊</span><span>Statistiken</span></a>
       <a href="{{ dash_base }}/livefeed" {% if active=='livefeed' %}class="active"{% endif %}><span class="nav-icon">⚡</span><span>Live-Feed</span></a>
+      <a href="{{ dash_base }}/audit" {% if active=='audit' %}class="active"{% endif %}><span class="nav-icon">🔍</span><span>Audit</span></a>
       <a href="{{ dash_base }}/whitelist" {% if active=='whitelist' %}class="active"{% endif %}><span class="nav-icon">🔐</span><span>Whitelist</span></a>
       <div class="db-nav-label">System</div>
       <a href="{{ dash_base }}/members" {% if active=='members' %}class="active"{% endif %}><span class="nav-icon">👥</span><span>Mitglieder</span></a>
@@ -170,6 +171,17 @@
       <h1>{% block page_title %}Dashboard{% endblock %}</h1>
       <p>{% block page_desc %}{{ guild.name }}{% endblock %}</p>
     </div>
+    {% set has_logs = cfg.get('log_channel') or (cfg.get('log_channels', {})|length > 0) %}
+    {% set me = guild.me if guild.me is defined else none %}
+    {% set perms = me.guild_permissions if me and me.guild_permissions is defined else none %}
+    <div class="mf-health-strip">
+      <span class="mf-health ok">✅ Config gespeichert</span>
+      <span class="mf-health {% if web_bot_online %}ok{% else %}bad{% endif %}">{% if web_bot_online %}✅ Bot online{% else %}❌ Bot offline{% endif %}</span>
+      <span class="mf-health {% if has_logs %}ok{% else %}warn{% endif %}">{% if has_logs %}✅ Logs aktiv{% else %}⚠️ Log-Kanal fehlt{% endif %}</span>
+      <span class="mf-health {% if perms and perms.manage_roles and perms.ban_members %}ok{% else %}warn{% endif %}">{% if perms and perms.manage_roles and perms.ban_members %}✅ Rechte OK{% else %}⚠️ Rechte prüfen{% endif %}</span>
+      <button class="mf-health-action" onclick="openQuickWizard()">✨ Quick-Setup</button>
+      <button class="mf-health-action danger" onclick="runEmergencyMode()">🚨 Emergency</button>
+    </div>
     {% block content %}{% endblock %}
   </main>
 
@@ -178,6 +190,7 @@
     <div style="margin:0 20px 20px;padding:14px 20px;border-radius:16px;background:rgba(10,10,26,0.97);backdrop-filter:blur(30px);border:1px solid rgba(245,158,11,0.2);box-shadow:0 -4px 30px rgba(0,0,0,0.4);display:flex;align-items:center;gap:12px">
       <div style="width:10px;height:10px;border-radius:50%;background:var(--amberl);animation:pulse 1.5s ease infinite;flex-shrink:0"></div>
       <span style="color:var(--amberl);font-size:.82rem;font-weight:600;flex:1">Ungespeicherte Änderungen</span>
+      <button onclick="showChangeCenter()" style="padding:8px 12px;border-radius:10px;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.18);color:var(--vl);font-size:.78rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s">🧾 Änderungen</button>
       <button onclick="discardChanges()" style="padding:8px 16px;border-radius:10px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);color:var(--muted);font-size:.78rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s" onmouseover="this.style.background='rgba(255,255,255,0.1)';this.style.color='var(--fg)'" onmouseout="this.style.background='rgba(255,255,255,0.05)';this.style.color='var(--muted)'">✕ Verwerfen</button>
       <button onclick="saveConfig()" style="padding:8px 20px;border-radius:10px;background:linear-gradient(135deg,rgba(37,99,235,0.8),rgba(30,64,175,0.8));border:1px solid rgba(96,165,250,0.4);color:#fff;font-size:.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s;box-shadow:0 2px 12px rgba(37,99,235,0.3)" onmouseover="this.style.boxShadow='0 4px 20px rgba(37,99,235,0.5)'" onmouseout="this.style.boxShadow='0 2px 12px rgba(37,99,235,0.3)'">💾 Speichern</button>
     </div>
@@ -188,10 +201,25 @@
 
   <!-- ═══ MODAL OVERLAY ═══ -->
   <div id="mfModal" style="display:none;position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);align-items:center;justify-content:center">
-    <div style="background:rgba(10,10,26,0.98);border:1px solid var(--border);border-radius:20px;padding:28px;max-width:400px;width:90%;box-shadow:0 24px 80px rgba(0,0,0,0.5);animation:scaleIn .2s ease">
+    <div style="background:rgba(10,10,26,0.98);border:1px solid var(--border);border-radius:20px;padding:28px;max-width:520px;width:90%;box-shadow:0 24px 80px rgba(0,0,0,0.5);animation:scaleIn .2s ease">
       <div id="mfModalBody"></div>
     </div>
   </div>
+
+  <div id="cmdPalette" class="mf-palette" style="display:none">
+    <div class="mf-palette-box">
+      <input id="cmdSearch" placeholder="Suche: logs, anti nuke, welcome, prefix …" autocomplete="off">
+      <div id="cmdResults"></div>
+    </div>
+  </div>
+
+  <nav class="mf-bottom-nav">
+    <a href="{{ dash_base }}" {% if active=='overview' %}class="active"{% endif %}>📊<span>Home</span></a>
+    <a href="{{ dash_base }}/security" {% if active=='security' %}class="active"{% endif %}>🛡️<span>Security</span></a>
+    <a href="{{ dash_base }}/logs" {% if active=='logs' %}class="active"{% endif %}>📢<span>Logs</span></a>
+    <a href="{{ dash_base }}/members" {% if active=='members' %}class="active"{% endif %}>👥<span>Member</span></a>
+    <a href="{{ dash_base }}/settings" {% if active=='settings' %}class="active"{% endif %}>⚙️<span>Settings</span></a>
+  </nav>
 
   <script>
     let _dirty = false;
@@ -235,7 +263,8 @@
       const container = document.getElementById('mfToast');
       const toast = document.createElement('div');
       toast.style.cssText = `padding:14px 22px;border-radius:16px;background:${c.bg};border:1px solid ${c.border};color:${c.text};font-size:.85rem;font-weight:700;margin-top:10px;pointer-events:auto;display:flex;align-items:center;gap:10px;animation:fadeUp .3s ease,fadeOut .4s ease 3.5s forwards;box-shadow:0 10px 40px rgba(0,0,0,0.4);backdrop-filter:blur(20px)`;
-      toast.innerHTML = `<span style="font-size:1.1rem">${c.icon}</span>${msg}`;
+      toast.innerHTML = `<span style="font-size:1.1rem">${c.icon}</span><span style="flex:1">${msg}</span><span class="mf-toast-progress" style="position:absolute;left:10px;right:10px;bottom:5px;height:2px;background:${c.text};opacity:.65;border-radius:99px;animation:toastProgress 3.8s linear forwards"></span>`;
+      toast.style.position = 'relative';
       container.appendChild(toast);
       setTimeout(() => toast.remove(), 4000);
     }
@@ -289,14 +318,56 @@
       `);
     }
 
+    const MF_GID = "{{ guild.id }}";
+    const MF_BASE = "{{ dash_base }}";
+    const MF_COMMANDS = [
+      ['Open Logs','📢','logs', MF_BASE + '/logs'], ['Open Security','🛡️','anti nuke security', MF_BASE + '/security'],
+      ['Open Welcome','👋','welcome leave', MF_BASE + '/welcome'], ['Open Prefix','⚙️','prefix settings', MF_BASE + '/settings'],
+      ['Open Members','👥','members user', MF_BASE + '/members'], ['Open Embed Builder','🎨','embed preview', MF_BASE + '/embed'],
+      ['Open Audit','🔍','audit roles permissions', MF_BASE + '/audit'], ['Save Config','💾','save speichern', 'save']
+    ];
+    const _mfChanges = new Set();
+    function registerChange(el){
+      if(!el) return;
+      const label = el.id || el.name || el.dataset.key || el.dataset.field || el.closest('.cfg-row')?.innerText?.slice(0,40) || 'Einstellung';
+      _mfChanges.add(label);
+    }
+    function showChangeCenter(){
+      const items = Array.from(_mfChanges).slice(0,20).map(x=>`<div class="mf-change-item">• ${x}</div>`).join('') || '<div class="mf-change-item">Noch keine einzelnen Felder erfasst.</div>';
+      showModal(`<div style="font-weight:900;font-size:1.2rem;margin-bottom:10px">🧾 Save Center</div><p style="color:var(--muted);font-size:.85rem">${_mfChanges.size} Änderung(en) offen.</p><div style="display:grid;gap:6px;margin:14px 0">${items}</div><button class="btn-glass btn-glass-primary" onclick="closeModal();saveConfig()">💾 Alles speichern</button>`);
+    }
+    function openQuickWizard(){
+      showModal(`<div style="text-align:center"><div style="font-size:2.4rem">✨</div><h2>Quick-Setup Wizard</h2><p style="color:var(--muted);font-size:.9rem">Wähle ein Sicherheitsprofil. Logs/Welcome/Verify kannst du danach fein einstellen.</p><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:16px"><button class="btn-glass" onclick="runQuickSetup('easy')">🟢 Einfach</button><button class="btn-glass btn-glass-primary" onclick="runQuickSetup('safe')">🛡️ Sicher</button><button class="btn-glass btn-glass-danger" onclick="runQuickSetup('hardcore')">🚨 Hardcore</button></div></div>`);
+    }
+    async function runQuickSetup(profile){
+      try{ const r=await fetch(`/api/guild/${MF_GID}/quick_setup`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({profile})}); const d=await r.json(); if(d.ok){showToast(`✅ Quick-Setup fertig · Score ${d.score}%`,'ok'); closeModal(); setTimeout(()=>location.reload(),700)} else showToast('❌ '+(d.error||'Fehler'),'err'); } catch(e){showToast('❌ Netzwerkfehler','err')}
+    }
+    async function runEmergencyMode(){
+      if(!confirm('Emergency Mode aktivieren? Alle Textkanäle werden gesperrt.')) return;
+      try{ const r=await fetch(`/api/guild/${MF_GID}/emergency`,{method:'POST'}); const d=await r.json(); if(d.ok) showToast(`🚨 Emergency aktiv · ${d.locked} Kanäle gesperrt`,'ok'); else showToast('❌ '+(d.error||'Fehler'),'err'); } catch(e){showToast('❌ Netzwerkfehler','err')}
+    }
+    function openPalette(){
+      const pal=document.getElementById('cmdPalette'), inp=document.getElementById('cmdSearch');
+      pal.style.display='flex'; renderPalette(''); setTimeout(()=>inp.focus(),20);
+    }
+    function closePalette(){ document.getElementById('cmdPalette').style.display='none'; }
+    function renderPalette(q){
+      q=(q||'').toLowerCase();
+      const box=document.getElementById('cmdResults');
+      box.innerHTML=MF_COMMANDS.filter(c=>!q || (c[0]+' '+c[2]).toLowerCase().includes(q)).map(c=>`<button class="mf-pal-item" data-action="${c[3]}"><span>${c[1]}</span><b>${c[0]}</b></button>`).join('') || '<div class="mf-pal-empty">Nichts gefunden</div>';
+      box.querySelectorAll('.mf-pal-item').forEach(btn=>btn.onclick=()=>{ const a=btn.dataset.action; if(a==='save'){ closePalette(); saveConfig(); } else location.href=a; });
+    }
+
     // Only track elements that are not explicitly ignored
     document.addEventListener('change', e => {
       if (e.target.closest('.cfg-input, .cfg-select, .toggle input') && !e.target.closest('.ignore-dirty')) {
+        registerChange(e.target);
         showSaveBar();
       }
     });
     document.addEventListener('input', e => {
       if (e.target.closest('.cfg-input, .cfg-select, textarea') && !e.target.closest('.ignore-dirty')) {
+        registerChange(e.target);
         showSaveBar();
       }
     });
@@ -333,6 +404,7 @@
        mf-radius  → "rounded" | "soft" | "sharp"
        mf-anim    → "on" | "off"
        mf-sidebar → "expanded" | "compact"
+       mf-anim-preset → "calm" | "smooth" | "cyber" | "minimal" | "performance"
   */
   function setTheme(t){
     if(!t) return;
@@ -368,6 +440,10 @@
     document.documentElement.setAttribute('data-sidebar', v || 'expanded');
     localStorage.setItem('mf-sidebar', v || 'expanded');
   }
+  function setAnimPreset(v){
+    document.documentElement.setAttribute('data-anim-preset', v || 'smooth');
+    localStorage.setItem('mf-anim-preset', v || 'smooth');
+  }
   (function applyStoredDesign(){
     setTheme  (localStorage.getItem('mf-theme')   || 'purple');
     setAccent (localStorage.getItem('mf-accent')  || '');
@@ -375,6 +451,7 @@
     setRadius (localStorage.getItem('mf-radius')  || 'rounded');
     setAnim   (localStorage.getItem('mf-anim')    || 'on');
     setSidebar(localStorage.getItem('mf-sidebar') || 'expanded');
+    setAnimPreset(localStorage.getItem('mf-anim-preset') || 'smooth');
   })();
   </script>
   <script>
@@ -386,6 +463,10 @@
     }
     ready(function(){
       document.body.classList.add('mf-dashboard-ready');
+      if({{ 'false' if has_logs else 'true' }} && !localStorage.getItem('mf-wizard-seen-' + MF_GID)){
+        localStorage.setItem('mf-wizard-seen-' + MF_GID, '1');
+        setTimeout(openQuickWizard, 450);
+      }
       const active = document.querySelector('.db-nav a.active');
       if(active) active.scrollIntoView({block:'center', inline:'nearest'});
 
@@ -394,8 +475,13 @@
         if((e.ctrlKey || e.metaKey) && key === 's'){
           if(typeof saveConfig === 'function'){ e.preventDefault(); saveConfig(); }
         }
-        if(key === 'escape' && typeof closeModal === 'function') closeModal();
+        if((e.ctrlKey || e.metaKey) && key === 'k'){ e.preventDefault(); openPalette(); }
+        if(key === 'escape'){ if(document.getElementById('cmdPalette')?.style.display==='flex') closePalette(); else if(typeof closeModal === 'function') closeModal(); }
       });
+
+      const cmdSearch = document.getElementById('cmdSearch');
+      if(cmdSearch) cmdSearch.addEventListener('input', e => renderPalette(e.target.value));
+      document.getElementById('cmdPalette')?.addEventListener('click', e => { if(e.target.id==='cmdPalette') closePalette(); });
 
       document.querySelectorAll('button, .btn-glass, .db-nav a').forEach(el => {
         if(el.dataset.rippleReady) return;

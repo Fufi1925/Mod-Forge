@@ -344,6 +344,25 @@
   </a>
 </div>
 
+<div class="db-grid" style="margin-bottom:18px">
+  <div class="db-card" style="padding:16px">
+    <div class="db-card-header"><span class="db-card-title">🩺 Rechte-Check</span><a class="btn-glass btn-sm" href="/dashboard/{{ guild.id }}/audit">Audit öffnen</a></div>
+    <div style="display:grid;gap:8px">
+      {% for c in perm_checks|default([]) %}
+      <div class="cfg-row" style="margin:0">
+        <div><span class="cfg-label">{% if c.ok %}✅{% else %}❌{% endif %} {{ c.label }}</span><div class="cfg-desc">{{ 'OK' if c.ok else c.fix }}</div></div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="db-card" style="padding:16px">
+    <div class="db-card-header"><span class="db-card-title">🚨 Emergency Mode</span></div>
+    <p style="color:var(--muted);font-size:.82rem;line-height:1.6">Sperrt Kanäle, setzt AntiRaid maximal und informiert den Owner.</p>
+    <button class="btn-glass btn-glass-danger" onclick="runEmergencyMode()">🚨 Emergency aktivieren</button>
+    <div style="margin-top:12px;font-size:.72rem;color:var(--muted)">Gefährliche Rollen: {{ dangerous_roles|default([])|length }}</div>
+  </div>
+</div>
+
 {# ── SECURITY LEVEL ── #}
 <div style="margin-bottom:18px">
   <div style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;

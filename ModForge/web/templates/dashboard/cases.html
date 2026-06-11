@@ -402,6 +402,8 @@
     <button class="af-btn af-other"       onclick="setFilter('other', this)">📋 Andere</button>
   </div>
 
+  <a class="af-btn" href="/api/guild/{{ guild.id }}/cases/export?format=html">⬇ HTML</a>
+  <a class="af-btn" href="/api/guild/{{ guild.id }}/cases/export?format=json">⬇ JSON</a>
   <div style="font-size:.65rem;color:var(--muted);display:flex;align-items:center;
               gap:4px;white-space:nowrap;flex-shrink:0">
     <span id="visibleCount">{{ cases | length }}</span>

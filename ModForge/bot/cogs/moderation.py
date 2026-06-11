@@ -1,20 +1,17 @@
 # -*- coding: utf-8 -*-
 """ModForge Moderation Cog – Ban, Kick, Warn, Mute, etc."""
-import asyncio
 import datetime
-import time
-from typing import Optional, Union, Callable
+from typing import Callable
 
 import discord
 from discord.ext import commands
 from discord import app_commands
 
 from bot.config import (
-    COLOR_PRIMARY, COLOR_SUCCESS, COLOR_WARNING, COLOR_DANGER,
-    COLOR_INFO, E, VALID_PUNISHMENTS, log,
+    COLOR_SUCCESS, COLOR_WARNING, COLOR_DANGER, E,
 )
 from bot.utils import create_embed, can_moderate, parse_duration
-from bot.bot import safe_dm, _BOT_DEV_ID
+from bot.bot import _BOT_DEV_ID
 
 
 def has_mod_perms() -> Callable:
@@ -73,7 +70,7 @@ class ModerationCog(commands.Cog):
         if not ok:
             return await ctx.send(embed=create_embed(f"{E.FAIL} Fehler", why, COLOR_DANGER))
         case_id = await self.bot.punish(member, "timeout", reason, duration=duration, moderator_id=ctx.author.id)
-        await ctx.send(embed=create_embed(f"{E.MUTE} Gemutet", f"{member.mention} für {duration}s – {reason}", COLOR_WARNING))
+        await ctx.send(embed=create_embed(f"{E.MUTE} Gemutet", f"{member.mention} für {duration}s – {reason}\nCase: #{case_id}", COLOR_WARNING))
 
     @commands.command(name="unmute")
     @has_mod_perms()
@@ -196,7 +193,7 @@ class ModerationCog(commands.Cog):
             return await interaction.response.send_message(embed=create_embed(f"{E.FAIL} Fehler", why, COLOR_DANGER), ephemeral=True)
         case_id = await self.bot.punish(member, "timeout", reason, duration=duration, moderator_id=interaction.user.id)
         await interaction.response.send_message(embed=create_embed(f"{E.MUTE} Gemutet",
-            f"{member.mention} für {duration}s – {reason}", COLOR_WARNING))
+            f"{member.mention} für {duration}s – {reason}\nCase: #{case_id}", COLOR_WARNING))
 
     @app_commands.command(name="unmute", description="Entmutet einen Nutzer")
     @app_commands.describe(member="Der Nutzer")

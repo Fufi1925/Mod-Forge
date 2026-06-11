@@ -507,18 +507,25 @@ class Database:
             log.error(f"badge_get_all_guild: {e}"); return {}
 
     # ── Notes ──────────────────────────────────────────────
-    async def add_note(self, guild_id: int, user_id: int, mod_id: int, text: str) -> str:
+    async def add_note(
+        self, guild_id: int, user_id: int, mod_id: int, text: str,
+        priority: str = "medium", pinned: bool = False,
+    ) -> str:
         try:
+            priority = priority if priority in ("low", "medium", "high") else "medium"
+            now = datetime.datetime.utcnow()
             result = await self.notes.insert_one({
                 "guild_id": guild_id, "user_id": user_id, "mod_id": mod_id,
-                "text": text, "created_at": datetime.datetime.utcnow()})
+                "text": text[:2000], "priority": priority, "pinned": bool(pinned),
+                "created_at": now, "timestamp": now,
+            })
             return str(result.inserted_id)
         except PyMongoError as e:
             log.error(f"add_note: {e}"); return "error"
 
     async def get_notes(self, guild_id: int, user_id: int) -> list:
         try:
-            docs = await self.notes.find({"guild_id": guild_id, "user_id": user_id}).sort("created_at", DESCENDING).to_list(length=100)
+            docs = await self.notes.find({"guild_id": guild_id, "user_id": user_id}).sort([("pinned", DESCENDING), ("created_at", DESCENDING)]).to_list(length=100)
             for d in docs: d["_id"] = str(d["_id"])
             return docs
         except PyMongoError as e:

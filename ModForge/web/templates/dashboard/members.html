@@ -372,8 +372,10 @@ function openProfile(idx) {
       <div id="pNotesList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px">
         <span style="color:var(--muted);font-size:.7rem">Lädt…</span>
       </div>
-      <div style="display:flex;gap:6px">
-        <input type="text" id="newNote" class="cfg-input ignore-dirty" placeholder="Neue Notiz…" style="flex:1;font-size:.75rem">
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <input type="text" id="newNote" class="cfg-input ignore-dirty" placeholder="Neue Notiz…" style="flex:1;min-width:180px;font-size:.75rem">
+        <select id="newNotePrio" class="cfg-select ignore-dirty" style="font-size:.75rem"><option value="low">low</option><option value="medium" selected>medium</option><option value="high">high</option></select>
+        <label class="tag" style="cursor:pointer"><input type="checkbox" id="newNotePinned" class="ignore-dirty"> 📌 Pin</label>
         <button class="action-btn neutral" style="width:auto;padding:10px 14px" onclick="addNote()">＋</button>
       </div>
       <div class="mp-section-title" style="margin-top:20px">📋 Fälle</div>
@@ -460,11 +462,9 @@ async function loadMemberDetails(memberId) {
       notesList.innerHTML = Array.isArray(d.notes) && d.notes.length
         ? d.notes.map(n => `
             <div style="padding:10px;border-radius:10px;background:rgba(255,255,255,0.03);border:1px solid var(--border)">
+              <div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:5px"><span class="tag">${n.pinned ? '📌 ' : ''}${escapeHtml(n.priority || 'medium')}</span><span style="font-size:.55rem;color:var(--muted)">${new Date(n.timestamp || n.created_at).toLocaleDateString('de-DE')}</span></div>
               <div style="font-size:.75rem;color:#fff">${escapeHtml(n.text)}</div>
-              <div style="font-size:.55rem;color:var(--muted);margin-top:5px;display:flex;justify-content:space-between">
-                <span>Mod: ${escapeHtml(n.mod_id ?? '?')}</span>
-                <span>${new Date(n.timestamp).toLocaleDateString('de-DE')}</span>
-              </div>
+              <div style="font-size:.55rem;color:var(--muted);margin-top:5px">Mod: ${escapeHtml(n.mod_id ?? '?')}</div>
             </div>`).join('')
         : '<span style="color:var(--muted);font-size:.7rem">Keine Notizen</span>';
     }
@@ -584,7 +584,7 @@ async function addNote() {
     const r = await fetch(`/api/guild/${GUILD_ID}/member/${currentMember.id}/note`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: txt })
+      body: JSON.stringify({ text: txt, priority: document.getElementById('newNotePrio')?.value || 'medium', pinned: document.getElementById('newNotePinned')?.checked || false })
     });
     if ((await r.json()).ok) {
       showToast('Notiz hinzugefügt', 'ok');

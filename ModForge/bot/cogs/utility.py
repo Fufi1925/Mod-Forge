@@ -2,7 +2,8 @@
 """ModForge Utility Cog – UserInfo, ServerInfo, Poll, Snipe, History, etc."""
 import asyncio
 import datetime
-import re
+import io
+import json
 import time
 from typing import Optional
 
@@ -12,13 +13,58 @@ from discord import app_commands
 
 from bot.config import (
     COLOR_PRIMARY, COLOR_SUCCESS, COLOR_WARNING, COLOR_DANGER,
-    COLOR_INFO, E, URL_REGEX, BADGES, log, ACTIVITY,
+    COLOR_INFO, E, BADGES, log,
 )
-from bot.utils import create_embed, can_moderate, parse_duration
+from bot.utils import create_embed
 from bot.bot import (
-    safe_dm, _BOT_DEV_ID, _snipe_cache,
-    SetupView, HelpView, WarnSetupModal, ReactionRoleView,
+    _BOT_DEV_ID, _snipe_cache,
+    SetupView, HelpView, ReactionRoleView,
 )
+
+
+class SetupWizardView(discord.ui.View):
+    """Drei schnelle Setup-Profile direkt in Discord."""
+
+    def __init__(self, bot):
+        super().__init__(timeout=180)
+        self.bot = bot
+
+    async def _apply_profile(self, interaction: discord.Interaction, profile: str) -> None:
+        cfg = self.bot.db.get_config(interaction.guild.id)
+        presets = {
+            "easy": {"level": 1, "spam": True, "nuke": True, "raid": False, "automod": True},
+            "safe": {"level": 2, "spam": True, "nuke": True, "raid": True, "automod": True},
+            "hardcore": {"level": 3, "spam": True, "nuke": True, "raid": True, "automod": True},
+        }
+        p = presets[profile]
+        cfg["security_level"] = p["level"]
+        cfg.setdefault("anti_spam", {})["enabled"] = p["spam"]
+        cfg.setdefault("anti_nuke", {})["enabled"] = p["nuke"]
+        cfg.setdefault("anti_raid", {})["enabled"] = p["raid"]
+        cfg.setdefault("automod", {})["enabled"] = p["automod"]
+        if profile == "hardcore":
+            cfg.setdefault("anti_raid", {})["lockdown"] = True
+            cfg.setdefault("nuke_protection", {})["auto_backup_on_nuke"] = True
+            cfg.setdefault("nuke_protection", {})["freeze_perms_on_nuke"] = True
+        await self.bot.db.set_config(interaction.guild.id, cfg)
+        await interaction.response.edit_message(embed=create_embed(
+            f"{E.OK} Setup-Profil aktiviert",
+            f"Profil **{profile}** wurde gespeichert. Nutze `/doctor` für den finalen Check.",
+            COLOR_SUCCESS,
+            [("Security-Level", str(p["level"]), True), ("AutoMod", "aktiv", True)],
+        ), view=None)
+
+    @discord.ui.button(label="Einfach", style=discord.ButtonStyle.secondary, emoji="🟢")
+    async def easy(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self._apply_profile(interaction, "easy")
+
+    @discord.ui.button(label="Sicher", style=discord.ButtonStyle.primary, emoji="🛡️")
+    async def safe(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self._apply_profile(interaction, "safe")
+
+    @discord.ui.button(label="Hardcore", style=discord.ButtonStyle.danger, emoji="🚨")
+    async def hardcore(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self._apply_profile(interaction, "hardcore")
 
 
 class UtilityCog(commands.Cog):
@@ -100,6 +146,71 @@ class UtilityCog(commands.Cog):
             view=SetupView(), ephemeral=True)
 
     # ── HELP ──
+    @app_commands.command(name="setup-wizard", description="Schnelles Server-Setup mit Profilen")
+    @app_commands.default_permissions(administrator=True)
+    async def slash_setup_wizard(self, interaction: discord.Interaction):
+        embed = create_embed(
+            f"{E.GEAR} Setup-Wizard",
+            "Wähle ein Profil. Du kannst alles danach im Dashboard fein einstellen.",
+            COLOR_PRIMARY,
+            [("Einfach", "Basis-Schutz für kleine Server", True),
+             ("Sicher", "Empfohlen für die meisten Server", True),
+             ("Hardcore", "Maximaler Schutz bei Raid-Gefahr", True)]
+        )
+        await interaction.response.send_message(embed=embed, view=SetupWizardView(self.bot), ephemeral=True)
+
+    @app_commands.command(name="doctor", description="Prüft Bot-Rechte, Logs, DB und Security-Konfiguration")
+    @app_commands.default_permissions(manage_guild=True)
+    async def slash_doctor(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        guild = interaction.guild
+        me = guild.me
+        cfg = self.bot.db.get_config(guild.id)
+        checks = []
+        def add(ok, name, tip):
+            checks.append(("✅" if ok else "❌", name, "OK" if ok else tip, not ok))
+        perms = me.guild_permissions
+        add(perms.manage_roles, "Manage Roles", "Bot-Rolle höher setzen und Recht geben")
+        add(perms.ban_members, "Ban Members", "Recht `Mitglieder bannen` geben")
+        add(perms.kick_members, "Kick Members", "Recht `Mitglieder kicken` geben")
+        add(perms.manage_channels, "Manage Channels", "Für Lockdown/TempVoice nötig")
+        add(perms.manage_messages, "Manage Messages", "Für AutoMod-Löschung nötig")
+        add(bool(cfg.get("log_channel") or cfg.get("log_channels")), "Logs", "Mit `/log #kanal` setzen")
+        add(cfg.get("anti_nuke", {}).get("enabled"), "Anti-Nuke", "Im Dashboard oder `/setup-wizard` aktivieren")
+        add(cfg.get("automod", {}).get("enabled"), "AutoMod", "AutoMod aktivieren")
+        db_ok = await self.bot.db.test_connection()
+        add(db_ok, "Datenbank", "MongoDB-Verbindung prüfen")
+        fields = [(f"{icon} {name}", tip, False) for icon, name, tip, _bad in checks[:25]]
+        bad = sum(1 for *_rest, b in checks if b)
+        color = COLOR_SUCCESS if bad == 0 else COLOR_WARNING if bad <= 3 else COLOR_DANGER
+        await interaction.followup.send(embed=create_embed(
+            f"{E.SHIELD} Doctor Ergebnis",
+            f"**{len(checks)-bad}/{len(checks)} Checks OK**",
+            color, fields
+        ))
+
+    @app_commands.command(name="case_export", description="Exportiert Cases als JSON oder HTML")
+    @app_commands.describe(format="json/html", limit="Anzahl der Cases")
+    @app_commands.default_permissions(manage_messages=True)
+    async def slash_case_export(self, interaction: discord.Interaction, format: str = "html", limit: int = 100):
+        await interaction.response.defer(ephemeral=True)
+        fmt = format.lower()
+        cases = await self.bot.db.aget_recent_cases(interaction.guild.id, limit=max(1, min(limit, 500)))
+        serializable = []
+        for c in cases:
+            c = dict(c); c.pop("_id", None)
+            for k, v in list(c.items()):
+                if hasattr(v, "isoformat"): c[k] = v.isoformat()
+            serializable.append(c)
+        if fmt == "json":
+            data = json.dumps(serializable, ensure_ascii=False, indent=2).encode("utf-8")
+            file = discord.File(io.BytesIO(data), filename=f"cases-{interaction.guild.id}.json")
+        else:
+            rows = "".join(f"<tr><td>#{c.get('case_id')}</td><td>{c.get('action')}</td><td>{c.get('user_id')}</td><td>{c.get('reason','')}</td></tr>" for c in serializable)
+            html = f"<html><meta charset='utf-8'><body><h1>Cases – {interaction.guild.name}</h1><table border='1' cellspacing='0' cellpadding='6'><tr><th>ID</th><th>Aktion</th><th>User</th><th>Grund</th></tr>{rows}</table></body></html>"
+            file = discord.File(io.BytesIO(html.encode("utf-8")), filename=f"cases-{interaction.guild.id}.html")
+        await interaction.followup.send(content=f"{E.OK} Export fertig: {len(serializable)} Cases", file=file, ephemeral=True)
+
     @app_commands.command(name="help", description="Zeigt die Hilfe")
     async def slash_help(self, interaction: discord.Interaction):
         embed = create_embed(
@@ -304,21 +415,23 @@ class UtilityCog(commands.Cog):
 
     # ── NOTE SYSTEM ──
     @app_commands.command(name="note", description="Moderator-Notizen verwalten")
-    @app_commands.describe(action="add/list/delete", user="Der Nutzer", text="Notiz-Text", note_id="Notiz-ID (für delete)")
+    @app_commands.describe(action="add/list/delete", user="Der Nutzer", text="Notiz-Text", note_id="Notiz-ID", priority="low/medium/high", pinned="Notiz anpinnen")
     @app_commands.default_permissions(manage_messages=True)
     async def slash_note(self, interaction: discord.Interaction, action: str,
                          user: Optional[discord.Member] = None, text: Optional[str] = None,
-                         note_id: Optional[str] = None):
+                         note_id: Optional[str] = None, priority: str = "medium", pinned: bool = False):
         if action == "add" and user and text:
-            await self.bot.db.add_note(interaction.guild.id, user.id, interaction.user.id, text)
+            nid = await self.bot.db.add_note(interaction.guild.id, user.id, interaction.user.id, text, priority, pinned)
             await interaction.response.send_message(embed=create_embed(
-                f"{E.NOTE} Notiz gespeichert", f"Für {user.mention}: {text[:100]}", COLOR_SUCCESS))
+                f"{E.NOTE} Notiz gespeichert",
+                f"Für {user.mention}: {text[:100]}\nPriorität: **{priority}** · Pin: **{'Ja' if pinned else 'Nein'}**\nID: `{nid}`",
+                COLOR_SUCCESS))
         elif action == "list" and user:
             notes = await self.bot.db.get_notes(interaction.guild.id, user.id)
             if not notes:
                 return await interaction.response.send_message(embed=create_embed(
                     f"{E.NOTE}", f"Keine Notizen für {user.mention}.", COLOR_INFO))
-            lines = [f"`{n.get('_id', '?')}` {n.get('text', '—')[:60]}" for n in notes[:15]]
+            lines = [f"{'📌 ' if n.get('pinned') else ''}`{n.get('_id', '?')}` **{n.get('priority','medium')}** – {n.get('text', '—')[:70]}" for n in notes[:15]]
             await interaction.response.send_message(embed=create_embed(
                 f"{E.NOTE} Notizen ({len(notes)})", "\n".join(lines), COLOR_PRIMARY))
         elif action == "delete" and note_id:
@@ -327,7 +440,7 @@ class UtilityCog(commands.Cog):
                 f"{E.OK}", "Notiz gelöscht.", COLOR_SUCCESS))
         else:
             await interaction.response.send_message(embed=create_embed(
-                f"{E.HELP}", "Nutzung: `/note add @user Text` oder `/note list @user` oder `/note delete ID`",
+                f"{E.HELP}", "Nutzung: `/note add @user Text priority:high pinned:true` oder `/note list @user` oder `/note delete note_id:...`",
                 COLOR_INFO), ephemeral=True)
 
     # ── WARN DECAY ──

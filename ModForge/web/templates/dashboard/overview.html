@@ -303,6 +303,13 @@
       </div>
       {% endif %}
     </div>
+    <div style="margin-top:10px;display:grid;gap:4px;text-align:left">
+      {% for b in score_breakdown|default([]) %}
+      <div style="display:flex;justify-content:space-between;font-size:.58rem;color:var(--muted)">
+        <span>{% if b.ok %}✅{% else %}○{% endif %} {{ b.label }}</span><span>+{{ b.points }}</span>
+      </div>
+      {% endfor %}
+    </div>
   </div>
 
   {# Stats Grid #}
@@ -684,6 +691,22 @@
   </div>
 </div>
 
+<div class="db-card" style="padding:16px;margin-bottom:16px">
+  <div class="db-card-header"><span class="db-card-title">🧭 Activity Timeline</span><a href="{{ dash_base|default('/dashboard/' ~ guild.id) }}/livefeed" class="btn-glass btn-sm">Live öffnen</a></div>
+  {% if activity_timeline %}
+    <div style="display:grid;gap:8px">
+    {% for a in activity_timeline %}
+      <div class="cfg-row" style="margin:0">
+        <div><span class="cfg-label">{{ a.kind }}</span><div class="cfg-desc">{{ a.text }}</div></div>
+        <span class="tag">{{ a.ts|string|truncate(19, True, '') }}</span>
+      </div>
+    {% endfor %}
+    </div>
+  {% else %}
+    <p style="color:var(--muted);margin:0;font-size:.82rem">Noch keine Live-Aktivitäten.</p>
+  {% endif %}
+</div>
+
 {# ══════════════════════════════════════════════════════════════════
    QUICK NAV
 ══════════════════════════════════════════════════════════════════ #}
@@ -704,7 +727,7 @@
     ('/roles',     '🏷️', 'Rollen',          'Auto/Sticky/Verify'),
   ] %}
   {% for path, icon, title, desc in quick_links %}
-  <a href="/dashboard/{{ guild.id }}{{ path }}" class="quick-card">
+  <a href="{{ dash_base|default('/dashboard/' ~ guild.id) }}{{ path }}" class="quick-card">
     <div class="quick-icon">{{ icon }}</div>
     <div class="quick-title">{{ title }}</div>
     <div class="quick-desc">{{ desc }}</div>

@@ -237,7 +237,7 @@ def get_session():
 def require_auth(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
-        if not get_session():
+        if not get_session() and not flask_session.get("admin"):
             return redirect("/dashboard/login")
         return f(*args, **kwargs)
 

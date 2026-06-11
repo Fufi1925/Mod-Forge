@@ -214,6 +214,15 @@
   </div>
 </div>
 
+<div class="settings-section">
+  <div class="section-title">↩️ Config Rollback</div>
+  <div class="section-desc">Vor gefährlichen Änderungen legt das Dashboard automatisch Versionen an. Stelle bei Problemen die letzte Version wieder her.</div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <button class="btn-glass btn-sm" onclick="loadVersions()">🧾 Versionen anzeigen</button>
+    <button class="btn-glass btn-sm btn-glass-amber" onclick="rollbackLatest()">↩️ Letzte Version wiederherstellen</button>
+  </div>
+</div>
+
 {# ── DANGER ZONE ── #}
 <div class="settings-section danger">
   <div class="section-title" style="color:#f87171">⚠️ Gefahrenzone</div>
@@ -306,6 +315,29 @@ function confirmReset() {
       </button>
     </div>
   `);
+}
+
+async function loadVersions() {
+  try {
+    const r = await fetch(`/api/guild/${GID}/config/versions`);
+    const d = await r.json();
+    const items = (d.versions || []).map(v => `<button class="mf-pal-item" onclick="rollbackVersion('${v.id}')"><span>↩️</span><b>${v.created_at || 'Version'} · ${v.source}</b></button>`).join('') || '<div class="mf-change-item">Keine Versionen vorhanden.</div>';
+    showModal(`<div style="font-weight:900;font-size:1.1rem;margin-bottom:12px">Config-Versionen</div><div style="display:grid;gap:6px">${items}</div>`);
+  } catch(e) { showToast('❌ Versionen konnten nicht geladen werden', 'err'); }
+}
+async function rollbackVersion(id) {
+  if(!confirm('Diese Config-Version wiederherstellen?')) return;
+  const r = await fetch(`/api/guild/${GID}/config/rollback`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({version_id:id})});
+  const d = await r.json();
+  if(d.ok){ showToast('✅ Config wiederhergestellt', 'ok'); setTimeout(()=>location.reload(),700); }
+  else showToast('❌ '+(d.error||'Rollback fehlgeschlagen'), 'err');
+}
+async function rollbackLatest(){
+  if(!confirm('Letzte Config-Version wiederherstellen?')) return;
+  const r = await fetch(`/api/guild/${GID}/config/rollback`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({})});
+  const d = await r.json();
+  if(d.ok){ showToast('✅ Letzte Version wiederhergestellt', 'ok'); setTimeout(()=>location.reload(),700); }
+  else showToast('❌ '+(d.error||'Rollback fehlgeschlagen'), 'err');
 }
 
 async function doReset() {

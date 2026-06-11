@@ -1,25 +1,17 @@
 # -*- coding: utf-8 -*-
 """ModForge Events Cog – Alle Event-Handler (konsolidiert, keine Duplikate)."""
-import asyncio
-import datetime
 import re
 import time
-import unicodedata
-from collections import defaultdict, deque
-from typing import Any, Dict, List, Optional, Tuple, Union
-
 import discord
-from discord.ext import commands, tasks
-from discord import app_commands
+from discord.ext import commands
 
 from bot.config import (
     ACTIVITY, COLOR_PRIMARY, COLOR_SUCCESS, COLOR_WARNING, COLOR_DANGER,
-    COLOR_INFO, FOOTER_TEXT, FOOTER_ICON, E, URL_REGEX, INVITE_REGEX,
-    ZALGO_REGEX, SUSPICIOUS_NAME_REGEX, SCAM_DOMAINS, URL_SHORTENERS,
-    DEFAULT_CONFIG, log, BADGES,
+    COLOR_INFO, E, URL_REGEX, INVITE_REGEX, ZALGO_REGEX,
+    SUSPICIOUS_NAME_REGEX, SCAM_DOMAINS, URL_SHORTENERS, log,
 )
-from bot.utils import create_embed, check_phishing_url, can_moderate, parse_duration
-from bot.bot import safe_dm, _BOT_DEV_ID, _snipe_cache
+from bot.utils import create_embed, check_phishing_url
+from bot.bot import _snipe_cache
 
 # ══════════════════════════════════════════════════
 # APPEAL STATE (module-level)
@@ -145,6 +137,10 @@ class EventsCog(commands.Cog):
             if raid_cfg.get("suspicious_name_check") and SUSPICIOUS_NAME_REGEX.match(member.name):
                 await self.bot.log_action(guild, f"{E.RAID} Verdächtiger Name",
                     f"{member.mention} (`{member.name}`)", COLOR_WARNING, user=member, module="antiraid")
+            if len(dq) == max(1, raid_cfg.get("join_threshold", 10) - 2):
+                await self.bot.log_action(guild, "💡 Smart Anti-Raid Vorschlag",
+                    "Viele neue Beitritte erkannt → Anti-Raid eventuell höher stellen oder Lockdown aktivieren.",
+                    COLOR_WARNING, user=member, module="antiraid")
             if len(dq) >= raid_cfg.get("join_threshold", 10):
                 dq.clear()
                 if not self.bot.tracker.lockdown_active[guild.id] and raid_cfg.get("lockdown"):

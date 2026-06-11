@@ -117,10 +117,17 @@
     <!-- ANIMATIONS -->
     <div class="ds-card">
       <h3>✨ Animationen & Effekte</h3>
-      <p>Deaktiviere Animationen für maximale Performance auf schwächeren Geräten.</p>
-      <div class="seg" id="animSeg" style="max-width:300px">
+      <p>Wähle Presets: Ruhig, Smooth, Cyber, Minimal oder Performance.</p>
+      <div class="seg" id="animSeg" style="max-width:300px;margin-bottom:12px">
         <button data-v="on" onclick="pickA('on')">✨ Aktiviert</button>
         <button data-v="off" onclick="pickA('off')">⏹️ Deaktiviert</button>
+      </div>
+      <div class="seg" id="presetSeg">
+        <button data-v="calm" onclick="pickPreset('calm')">Ruhig</button>
+        <button data-v="smooth" onclick="pickPreset('smooth')">Smooth</button>
+        <button data-v="cyber" onclick="pickPreset('cyber')">Cyber</button>
+        <button data-v="minimal" onclick="pickPreset('minimal')">Minimal</button>
+        <button data-v="performance" onclick="pickPreset('performance')">Performance</button>
       </div>
     </div>
 
@@ -164,11 +171,12 @@ function sync() {
   const density = localStorage.getItem('mf-density') || 'comfy';
   const radius = localStorage.getItem('mf-radius') || 'rounded';
   const anim = localStorage.getItem('mf-anim') || 'on';
+  const preset = localStorage.getItem('mf-anim-preset') || 'smooth';
   const accent = localStorage.getItem('mf-accent') || '#7C3AED';
 
   document.querySelectorAll('.theme-tile').forEach(t => t.classList.toggle('active', t.dataset.t === theme));
   
-  const sets = [['#densSeg', density], ['#radSeg', radius], ['#animSeg', anim]];
+  const sets = [['#densSeg', density], ['#radSeg', radius], ['#animSeg', anim], ['#presetSeg', preset]];
   sets.forEach(([id, val]) => {
     document.querySelectorAll(`${id} button`).forEach(b => b.classList.toggle('active', b.dataset.v === val));
   });
@@ -181,6 +189,13 @@ function pickT(t) { setTheme(t); sync(); showToast('Theme gewechselt: ' + t, 'ok
 function pickD(v) { setDensity(v); sync(); }
 function pickR(v) { setRadius(v); sync(); }
 function pickA(v) { setAnim(v); sync(); }
+function pickPreset(v) {
+  localStorage.setItem('mf-anim-preset', v);
+  document.documentElement.setAttribute('data-anim-preset', v);
+  if(v === 'performance') setAnim('off');
+  sync();
+  showToast('Animations-Preset: ' + v, 'ok');
+}
 
 function onAccI(v) {
   document.getElementById('accHex').value = v.toUpperCase();
@@ -195,10 +210,11 @@ function onAccT(v) {
 
 function resetD() {
   if(!confirm('Alle Design-Einstellungen löschen?')) return;
-  ['mf-theme','mf-accent','mf-density','mf-radius','mf-anim'].forEach(k => localStorage.removeItem(k));
+  ['mf-theme','mf-accent','mf-density','mf-radius','mf-anim','mf-anim-preset'].forEach(k => localStorage.removeItem(k));
   location.reload();
 }
 
+document.documentElement.setAttribute('data-anim-preset', localStorage.getItem('mf-anim-preset') || 'smooth');
 sync();
 window._dirty = false;
 </script>

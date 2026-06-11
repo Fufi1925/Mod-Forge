@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """ModForge Admin Cog – Owner/Admin Commands, Cases, Audit-Perms."""
 import asyncio
-import time
-from typing import Optional
 
 import discord
 from discord.ext import commands
@@ -10,10 +8,9 @@ from discord import app_commands
 
 from bot.config import (
     COLOR_PRIMARY, COLOR_SUCCESS, COLOR_WARNING, COLOR_DANGER,
-    COLOR_INFO, E, log, ACTIVITY, get_uptime, BADGES,
+    COLOR_INFO, E,
 )
 from bot.utils import create_embed
-from bot.bot import _BOT_DEV_ID
 
 
 class AdminCog(commands.Cog):

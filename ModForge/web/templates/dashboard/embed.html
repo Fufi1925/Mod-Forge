@@ -42,6 +42,13 @@
   <div>
     <div class="db-card" style="position:sticky;top:20px">
       <div class="db-card-header"><span class="db-card-title">👁️ Live-Vorschau</span></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+        <button class="btn-glass btn-sm" onclick="loadPreset('welcome')">Welcome</button>
+        <button class="btn-glass btn-sm" onclick="loadPreset('leave')">Leave</button>
+        <button class="btn-glass btn-sm" onclick="loadPreset('log')">Log</button>
+        <button class="btn-glass btn-sm" onclick="loadPreset('verify')">Verify</button>
+        <button class="btn-glass btn-sm" onclick="loadPreset('ticket')">Ticket</button>
+      </div>
       <div style="background:#36393f;border-radius:8px;padding:16px 12px">
         <div style="display:flex;gap:10px;align-items:flex-start">
           <div style="width:40px;height:40px;border-radius:50%;background:var(--v);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.9rem">🛡️</div>
@@ -130,6 +137,21 @@ function updatePreview(){
       fc.appendChild(fd);
     }
   });
+}
+
+function loadPreset(type){
+  const presets = {
+    welcome:['👋 Willkommen auf {server}!','Hallo {mention}! Schön, dass du da bist.','#22c55e'],
+    leave:['👋 Auf Wiedersehen','{user} hat den Server verlassen.','#ef4444'],
+    log:['🛡️ Moderation Log','**Beschreibung**\nUser wurde verwarnt.\n**User**\nUsername\n`(123456789)`','#3b82f6'],
+    verify:['✅ Verifizierung','Klicke auf den Button, um dich zu verifizieren.','#22c55e'],
+    ticket:['🎫 Support Ticket','Beschreibe dein Anliegen so genau wie möglich.','#f59e0b']
+  };
+  const p=presets[type]; if(!p) return;
+  document.getElementById('eTitle').value=p[0];
+  document.getElementById('eDesc').value=p[1];
+  document.getElementById('eColor').value=p[2];
+  updatePreview();
 }
 
 function buildJSON(){

@@ -53,6 +53,14 @@ from bot.utils import _run_async
 
 log = logging.getLogger("ModForge.Web.Routes")
 
+
+@flask_app.context_processor
+def _inject_dashboard_globals():
+    return {
+        "web_bot_online": bot_ready() if "bot_ready" in globals() else False,
+        "dashboard_now": datetime.datetime.utcnow(),
+    }
+
 # ═══════════════════════════════════════════════════════════
 # DIRECT DB ACCESS (works even when bot is offline)
 #
@@ -200,6 +208,43 @@ def _direct_save_whitelist(guild_id, whitelist: dict) -> bool:
     except Exception as e:
         log.debug(f"Whitelist cache update failed for {gid}: {e}")
     return True
+
+
+def _config_versions_col():
+    direct = _get_direct_db()
+    if direct is not None:
+        return direct["config_versions"]
+    db = get_db() if "get_db" in globals() else None
+    if db is not None:
+        try:
+            return db.client["ModForge"]["config_versions"]
+        except Exception:
+            return None
+    return None
+
+
+def _save_config_version(guild_id, cfg, source="dashboard") -> None:
+    col = _config_versions_col()
+    if col is None:
+        return
+    try:
+        col.insert_one({
+            "guild_id": int(guild_id),
+            "config": _sanitize_cfg_for_mongo(_copy.deepcopy(cfg or {})),
+            "source": source,
+            "created_at": datetime.datetime.utcnow(),
+        })
+        # Keep last 25 versions per guild.
+        old = list(col.find({"guild_id": int(guild_id)}).sort("created_at", -1).skip(25).limit(100))
+        for doc in old:
+            col.delete_one({"_id": doc["_id"]})
+    except Exception as e:
+        log.debug(f"config version save failed: {e}")
+
+
+def _dangerous_change(data: dict) -> bool:
+    dangerous = {"anti_nuke", "nuke_protection", "server_protection", "security_level", "_security_level", "_raw", "_temp_voice"}
+    return any(k in dangerous for k in (data or {}).keys())
 def _direct_save_config(guild_id, cfg):
     """Speichert die Guild-Konfiguration zuverlässig.
 
@@ -698,6 +743,16 @@ def _user_can_manage_guild_in_session(user_session, guild_id):
     except Exception as e:
         log.error(f"[PERMISSION CHECK ERROR] {e}")
     return False
+
+
+def _api_session_or_admin(guild_id):
+    user_session = get_session()
+    if session.get("admin"):
+        return {"user": {"id": "0", "username": "Admin", "avatar_url": "https://cdn.discordapp.com/embed/avatars/0.png"}, "guilds": []}
+    if user_session and _user_can_manage_guild_in_session(user_session, guild_id):
+        return user_session
+    return None
+
 @flask_app.route("/dashboard")
 @require_auth
 def user_dash_home():
@@ -1104,25 +1159,32 @@ def guild_dashboard(guild_id):
         except Exception:
             pass
 
-    # ── Security Score (erweitert & realistisch) ──────────────────
-    score = 10  # Basis
-    if active_count >= 1:  score += 10
-    if active_count >= 3:  score += 10
-    if active_count >= 6:  score += 10
-    if active_count >= 8:  score += 10
-    if has_default_log:    score += 8
-    if log_channels_count >= 3: score += 7
-    if sec_level >= 1:     score += 8
-    if sec_level >= 2:     score += 7
-    if webhook_logging:    score += 5
-    if boost_tier >= 1:    score += 3
-    if verification not in ("None", "none", "", "?"):
-        score += 5
-    if wl_users > 0 or wl_roles > 0:
-        score += 5  # Hat Whitelist konfiguriert
-    if an_enabled and an_rules_count > 0:
-        score += 2
+    # ── Security Score mit echten Punkten ─────────────────────────
+    score_breakdown = []
+    def _score_add(ok, points, label):
+        nonlocal score
+        if ok:
+            score += points
+        score_breakdown.append({"ok": bool(ok), "points": points, "label": label})
+    score = 0
+    _score_add(has_default_log or log_channels_count > 0, 10, "Logs aktiv")
+    _score_add(cfg.get("anti_nuke", {}).get("enabled"), 20, "AntiNuke aktiv")
+    _score_add(cfg.get("anti_spam", {}).get("enabled"), 10, "AntiSpam aktiv")
+    _score_add(cfg.get("anti_raid", {}).get("enabled"), 10, "AntiRaid aktiv")
+    _score_add(cfg.get("automod", {}).get("enabled"), 10, "AutoMod aktiv")
+    _score_add(cfg.get("verify_system", {}).get("enabled"), 10, "Verify aktiv")
+    _score_add(cfg.get("backup_system", {}).get("auto_enabled"), 10, "Auto-Backup aktiv")
+    bot_perms_ok = bool(getattr(getattr(getattr(g, "me", None), "guild_permissions", None), "manage_roles", False) and getattr(getattr(getattr(g, "me", None), "guild_permissions", None), "ban_members", False))
+    _score_add(bot_perms_ok, 15, "Bot-Rechte OK")
+    _score_add(sec_level >= 2, 5, "Security-Level empfohlen")
     score = min(score, 100)
+
+    activity_timeline = []
+    try:
+        raw_activity = ACTIVITY.snapshot(80)
+        activity_timeline = [a for a in raw_activity if str(a.get("guild_id", "")) == str(guild_id)][:8]
+    except Exception:
+        activity_timeline = []
 
     # Score-Label
     if score >= 80:
@@ -1171,6 +1233,7 @@ def guild_dashboard(guild_id):
         top_moderators=top_moderators,
         # Score
         score=score, score_label=score_label, score_color=score_color,
+        score_breakdown=score_breakdown, activity_timeline=activity_timeline,
         # Prozente
         online_pct=online_pct, bot_pct=bot_pct, voice_pct=voice_pct,
         total_members=total_members,
@@ -2147,8 +2210,8 @@ def admin_logs():
 @flask_app.route("/api/guild/<guild_id>/config", methods=["POST"])
 @require_auth
 def api_guild_config(guild_id):
-    user_session = get_session()
-    if not user_session or not _user_can_manage_guild_in_session(user_session, guild_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
         return jsonify({"error": "forbidden"}), 403
     data = request.json or {}
     cfg = _direct_load_config(guild_id)
@@ -2243,6 +2306,10 @@ def api_guild_config(guild_id):
             cfg[key] = mod
 
     try:
+        if _dangerous_change(data):
+            _save_config_version(guild_id, _direct_load_config(guild_id), source="before-dangerous-save")
+        else:
+            _save_config_version(guild_id, _direct_load_config(guild_id), source="before-save")
         _direct_save_config(guild_id, cfg)
     except Exception as e:
         log.error(f"[CONFIG API ERROR] {e}")
@@ -2252,8 +2319,8 @@ def api_guild_config(guild_id):
 @flask_app.route("/api/guild/<guild_id>/automod", methods=["POST"])
 @require_auth
 def api_guild_automod(guild_id):
-    user_session = get_session()
-    if not user_session or not _user_can_manage_guild_in_session(user_session, guild_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
         return jsonify({"error": "forbidden"}), 403
     data = request.json or {}
     cfg = _direct_load_config(guild_id)
@@ -2290,8 +2357,8 @@ def api_guild_automod(guild_id):
 @flask_app.route("/api/guild/<guild_id>/autoresponse", methods=["POST"])
 @require_auth
 def api_guild_autoresponse(guild_id):
-    user_session = get_session()
-    if not user_session or not _user_can_manage_guild_in_session(user_session, guild_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
         return jsonify({"error": "forbidden"}), 403
     data = request.json or {}
     cfg = _direct_load_config(guild_id)
@@ -2315,8 +2382,8 @@ def api_guild_autoresponse(guild_id):
 @flask_app.route("/api/guild/<guild_id>/roles", methods=["POST"])
 @require_auth
 def api_guild_roles(guild_id):
-    user_session = get_session()
-    if not user_session or not _user_can_manage_guild_in_session(user_session, guild_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
         return jsonify({"error": "forbidden"}), 403
     data = request.json or {}
     cfg = _direct_load_config(guild_id)
@@ -2345,8 +2412,8 @@ def api_guild_roles(guild_id):
 @flask_app.route("/api/guild/<guild_id>/embed", methods=["POST"])
 @require_auth
 def api_guild_embed(guild_id):
-    user_session = get_session()
-    if not user_session or not _user_can_manage_guild_in_session(user_session, guild_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
         return jsonify({"error": "forbidden"}), 403
     data = request.json or {}
     channel_id = data.get("channel_id")
@@ -2878,8 +2945,8 @@ def guild_livefeed(guild_id):
 @flask_app.route("/api/guild/<guild_id>/whitelist", methods=["POST"])
 @require_auth
 def api_guild_whitelist(guild_id):
-    user_session = get_session()
-    if not user_session or not _user_can_manage_guild_in_session(user_session, guild_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
         return jsonify({"error": "forbidden"}), 403
 
     data = request.json or {}
@@ -2955,6 +3022,7 @@ def admin_server_dashboard(guild_id, subpage=""):
         "autoresponse": globals().get("guild_autoresponse"),
         "stats": globals().get("guild_stats_page"),
         "livefeed": globals().get("guild_livefeed"),
+        "audit": globals().get("guild_audit"),
         "whitelist": globals().get("guild_whitelist"),
         "embed": globals().get("guild_embed"),
         "design": globals().get("guild_design"),
@@ -3257,8 +3325,8 @@ def dashboard_refresh():
 @flask_app.route("/api/guild/<guild_id>/member/<member_id>/action", methods=["POST"])
 @require_auth
 def api_member_action(guild_id, member_id):
-    user_session = get_session()
-    if not user_session or not _user_can_manage_guild_in_session(user_session, guild_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
         return jsonify({"error": "forbidden"}), 403
     if not bot_ready():
         return jsonify({"error": "Bot ist offline. Mod-Aktionen benötigen einen laufenden Bot."}), 503
@@ -3325,8 +3393,8 @@ def api_member_action(guild_id, member_id):
 @flask_app.route("/api/guild/<guild_id>/noprefix", methods=["POST"])
 @require_auth
 def api_noprefix(guild_id):
-    user_session = get_session()
-    if not user_session or not _user_can_manage_guild_in_session(user_session, guild_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
         return jsonify({"error": "forbidden"}), 403
     data = request.json or {}
     cfg = _direct_load_config(guild_id)
@@ -3412,8 +3480,8 @@ def guild_autonick(guild_id):
 @flask_app.route("/api/guild/<guild_id>/autonick", methods=["POST"])
 @require_auth
 def api_guild_autonick(guild_id):
-    user_session = get_session()
-    if not user_session or not _user_can_manage_guild_in_session(user_session, guild_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
         return jsonify({"error": "forbidden"}), 403
 
     data   = request.json or {}
@@ -3470,25 +3538,8 @@ def api_guild_autonick(guild_id):
             log.error(f"autonick save (add) Fehler: {e}")
             return jsonify({"ok": False, "error": "Speichern fehlgeschlagen"}), 500
 
-        # Dann Bulk-Apply im Hintergrund wenn System aktiv
+        # Bulk-Apply wurde bewusst entfernt: Nicknames werden sicher über den Bot-Event/Commands angewendet.
         stats = {"applied": 0, "skipped": 0, "failed": 0, "total": 0}
-        if an.get("enabled"):
-            guild_obj = bot.get_guild(int(guild_id))
-            if guild_obj:
-                import asyncio
-                _bulk_apply_autonick = None  # Function moved to cogs, apply via bot loop
-                try:
-                    future = asyncio.run_coroutine_threadsafe(
-                        _bulk_apply_autonick(guild_obj, an, role_id=role_id),
-                        bot.loop
-                    )
-                    # Max 2s warten, Rest läuft im Hintergrund
-                    try:
-                        stats = future.result(timeout=2.0)
-                    except Exception:
-                        pass  # Läuft im Hintergrund weiter
-                except Exception as e:
-                    log.error(f"Bulk apply Fehler: {e}")
 
         return jsonify({
             "ok":      True,
@@ -3564,8 +3615,8 @@ def api_guild_autonick(guild_id):
 @flask_app.route("/api/guild/<guild_id>/backup/create", methods=["POST"])
 @require_auth
 def api_backup_create(guild_id):
-    user_session = get_session()
-    if not user_session or not _user_can_manage_guild_in_session(user_session, guild_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
         return jsonify({"error": "forbidden"}), 403
     if not bot_ready():
         return jsonify({"error": "Bot ist offline. Backups können nur erstellt werden, wenn der Bot läuft."}), 503
@@ -3589,8 +3640,8 @@ def api_backup_create(guild_id):
 @flask_app.route("/api/guild/<guild_id>/backup/<backup_id>/restore", methods=["POST"])
 @require_auth
 def api_backup_restore(guild_id, backup_id):
-    user_session = get_session()
-    if not user_session or not _user_can_manage_guild_in_session(user_session, guild_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
         return jsonify({"error": "forbidden"}), 403
     if not bot_ready():
         return jsonify({"error": "Bot ist offline. Restore nur möglich wenn der Bot läuft."}), 503
@@ -3615,8 +3666,8 @@ def api_backup_restore(guild_id, backup_id):
 @flask_app.route("/api/guild/<guild_id>/backup/<backup_id>/delete", methods=["POST"])
 @require_auth
 def api_backup_delete(guild_id, backup_id):
-    user_session = get_session()
-    if not user_session or not _user_can_manage_guild_in_session(user_session, guild_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
         return jsonify({"error": "forbidden"}), 403
     col = _backups_col()
     if col is None:
@@ -3652,8 +3703,8 @@ def api_backup_delete(guild_id, backup_id):
 @flask_app.route("/api/guild/<guild_id>/backup/<backup_id>/download")
 @require_auth
 def api_backup_download(guild_id, backup_id):
-    user_session = get_session()
-    if not user_session or not _user_can_manage_guild_in_session(user_session, guild_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
         return jsonify({"error": "forbidden"}), 403
     col = _backups_col()
     if col is None:
@@ -3685,8 +3736,8 @@ def api_backup_download(guild_id, backup_id):
 @flask_app.route("/api/guild/<guild_id>/templates/share", methods=["POST"])
 @require_auth
 def api_template_share(guild_id):
-    user_session = get_session()
-    if not user_session or not _user_can_manage_guild_in_session(user_session, guild_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
         return jsonify({"error": "forbidden"}), 403
     data = request.json or {}
     backup_id = (data.get("backup_id") or "").strip()
@@ -3751,8 +3802,8 @@ def api_template_share(guild_id):
 @flask_app.route("/api/guild/<guild_id>/templates/unshare/<backup_id>", methods=["POST"])
 @require_auth
 def api_template_unshare(guild_id, backup_id):
-    user_session = get_session()
-    if not user_session or not _user_can_manage_guild_in_session(user_session, guild_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
         return jsonify({"error": "forbidden"}), 403
     pcol = _public_backups_col()
     if pcol is None:
@@ -3778,8 +3829,8 @@ def api_template_import(guild_id, backup_id):
 
     Inkrementiert den Download-Counter im public_backups-Eintrag.
     """
-    user_session = get_session()
-    if not user_session or not _user_can_manage_guild_in_session(user_session, guild_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
         return jsonify({"error": "forbidden"}), 403
     if not bot_ready():
         return jsonify({"error": "Bot ist offline. Import nur möglich wenn der Bot läuft."}), 503
@@ -3818,8 +3869,8 @@ def api_template_import(guild_id, backup_id):
 @require_auth
 def api_member_badges_get(guild_id, member_id):
     """Alle Badges eines Users abrufen."""
-    user_session = get_session()
-    if not user_session or not _user_can_manage_guild_in_session(user_session, guild_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
         return jsonify({"error": "forbidden"}), 403
     db = get_db()
     if not db:
@@ -3876,19 +3927,20 @@ def api_member_badge_remove(guild_id, member_id, badge_id):
 @flask_app.route("/api/guild/<guild_id>/member/<member_id>/details")
 @require_auth
 def api_member_details(guild_id, member_id):
-    user_session = get_session()
-    if not user_session or not _user_can_manage_guild_in_session(user_session, guild_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
         return jsonify({"error": "forbidden"}), 403
     db = get_db()
     if not db:
         return jsonify({"error": "database offline"}), 503
     try:
         # Fetch notes
-        notes = safe_async(db.notes.find({"guild_id": int(guild_id), "user_id": int(member_id)}).sort("timestamp", -1).to_list(50), []) or []
+        notes = safe_async(db.notes.find({"guild_id": int(guild_id), "user_id": int(member_id)}).sort([("pinned", -1), ("created_at", -1), ("timestamp", -1)]).to_list(50), []) or []
         # Convert BSON/Datetime
         for n in notes:
             n["_id"] = str(n["_id"])
-            if n.get("timestamp"): n["timestamp"] = n["timestamp"].isoformat() + "Z"
+            if n.get("timestamp") and hasattr(n.get("timestamp"), "isoformat"): n["timestamp"] = n["timestamp"].isoformat() + "Z"
+            if n.get("created_at") and hasattr(n.get("created_at"), "isoformat"): n["created_at"] = n["created_at"].isoformat() + "Z"
         
         # Fetch detailed cases
         cases = safe_async(db.cases.find({"guild_id": int(guild_id), "user_id": int(member_id)}).sort("case_id", -1).to_list(50), []) or []
@@ -3905,25 +3957,258 @@ def api_member_details(guild_id, member_id):
 @flask_app.route("/api/guild/<guild_id>/member/<member_id>/note", methods=["POST"])
 @require_auth
 def api_member_note(guild_id, member_id):
-    user_session = get_session()
-    if not user_session or not _user_can_manage_guild_in_session(user_session, guild_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
         return jsonify({"error": "forbidden"}), 403
     db = get_db()
     data = request.json or {}
     text = data.get("text")
     if not text: return jsonify({"error": "missing text"}), 400
     try:
+        priority = data.get("priority", "medium") if data.get("priority", "medium") in ("low", "medium", "high") else "medium"
         note = {
             "guild_id": int(guild_id),
             "user_id": int(member_id),
             "mod_id": int(user_session["user"]["id"]),
-            "text": text,
+            "text": text[:2000],
+            "priority": priority,
+            "pinned": bool(data.get("pinned", False)),
+            "created_at": datetime.datetime.utcnow(),
             "timestamp": datetime.datetime.utcnow()
         }
         safe_async(db.notes.insert_one(note))
         return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+# =========================================================
+# ADVANCED DASHBOARD FEATURES: Wizard, Emergency, Rollback, Audit, Export
+# =========================================================
+
+@flask_app.route("/dashboard/<guild_id>/audit")
+@require_auth
+def guild_audit(guild_id):
+    us, g, cfg, err = _dash_guard(guild_id)
+    if err:
+        return err
+    events = []
+    try:
+        raw = ACTIVITY.snapshot(200)
+        events = [a for a in raw if str(a.get("guild_id", "")) == str(guild_id) and str(a.get("kind", "")).lower() in {"audit", "security", "antinuke", "moderation", "case"}][:80]
+    except Exception:
+        pass
+    if bot_ready() and g and hasattr(g, "audit_logs"):
+        async def _fetch_audit():
+            out = []
+            try:
+                async for entry in g.audit_logs(limit=25):
+                    out.append({
+                        "kind": str(entry.action).replace("AuditLogAction.", ""),
+                        "text": f"{entry.user} → {getattr(entry.target, 'name', entry.target)}",
+                        "ts": entry.created_at.isoformat(),
+                    })
+            except Exception:
+                pass
+            return out
+        audit_events = safe_async(_fetch_audit(), []) or []
+        events = audit_events + events
+    dangerous_roles = _dangerous_roles(g)
+    return render_template("dashboard/audit.html", guild=g, cfg=cfg, user=us["user"], events=events, dangerous_roles=dangerous_roles, active="audit")
+
+
+def _dangerous_roles(guild):
+    result = []
+    if not guild or not getattr(guild, "roles", None):
+        return result
+    danger = ["administrator", "manage_roles", "ban_members", "manage_webhooks"]
+    for role in guild.roles:
+        try:
+            if role.is_default() or getattr(role, "managed", False):
+                continue
+            perms = []
+            for perm in danger:
+                if getattr(role.permissions, perm, False):
+                    perms.append(perm)
+            if perms:
+                result.append({"id": str(role.id), "name": role.name, "perms": perms, "position": getattr(role, "position", 0)})
+        except Exception:
+            continue
+    return sorted(result, key=lambda x: -x["position"])[:50]
+
+
+def _permission_report(guild, cfg):
+    checks = []
+    me = getattr(guild, "me", None) if guild else None
+    perms = getattr(me, "guild_permissions", None)
+    def add(key, label, ok, fix):
+        checks.append({"key": key, "label": label, "ok": bool(ok), "fix": fix})
+    add("manage_roles", "Manage Roles", getattr(perms, "manage_roles", False), "Bot-Rolle höher ziehen und Recht geben")
+    add("ban_members", "Ban Members", getattr(perms, "ban_members", False), "Recht `Mitglieder bannen` aktivieren")
+    add("kick_members", "Kick Members", getattr(perms, "kick_members", False), "Recht `Mitglieder kicken` aktivieren")
+    add("manage_channels", "Manage Channels", getattr(perms, "manage_channels", False), "Für Lockdown und TempVoice nötig")
+    add("manage_messages", "Manage Messages", getattr(perms, "manage_messages", False), "Für AutoMod-Löschungen nötig")
+    add("logs", "Log-Kanal", bool(cfg.get("log_channel") or cfg.get("log_channels")), "Unter Logs `/log #kanal` setzen")
+    return checks
+
+
+@flask_app.route("/api/guild/<guild_id>/health")
+@require_auth
+def api_guild_health(guild_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
+        return jsonify({"error": "forbidden"}), 403
+    g = get_guild(guild_id)
+    cfg = _direct_load_config(guild_id)
+    checks = _permission_report(g, cfg)
+    return jsonify({
+        "ok": True,
+        "bot_online": bot_ready(),
+        "checks": checks,
+        "dangerous_roles": _dangerous_roles(g),
+        "score": _score_config(g, cfg),
+    })
+
+
+def _score_config(guild, cfg):
+    score = 0
+    if cfg.get("log_channel") or cfg.get("log_channels"): score += 10
+    if cfg.get("anti_nuke", {}).get("enabled"): score += 20
+    if cfg.get("anti_spam", {}).get("enabled"): score += 10
+    if cfg.get("anti_raid", {}).get("enabled"): score += 10
+    if cfg.get("automod", {}).get("enabled"): score += 10
+    if cfg.get("verify_system", {}).get("enabled"): score += 10
+    if cfg.get("backup_system", {}).get("auto_enabled"): score += 10
+    me = getattr(guild, "me", None) if guild else None
+    perms = getattr(me, "guild_permissions", None)
+    if perms and getattr(perms, "manage_roles", False) and getattr(perms, "ban_members", False): score += 15
+    if cfg.get("security_level", 0) >= 2: score += 5
+    return min(score, 100)
+
+
+@flask_app.route("/api/guild/<guild_id>/quick_setup", methods=["POST"])
+@require_auth
+def api_quick_setup(guild_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
+        return jsonify({"error": "forbidden"}), 403
+    data = request.json or {}
+    profile = data.get("profile", "safe")
+    log_channel = _to_int_or_none(data.get("log_channel"))
+    cfg = _direct_load_config(guild_id)
+    _save_config_version(guild_id, cfg, source="before-quick-setup")
+    cfg["security_level"] = 1 if profile == "easy" else 2 if profile == "safe" else 3
+    for key in ("anti_spam", "anti_nuke", "anti_raid", "automod", "anti_scam", "anti_mention"):
+        cfg.setdefault(key, {})["enabled"] = True
+    if log_channel:
+        cfg["log_channel"] = log_channel
+        from bot.config import LOG_MODULES, LOG_MODULES_EXTRA
+        cfg["log_channels"] = {m: log_channel for m in list(LOG_MODULES) + list(LOG_MODULES_EXTRA)}
+    if data.get("welcome_channel"):
+        cfg.setdefault("welcome", {})["enabled"] = True
+        cfg["welcome"]["channel_id"] = _to_int_or_none(data.get("welcome_channel"))
+    if data.get("verify_channel"):
+        cfg.setdefault("verify_system", {})["enabled"] = True
+        cfg["verify_system"]["verify_channel"] = _to_int_or_none(data.get("verify_channel"))
+    _direct_save_config(guild_id, cfg)
+    return jsonify({"ok": True, "score": _score_config(get_guild(guild_id), cfg)})
+
+
+@flask_app.route("/api/guild/<guild_id>/emergency", methods=["POST"])
+@require_auth
+def api_emergency_mode(guild_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
+        return jsonify({"error": "forbidden"}), 403
+    if not bot_ready():
+        return jsonify({"error": "Bot ist offline"}), 503
+    g = get_guild(guild_id)
+    if not g:
+        return jsonify({"error": "Server nicht gefunden"}), 404
+    cfg = _direct_load_config(guild_id)
+    _save_config_version(guild_id, cfg, source="before-emergency")
+    cfg.setdefault("anti_raid", {})["enabled"] = True
+    cfg["anti_raid"]["lockdown"] = True
+    cfg["security_level"] = 3
+    _direct_save_config(guild_id, cfg)
+    locked = 0
+    try:
+        for ch in getattr(g, "text_channels", [])[:100]:
+            try:
+                _run_async(ch.set_permissions(g.default_role, send_messages=False, reason="Dashboard Emergency Mode"))
+                locked += 1
+            except Exception:
+                pass
+        try:
+            if getattr(g, "owner", None):
+                import discord
+                emb = discord.Embed(title="🚨 Emergency Mode aktiv", description=f"Auf **{g.name}** wurde Emergency Mode aktiviert.", color=0xef4444)
+                _run_async(g.owner.send(embed=emb))
+        except Exception:
+            pass
+        _run_async(bot.log_action(g, "🚨 Emergency Mode", f"{locked} Kanäle gesperrt. AntiRaid maximal gesetzt.", 0xef4444, module="security"))
+    except Exception as e:
+        log.error(f"Emergency mode error: {e}")
+    return jsonify({"ok": True, "locked": locked})
+
+
+@flask_app.route("/api/guild/<guild_id>/cases/export")
+@require_auth
+def api_cases_export(guild_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
+        return jsonify({"error": "forbidden"}), 403
+    fmt = request.args.get("format", "json").lower()
+    db = get_db()
+    cases = []
+    if db:
+        cases = safe_async(db.cases.find(_guild_query(guild_id)).sort("case_id", -1).to_list(1000), []) or []
+    for c in cases:
+        c.pop("_id", None)
+        for k, v in list(c.items()):
+            if hasattr(v, "isoformat"):
+                c[k] = v.isoformat()
+    if fmt == "html":
+        rows = "".join(f"<tr><td>#{c.get('case_id')}</td><td>{c.get('action')}</td><td>{c.get('user_id')}</td><td>{c.get('reason','')}</td></tr>" for c in cases)
+        body = f"<html><meta charset='utf-8'><body><h1>Cases {guild_id}</h1><table border='1' cellspacing='0' cellpadding='6'>{rows}</table></body></html>"
+        return Response(body, mimetype="text/html", headers={"Content-Disposition": f"attachment; filename=cases-{guild_id}.html"})
+    return Response(json.dumps(cases, ensure_ascii=False, indent=2), mimetype="application/json", headers={"Content-Disposition": f"attachment; filename=cases-{guild_id}.json"})
+
+
+@flask_app.route("/api/guild/<guild_id>/config/versions")
+@require_auth
+def api_config_versions(guild_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
+        return jsonify({"error": "forbidden"}), 403
+    col = _config_versions_col()
+    if col is None:
+        return jsonify({"ok": True, "versions": []})
+    docs = list(col.find({"guild_id": int(guild_id)}).sort("created_at", -1).limit(25))
+    versions = [{"id": str(d.get("_id")), "source": d.get("source", "dashboard"), "created_at": d.get("created_at").isoformat() if d.get("created_at") else ""} for d in docs]
+    return jsonify({"ok": True, "versions": versions})
+
+
+@flask_app.route("/api/guild/<guild_id>/config/rollback", methods=["POST"])
+@require_auth
+def api_config_rollback(guild_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
+        return jsonify({"error": "forbidden"}), 403
+    col = _config_versions_col()
+    if col is None:
+        return jsonify({"error": "Keine Versionen verfügbar"}), 404
+    data = request.json or {}
+    vid = data.get("version_id")
+    try:
+        from bson.objectid import ObjectId
+        doc = col.find_one({"_id": ObjectId(vid), "guild_id": int(guild_id)}) if vid else col.find_one({"guild_id": int(guild_id)}, sort=[("created_at", -1)])
+    except Exception:
+        doc = None
+    if not doc:
+        return jsonify({"error": "Version nicht gefunden"}), 404
+    _save_config_version(guild_id, _direct_load_config(guild_id), source="before-rollback")
+    _direct_save_config(guild_id, doc.get("config", {}))
+    return jsonify({"ok": True})
 
 # 404 / 403 / 500 HANDLER
 # =========================================================

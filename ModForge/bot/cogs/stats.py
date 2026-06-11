@@ -3,20 +3,17 @@
 ModForge Stats Cog – Features 301-350
 Server-Stats, Heatmap, Command-Usage, Performance-Monitoring, Log-System.
 """
-import asyncio
 import datetime
 import os
-import time
 import psutil
-from typing import Optional
 
 import discord
 from discord.ext import commands, tasks
 from discord import app_commands
 
 from bot.config import (
-    COLOR_PRIMARY, COLOR_SUCCESS, COLOR_WARNING, COLOR_DANGER,
-    COLOR_INFO, E, log, get_uptime, ACTIVITY,
+    COLOR_PRIMARY, COLOR_SUCCESS, COLOR_INFO, E,
+    get_uptime,
 )
 from bot.utils import create_embed
 

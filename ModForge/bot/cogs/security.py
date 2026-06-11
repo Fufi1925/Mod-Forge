@@ -5,7 +5,6 @@ Nuke-Prävention, Server-Schutz, Raid-Erkennung, Whitelist, AutoMod-Config.
 """
 import asyncio
 import datetime
-import hashlib
 import time
 from collections import defaultdict, deque
 from typing import Optional
@@ -16,10 +15,10 @@ from discord import app_commands
 
 from bot.config import (
     COLOR_PRIMARY, COLOR_SUCCESS, COLOR_WARNING, COLOR_DANGER,
-    COLOR_INFO, E, DEFAULT_CONFIG, log, ACTIVITY,
+    COLOR_INFO, E, log,
 )
 from bot.utils import create_embed
-from bot.bot import safe_dm, _BOT_DEV_ID
+from bot.bot import safe_dm
 
 # ═══════════════════════════════════════════════════════════════
 # IN-MEMORY TRACKER für Nuke-Detection
