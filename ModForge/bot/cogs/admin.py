@@ -44,7 +44,7 @@ class AdminCog(commands.Cog):
         if case.get("message_archive"):
             fields.append(("Archivierte Nachrichten", str(len(case["message_archive"])), True))
         await interaction.response.send_message(embed=create_embed(
-            f"📋 Case #{case_id}", "", COLOR_PRIMARY, fields))
+            f"{E.CASE} Case #{case_id}", "", COLOR_PRIMARY, fields))
 
     @app_commands.command(name="cases", description="Zeigt die letzten Cases")
     @app_commands.describe(limit="Anzahl (max 50)")
@@ -56,11 +56,11 @@ class AdminCog(commands.Cog):
                 f"{E.OK}", "Keine Cases vorhanden.", COLOR_INFO))
         lines = []
         for c in cases:
-            action_emoji = {"ban": "🔨", "kick": "👢", "warn": "⚠️", "timeout": "🔇", "softban": "🔨",
-                           "tempban": "⏰", "tempmute": "⏰"}.get(c.get("action", ""), "📋")
+            action_emoji = {"ban": E.BAN, "kick": E.KICK, "warn": E.WARN, "timeout": E.MUTE, "softban": E.BAN,
+                           "tempban": E.TIMER, "tempmute": E.TIMER}.get(c.get("action", ""), E.CASE)
             lines.append(f"{action_emoji} `#{c.get('case_id', '?')}` {c.get('action', '?')} – <@{c.get('user_id', 0)}> – {c.get('reason', '—')[:30]}")
         await interaction.response.send_message(embed=create_embed(
-            f"📋 Cases ({len(cases)})", "\n".join(lines[:25]), COLOR_PRIMARY))
+            f"{E.CASE} Cases ({len(cases)})", "\n".join(lines[:25]), COLOR_PRIMARY))
 
     @app_commands.command(name="case_edit", description="Ändert den Grund eines Cases")
     @app_commands.describe(case_id="Case-ID", reason="Neuer Grund")
@@ -90,7 +90,7 @@ class AdminCog(commands.Cog):
                 continue
             for perm_name in danger_perms:
                 if getattr(role.permissions, perm_name, False):
-                    level = "🔴 CRITICAL" if perm_name == "administrator" else "🟡 HIGH"
+                    level = f"{E.FAIL} CRITICAL" if perm_name == "administrator" else f"{E.WARN} HIGH"
                     issues.append(f"{level} {role.mention} → `{perm_name}`")
 
         if not issues:
@@ -102,7 +102,7 @@ class AdminCog(commands.Cog):
         if len(issues) > 30:
             desc += f"\n\n... und {len(issues) - 30} weitere"
         await interaction.response.send_message(embed=create_embed(
-            f"🔍 Berechtigungs-Audit ({len(issues)} Funde)", desc, COLOR_WARNING))
+            f"{E.SHIELD} Berechtigungs-Audit ({len(issues)} Funde)", desc, COLOR_WARNING))
 
     # ── MASSUNBAN ──
     @app_commands.command(name="massunban", description="Entbannt ALLE gebannten User")
@@ -205,7 +205,7 @@ class AdminCog(commands.Cog):
             total = sum(inv.uses for inv in user_invites)
             lines = [f"`{inv.code}` – {inv.uses} Nutzungen" for inv in user_invites[:10]]
             await interaction.response.send_message(embed=create_embed(
-                f"📨 Invites von {target}", f"**Gesamt:** {total} Einladungen\n\n" + "\n".join(lines),
+                f"{E.JOIN} Invites von {target}", f"**Gesamt:** {total} Einladungen\n\n" + "\n".join(lines),
                 COLOR_PRIMARY))
         except discord.Forbidden:
             await interaction.response.send_message(embed=create_embed(
@@ -225,7 +225,7 @@ class AdminCog(commands.Cog):
                 actions[act] = actions.get(act, 0) + 1
             lines = [f"**{act}:** {count}" for act, count in sorted(actions.items(), key=lambda x: -x[1])]
             await interaction.response.send_message(embed=create_embed(
-                f"📊 Modstats – {moderator}", f"**Gesamt:** {len(mod_cases)} Cases\n\n" + "\n".join(lines),
+                f"{E.STATS} Modstats – {moderator}", f"**Gesamt:** {len(mod_cases)} Cases\n\n" + "\n".join(lines),
                 COLOR_PRIMARY))
         else:
             # Ranking
@@ -236,7 +236,7 @@ class AdminCog(commands.Cog):
             ranking = sorted(mod_counts.items(), key=lambda x: -x[1])[:10]
             lines = [f"**{i+1}.** <@{mid}> – {count} Cases" for i, (mid, count) in enumerate(ranking)]
             await interaction.response.send_message(embed=create_embed(
-                f"📊 Mod-Ranking", "\n".join(lines) or "Keine Cases.", COLOR_PRIMARY))
+                f"{E.STATS} Mod-Ranking", "\n".join(lines) or "Keine Cases.", COLOR_PRIMARY))
 
     # ── REPORT ──
     @app_commands.command(name="report", description="Meldet einen User")
@@ -251,7 +251,7 @@ class AdminCog(commands.Cog):
         if not channel:
             return await interaction.response.send_message(embed=create_embed(
                 f"{E.FAIL}", "Report-Kanal nicht gefunden.", COLOR_DANGER), ephemeral=True)
-        embed = create_embed(f"🚨 Report", f"**Gemeldet:** {member.mention}\n**Von:** {interaction.user.mention}\n**Grund:** {reason}",
+        embed = create_embed(f"{E.REPORT} Report", f"**Gemeldet:** {member.mention}\n**Von:** {interaction.user.mention}\n**Grund:** {reason}",
             COLOR_DANGER, user=member)
         await channel.send(embed=embed)
         await interaction.response.send_message(embed=create_embed(

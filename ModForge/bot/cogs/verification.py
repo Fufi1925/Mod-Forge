@@ -102,7 +102,7 @@ class ExtendedVerifyView(discord.ui.View):
         self.bot = bot_ref
 
     @discord.ui.button(label="Verifizieren", style=discord.ButtonStyle.green,
-                       custom_id="modforge:verify_ext", emoji="✅")
+                       custom_id="modforge:verify_ext", emoji=E.VERIFY_BTN)
     async def verify_button(self, interaction: discord.Interaction, button):
         cfg = self.bot.db.get_config(interaction.guild.id)
         vs = cfg.get("verify_system", {})
@@ -194,7 +194,7 @@ class ExtendedVerifyView(discord.ui.View):
         if ve.get("admin_approval_required"):
             approval_ch = interaction.guild.get_channel(ve.get("admin_approval_channel"))
             if approval_ch:
-                embed = create_embed(f"📋 Verifizierungs-Antrag",
+                embed = create_embed(f"{E.APPROVAL} Verifizierungs-Antrag",
                     f"**User:** {interaction.user.mention} (`{interaction.user.id}`)\n"
                     f"**Account-Alter:** {(discord.utils.utcnow() - interaction.user.created_at.replace(tzinfo=None)).days} Tage\n"
                     f"**Trust-Score:** {trust_score}",
@@ -378,7 +378,7 @@ class VerificationCog(commands.Cog):
             fields.append(("Top Fehlversuche",
                           "\n".join(f"<@{uid}>: {count}" for uid, count in top_fails), False))
         await interaction.response.send_message(embed=create_embed(
-            f"📊 Verify-Statistiken", "", COLOR_PRIMARY, fields))
+            f"{E.STATS} Verify-Statistiken", "", COLOR_PRIMARY, fields))
 
     @tasks.loop(minutes=5)
     async def verify_timer_loop(self):
@@ -411,7 +411,7 @@ class VerificationCog(commands.Cog):
                                     await member.ban(reason=reason)
                                 else:
                                     await member.kick(reason=reason)
-                                await self.bot.log_action(guild, f"⏰ Verify-Timer",
+                                await self.bot.log_action(guild, f"{E.TIMER} Verify-Timer",
                                     f"{member.mention} ({action}) – nicht verifiziert nach {timer_minutes}min",
                                     COLOR_WARNING, user=member, module="verify")
                             except (discord.Forbidden, discord.HTTPException):

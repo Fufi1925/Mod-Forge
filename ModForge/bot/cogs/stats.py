@@ -96,16 +96,16 @@ class StatsCog(commands.Cog):
 
         fields = [
             ("👥 Mitglieder", f"{humans} Menschen, {bots} Bots", True),
-            ("🟢 Online", str(online), True),
-            ("📊 Rollen", str(roles_count), True),
+            (f"{E.OK} Online", str(online), True),
+            (f"{E.ROLES} Rollen", str(roles_count), True),
             ("💬 Kanäle", f"{text_ch}T / {voice_ch}V / {categories}K", True),
-            ("📋 Cases (Heute)", str(cases_today), True),
-            ("📋 Cases (Woche)", str(cases_week), True),
-            ("🔒 Boost-Level", str(guild.premium_tier), True),
+            (f"{E.CASE} Cases (Heute)", str(cases_today), True),
+            (f"{E.CASE} Cases (Woche)", str(cases_week), True),
+            (f"{E.LOCK} Boost-Level", str(guild.premium_tier), True),
             ("📅 Erstellt", f"<t:{int(guild.created_at.timestamp())}:R>", True),
         ]
         await interaction.response.send_message(embed=create_embed(
-            f"📊 Server-Statistiken – {guild.name}", "", COLOR_PRIMARY, fields,
+            f"{E.STATS} Server-Statistiken – {guild.name}", "", COLOR_PRIMARY, fields,
             thumbnail=guild.icon.url if guild.icon else None))
 
     @app_commands.command(name="heatmap", description="Server-Aktivitäts-Heatmap")
@@ -120,7 +120,7 @@ class StatsCog(commands.Cog):
 
         if not docs:
             return await interaction.response.send_message(embed=create_embed(
-                "📊", "Noch keine Daten. Aktiviere Stats mit `/stats_enable`.", COLOR_INFO))
+                f"{E.STATS}", "Noch keine Daten. Aktiviere Stats mit `/stats_enable`.", COLOR_INFO))
 
         # Aggregate hours
         hour_totals = {}
@@ -175,7 +175,7 @@ class StatsCog(commands.Cog):
             ("🔝 Top Commands", cmd_text, False),
         ]
         await interaction.response.send_message(embed=create_embed(
-            f"🤖 Bot-Performance", "", COLOR_PRIMARY, fields))
+            f"{E.BOT} Bot-Performance", "", COLOR_PRIMARY, fields))
 
     @app_commands.command(name="stats_enable", description="Aktiviert das Stats-System")
     @app_commands.default_permissions(administrator=True)
@@ -192,11 +192,11 @@ class StatsCog(commands.Cog):
         """Feature 318: Command-Usage-Stats."""
         if not self._cmd_usage:
             return await interaction.response.send_message(embed=create_embed(
-                "📊", "Noch keine Command-Nutzung aufgezeichnet.", COLOR_INFO))
+                f"{E.STATS}", "Noch keine Command-Nutzung aufgezeichnet.", COLOR_INFO))
         sorted_cmds = sorted(self._cmd_usage.items(), key=lambda x: -x[1])[:20]
         lines = [f"`{name}`: {count}x" for name, count in sorted_cmds]
         await interaction.response.send_message(embed=create_embed(
-            f"📊 Command-Statistiken", "\n".join(lines), COLOR_PRIMARY))
+            f"{E.STATS} Command-Statistiken", "\n".join(lines), COLOR_PRIMARY))
 
     @app_commands.command(name="rolestats", description="Zeigt Rollen-Verteilung")
     async def slash_rolestats(self, interaction: discord.Interaction):
@@ -207,7 +207,7 @@ class StatsCog(commands.Cog):
             key=lambda x: -x[1])[:15]
         lines = [f"{r.mention}: **{count}** Mitglieder" for r, count in role_counts]
         await interaction.response.send_message(embed=create_embed(
-            f"📊 Rollen-Verteilung", "\n".join(lines) or "Keine Rollen mit Mitgliedern.", COLOR_PRIMARY))
+            f"{E.STATS} Rollen-Verteilung", "\n".join(lines) or "Keine Rollen mit Mitgliedern.", COLOR_PRIMARY))
 
     @app_commands.command(name="growth", description="Server-Wachstum anzeigen")
     @app_commands.default_permissions(manage_messages=True)
@@ -225,7 +225,7 @@ class StatsCog(commands.Cog):
             ("Aktuell", str(interaction.guild.member_count), True),
         ]
         await interaction.response.send_message(embed=create_embed(
-            f"📈 Server-Wachstum", "", COLOR_PRIMARY, fields))
+            f"{E.GROWTH} Server-Wachstum", "", COLOR_PRIMARY, fields))
 
 
 async def setup(bot):

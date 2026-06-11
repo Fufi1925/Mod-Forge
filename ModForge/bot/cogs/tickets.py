@@ -129,7 +129,7 @@ class TicketControlView(discord.ui.View):
                 if ticket_doc:
                     user = interaction.guild.get_member(ticket_doc.get("user_id"))
                     if user:
-                        embed = create_embed("📊 Wie war dein Support-Erlebnis?",
+                        embed = create_embed(f"{E.SURVEY} Wie war dein Support-Erlebnis?",
                             "Bitte bewerte deinen Support:\n1️⃣ Schlecht\n2️⃣ Okay\n3️⃣ Gut\n4️⃣ Sehr gut\n5️⃣ Ausgezeichnet",
                             COLOR_PRIMARY)
                         try:
@@ -154,16 +154,16 @@ class TicketControlView(discord.ui.View):
         except Exception:
             pass
 
-    @discord.ui.button(label="Übernehmen", style=discord.ButtonStyle.green, emoji="✋", custom_id="modforge:ticket_claim")
+    @discord.ui.button(label="Übernehmen", style=discord.ButtonStyle.green, emoji=E.CLAIM, custom_id="modforge:ticket_claim")
     async def claim_ticket(self, interaction: discord.Interaction, button):
         """Feature 113: Ticket-Assignment."""
         await self.bot.db.data.update_one(
             {"type": "ticket", "guild_id": interaction.guild.id, "channel_id": interaction.channel.id},
             {"$set": {"assigned_to": interaction.user.id, "first_response_at": datetime.datetime.utcnow()}})
         await interaction.response.send_message(embed=create_embed(
-            f"✋ Ticket übernommen", f"{interaction.user.mention} bearbeitet dieses Ticket.", COLOR_SUCCESS))
+            f"{E.CLAIM} Ticket übernommen", f"{interaction.user.mention} bearbeitet dieses Ticket.", COLOR_SUCCESS))
 
-    @discord.ui.button(label="Priorität", style=discord.ButtonStyle.secondary, emoji="🔺", custom_id="modforge:ticket_priority")
+    @discord.ui.button(label="Priorität", style=discord.ButtonStyle.secondary, emoji=E.WARN, custom_id="modforge:ticket_priority")
     async def set_priority(self, interaction: discord.Interaction, button):
         """Feature 112: Ticket-Priority."""
         await interaction.response.send_message(
@@ -176,17 +176,17 @@ class PrioritySelectView(discord.ui.View):
         self.bot = bot_ref
 
     @discord.ui.select(placeholder="Priorität wählen...", options=[
-        discord.SelectOption(label="🟢 Niedrig", value="low"),
-        discord.SelectOption(label="🟡 Mittel", value="medium"),
-        discord.SelectOption(label="🔴 Hoch", value="high"),
-        discord.SelectOption(label="🚨 Dringend", value="urgent"),
+        discord.SelectOption(label="Niedrig", emoji=E.PRIORITY_LOW, value="low"),
+        discord.SelectOption(label="Mittel", emoji=E.PRIORITY_MED, value="medium"),
+        discord.SelectOption(label="Hoch", emoji=E.PRIORITY_HIGH, value="high"),
+        discord.SelectOption(label="Dringend", emoji=E.PRIORITY_URGENT, value="urgent"),
     ])
     async def select(self, interaction: discord.Interaction, select):
         priority = select.values[0]
         await self.bot.db.data.update_one(
             {"type": "ticket", "guild_id": interaction.guild.id, "channel_id": interaction.channel.id},
             {"$set": {"priority": priority}})
-        emoji_map = {"low": "🟢", "medium": "🟡", "high": "🔴", "urgent": "🚨"}
+        emoji_map = {"low": E.PRIORITY_LOW, "medium": E.PRIORITY_MED, "high": E.PRIORITY_HIGH, "urgent": E.PRIORITY_URGENT}
         await interaction.response.send_message(embed=create_embed(
             f"{emoji_map.get(priority, '🎫')} Priorität: {priority.title()}", "", COLOR_SUCCESS))
 
@@ -280,7 +280,7 @@ class TicketsCog(commands.Cog):
             ("Ø Nachrichten", f"{total_msgs // max(total, 1)}", True),
         ]
         await interaction.response.send_message(embed=create_embed(
-            f"📊 Ticket-Statistiken", "", COLOR_PRIMARY, fields))
+            f"{E.STATS} Ticket-Statistiken", "", COLOR_PRIMARY, fields))
 
     @app_commands.command(name="ticket_canned", description="Vordefinierte Antwort hinzufügen")
     @app_commands.describe(name="Name/Trigger", response="Antwort-Text")
@@ -341,7 +341,7 @@ class TicketsCog(commands.Cog):
         html += "</body></html>"
         buf = io.BytesIO(html.encode("utf-8"))
         file = discord.File(buf, filename=f"transcript-{target.name}.html")
-        await interaction.followup.send(f"📋 Transcript: {len(lines)} Nachrichten", file=file)
+        await interaction.followup.send(f"{E.TRANSCRIPT} Transcript: {len(lines)} Nachrichten", file=file)
 
     @tasks.loop(hours=1)
     async def ticket_auto_close(self):

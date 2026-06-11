@@ -132,7 +132,7 @@ class UtilityCog(commands.Cog):
         if not d or time.time() - d["ts"] > 300:
             return await interaction.response.send_message(embed=create_embed(
                 "ℹ️", "Nichts zu snipen.", COLOR_INFO), ephemeral=True)
-        e = create_embed("🔍 Snipe", d["content"] or "*Leer*", COLOR_WARNING)
+        e = create_embed(f"{E.SHIELD} Snipe", d["content"] or "*Leer*", COLOR_WARNING)
         e.set_author(name=str(d["author"]), icon_url=d["author"].display_avatar.url)
         await interaction.response.send_message(embed=e, ephemeral=True)
 
@@ -142,7 +142,7 @@ class UtilityCog(commands.Cog):
         d = _snipe_cache.get(ctx.guild.id, {}).get(ctx.channel.id)
         if not d or time.time() - d["ts"] > 300:
             return await ctx.send("Nichts zu snipen.")
-        e = create_embed("🔍", d["content"] or "*Leer*", COLOR_WARNING)
+        e = create_embed(f"{E.SHIELD}", d["content"] or "*Leer*", COLOR_WARNING)
         e.set_author(name=str(d["author"]), icon_url=d["author"].display_avatar.url)
         await ctx.send(embed=e)
 
@@ -158,7 +158,7 @@ class UtilityCog(commands.Cog):
         if opt4:
             options.append(opt4)
         desc = "\n".join(f"{emojis[i]} {opt}" for i, opt in enumerate(options))
-        embed = create_embed(f"📊 {frage}", desc, COLOR_PRIMARY)
+        embed = create_embed(f"{E.STATS} {frage}", desc, COLOR_PRIMARY)
         embed.set_footer(text=f"Abstimmung von {interaction.user}")
         await interaction.response.send_message(embed=embed)
         msg = await interaction.original_response()
@@ -178,7 +178,7 @@ class UtilityCog(commands.Cog):
         lines = [f"#{c.get('case_id', '?')} {c.get('action', '?')} – {c.get('reason', '—')[:40]}"
                  for c in user_cases[:20]]
         await interaction.response.send_message(embed=create_embed(
-            f"📜 History ({len(user_cases)})", "\n".join(lines), COLOR_INFO))
+            f"{E.CASE} History ({len(user_cases)})", "\n".join(lines), COLOR_INFO))
 
     # ── ROLEINFO ──
     @app_commands.command(name="roleinfo", description="Rollen-Info")
@@ -236,7 +236,7 @@ class UtilityCog(commands.Cog):
         await self.bot.db.set_config(interaction.guild.id, cfg)
         if enabled:
             await interaction.response.send_message(embed=create_embed(
-                "🚨 Raid-Modus AKTIVIERT",
+                f"{E.RAID} Raid-Modus AKTIVIERT",
                 f"Neue Mitglieder werden benachrichtigt.\n{'Auto-Off in ' + str(dauer) + ' Min.' if dauer else 'Manuell deaktivieren mit /raidmode false'}",
                 COLOR_DANGER))
             if dauer > 0:

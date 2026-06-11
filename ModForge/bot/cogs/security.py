@@ -210,7 +210,7 @@ class SecurityCog(commands.Cog):
         for contact_id in np.get("emergency_contacts", []):
             try:
                 user = await self.bot.fetch_user(contact_id)
-                embed = create_embed(f"🚨 NUKE-ALARM: {guild.name}",
+                embed = create_embed(f"{E.NUKE} NUKE-ALARM: {guild.name}",
                     f"**Verdächtig:** <@{user_id}>\n**Aktion:** {action}\n**Versuch:** #{attempt_count}",
                     COLOR_DANGER)
                 await safe_dm(user, embed, cooldown_key=f"emergency:{guild.id}:{user_id}")
@@ -219,10 +219,10 @@ class SecurityCog(commands.Cog):
 
         # Nuke-Attempt-Notification an Owner (Feature 11)
         if guild.owner:
-            embed = create_embed(f"🚨 NUKE-VERSUCH #{attempt_count}",
+            embed = create_embed(f"{E.NUKE} NUKE-VERSUCH #{attempt_count}",
                 f"**Server:** {guild.name}\n**Verdächtig:** <@{user_id}>\n**Aktion:** {action}\n"
-                f"**Auto-Backup:** {'✅' if np.get('auto_backup_on_nuke') else '❌'}\n"
-                f"**Auto-Restore:** {'✅' if np.get('auto_restore_on_nuke') else '❌'}",
+                f"**Auto-Backup:** {f'{E.OK}' if np.get('auto_backup_on_nuke') else f'{E.FAIL}'}\n"
+                f"**Auto-Restore:** {f'{E.OK}' if np.get('auto_restore_on_nuke') else f'{E.FAIL}'}",
                 COLOR_DANGER)
             await safe_dm(guild.owner, embed, cooldown_key=f"nuke:{guild.id}:{user_id}")
 
@@ -293,7 +293,7 @@ class SecurityCog(commands.Cog):
 
     async def _alert_all_admins(self, guild: discord.Guild, user_id: int, action: str, attempt: int):
         """Benachrichtigt alle Admins per DM (Feature 33)."""
-        embed = create_embed(f"🚨 NUKE-ALARM",
+        embed = create_embed(f"{E.NUKE} NUKE-ALARM",
             f"**Server:** {guild.name}\n**Verdächtig:** <@{user_id}>\n"
             f"**Aktion:** {action}\n**Versuch:** #{attempt}",
             COLOR_DANGER)
@@ -308,31 +308,6 @@ class SecurityCog(commands.Cog):
     # ══════════════════════════════════════════════════
     # EVENT LISTENERS (Channel/Role/Server Protection)
     # ══════════════════════════════════════════════════
-    @commands.Cog.listener()
-    async def on_guild_channel_delete(self, channel):
-        """Feature 7, 45: Channel-Mass-Delete-Prävention."""
-        guild = channel.guild
-        try:
-            async for entry in guild.audit_logs(limit=1, action=discord.AuditLogAction.channel_delete):
-                if entry.user.id != self.bot.user.id:
-                    action = "voice_delete" if isinstance(channel, discord.VoiceChannel) else "channel_delete"
-                    await self._track_nuke_event(guild, entry.user.id, action)
-                break
-        except discord.Forbidden:
-            pass
-
-    @commands.Cog.listener()
-    async def on_guild_role_delete(self, role):
-        """Feature 8: Role-Mass-Delete-Prävention."""
-        guild = role.guild
-        try:
-            async for entry in guild.audit_logs(limit=1, action=discord.AuditLogAction.role_delete):
-                if entry.user.id != self.bot.user.id:
-                    await self._track_nuke_event(guild, entry.user.id, "role_delete")
-                break
-        except discord.Forbidden:
-            pass
-
     @commands.Cog.listener()
     async def on_guild_role_update(self, before, after):
         """Feature 9, 10: Role-Hierarchy + Admin-Permission Monitoring."""
@@ -349,7 +324,7 @@ class SecurityCog(commands.Cog):
                     try:
                         async for entry in guild.audit_logs(limit=1, action=discord.AuditLogAction.role_update):
                             if entry.user.id != self.bot.user.id and entry.user.id != guild.owner_id:
-                                await self.bot.log_action(guild, f"⚠️ Gefährliche Permission vergeben",
+                                await self.bot.log_action(guild, f"{E.PERM_WARN} Gefährliche Permission",
                                     f"**Rolle:** {after.mention}\n**Permission:** `{perm}`\n"
                                     f"**Von:** {entry.user.mention}",
                                     COLOR_DANGER, module="security")
@@ -364,7 +339,7 @@ class SecurityCog(commands.Cog):
                 if after.position >= bot_top - 1:
                     try:
                         await after.edit(position=bot_top - 2, reason="Role-Hierarchy-Schutz")
-                        await self.bot.log_action(guild, f"🛡️ Hierarchy-Schutz",
+                        await self.bot.log_action(guild, f"{E.HIERARCHY} Hierarchy-Schutz",
                             f"Rolle {after.mention} wurde zurückgesetzt.", COLOR_WARNING, module="security")
                     except Exception:
                         pass
@@ -378,19 +353,19 @@ class SecurityCog(commands.Cog):
             return
         # Server-Transfer-Schutz (Feature 14)
         if sp.get("server_transfer_protect") and before.owner_id != after.owner_id:
-            await self.bot.log_action(after, f"🚨 SERVER-TRANSFER ERKANNT",
+            await self.bot.log_action(after, f"{E.TRANSFER} SERVER-TRANSFER",
                 f"**Alter Owner:** <@{before.owner_id}>\n**Neuer Owner:** <@{after.owner_id}>",
                 COLOR_DANGER, module="security")
             if after.owner:
-                await safe_dm(after.owner, create_embed("🚨 Server-Transfer",
+                await safe_dm(after.owner, create_embed(f"{E.TRANSFER} Server-Transfer",
                     f"Der Server **{after.name}** wurde transferiert!", COLOR_DANGER))
         # Vanity-URL-Schutz (Feature 15)
         if sp.get("vanity_url_protect") and before.vanity_url_code != after.vanity_url_code:
-            await self.bot.log_action(after, f"⚠️ Vanity-URL geändert",
+            await self.bot.log_action(after, f"{E.VANITY} Vanity-URL geändert",
                 f"`{before.vanity_url_code}` → `{after.vanity_url_code}`", COLOR_WARNING, module="security")
         # Icon-Schutz (Feature 40)
         if sp.get("server_icon_protect") and str(before.icon) != str(after.icon):
-            await self.bot.log_action(after, f"⚠️ Server-Icon geändert", "", COLOR_WARNING, module="security")
+            await self.bot.log_action(after, f"{E.ICON_CHANGE} Server-Icon geändert", "", COLOR_WARNING, module="security")
             try:
                 async for entry in after.audit_logs(limit=1, action=discord.AuditLogAction.guild_update):
                     if entry.user.id != after.owner_id and entry.user.id != self.bot.user.id:
@@ -400,7 +375,7 @@ class SecurityCog(commands.Cog):
                 pass
         # Banner-Schutz (Feature 39)
         if sp.get("server_banner_protect") and str(before.banner) != str(after.banner):
-            await self.bot.log_action(after, f"⚠️ Server-Banner geändert", "", COLOR_WARNING, module="security")
+            await self.bot.log_action(after, f"{E.BANNER_CHANGE} Server-Banner geändert", "", COLOR_WARNING, module="security")
 
     @commands.Cog.listener()
     async def on_webhooks_update(self, channel):
@@ -428,7 +403,7 @@ class SecurityCog(commands.Cog):
                             await wh.delete(reason="Webhook-Spam-Schutz")
                         except Exception:
                             pass
-                    await self.bot.log_action(guild, f"🔌 Webhooks bereinigt",
+                    await self.bot.log_action(guild, f"{E.WEBHOOK} Webhooks bereinigt",
                         f"{len(suspicious)} verdächtige Webhooks in {channel.mention} gelöscht.",
                         COLOR_WARNING, module="security")
             except Exception:
@@ -451,7 +426,7 @@ class SecurityCog(commands.Cog):
                     # Kick bot, notify approval channel
                     try:
                         await member.kick(reason="Bot-Approval: Warte auf Genehmigung")
-                        embed = create_embed(f"🤖 Bot wartet auf Genehmigung",
+                        embed = create_embed(f"{E.APPROVAL} Bot wartet auf Genehmigung",
                             f"**Bot:** {member.mention} (`{member.id}`)\n"
                             f"Nutze `/bot_approve {member.id}` um den Bot zu genehmigen.",
                             COLOR_WARNING)
@@ -481,7 +456,7 @@ class SecurityCog(commands.Cog):
             # Check if joining many servers quickly
             unique_guilds = len(set(gid for gid, _ in _multi_server_raid[member.id]))
             if unique_guilds >= 3:
-                await self.bot.log_action(guild, f"🚨 Multi-Server-Raid verdacht",
+                await self.bot.log_action(guild, f"{E.MULTI_RAID} Multi-Server-Raid",
                     f"{member.mention} ist in {unique_guilds} Servern in 5 Minuten beigetreten.",
                     COLOR_DANGER, user=member, module="antiraid")
 
@@ -494,33 +469,9 @@ class SecurityCog(commands.Cog):
             if start <= hour <= end:
                 account_age = (discord.utils.utcnow() - member.created_at.replace(tzinfo=None)).days
                 if account_age < 7:
-                    await self.bot.log_action(guild, f"⏰ Verdächtiger Join (Nachtzeit)",
+                    await self.bot.log_action(guild, f"{E.TIMEZONE} Verdächtiger Join (Nachtzeit)",
                         f"{member.mention} – Account {account_age} Tage alt, Join um {hour}:00 UTC",
                         COLOR_WARNING, user=member, module="antiraid")
-
-    @commands.Cog.listener()
-    async def on_member_ban(self, guild, user):
-        """Feature 7: Track mass bans for nuke detection."""
-        try:
-            async for entry in guild.audit_logs(limit=1, action=discord.AuditLogAction.ban):
-                if entry.user.id != self.bot.user.id:
-                    await self._track_nuke_event(guild, entry.user.id, "ban")
-                break
-        except discord.Forbidden:
-            pass
-
-    @commands.Cog.listener()
-    async def on_guild_channel_create(self, channel):
-        """Feature 42: Category-Mass-Create-Schutz."""
-        if isinstance(channel, discord.CategoryChannel):
-            guild = channel.guild
-            try:
-                async for entry in guild.audit_logs(limit=1, action=discord.AuditLogAction.channel_create):
-                    if entry.user.id != self.bot.user.id:
-                        await self._track_nuke_event(guild, entry.user.id, "category_create")
-                    break
-            except discord.Forbidden:
-                pass
 
     @commands.Cog.listener()
     async def on_message(self, message):
@@ -541,10 +492,10 @@ class SecurityCog(commands.Cog):
                     await message.delete()
                 except Exception:
                     pass
-                await self.bot.log_action(message.guild, f"🔑 TOKEN-LEAK ERKANNT",
+                await self.bot.log_action(message.guild, f"{E.TOKEN_LEAK} TOKEN-LEAK ERKANNT",
                     f"{message.author.mention} hat einen möglichen Bot-Token gepostet!\n"
                     f"Nachricht wurde gelöscht.", COLOR_DANGER, user=message.author, module="security")
-                embed = create_embed("🔑 Token-Leak Warnung",
+                embed = create_embed(f"{E.TOKEN_LEAK} Token-Leak Warnung",
                     "Du hast einen möglichen Bot-Token gepostet. Die Nachricht wurde gelöscht.\n"
                     "**Ändere sofort deinen Token!**", COLOR_DANGER)
                 await safe_dm(message.author, embed)
@@ -557,7 +508,7 @@ class SecurityCog(commands.Cog):
                     await message.delete()
                 except Exception:
                     pass
-                await self.bot.log_action(message.guild, f"🔌 WEBHOOK-URL-LEAK",
+                await self.bot.log_action(message.guild, f"{E.WEBHOOK_LEAK} WEBHOOK-URL-LEAK",
                     f"{message.author.mention} hat eine Webhook-URL gepostet!",
                     COLOR_DANGER, user=message.author, module="security")
                 return
@@ -568,7 +519,7 @@ class SecurityCog(commands.Cog):
             # Filter out common non-IPs
             real_ips = [ip for ip in ips if not ip.startswith("0.") and not ip.startswith("127.")]
             if len(real_ips) >= 2:
-                await self.bot.log_action(message.guild, f"⚠️ Möglicher IP-Leak",
+                await self.bot.log_action(message.guild, f"{E.ALERT} Möglicher IP-Leak",
                     f"{message.author.mention} hat {len(real_ips)} IP-Adressen gepostet.",
                     COLOR_WARNING, user=message.author, module="security")
 
@@ -589,15 +540,15 @@ class SecurityCog(commands.Cog):
             status = "✅" if mod_cfg.get("enabled") else "❌"
             lines.append(f"{status} **{mod.replace('_', ' ').title()}**")
         np = cfg.get("nuke_protection", {})
-        lines.append(f"\n{'✅' if np.get('enabled') else '❌'} **Nuke-Protection**")
-        lines.append(f"{'✅' if np.get('auto_backup_on_nuke') else '❌'} Auto-Backup bei Nuke")
-        lines.append(f"{'✅' if np.get('auto_restore_on_nuke') else '❌'} Auto-Restore bei Nuke")
+        lines.append(f"\n{f'{E.OK}' if np.get('enabled') else f'{E.FAIL}'} **Nuke-Protection**")
+        lines.append(f"{f'{E.OK}' if np.get('auto_backup_on_nuke') else f'{E.FAIL}'} Auto-Backup bei Nuke")
+        lines.append(f"{f'{E.OK}' if np.get('auto_restore_on_nuke') else f'{E.FAIL}'} Auto-Restore bei Nuke")
         sp = cfg.get("server_protection", {})
-        lines.append(f"{'✅' if sp.get('vanity_url_protect') else '❌'} Vanity-URL-Schutz")
-        lines.append(f"{'✅' if sp.get('server_icon_protect') else '❌'} Icon-Schutz")
-        lines.append(f"{'✅' if sp.get('bot_approval_required') else '❌'} Bot-Approval")
+        lines.append(f"{f'{E.OK}' if sp.get('vanity_url_protect') else f'{E.FAIL}'} Vanity-URL-Schutz")
+        lines.append(f"{f'{E.OK}' if sp.get('server_icon_protect') else f'{E.FAIL}'} Icon-Schutz")
+        lines.append(f"{f'{E.OK}' if sp.get('bot_approval_required') else f'{E.FAIL}'} Bot-Approval")
         lp = cfg.get("leak_protection", {})
-        lines.append(f"{'✅' if lp.get('token_leak_scan') else '❌'} Token-Leak-Schutz")
+        lines.append(f"{f'{E.OK}' if lp.get('token_leak_scan') else f'{E.FAIL}'} Token-Leak-Schutz")
         lines.append(f"\n🔒 **Sicherheitsstufe:** {cfg.get('security_level', 0)}")
         await interaction.response.send_message(embed=create_embed(
             f"{E.SHIELD} Sicherheitsübersicht", "\n".join(lines), COLOR_PRIMARY))
@@ -672,7 +623,7 @@ class SecurityCog(commands.Cog):
         if changes["banner_changed"]:
             lines.append("**Banner:** Geändert")
         await interaction.response.send_message(embed=create_embed(
-            f"📊 Snapshot-Vergleich ({changes['changes']} Änderungen)", "\n".join(lines), COLOR_WARNING))
+            f"{E.SNAPSHOT} Snapshot-Vergleich ({changes['changes']} Änderungen)", "\n".join(lines), COLOR_WARNING))
 
     @app_commands.command(name="panic", description="Panic-Button: Sofortiger Lockdown")
     @app_commands.default_permissions(administrator=True)
@@ -696,7 +647,7 @@ class SecurityCog(commands.Cog):
         except Exception:
             bid = None
         await interaction.followup.send(embed=create_embed(
-            f"🚨 PANIC-MODUS AKTIVIERT",
+            f"{E.PANIC} PANIC-MODUS AKTIVIERT",
             f"**{locked} Kanäle gesperrt**\n"
             f"**Backup:** {'`' + str(bid) + '`' if bid else 'Fehler'}\n\n"
             f"Nutze `/unlockall` um den Lockdown aufzuheben.",
@@ -759,9 +710,9 @@ class SecurityCog(commands.Cog):
         elif action == "list":
             if not contacts:
                 return await interaction.response.send_message(embed=create_embed(
-                    f"📞", "Keine Emergency-Contacts.", COLOR_INFO))
+                    f"{E.APPEAL}", "Keine Emergency-Contacts.", COLOR_INFO))
             await interaction.response.send_message(embed=create_embed(
-                f"📞 Emergency-Contacts", ", ".join(f"<@{c}>" for c in contacts), COLOR_PRIMARY))
+                f"{E.APPEAL} Emergency-Contacts", ", ".join(f"<@{c}>" for c in contacts), COLOR_PRIMARY))
 
     @app_commands.command(name="bot_approve", description="Genehmigt einen Bot (wenn Bot-Approval aktiv)")
     @app_commands.describe(bot_id="Bot-ID")

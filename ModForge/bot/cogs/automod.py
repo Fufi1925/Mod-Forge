@@ -367,7 +367,7 @@ class AutoModCog(commands.Cog):
                             f"{member.mention} {response}", delete_after=60)
                     except Exception:
                         pass
-                    await self.bot.log_action(guild, f"❤️ Self-Harm Erkennung",
+                    await self.bot.log_action(guild, f"{E.HEART} Self-Harm Erkennung",
                         f"{member.mention} hat möglicherweise Hilfe nötig.",
                         0xff6b6b, user=member, module="automod")
                     break
@@ -387,7 +387,7 @@ class AutoModCog(commands.Cog):
                     except Exception:
                         pass
                     await self.bot.punish(member, "timeout", "AutoMod: Mögliches Doxxing", 300)
-                    await self.bot.log_action(guild, f"🚨 Doxxing verdacht",
+                    await self.bot.log_action(guild, f"{E.DOXX} Doxxing verdacht",
                         f"{member.mention} hat persönliche Daten gepostet.",
                         COLOR_DANGER, user=member, module="automod")
                     return
@@ -457,7 +457,7 @@ class AutoModCog(commands.Cog):
         if ext.get("impersonation_filter") and guild.owner:
             if (member.id != guild.owner_id and
                 member.display_name.lower().replace(" ", "") == guild.owner.display_name.lower().replace(" ", "")):
-                await self.bot.log_action(guild, f"⚠️ Impersonation verdacht",
+                await self.bot.log_action(guild, f"{E.IMPERSONATE} Impersonation verdacht",
                     f"{member.mention} hat einen ähnlichen Namen wie der Owner.",
                     COLOR_WARNING, user=member, module="automod")
 
