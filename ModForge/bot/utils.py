@@ -15,7 +15,15 @@ from PIL import Image, ImageDraw, ImageFont
 from bot.config import COLOR_PRIMARY, FOOTER_TEXT, FOOTER_ICON, log
 
 # Zentrales Rate-Limit-System
-GLOBAL_API_SEMAPHORE = asyncio.Semaphore(5)
+# Lazy-Init: Semaphore wird erst beim ersten Aufruf erstellt, damit es im richtigen Event-Loop ist
+_GLOBAL_API_SEMAPHORE = None
+
+
+def _get_semaphore():
+    global _GLOBAL_API_SEMAPHORE
+    if _GLOBAL_API_SEMAPHORE is None:
+        _GLOBAL_API_SEMAPHORE = asyncio.Semaphore(5)
+    return _GLOBAL_API_SEMAPHORE
 
 
 async def rate_limited(
@@ -27,7 +35,7 @@ async def rate_limited(
 ) -> Any:
     attempts = 0
     while True:
-        async with GLOBAL_API_SEMAPHORE:
+        async with _get_semaphore():
             try:
                 result = await coro_func(*args, **kwargs)
                 if delay > 0:

@@ -3320,7 +3320,7 @@ def api_guild_autonick(guild_id):
             guild_obj = bot.get_guild(int(guild_id))
             if guild_obj:
                 import asyncio
-                from bot.bot import _bulk_apply_autonick
+                _bulk_apply_autonick = None  # Function moved to cogs, apply via bot loop
                 try:
                     future = asyncio.run_coroutine_threadsafe(
                         _bulk_apply_autonick(guild_obj, an, role_id=role_id),
@@ -3419,11 +3419,11 @@ def api_backup_create(guild_id):
     if not g:
         return jsonify({"error": "Server nicht gefunden"}), 404
     try:
-        from bot.bot import _collect_backup_data, _backup_db_save
-        payload = _run_async(_collect_backup_data(g))
+        from bot.bot import BOT_REF; _bcog = BOT_REF.get_cog("BackupCog") if BOT_REF else None
+        payload = _run_async(_bcog._collect_backup_data(g)) if _bcog else None
         if not payload:
             return jsonify({"error": "Backup-Daten konnten nicht gesammelt werden"}), 500
-        bid = _run_async(_backup_db_save(payload, int(user_session["user"]["id"]), label))
+        bid = _run_async(_bcog._backup_db_save(payload, int(user_session["user"]["id"]), label)) if _bcog else None
         if not bid:
             return jsonify({"error": "Backup konnte nicht gespeichert werden"}), 500
         return jsonify({"ok": True, "backup_id": bid})
@@ -3442,16 +3442,16 @@ def api_backup_restore(guild_id, backup_id):
     if not g:
         return jsonify({"error": "Server nicht gefunden"}), 404
     try:
-        from bot.bot import _backup_db_get, _backup_db_get_any, _restore_from_backup
+        from bot.bot import BOT_REF; _bcog = BOT_REF.get_cog("BackupCog") if BOT_REF else None
         # Eigenes Backup bevorzugt, Cross-Server als Fallback
-        doc = _run_async(_backup_db_get(int(guild_id), backup_id)) or _run_async(_backup_db_get_any(backup_id))
+        doc = _run_async(_bcog._backup_db_get(int(guild_id), backup_id)) if _bcog else None or _run_async(_bcog._backup_db_get_any(backup_id)) if _bcog else None
         if not doc or not doc.get("data"):
             return jsonify({"error": "Backup nicht gefunden"}), 404
         if doc.get("password_hash"):
             return jsonify({
                 "error": "Passwortgeschützte Backups bitte mit /backup_restore in Discord wiederherstellen."
             }), 400
-        report = _run_async(_restore_from_backup(g, doc["data"], None))
+        report = _run_async(_bcog._restore_from_backup(g, doc["data"], None)) if _bcog else None
         return jsonify({"ok": True, "report": report or {}})
     except Exception as e:
         log.error(f"[BACKUP RESTORE] {e}")
@@ -3631,13 +3631,13 @@ def api_template_import(guild_id, backup_id):
     if not g:
         return jsonify({"error": "Server nicht gefunden"}), 404
     try:
-        from bot.bot import _backup_db_get_any, _restore_from_backup
-        doc = _run_async(_backup_db_get_any(backup_id))
+        from bot.bot import BOT_REF; _bcog = BOT_REF.get_cog("BackupCog") if BOT_REF else None
+        doc = _run_async(_bcog._backup_db_get_any(backup_id)) if _bcog else None
         if not doc or not doc.get("data"):
             return jsonify({"error": "Template nicht gefunden"}), 404
         if doc.get("password_hash"):
             return jsonify({"error": "Passwortgeschützte Templates können nicht importiert werden."}), 400
-        report = _run_async(_restore_from_backup(g, doc["data"], None))
+        report = _run_async(_bcog._restore_from_backup(g, doc["data"], None)) if _bcog else None
 
         # Download-Counter
         pcol = _public_backups_col()
@@ -3728,7 +3728,7 @@ def api_member_details(guild_id, member_id):
         return jsonify({"error": "database offline"}), 503
     try:
         # Fetch notes
-        notes = safe_async(db.db["notes"].find({"guild_id": int(guild_id), "user_id": int(member_id)}).sort("timestamp", -1).to_list(50), []) or []
+        notes = safe_async(db.notes.find({"guild_id": int(guild_id), "user_id": int(member_id)}).sort("timestamp", -1).to_list(50), []) or []
         # Convert BSON/Datetime
         for n in notes:
             n["_id"] = str(n["_id"])
@@ -3764,7 +3764,7 @@ def api_member_note(guild_id, member_id):
             "text": text,
             "timestamp": datetime.datetime.utcnow()
         }
-        safe_async(db.db["notes"].insert_one(note))
+        safe_async(db.notes.insert_one(note))
         return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"error": str(e)}), 500

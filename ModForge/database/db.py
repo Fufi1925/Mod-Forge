@@ -40,6 +40,8 @@ class Database:
         self.tempvoice_settings: AsyncIOMotorCollection = self.db["tempvoice_settings"]
         self.tempvoice_ratings: AsyncIOMotorCollection = self.db["tempvoice_ratings"]
         self.log_channels_backup: AsyncIOMotorCollection = self.db["log_channels_backup"]
+        self.notes: AsyncIOMotorCollection = self.notes
+        self.badges: AsyncIOMotorCollection = self.badges
 
         self._config_cache: TTLCache = TTLCache(
             maxsize=self.CONFIG_CACHE_MAXSIZE, ttl=self.CONFIG_CACHE_TTL
@@ -454,10 +456,10 @@ class Database:
     async def badge_add(self, guild_id: int, user_id: int, badge_id: str, added_by: int) -> bool:
         """Fügt ein Badge hinzu. Gibt False zurück wenn bereits vorhanden."""
         try:
-            existing = await self.db["badges"].find_one({"guild_id": guild_id, "user_id": user_id, "badge_id": badge_id})
+            existing = await self.badges.find_one({"guild_id": guild_id, "user_id": user_id, "badge_id": badge_id})
             if existing:
                 return False
-            await self.db["badges"].insert_one({
+            await self.badges.insert_one({
                 "guild_id": guild_id, "user_id": user_id, "badge_id": badge_id,
                 "added_by": added_by, "added_at": datetime.datetime.utcnow(),
             })
@@ -468,7 +470,7 @@ class Database:
     async def badge_remove(self, guild_id: int, user_id: int, badge_id: str) -> bool:
         """Entfernt ein Badge. Gibt True zurück wenn gelöscht."""
         try:
-            r = await self.db["badges"].delete_one({"guild_id": guild_id, "user_id": user_id, "badge_id": badge_id})
+            r = await self.badges.delete_one({"guild_id": guild_id, "user_id": user_id, "badge_id": badge_id})
             return r.deleted_count > 0
         except PyMongoError as e:
             log.error(f"badge_remove: {e}"); return False
@@ -476,7 +478,7 @@ class Database:
     async def badge_get_all(self, guild_id: int, user_id: int) -> list:
         """Alle Badges eines Users in einer Guild."""
         try:
-            docs = await self.db["badges"].find({"guild_id": guild_id, "user_id": user_id}).to_list(length=50)
+            docs = await self.badges.find({"guild_id": guild_id, "user_id": user_id}).to_list(length=50)
             return [d["badge_id"] for d in docs]
         except PyMongoError as e:
             log.error(f"badge_get_all: {e}"); return []
@@ -484,7 +486,7 @@ class Database:
     async def badge_get_all_guild(self, guild_id: int) -> dict:
         """Alle Badges in einer Guild: {user_id: [badge_ids]}."""
         try:
-            docs = await self.db["badges"].find({"guild_id": guild_id}).to_list(length=5000)
+            docs = await self.badges.find({"guild_id": guild_id}).to_list(length=5000)
             result = {}
             for d in docs:
                 uid = str(d["user_id"])
@@ -496,7 +498,7 @@ class Database:
     # ── Notes ──────────────────────────────────────────────
     async def add_note(self, guild_id: int, user_id: int, mod_id: int, text: str) -> str:
         try:
-            result = await self.db["notes"].insert_one({
+            result = await self.notes.insert_one({
                 "guild_id": guild_id, "user_id": user_id, "mod_id": mod_id,
                 "text": text, "created_at": datetime.datetime.utcnow()})
             return str(result.inserted_id)
@@ -506,7 +508,7 @@ class Database:
     async def get_notes(self, guild_id: int, user_id: int) -> list:
         try:
             from bson.objectid import ObjectId
-            docs = await self.db["notes"].find({"guild_id": guild_id, "user_id": user_id}).sort("created_at", DESCENDING).to_list(length=100)
+            docs = await self.notes.find({"guild_id": guild_id, "user_id": user_id}).sort("created_at", DESCENDING).to_list(length=100)
             for d in docs: d["_id"] = str(d["_id"])
             return docs
         except PyMongoError as e:
@@ -515,7 +517,7 @@ class Database:
     async def delete_note(self, guild_id: int, note_id: str) -> bool:
         try:
             from bson.objectid import ObjectId
-            result = await self.db["notes"].delete_one({"_id": ObjectId(note_id), "guild_id": guild_id})
+            result = await self.notes.delete_one({"_id": ObjectId(note_id), "guild_id": guild_id})
             return result.deleted_count > 0
         except PyMongoError as e:
             log.error(f"delete_note: {e}"); return False
@@ -646,6 +648,13 @@ class Database:
             await self.server_accounts.create_index(
                 "guild_id", unique=True, name="sa_guild_unique"
             )
+            # Index für data Collection (Warns etc.) – verhindert langsame Queries
+            await self.data.create_index(
+                [("guild_id", ASCENDING)], name="data_guild_lookup"
+            )
+            await self.data.create_index(
+                [("guild_id", ASCENDING), ("user_id", ASCENDING)], name="data_guild_user_lookup"
+            )
             # Backup-Collection Indizes
             try:
                 backup_col = self.client["ModForge"]["backups"]
@@ -659,11 +668,11 @@ class Database:
                 )
             except Exception as e:
                 log.warning(f"Backup-Index Fehler (nicht kritisch): {e}")
-            await self.db["badges"].create_index(
+            await self.badges.create_index(
                 [("guild_id", ASCENDING), ("user_id", ASCENDING), ("badge_id", ASCENDING)], unique=True, name="badges_unique")
-            await self.db["badges"].create_index(
+            await self.badges.create_index(
                 [("guild_id", ASCENDING), ("badge_id", ASCENDING)], name="badges_guild_lookup")
-            await self.db["notes"].create_index(
+            await self.notes.create_index(
                 [("guild_id", ASCENDING), ("user_id", ASCENDING), ("created_at", DESCENDING)], name="notes_user_lookup")
             await self.tempvoice_channels.create_index(
                 [("guild_id", ASCENDING), ("user_id", ASCENDING)], unique=True, name="tv_channels_unique")

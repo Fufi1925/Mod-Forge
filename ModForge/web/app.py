@@ -5,7 +5,12 @@ import logging
 from datetime import datetime, timezone
 
 # Flask-SocketIO – gevent (eventlet ist deprecated)
-from flask_socketio import SocketIO
+try:
+    from flask_socketio import SocketIO
+    _HAS_SOCKETIO = True
+except ImportError:
+    _HAS_SOCKETIO = False
+    SocketIO = None
 
 from .config import SESSION_SECRET
 from .auth import auth_bp
@@ -22,7 +27,11 @@ flask_app.secret_key = SESSION_SECRET
 flask_app.config["PERMANENT_SESSION_LIFETIME"] = 60 * 60 * 6
 
 # SocketIO mit gevent (zuverlässig, nicht deprecated)
-socketio = SocketIO(flask_app, cors_allowed_origins="*", async_mode="gevent")
+if _HAS_SOCKETIO:
+    socketio = SocketIO(flask_app, cors_allowed_origins="*", async_mode="gevent")
+else:
+    socketio = None
+    log.warning("Flask-SocketIO nicht installiert – Live-Status deaktiviert.")
 
 # Auth-Blueprint (OAuth2) registrieren
 flask_app.register_blueprint(auth_bp)
@@ -143,6 +152,8 @@ def _collect_status() -> dict:
 
 
 def background_emitter():
+    if socketio is None:
+        return
     while True:
         socketio.sleep(3)  # alle 3 Sekunden
         try:
@@ -151,19 +162,19 @@ def background_emitter():
             log.debug(f"status_update emit failed: {e}")
 
 
-@socketio.on("connect")
-def handle_connect():
-    # Sofortigen Snapshot schicken, damit der Client nicht 3 s warten muss.
-    try:
-        socketio.emit("status_update", _collect_status())
-    except Exception:
+if _HAS_SOCKETIO and socketio is not None:
+    @socketio.on("connect")
+    def handle_connect():
+        # Sofortigen Snapshot schicken, damit der Client nicht 3 s warten muss.
+        try:
+            socketio.emit("status_update", _collect_status())
+        except Exception:
+            pass
+
+    @socketio.on("disconnect")
+    def handle_disconnect():
+        # Bewusst kein Logging-Spam.
         pass
-
-
-@socketio.on("disconnect")
-def handle_disconnect():
-    # Bewusst kein Logging-Spam.
-    pass
 
 
 _emitter_started = False
@@ -172,6 +183,8 @@ _emitter_lock = threading.Lock()
 
 def _ensure_emitter():
     global _emitter_started
+    if socketio is None:
+        return
     with _emitter_lock:
         if _emitter_started:
             return
@@ -182,8 +195,12 @@ def _ensure_emitter():
 def run_flask():
     port = int(os.getenv("PORT", "7860"))
     _ensure_emitter()
-    # gevent WSGI server (zuverlässig)
-    socketio.run(flask_app, host="0.0.0.0", port=port, debug=False, allow_unsafe_werkzeug=True)
+    if _HAS_SOCKETIO and socketio is not None:
+        # gevent WSGI server (zuverlässig)
+        socketio.run(flask_app, host="0.0.0.0", port=port, debug=False, allow_unsafe_werkzeug=True)
+    else:
+        # Fallback: normaler Flask-Server ohne SocketIO
+        flask_app.run(host="0.0.0.0", port=port, debug=False)
 
 
 def keep_alive():
