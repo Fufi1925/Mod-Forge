@@ -2986,3 +2986,21 @@ body:not(.mf-dashboard-ready) .db-main .ov-stat::before {
 [data-anim-preset="cyber"] .db-card { border-color:rgba(34,211,238,.22) !important; }
 [data-anim-preset="smooth"] { --mf-ease:cubic-bezier(.22,1,.36,1); }
 @keyframes toastProgress { from { transform:scaleX(1); transform-origin:left; } to { transform:scaleX(0); transform-origin:left; } }
+
+/* Server-weites Quick-Setup Popup */
+.mf-wizard-modal { text-align:center; }
+.mf-wizard-icon { font-size:2.7rem; filter:drop-shadow(0 0 18px rgba(96,165,250,.5)); margin-bottom:8px; }
+.mf-wizard-modal h2 { margin:0 0 8px; font-size:1.35rem; font-weight:900; }
+.mf-wizard-modal p { color:var(--muted); font-size:.9rem; line-height:1.6; margin:0 auto 14px; max-width:440px; }
+.mf-wizard-benefits { display:flex; flex-wrap:wrap; justify-content:center; gap:6px; margin:10px 0 16px; }
+.mf-wizard-benefits span { padding:6px 9px; border-radius:999px; font-size:.68rem; font-weight:800; color:var(--vl); background:rgba(59,130,246,.08); border:1px solid rgba(59,130,246,.16); }
+.mf-wizard-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:14px; }
+.mf-wizard-card { padding:14px 10px; border-radius:16px; border:1px solid var(--border); background:rgba(255,255,255,.04); color:var(--fg); cursor:pointer; font:inherit; display:flex; flex-direction:column; gap:5px; align-items:center; transition:.18s var(--mf-ease); }
+.mf-wizard-card:hover { transform:translateY(-3px); border-color:rgba(96,165,250,.35); box-shadow:var(--mf-glow); }
+.mf-wizard-card b { font-size:.86rem; }
+.mf-wizard-card small { color:var(--muted); font-size:.62rem; line-height:1.3; }
+.mf-wizard-card.primary { background:rgba(59,130,246,.10); border-color:rgba(59,130,246,.25); }
+.mf-wizard-card.danger { background:rgba(239,68,68,.08); border-color:rgba(239,68,68,.22); }
+.mf-wizard-actions { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-top:14px; }
+@media(max-width:620px){ .mf-wizard-grid{grid-template-columns:1fr} }
+.mf-user-badge { display:inline-flex; align-items:center; gap:4px; padding:4px 9px; border-radius:999px; font-size:.68rem; font-weight:800; color:var(--bc,#94a3b8); background:color-mix(in srgb, var(--bc,#94a3b8) 16%, transparent); border:1px solid color-mix(in srgb, var(--bc,#94a3b8) 42%, transparent); box-shadow:0 0 18px color-mix(in srgb, var(--bc,#94a3b8) 10%, transparent); }

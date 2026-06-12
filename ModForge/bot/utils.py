@@ -230,10 +230,18 @@ def _run_async(coro, timeout: float = 8.0):
     """Führt eine Coroutine threadsafe aus (für Flask)."""
     from bot.bot import BOT_REF as bot_ref
 
-    if bot_ref is None or not bot_ref.loop or not bot_ref.loop.is_running():
+    try:
+        loop = bot_ref.loop if bot_ref is not None else None
+    except Exception:
+        loop = None
+    try:
+        running = bool(loop is not None and loop.is_running())
+    except Exception:
+        running = False
+    if not running:
         return None
     try:
-        return asyncio.run_coroutine_threadsafe(coro, bot_ref.loop).result(timeout)
+        return asyncio.run_coroutine_threadsafe(coro, loop).result(timeout)
     except Exception as ex:
         log.debug(f"_run_async: {ex}")
         return None

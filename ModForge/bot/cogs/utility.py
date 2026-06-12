@@ -86,6 +86,7 @@ class UtilityCog(commands.Cog):
         warns = cfg.get("warns", {}).get(str(member.id), [])
         cases = await self.bot.db.aget_recent_cases(guild.id, limit=100)
         user_cases = [c for c in cases if c.get("user_id") == member.id]
+        badges = await self.bot.db.badge_get_details(guild.id, member.id)
         account_age = (discord.utils.utcnow() - member.created_at.replace(tzinfo=None)).days
         join_age = (discord.utils.utcnow() - member.joined_at.replace(tzinfo=None)).days if member.joined_at else 0
         roles = ", ".join(r.mention for r in member.roles[1:][:15]) or "Keine"
@@ -94,6 +95,7 @@ class UtilityCog(commands.Cog):
             ("Beigetreten", f"<t:{int(member.joined_at.timestamp())}:R> ({join_age} Tage)" if member.joined_at else "?", True),
             ("Verwarnungen", str(len(warns)), True),
             ("Cases", str(len(user_cases)), True),
+            ("Badges", " ".join(f"{b.get('emoji','🏷️')} **{b.get('name', b.get('id'))}**" for b in badges) or "Keine", False),
             ("Rollen", roles, False),
         ]
         return create_embed(f"{E.USER} {member}", f"ID: `{member.id}`", COLOR_PRIMARY, fields,
@@ -382,36 +384,77 @@ class UtilityCog(commands.Cog):
                 f"{E.FAIL}", "Keine Berechtigung.", COLOR_DANGER), ephemeral=True)
 
     # ── BADGE SYSTEM ──
-    @app_commands.command(name="badge", description="Badges verwalten")
-    @app_commands.describe(action="view/add/remove", user="Der Nutzer", badge="Badge-ID")
+    @app_commands.command(name="badge", description="Badges ansehen/verwalten")
+    @app_commands.describe(
+        action="view/list/add/remove/create/delete", user="Der Nutzer", badge="Badge-ID",
+        name="Name für create", emoji="Emoji für create", color="Hex-Farbe", description="Beschreibung"
+    )
     async def slash_badge(self, interaction: discord.Interaction, action: str,
-                          user: Optional[discord.Member] = None, badge: Optional[str] = None):
+                          user: Optional[discord.Member] = None, badge: Optional[str] = None,
+                          name: Optional[str] = None, emoji: str = "🏷️", color: str = "#94a3b8",
+                          description: str = ""):
+        action = (action or "view").lower()
+        defs = await self.bot.db.badge_definitions()
+
         if action == "view":
             target = user or interaction.user
-            badges = await self.bot.db.badge_get_all(interaction.guild.id, target.id)
+            badges = await self.bot.db.badge_get_details(interaction.guild.id, target.id)
             if not badges:
                 return await interaction.response.send_message(embed=create_embed(
                     f"{E.USER} Badges", f"{target.mention} hat keine Badges.", COLOR_INFO))
-            badge_strs = []
-            for b_id in badges:
-                bd = BADGES.get(b_id, {"name": b_id, "emoji": "🏷️"})
-                badge_strs.append(f"{bd['emoji']} **{bd['name']}**")
+            fields = [(f"{b.get('emoji','🏷️')} {b.get('name', b.get('id'))}", b.get('desc') or f"ID: `{b.get('id')}`", False) for b in badges[:25]]
             await interaction.response.send_message(embed=create_embed(
-                f"{E.USER} Badges von {target}", "\n".join(badge_strs), COLOR_PRIMARY))
-        elif action in ("add", "remove") and interaction.user.id != _BOT_DEV_ID:
+                f"{E.USER} Badges von {target}", f"**{len(badges)} Badge(s)**", COLOR_PRIMARY, fields))
+            return
+
+        if action == "list":
+            values = sorted(defs.values(), key=lambda b: b.get("name", ""))
+            lines = [f"{b.get('emoji','🏷️')} **{b.get('name')}** (`{b.get('id')}`)" for b in values[:50]]
             await interaction.response.send_message(embed=create_embed(
-                f"{E.FAIL}", "Nur der Bot-Developer kann Badges verwalten.", COLOR_DANGER), ephemeral=True)
-        elif action == "add" and user and badge:
-            if badge not in BADGES:
+                f"{E.USER} Badge-Katalog ({len(values)})", "\n".join(lines)[:4000], COLOR_PRIMARY))
+            return
+
+        if interaction.user.id != _BOT_DEV_ID:
+            return await interaction.response.send_message(embed=create_embed(
+                f"{E.FAIL}", "Nur der Bot-Developer kann Badges vergeben oder erstellen.", COLOR_DANGER), ephemeral=True)
+
+        if action == "create" and badge and name:
+            ok = await self.bot.db.badge_def_upsert(badge, name, emoji, color, description, interaction.user.id)
+            return await interaction.response.send_message(embed=create_embed(
+                f"{E.OK if ok else E.FAIL} Badge {'gespeichert' if ok else 'nicht gespeichert'}",
+                f"{emoji} **{name}** (`{badge}`)\n{description}", COLOR_SUCCESS if ok else COLOR_DANGER), ephemeral=True)
+
+        if action == "delete" and badge:
+            if badge in BADGES:
                 return await interaction.response.send_message(embed=create_embed(
-                    f"{E.FAIL}", f"Badge `{badge}` existiert nicht.", COLOR_DANGER), ephemeral=True)
-            await self.bot.db.badge_add(interaction.guild.id, user.id, badge, interaction.user.id)
-            await interaction.response.send_message(embed=create_embed(
-                f"{E.OK}", f"Badge `{badge}` an {user.mention} vergeben.", COLOR_SUCCESS))
-        elif action == "remove" and user and badge:
-            await self.bot.db.badge_remove(interaction.guild.id, user.id, badge)
-            await interaction.response.send_message(embed=create_embed(
-                f"{E.OK}", f"Badge `{badge}` von {user.mention} entfernt.", COLOR_SUCCESS))
+                    f"{E.FAIL}", "Statische Badges können nicht gelöscht werden.", COLOR_DANGER), ephemeral=True)
+            ok = await self.bot.db.badge_def_delete(badge)
+            return await interaction.response.send_message(embed=create_embed(
+                f"{E.OK if ok else E.FAIL}", f"Custom-Badge `{badge}` {'gelöscht' if ok else 'nicht gefunden'}.",
+                COLOR_SUCCESS if ok else COLOR_DANGER), ephemeral=True)
+
+        if action == "add" and user and badge:
+            if badge not in defs:
+                return await interaction.response.send_message(embed=create_embed(
+                    f"{E.FAIL}", f"Badge `{badge}` existiert nicht. Nutze `/badge list`.", COLOR_DANGER), ephemeral=True)
+            ok = await self.bot.db.badge_add(interaction.guild.id, user.id, badge, interaction.user.id)
+            bd = defs[badge]
+            return await interaction.response.send_message(embed=create_embed(
+                f"{E.OK if ok else E.FAIL} Badge",
+                f"{bd.get('emoji','🏷️')} **{bd.get('name')}** {'an ' + user.mention + ' vergeben' if ok else 'war bereits vorhanden'}.",
+                COLOR_SUCCESS if ok else COLOR_WARNING), ephemeral=True)
+
+        if action == "remove" and user and badge:
+            ok = await self.bot.db.badge_remove(interaction.guild.id, user.id, badge)
+            return await interaction.response.send_message(embed=create_embed(
+                f"{E.OK if ok else E.FAIL} Badge",
+                f"Badge `{badge}` {'entfernt' if ok else 'nicht gefunden'}.",
+                COLOR_SUCCESS if ok else COLOR_DANGER), ephemeral=True)
+
+        await interaction.response.send_message(embed=create_embed(
+            f"{E.HELP} Badge-Hilfe",
+            "`/badge view [user]` · `/badge list` · `/badge add @user badge_id` · `/badge create badge_id name emoji color description`",
+            COLOR_INFO), ephemeral=True)
 
     # ── NOTE SYSTEM ──
     @app_commands.command(name="note", description="Moderator-Notizen verwalten")

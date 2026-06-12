@@ -353,7 +353,23 @@ def guild_tempvoice(guild_id):
 
 def safe_async(coro, default=None):
     try:
-        return _run_async(coro)
+        from bot.bot import BOT_REF
+        try:
+            loop = BOT_REF.loop if BOT_REF is not None else None
+        except Exception:
+            loop = None
+        try:
+            running = bool(loop is not None and loop.is_running())
+        except Exception:
+            running = False
+        if running:
+            result = _run_async(coro)
+            return default if result is None else result
+        import asyncio as _asyncio
+        import inspect as _inspect
+        if _inspect.isawaitable(coro):
+            return _asyncio.run(coro)
+        return coro if coro is not None else default
     except Exception as e:
         log.error(f"[ASYNC ERROR] {e}")
         return default
@@ -2617,7 +2633,7 @@ def guild_members(guild_id):
         try:
             db = get_db()
             if db:
-                guild_badges = safe_async(db.badge_get_all_guild(int(guild_id)), {}) or {}
+                guild_badges = safe_async(db.badge_get_all_guild_details(int(guild_id)), {}) or {}
         except Exception:
             pass
         for m in members:
@@ -3865,6 +3881,40 @@ def api_template_import(guild_id, backup_id):
 # BADGE API (nur Bot-Developer)
 # =========================================================
 
+@flask_app.route("/api/guild/<guild_id>/badges/definitions", methods=["POST"])
+@require_auth
+def api_badge_definition_upsert(guild_id):
+    user_session = get_session()
+    if not user_session or str(user_session["user"]["id"]) != "1303627964734246944":
+        return jsonify({"error": "Nur der Bot-Developer kann Badge-Definitionen verwalten."}), 403
+    db = get_db()
+    if not db:
+        return jsonify({"error": "database offline"}), 503
+    data = request.json or {}
+    badge_id = (data.get("id") or data.get("badge_id") or "").strip()
+    name = (data.get("name") or "").strip()
+    if not badge_id or not name:
+        return jsonify({"error": "Badge-ID und Name fehlen"}), 400
+    ok = safe_async(db.badge_def_upsert(
+        badge_id, name, data.get("emoji", "🏷️"), data.get("color", "#94a3b8"),
+        data.get("desc") or data.get("description", ""), int(user_session["user"]["id"])
+    ), False)
+    return jsonify({"ok": bool(ok)})
+
+@flask_app.route("/api/guild/<guild_id>/badges/definitions/<badge_id>", methods=["DELETE"])
+@require_auth
+def api_badge_definition_delete(guild_id, badge_id):
+    user_session = get_session()
+    if not user_session or str(user_session["user"]["id"]) != "1303627964734246944":
+        return jsonify({"error": "Nur der Bot-Developer kann Badge-Definitionen verwalten."}), 403
+    if badge_id in BADGES:
+        return jsonify({"error": "Statische Badges können nicht gelöscht werden."}), 400
+    db = get_db()
+    if not db:
+        return jsonify({"error": "database offline"}), 503
+    ok = safe_async(db.badge_def_delete(badge_id), False)
+    return jsonify({"ok": bool(ok)})
+
 @flask_app.route("/api/guild/<guild_id>/member/<member_id>/badges", methods=["GET"])
 @require_auth
 def api_member_badges_get(guild_id, member_id):
@@ -3876,14 +3926,11 @@ def api_member_badges_get(guild_id, member_id):
     if not db:
         return jsonify({"error": "database offline"}), 503
     try:
-        badges = safe_async(db.badge_get_all(int(guild_id), int(member_id)), []) or []
-        result = []
-        for b_id in badges:
-            bd = BADGES.get(b_id, {"name": b_id, "emoji": "🏷️", "color": "#94a3b8", "desc": ""})
-            result.append({"id": b_id, "name": bd["name"], "emoji": bd["emoji"], "color": bd["color"], "desc": bd["desc"]})
+        result = safe_async(db.badge_get_details(int(guild_id), int(member_id)), []) or []
+        defs = safe_async(db.badge_definitions(), {}) or {}
         return jsonify({"ok": True, "badges": result, "all_badges": [
-            {"id": k, "name": v["name"], "emoji": v["emoji"], "color": v["color"], "desc": v["desc"]}
-            for k, v in sorted(BADGES.items(), key=lambda x: x[1]["name"])
+            {"id": k, "name": v.get("name", k), "emoji": v.get("emoji", "🏷️"), "color": v.get("color", "#94a3b8"), "desc": v.get("desc", ""), "custom": v.get("custom", False)}
+            for k, v in sorted(defs.items(), key=lambda x: x[1].get("name", x[0]))
         ]})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -3897,11 +3944,12 @@ def api_member_badge_add(guild_id, member_id):
         return jsonify({"error": "Nur der Bot-Developer kann Badges verwalten."}), 403
     data = request.json or {}
     badge_id = (data.get("badge_id") or "").strip()
-    if not badge_id or badge_id not in BADGES:
-        return jsonify({"error": f"Ungültiges Badge: {badge_id}"}), 400
     db = get_db()
     if not db:
         return jsonify({"error": "database offline"}), 503
+    defs = safe_async(db.badge_definitions(), {}) or {}
+    if not badge_id or badge_id not in defs:
+        return jsonify({"error": f"Ungültiges Badge: {badge_id}"}), 400
     try:
         ok = safe_async(db.badge_add(int(guild_id), int(member_id), badge_id, int(user_session["user"]["id"])), False)
         return jsonify({"ok": ok, "duplicate": not ok})
@@ -4085,6 +4133,25 @@ def _score_config(guild, cfg):
     return min(score, 100)
 
 
+@flask_app.route("/api/guild/<guild_id>/onboarding/wizard_seen", methods=["POST"])
+@require_auth
+def api_wizard_seen(guild_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
+        return jsonify({"error": "forbidden"}), 403
+    cfg = _direct_load_config(guild_id)
+    onboarding = cfg.get("dashboard_onboarding", {}) or {}
+    onboarding["wizard_popup_seen"] = True
+    onboarding["wizard_popup_seen_at"] = datetime.datetime.utcnow().isoformat() + "Z"
+    cfg["dashboard_onboarding"] = onboarding
+    try:
+        _direct_save_config(guild_id, cfg)
+        return jsonify({"ok": True})
+    except Exception as e:
+        log.error(f"wizard_seen save failed: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
 @flask_app.route("/api/guild/<guild_id>/quick_setup", methods=["POST"])
 @require_auth
 def api_quick_setup(guild_id):
@@ -4109,6 +4176,13 @@ def api_quick_setup(guild_id):
     if data.get("verify_channel"):
         cfg.setdefault("verify_system", {})["enabled"] = True
         cfg["verify_system"]["verify_channel"] = _to_int_or_none(data.get("verify_channel"))
+    onboarding = cfg.get("dashboard_onboarding", {}) or {}
+    onboarding.update({
+        "wizard_popup_seen": True,
+        "wizard_popup_seen_at": datetime.datetime.utcnow().isoformat() + "Z",
+        "wizard_profile": profile,
+    })
+    cfg["dashboard_onboarding"] = onboarding
     _direct_save_config(guild_id, cfg)
     return jsonify({"ok": True, "score": _score_config(get_guild(guild_id), cfg)})
 

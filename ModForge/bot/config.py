@@ -559,6 +559,11 @@ DEFAULT_CONFIG = {
     "auto_ban_appeal": {"enabled": False},
     "anti_vpn": {"enabled": False, "action": "kick", "whitelist_ids": []},
     "dashboard_theme": "purple",
+    "dashboard_onboarding": {
+        "wizard_popup_seen": False,
+        "wizard_popup_seen_at": None,
+        "wizard_profile": None,
+    },
     "server_tag": {"enabled": False, "tag": None, "reward_role": None},
     "auto_nickname": {"enabled": False, "rules": []},
     "webhook_logging": {"enabled": False, "webhooks": {}},
