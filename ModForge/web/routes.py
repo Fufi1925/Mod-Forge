@@ -2513,8 +2513,30 @@ def _collection_update_one(query, update, collection, upsert=False):
         return None
 
 
+def _id_variants(value):
+    vals = []
+    try:
+        vals.append(int(value))
+    except (TypeError, ValueError):
+        pass
+    vals.append(str(value))
+    # De-dupe preserving order
+    out = []
+    for v in vals:
+        if v not in out:
+            out.append(v)
+    return out
+
+
 def _backup_query(guild_id, backup_id=None):
-    query = _guild_query(guild_id)
+    variants = _id_variants(guild_id)
+    query = {
+        "$or": [
+            {"guild_id": {"$in": variants}},
+            {"guild_id_str": str(guild_id)},
+            {"data.guild_id": {"$in": variants}},
+        ]
+    }
     if backup_id is not None:
         query["backup_id"] = backup_id
     return query
@@ -2523,7 +2545,12 @@ def _backup_query(guild_id, backup_id=None):
 def _template_query(guild_id=None, backup_id=None):
     query = {}
     if guild_id is not None:
-        query.update(_guild_query(guild_id))
+        variants = _id_variants(guild_id)
+        query["$or"] = [
+            {"guild_id": {"$in": variants}},
+            {"guild_id_str": str(guild_id)},
+            {"data.guild_id": {"$in": variants}},
+        ]
     if backup_id is not None:
         query["backup_id"] = backup_id
     return query
@@ -2537,27 +2564,123 @@ def _enrich_backup_doc(doc):
     channels = payload.get("channels") or []
     categories = payload.get("categories") or []
     emojis = payload.get("emojis") or []
+    created_raw = doc.get("created_at") or doc.get("timestamp") or payload.get("created_at")
     approx_size = 0
     try:
         approx_size = len(json.dumps(payload, default=str, ensure_ascii=False).encode("utf-8"))
     except Exception:
         pass
+    bid = doc.get("backup_id") or doc.get("id") or "?"
+    role_count = len(roles) if isinstance(roles, list) else 0
+    channel_count = len(channels) if isinstance(channels, list) else 0
+    cat_count = len(categories) if isinstance(categories, list) else 0
+    emoji_count = len(emojis) if isinstance(emojis, list) else 0
+    health_score = 0
+    health_score += 25 if role_count else 0
+    health_score += 35 if channel_count else 0
+    health_score += 20 if cat_count else 0
+    health_score += 10 if payload.get("guild_name") else 0
+    health_score += 10 if approx_size else 0
+    warnings = []
+    if not role_count:
+        warnings.append("Keine Rollen im Backup")
+    if not channel_count:
+        warnings.append("Keine Kanäle im Backup")
+    if approx_size == 0:
+        warnings.append("Backup-Größe unbekannt")
     return {
-        "id": doc.get("backup_id") or doc.get("id") or "?",
-        "label": doc.get("label") or payload.get("label") or "Backup",
-        "created_ts": _ts(doc.get("created_at") or doc.get("timestamp")),
-        "created_by": str(doc.get("created_by") or "—"),
+        "id": bid,
+        "label": doc.get("label") or payload.get("label") or f"Backup {bid}",
+        "created_ts": _ts(created_raw),
+        "created_by": str(doc.get("created_by") or payload.get("created_by") or "—"),
         "guild_name": doc.get("guild_name") or payload.get("guild_name") or "?",
-        "guild_icon": doc.get("guild_icon_url") or payload.get("guild_icon_url") or "",
-        "roles": len(roles) if isinstance(roles, list) else 0,
-        "channels": len(channels) if isinstance(channels, list) else 0,
-        "categories": len(categories) if isinstance(categories, list) else 0,
-        "emojis": len(emojis) if isinstance(emojis, list) else 0,
+        "guild_icon": doc.get("guild_icon_url") or payload.get("guild_icon_url") or payload.get("icon_url") or "",
+        "roles": role_count,
+        "channels": channel_count,
+        "categories": cat_count,
+        "emojis": emoji_count,
         "has_password": bool(doc.get("password_hash") or doc.get("has_password")),
         "verification": payload.get("verification_level", 0),
         "size_bytes": approx_size,
         "size_label": f"{approx_size/1024:.1f} KB" if approx_size else "—",
+        "health_score": min(100, health_score),
+        "warnings": warnings,
+        "source_type": "db",
     }
+def _load_backup_docs(guild_id, limit=200):
+    col = _backups_col()
+    if col is None:
+        return []
+    docs = _collection_to_list(_backup_query(guild_id), col, sort=[("created_at", -1), ("timestamp", -1)], limit=limit)
+    # Fallback: if $or/dot query is not supported by a fake/old collection wrapper, try broad scan.
+    if not docs:
+        all_docs = _collection_to_list({}, col, sort=[("created_at", -1), ("timestamp", -1)], limit=limit)
+        variants = {str(x) for x in _id_variants(guild_id)}
+        docs = [d for d in all_docs if str(d.get("guild_id")) in variants or str(d.get("guild_id_str")) in variants or str((d.get("data") or {}).get("guild_id")) in variants]
+    dedup = {}
+    for doc in docs:
+        bid = doc.get("backup_id") or doc.get("id")
+        if bid and bid not in dedup:
+            dedup[bid] = doc
+    return list(dedup.values())
+
+
+def _backup_doc(guild_id, backup_id, allow_any=False):
+    col = _backups_col()
+    if col is None:
+        return None
+    doc = _collection_find_one(_backup_query(guild_id, backup_id), col)
+    if not doc and allow_any:
+        doc = _collection_find_one({"backup_id": backup_id}, col)
+    return doc
+
+
+def _backup_preview(guild_id, backup_id, allow_any=False):
+    doc = _backup_doc(guild_id, backup_id, allow_any=allow_any)
+    if not doc:
+        return None
+    payload = doc.get("data") or doc
+    guild = get_guild(guild_id)
+    current_roles = {r.name.lower() for r in getattr(guild, "roles", []) if not r.is_default()} if guild else set()
+    current_channels = {c.name.lower() for c in getattr(guild, "channels", [])} if guild else set()
+    roles = payload.get("roles") or []
+    channels = payload.get("channels") or []
+    categories = payload.get("categories") or []
+    def _name(x):
+        return (x.get("name") if isinstance(x, dict) else str(x)) or "?"
+    role_names = [_name(r) for r in roles]
+    channel_names = [_name(c) for c in channels]
+    new_roles = [n for n in role_names if n.lower() not in current_roles]
+    existing_roles = [n for n in role_names if n.lower() in current_roles]
+    new_channels = [n for n in channel_names if n.lower() not in current_channels]
+    existing_channels = [n for n in channel_names if n.lower() in current_channels]
+    risk = "low"
+    warnings = []
+    if len(roles) > 25 or len(channels) > 35:
+        risk = "high"
+        warnings.append("Sehr großes Backup – Restore kann viele Änderungen auslösen")
+    elif len(roles) > 10 or len(channels) > 15:
+        risk = "medium"
+        warnings.append("Mittleres Backup – Restore vorher prüfen")
+    if existing_roles:
+        warnings.append(f"{len(existing_roles)} Rollen existieren bereits")
+    if existing_channels:
+        warnings.append(f"{len(existing_channels)} Kanäle existieren bereits")
+    enriched = _enrich_backup_doc(doc) or {}
+    return {
+        "id": backup_id,
+        "meta": enriched,
+        "risk": risk,
+        "warnings": warnings,
+        "summary": {
+            "roles_total": len(roles), "roles_new": len(new_roles), "roles_existing": len(existing_roles),
+            "channels_total": len(channels), "channels_new": len(new_channels), "channels_existing": len(existing_channels),
+            "categories_total": len(categories), "emojis_total": len(payload.get("emojis") or []),
+        },
+        "samples": {"roles_new": new_roles[:15], "channels_new": new_channels[:15], "categories": [_name(c) for c in categories[:12]]},
+    }
+
+
 @flask_app.route("/dashboard/<guild_id>/backup")
 @require_auth
 def guild_backup(guild_id):
@@ -2565,13 +2688,10 @@ def guild_backup(guild_id):
     if err: return err
     backups = []
     public_ids = set()
-    col = _backups_col()
-    if col is not None:
-        raw = _collection_to_list(_backup_query(guild_id), col, sort=[("created_at", -1), ("timestamp", -1)], limit=100)
-        for b in raw or []:
-            enriched = _enrich_backup_doc(b)
-            if enriched:
-                backups.append(enriched)
+    for b in _load_backup_docs(guild_id, limit=200):
+        enriched = _enrich_backup_doc(b)
+        if enriched:
+            backups.append(enriched)
 
     backups.sort(key=lambda b: int(b.get("created_ts") or 0), reverse=True)
     # Welche dieser Backups sind bereits public?
@@ -2589,7 +2709,7 @@ def guild_backup(guild_id):
     bs = cfg.get("backup_system", {}) or {}
     return render_template(
         "dashboard/backup.html", guild=g, cfg=cfg, user=us["user"],
-        backups=backups, total_size=len(backups),
+        backups=backups, total_size=len(backups), total_size_bytes=sum(b.get("size_bytes", 0) for b in backups),
         auto_enabled=bs.get("auto_enabled", False),
         auto_interval=bs.get("auto_interval_hours", 24),
         auto_max=bs.get("auto_max_backups", 5),
@@ -2663,9 +2783,13 @@ def guild_templates(guild_id):
         cats = int(p.get("categories_count") or 0)
         downloads = int(p.get("downloads") or 0)
         likes = int(p.get("likes") or 0)
+        ratings = p.get("ratings") or {}
+        rating_values = [int(v) for v in ratings.values() if str(v).isdigit()]
+        rating_count = len(rating_values)
+        rating_avg = round(sum(rating_values) / rating_count, 2) if rating_count else 0
         category = (p.get("category") or "general").lower()
         desc = p.get("description") or ""
-        score = _template_score_from_counts(roles, channels, cats, downloads, likes, desc)
+        score = _template_score_from_counts(roles, channels, cats, downloads, likes + int(rating_avg * max(1, rating_count)), desc)
         return {
             "id": p.get("backup_id", "?"),
             "name": p.get("name") or "Unbenannt",
@@ -2681,6 +2805,8 @@ def guild_templates(guild_id):
             "emojis": int(p.get("emojis_count") or 0),
             "downloads": downloads,
             "likes": likes,
+            "rating_avg": rating_avg,
+            "rating_count": rating_count,
             "score": score,
             "risk": "high" if roles > 25 or channels > 35 else "medium" if roles > 10 or channels > 15 else "low",
             "recommended": _template_recommendations(category, roles, channels),
@@ -2694,7 +2820,7 @@ def guild_templates(guild_id):
     categories = {}
     for tpl in all_public:
         categories.setdefault(tpl["category"], []).append(tpl)
-    popular_templates = sorted(all_public, key=lambda t: (t.get("likes", 0) * 2 + t.get("downloads", 0) + t.get("score", 0)), reverse=True)[:5]
+    popular_templates = sorted(all_public, key=lambda t: (t.get("rating_avg", 0) * 12 + t.get("rating_count", 0) * 2 + t.get("likes", 0) * 2 + t.get("downloads", 0) + t.get("score", 0)), reverse=True)[:5]
 
     return render_template(
         "dashboard/templates.html",
@@ -4352,6 +4478,46 @@ def api_guild_autonick(guild_id):
 # BACKUP API – Erstellen / Restore / Löschen / Download
 # =========================================================
 
+@flask_app.route("/api/guild/<guild_id>/backup/list")
+@require_auth
+def api_backup_list(guild_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
+        return jsonify({"error": "forbidden"}), 403
+    backups = []
+    for doc in _load_backup_docs(guild_id, limit=250):
+        enriched = _enrich_backup_doc(doc)
+        if enriched:
+            backups.append(enriched)
+    backups.sort(key=lambda b: int(b.get("created_ts") or 0), reverse=True)
+    return jsonify({"ok": True, "backups": backups, "count": len(backups), "total_size_bytes": sum(b.get("size_bytes", 0) for b in backups)})
+
+
+@flask_app.route("/api/guild/<guild_id>/backup/<backup_id>/preview")
+@require_auth
+def api_backup_preview(guild_id, backup_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
+        return jsonify({"error": "forbidden"}), 403
+    data = _backup_preview(guild_id, backup_id)
+    if not data:
+        return jsonify({"error": "Backup nicht gefunden"}), 404
+    return jsonify({"ok": True, "preview": data})
+
+
+@flask_app.route("/api/guild/<guild_id>/backup/<backup_id>/health")
+@require_auth
+def api_backup_health(guild_id, backup_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
+        return jsonify({"error": "forbidden"}), 403
+    data = _backup_preview(guild_id, backup_id)
+    if not data:
+        return jsonify({"error": "Backup nicht gefunden"}), 404
+    meta = data.get("meta", {})
+    return jsonify({"ok": True, "health": {"score": meta.get("health_score", 0), "warnings": meta.get("warnings", []), "risk": data.get("risk"), "summary": data.get("summary")}})
+
+
 @flask_app.route("/api/guild/<guild_id>/backup/create", methods=["POST"])
 @require_auth
 def api_backup_create(guild_id):
@@ -4395,7 +4561,7 @@ def api_backup_restore(guild_id, backup_id):
         if _bcog:
             doc = _run_async(_bcog._backup_db_get(int(guild_id), backup_id)) or _run_async(_bcog._backup_db_get_any(backup_id))
         if not doc:
-            doc = _collection_find_one(_backup_query(guild_id, backup_id), _backups_col()) or _collection_find_one({"backup_id": backup_id}, _backups_col())
+            doc = _backup_doc(guild_id, backup_id, allow_any=True)
         if not doc or not doc.get("data"):
             return jsonify({"error": "Backup nicht gefunden"}), 404
         if doc.get("password_hash"):
@@ -4569,6 +4735,8 @@ def api_template_preview(guild_id, backup_id):
             "score": score, "risk": risk,
             "downloads": int((public or {}).get("downloads") or 0),
             "likes": int((public or {}).get("likes") or 0),
+            "rating_avg": round(sum([int(v) for v in ((public or {}).get("ratings") or {}).values() if str(v).isdigit()]) / max(1, len(((public or {}).get("ratings") or {}))), 2) if (public or {}).get("ratings") else 0,
+            "rating_count": len((public or {}).get("ratings") or {}),
             "recommended": _template_recommendations((public or {}).get("category"), len(roles), len(channels)),
             "roles": [{"name": r.get("name", str(r)) if isinstance(r, dict) else str(r)} for r in roles[:25]],
             "channels": [{"name": c.get("name", str(c)) if isinstance(c, dict) else str(c), "type": c.get("type", "text") if isinstance(c, dict) else "text"} for c in channels[:35]],
@@ -4640,31 +4808,102 @@ def api_template_like(guild_id, backup_id):
     return jsonify({"ok": True, "liked": liked, "likes": max(0, int(new_doc.get("likes", 0) or 0))})
 
 
+@flask_app.route("/api/guild/<guild_id>/templates/rate/<backup_id>", methods=["POST"])
+@require_auth
+def api_template_rate(guild_id, backup_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
+        return jsonify({"error": "forbidden"}), 403
+    pcol = _public_backups_col()
+    if pcol is None:
+        return jsonify({"error": "Keine DB-Verbindung"}), 503
+    data = request.json or {}
+    try:
+        stars = max(1, min(5, int(data.get("stars", 0))))
+    except (TypeError, ValueError):
+        return jsonify({"error": "Bewertung muss 1–5 Sterne sein"}), 400
+    uid = str(user_session.get("user", {}).get("id", "0"))
+    doc = _collection_find_one({"backup_id": backup_id}, pcol)
+    if not doc:
+        return jsonify({"error": "Template nicht gefunden"}), 404
+    _collection_update_one({"backup_id": backup_id}, {"$set": {f"ratings.{uid}": stars}}, pcol)
+    new_doc = _collection_find_one({"backup_id": backup_id}, pcol) or {}
+    ratings = new_doc.get("ratings") or {}
+    vals = [int(v) for v in ratings.values() if str(v).isdigit()]
+    avg = round(sum(vals) / len(vals), 2) if vals else 0
+    return jsonify({"ok": True, "stars": stars, "rating_avg": avg, "rating_count": len(vals)})
+
+
 @flask_app.route("/api/guild/<guild_id>/templates/import/<backup_id>", methods=["POST"])
 @require_auth
 def api_template_import(guild_id, backup_id):
     """Wendet ein öffentliches Template auf den aktuellen Server an (Restore).
 
-    Inkrementiert den Download-Counter im public_backups-Eintrag.
+    Sicherheitsregeln:
+      • Frontend muss confirmed=true senden.
+      • Vor Import wird automatisch ein Backup erstellt.
+      • Restore-Log + Pre-Backup-ID werden zurückgegeben.
     """
     user_session = _api_session_or_admin(guild_id)
     if not user_session:
         return jsonify({"error": "forbidden"}), 403
     if not bot_ready():
         return jsonify({"error": "Bot ist offline. Import nur möglich wenn der Bot läuft."}), 503
+    data = request.json or {}
+    if not data.get("confirmed"):
+        return jsonify({"error": "Bitte Import per Checkbox bestätigen."}), 400
     g = get_guild(guild_id)
     if not g:
         return jsonify({"error": "Server nicht gefunden"}), 404
+    restore_log = []
+    pre_backup_id = None
     try:
-        from bot.bot import BOT_REF; _bcog = BOT_REF.get_cog("BackupCog") if BOT_REF else None
-        doc = _run_async(_bcog._backup_db_get_any(backup_id)) if _bcog else None
-        if not doc:
-            doc = _backup_doc_any(backup_id)
+        from bot.bot import BOT_REF
+        _bcog = BOT_REF.get_cog("BackupCog") if BOT_REF else None
+        if not _bcog:
+            return jsonify({"error": "Backup-System ist nicht geladen. Import aus Sicherheitsgründen abgebrochen."}), 503
+
+        doc = _run_async(_bcog._backup_db_get_any(backup_id)) or _backup_doc_any(backup_id)
         if not doc or not doc.get("data"):
             return jsonify({"error": "Template nicht gefunden"}), 404
         if doc.get("password_hash"):
             return jsonify({"error": "Passwortgeschützte Templates können nicht importiert werden."}), 400
-        report = _run_async(_bcog._restore_from_backup(g, doc["data"], None)) if _bcog else None
+
+        restore_log.append("Template gefunden und geprüft.")
+        # Auto-Backup VOR Import
+        pre_payload = _run_async(_bcog._collect_backup_data(g))
+        if not pre_payload:
+            return jsonify({"error": "Sicherheits-Backup vor Import konnte nicht erstellt werden."}), 500
+        pre_backup_id = _run_async(_bcog._backup_db_save(
+            pre_payload,
+            int(user_session["user"]["id"]),
+            f"Auto-Backup vor Template {backup_id}",
+        ))
+        if not pre_backup_id:
+            return jsonify({"error": "Sicherheits-Backup vor Import konnte nicht gespeichert werden."}), 500
+        restore_log.append(f"Sicherheits-Backup erstellt: {pre_backup_id}")
+
+        # Detaillierter Vergleich vor Restore
+        check = _backup_preview(guild_id, backup_id, allow_any=True)
+        if check:
+            s = check.get("summary", {})
+            restore_log.append(
+                f"Import-Check: {s.get('roles_new', 0)} neue Rollen, "
+                f"{s.get('channels_new', 0)} neue Kanäle, "
+                f"{s.get('categories_total', 0)} Kategorien. Risiko: {check.get('risk', 'low')}"
+            )
+            for warning in check.get("warnings", [])[:5]:
+                restore_log.append(f"Warnung: {warning}")
+
+        restore_log.append("Restore gestartet.")
+        report = _run_async(_bcog._restore_from_backup(g, doc["data"], None)) or {}
+        restore_log.append(
+            f"Restore fertig: Rollen erstellt {report.get('roles_created', 0)}, "
+            f"Kanäle erstellt {report.get('channels_created', 0)}, "
+            f"Fehler {len(report.get('errors', []) or [])}."
+        )
+        for err in (report.get("errors") or [])[:8]:
+            restore_log.append(f"Fehler: {err}")
 
         # Download-Counter
         pcol = _public_backups_col()
@@ -4673,10 +4912,10 @@ def api_template_import(guild_id, backup_id):
                 _collection_update_one({"backup_id": backup_id}, {"$inc": {"downloads": 1}}, pcol)
             except Exception:
                 pass
-        return jsonify({"ok": True, "report": report or {}})
+        return jsonify({"ok": True, "report": report, "pre_backup_id": pre_backup_id, "restore_log": restore_log})
     except Exception as e:
         log.error(f"[TEMPLATE IMPORT] {e}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": str(e), "pre_backup_id": pre_backup_id, "restore_log": restore_log}), 500
 
 @flask_app.route("/dashboard/<guild_id>/badges")
 @require_auth
