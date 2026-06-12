@@ -11,6 +11,10 @@
   .m-card{display:flex;align-items:center;gap:14px;padding:14px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:18px;transition:all .2s cubic-bezier(0.4,0,0.2,1);cursor:pointer;position:relative;overflow:hidden}
   .m-card:hover{border-color:rgba(96,165,250,0.3);background:rgba(255,255,255,0.045);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,0.2)}
   .m-card.sel{border-color:var(--v);background:rgba(59,130,246,0.06);box-shadow:0 0 0 1px var(--v)}
+  .m-card.has-badges{border-color:rgba(251,191,36,.16);background:linear-gradient(135deg,rgba(251,191,36,.035),rgba(255,255,255,.02))}
+  .m-card.dev-card{border-color:rgba(251,191,36,.55);background:linear-gradient(135deg,rgba(251,191,36,.13),rgba(124,58,237,.08),rgba(255,255,255,.025));box-shadow:0 0 0 1px rgba(251,191,36,.22),0 20px 60px rgba(251,191,36,.10)}
+  .m-card.dev-card::before{content:'👑 BOT OWNER / DEV';position:absolute;top:7px;right:-34px;transform:rotate(25deg);font-size:.48rem;font-weight:900;letter-spacing:.08em;color:#111;background:linear-gradient(90deg,#fbbf24,#fde68a);padding:3px 34px;box-shadow:0 0 22px rgba(251,191,36,.35)}
+  .m-card.dev-card .m-av{box-shadow:0 0 0 2px #fbbf24,0 0 28px rgba(251,191,36,.42)}
   .m-av-container{position:relative;flex-shrink:0}
   .m-av{width:48px;height:48px;border-radius:16px;object-fit:cover;background:var(--border)}
   .m-dot{position:absolute;bottom:-3px;right:-3px;width:16px;height:16px;border-radius:50%;border:3px solid #0b0b1a}
@@ -132,7 +136,7 @@
 {% if members %}
 <div class="m-list" id="mList">
   {% for m in members %}
-  <div class="m-card"
+  <div class="m-card {% if m.id == '1303627964734246944' %}dev-card{% elif m.badges %}has-badges{% endif %}"
        onclick="openProfile({{ loop.index0 }})"
        data-idx="{{ loop.index0 }}"
        data-search="{{ (m.name ~ ' ' ~ m.display_name ~ ' ' ~ m.id ~ ' ' ~ m.roles_str ~ ' ' ~ ((m.badges|map(attribute='name')|join(' ')) if m.badges else '')) | lower }}"
@@ -358,7 +362,7 @@ function openProfile(idx) {
         <div class="mp-data-l">📱 Status</div>
         <div class="mp-data-v">${st}</div>
       </div>
-      <div style="margin:10px 0"><a class="btn-glass btn-sm" href="/server/${GUILD_ID}/user/${m.id}" target="_blank">🌐 Öffentliches Badge-Profil</a></div>
+      <div style="margin:10px 0;display:flex;gap:8px;flex-wrap:wrap"><a class="btn-glass btn-sm" href="/server/${GUILD_ID}/user/${m.id}" target="_blank">🌐 Öffentliches Badge-Profil</a><span class="tag">🧠 Trust ${Math.min(100, Math.max(0, 100 - risk + Math.floor((m.badge_score || 0)/2)))}%</span></div>
       <div class="mp-data-row">
         <div class="mp-data-l">📥 Beigetreten</div>
         <div class="mp-data-v">${fmtDate(m.joined)}</div>

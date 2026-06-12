@@ -17,6 +17,8 @@ from flask import (
 import datetime
 import logging
 import json
+import re
+from urllib.parse import urlparse
 
 import time
 import threading
@@ -47,6 +49,8 @@ from bot.config import (
     LOG_MODS,
     ACTIVITY,
     BADGES,
+    SCAM_DOMAINS,
+    URL_SHORTENERS,
 )
 
 from bot.utils import _run_async
@@ -1271,6 +1275,62 @@ def guild_modules(guild_id):
         active="modules",
     )
 
+def _welcome_role_health(guild, role_ids):
+    result = []
+    if not guild:
+        return result
+    me = getattr(guild, "me", None)
+    for rid in role_ids or []:
+        item = {"id": str(rid), "name": str(rid), "ok": False, "reason": "Rolle nicht gefunden"}
+        try:
+            role = guild.get_role(int(rid))
+            if not role:
+                result.append(item); continue
+            item["name"] = role.name
+            if role.is_default():
+                item["reason"] = "@everyone kann nicht vergeben werden"
+            elif getattr(role, "managed", False):
+                item["reason"] = "Managed Rolle kann nicht vergeben werden"
+            elif not me or not getattr(me.guild_permissions, "manage_roles", False):
+                item["reason"] = "Bot braucht Manage Roles"
+            elif getattr(me, "top_role", None) and role >= me.top_role:
+                item["reason"] = "Bot-Rolle ist zu niedrig"
+            else:
+                item["ok"] = True; item["reason"] = "OK"
+        except Exception as e:
+            item["reason"] = str(e)[:120]
+        result.append(item)
+    return result
+
+
+def _welcome_apply_placeholders(text, guild, user=None):
+    text = str(text or "")
+    display = getattr(user, "display_name", "TestUser") if user else "TestUser"
+    mention = getattr(user, "mention", "@TestUser") if user else "@TestUser"
+    replacements = {
+        "{mention}": mention, "{user}": display, "{username}": display,
+        "{server}": getattr(guild, "name", "Server"), "{count}": str(getattr(guild, "member_count", 0) or 0),
+    }
+    for key, value in replacements.items():
+        text = text.replace(key, value)
+    return text
+
+
+def _welcome_unknown_placeholders(*texts):
+    allowed = {"mention", "user", "username", "server", "count"}
+    found = set()
+    for text in texts:
+        found.update(re.findall(r"\{([a-zA-Z0-9_]+)\}", str(text or "")))
+    return sorted(x for x in found if x not in allowed)
+
+
+def _color_int(value, default=0x22c55e):
+    try:
+        return int(str(value or "").replace("#", ""), 16)
+    except Exception:
+        return default
+
+
 @flask_app.route("/dashboard/<guild_id>/welcome")
 @require_auth
 def guild_welcome(guild_id):
@@ -1292,11 +1352,73 @@ def guild_welcome(guild_id):
     except Exception:
         bot_id = ""
 
+    wc = cfg.get("welcome", {}) or {}
+    lv = cfg.get("leave", {}) or {}
+    role_health = _welcome_role_health(g, wc.get("add_roles", []))
+    placeholder_warnings = _welcome_unknown_placeholders(
+        wc.get("embed_title"), wc.get("embed_description"), wc.get("dm_description"),
+        lv.get("embed_title"), lv.get("embed_description"),
+    )
     return render_template(
         "dashboard/welcome.html",
         guild=g, cfg=cfg, content=content, user=us["user"], active="welcome",
         channels=channels, guild_roles=guild_roles, bot_id=bot_id,
+        role_health=role_health, placeholder_warnings=placeholder_warnings,
     )
+@flask_app.route("/api/guild/<guild_id>/welcome/test", methods=["POST"])
+@require_auth
+def api_welcome_test(guild_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
+        return jsonify({"error": "forbidden"}), 403
+    if not bot_ready():
+        return jsonify({"error": "Bot ist offline"}), 503
+    data = request.json or {}
+    mode = data.get("mode", "welcome")
+    target = data.get("target", "channel")
+    cfg = _direct_load_config(guild_id)
+    guild = get_guild(guild_id)
+    if not guild:
+        return jsonify({"error": "Server nicht gefunden"}), 404
+    try:
+        import discord
+        if mode == "leave":
+            sec = cfg.get("leave", {}) or {}
+            color = _color_int(sec.get("embed_color"), 0xef4444)
+            title = _welcome_apply_placeholders(sec.get("embed_title", "👋 Auf Wiedersehen!"), guild)
+            desc = _welcome_apply_placeholders(sec.get("embed_description", "{user} hat den Server verlassen."), guild)
+        elif mode == "dm":
+            sec = cfg.get("welcome", {}) or {}
+            color = _color_int(sec.get("embed_color"), 0x22c55e)
+            title = f"👋 Willkommen auf {guild.name}!"
+            desc = _welcome_apply_placeholders(sec.get("dm_description") or sec.get("embed_description", "Willkommen {mention}!"), guild)
+        else:
+            sec = cfg.get("welcome", {}) or {}
+            color = _color_int(sec.get("embed_color"), 0x22c55e)
+            title = _welcome_apply_placeholders(sec.get("embed_title", "👋 Willkommen auf {server}!"), guild)
+            desc = _welcome_apply_placeholders(sec.get("embed_description", "Willkommen {mention}!"), guild)
+        embed = discord.Embed(title=title[:256], description=desc[:4000], color=color, timestamp=datetime.datetime.utcnow())
+        if sec.get("embed_image") and mode != "leave":
+            embed.set_image(url=sec.get("embed_image"))
+        embed.set_footer(text="ModForge Welcome-Test")
+        if target == "dm":
+            uid = int(user_session["user"]["id"])
+            user_obj = _run_async(bot.fetch_user(uid))
+            if not user_obj:
+                return jsonify({"error": "User nicht gefunden"}), 404
+            _run_async(user_obj.send(embed=embed))
+            return jsonify({"ok": True, "target": "dm"})
+        channel_id = _to_int_or_none(data.get("channel_id")) or sec.get("channel_id")
+        channel = guild.get_channel(int(channel_id)) if channel_id else None
+        if not channel:
+            return jsonify({"error": "Kanal nicht gefunden"}), 404
+        _run_async(channel.send(embed=embed))
+        return jsonify({"ok": True, "target": "channel", "channel_id": int(channel_id)})
+    except Exception as e:
+        log.error(f"[WELCOME TEST] {e}")
+        return jsonify({"error": str(e)}), 500
+
+
 # =========================================================
 # DASHBOARD API (Settings Toggle)
 
@@ -1349,12 +1471,117 @@ def _dash_guard(guild_id):
         return None, None, None, abort(404)
     cfg = _direct_load_config(guild_id)
     return user_session, g, cfg, None
+def _automod_regex_report(patterns):
+    report = []
+    for idx, pattern in enumerate(patterns or []):
+        item = {"index": idx, "pattern": pattern, "ok": True, "danger": False, "message": "OK"}
+        try:
+            re.compile(pattern)
+        except re.error as e:
+            item.update({"ok": False, "message": str(e)})
+        # Simple catastrophic/backtracking warning heuristics.
+        if re.search(r"\(\.\*\)\+|\(\.\+\)\+|\(.*\+\)\+|\.\*\.\*", pattern):
+            item.update({"danger": True, "message": "Kann sehr teuer sein / Backtracking-Risiko"})
+        if len(pattern) > 220:
+            item.update({"danger": True, "message": "Sehr lange Regex – bitte prüfen"})
+        report.append(item)
+    return report
+
+
+def _domain_from_url(url: str) -> str:
+    try:
+        parsed = urlparse(url if re.match(r"^https?://", url, re.I) else "https://" + url)
+        return (parsed.netloc or "").lower().split(":")[0].strip(".")
+    except Exception:
+        return ""
+
+
+def _automod_evaluate(cfg: dict, text: str) -> dict:
+    am = cfg.get("automod", {}) or {}
+    anti_scam = cfg.get("anti_scam", {}) or {}
+    shortener = cfg.get("anti_url_shortener", {}) or {}
+    content = text or ""
+    lower = content.lower()
+    hits = []
+    warnings = []
+
+    for word in am.get("bad_words", []) or []:
+        if word and re.search(rf"\b{re.escape(str(word))}\b", content, re.I):
+            hits.append({"type": "bad_word", "label": f"BadWord: {word}", "severity": "medium", "action": am.get("punishment", "warn")})
+
+    for idx, pattern in enumerate(am.get("regex_rules", []) or []):
+        try:
+            if re.search(pattern, content):
+                hits.append({"type": "regex", "label": f"Regex #{idx + 1}: {pattern}", "severity": "high", "action": am.get("punishment", "warn")})
+        except re.error as e:
+            warnings.append(f"Regex #{idx + 1} ungültig: {e}")
+
+    if am.get("invite_filter") and re.search(r"(discord\.gg|discord\.com/invite)/[a-zA-Z0-9]+", content, re.I):
+        hits.append({"type": "invite", "label": "Discord-Invite", "severity": "medium", "action": am.get("punishment", "warn")})
+
+    urls = re.findall(r"https?://[^\s<>()]+", content, re.I)
+    allowed = [str(d).lower().strip() for d in am.get("allowed_domains", []) or []]
+    if am.get("link_filter") and urls:
+        for url in urls:
+            domain = _domain_from_url(url)
+            allowed_hit = any(domain == d or domain.endswith("." + d) for d in allowed)
+            if not allowed_hit:
+                hits.append({"type": "link", "label": f"Nicht erlaubte Domain: {domain or url}", "severity": "medium", "action": am.get("punishment", "warn")})
+
+    if am.get("zalgo_filter") and re.search(r"[\u0300-\u036f\u0489\u1dc0-\u1dff\u20d0-\u20ff\ufe20-\ufe2f]{3,}", content):
+        hits.append({"type": "zalgo", "label": "Zalgo/Combining Characters", "severity": "medium", "action": am.get("punishment", "warn")})
+
+    if anti_scam.get("enabled", True):
+        for domain in SCAM_DOMAINS:
+            if str(domain).lower() in lower:
+                hits.append({"type": "scam", "label": f"Scam-Indikator: {domain}", "severity": "critical", "action": anti_scam.get("punishment", "ban")})
+
+    if shortener.get("enabled", True):
+        for domain in URL_SHORTENERS:
+            if str(domain).lower() in lower:
+                hits.append({"type": "shortener", "label": f"URL-Shortener: {domain}", "severity": "low", "action": shortener.get("punishment", "warn")})
+
+    max_sev = "none"
+    order = {"none": 0, "low": 1, "medium": 2, "high": 3, "critical": 4}
+    for hit in hits:
+        if order[hit["severity"]] > order[max_sev]:
+            max_sev = hit["severity"]
+    return {"hits": hits, "warnings": warnings, "severity": max_sev, "would_delete": bool(hits), "count": len(hits)}
+
+
+def _automod_suggestions(cfg: dict) -> list:
+    am = cfg.get("automod", {}) or {}
+    suggestions = []
+    if am.get("link_filter") and not am.get("allowed_domains"):
+        suggestions.append({"level": "warn", "text": "Link-Filter ist aktiv, aber keine erlaubten Domains gesetzt – das blockiert fast alle Links."})
+    if len(am.get("bad_words", []) or []) == 0:
+        suggestions.append({"level": "info", "text": "Keine BadWords gesetzt. Füge häufige Spam-/Scam-Wörter hinzu."})
+    bad_regex = [r for r in _automod_regex_report(am.get("regex_rules", [])) if not r["ok"] or r["danger"]]
+    if bad_regex:
+        suggestions.append({"level": "danger", "text": f"{len(bad_regex)} Regex-Regel(n) benötigen Prüfung."})
+    if not am.get("phishing_check", True):
+        suggestions.append({"level": "warn", "text": "Phishing-Check ist aus. Für Security-Server besser aktivieren."})
+    if not am.get("invite_filter", True):
+        suggestions.append({"level": "info", "text": "Invite-Filter ist aus. Aktivieren, wenn Fremdwerbung ein Problem ist."})
+    return suggestions
+
+
 @flask_app.route("/dashboard/<guild_id>/automod")
 @require_auth
 def guild_automod(guild_id):
     us, g, cfg, err = _dash_guard(guild_id)
     if err: return err
-    return render_template("dashboard/automod.html", guild=g, cfg=cfg, user=us["user"], active="automod")
+    am = cfg.get("automod", {}) or {}
+    regex_report = _automod_regex_report(am.get("regex_rules", []))
+    suggestions = _automod_suggestions(cfg)
+    stats = {
+        "bad_words": len(am.get("bad_words", []) or []),
+        "regex": len(am.get("regex_rules", []) or []),
+        "domains": len(am.get("allowed_domains", []) or []),
+        "regex_bad": sum(1 for r in regex_report if not r["ok"]),
+        "regex_warn": sum(1 for r in regex_report if r.get("danger")),
+    }
+    return render_template("dashboard/automod.html", guild=g, cfg=cfg, user=us["user"], active="automod", regex_report=regex_report, suggestions=suggestions, stats=stats)
 
 @flask_app.route("/dashboard/<guild_id>/security")
 @require_auth
@@ -1560,23 +1787,9 @@ def guild_security(guild_id):
 # ═══════════════════════════════════════════════════════════════════
 # LOGS
 # ═══════════════════════════════════════════════════════════════════
-@flask_app.route("/dashboard/<guild_id>/logs")
-@require_auth
-def guild_logs(guild_id):
-    us, g, cfg, err = _dash_guard(guild_id)
-    if err:
-        return err
 
-    text_channels = []
-    if g and hasattr(g, 'text_channels') and g.text_channels:
-        text_channels = [
-            {"id": str(c.id), "name": c.name}
-            for c in sorted(g.text_channels, key=lambda c: c.position)
-        ]
-
-    log_channels = cfg.get("log_channels", {}) or {}
-
-    categories = {
+def _log_categories():
+    return {
         "🛡️ Security": [
             {"key": "antispam",      "icon": "⚡", "label": "Anti-Spam",       "desc": "Spam, CAPS, Duplikate"},
             {"key": "antinuke",      "icon": "💣", "label": "Anti-Nuke",       "desc": "Massen-Bans, Löschungen"},
@@ -1621,6 +1834,96 @@ def guild_logs(guild_id):
         ],
     }
 
+
+def _all_log_modules():
+    return [m["key"] for mods in _log_categories().values() for m in mods]
+
+
+def _log_channel_status(guild, channel_id):
+    status = {"id": channel_id, "ok": False, "exists": False, "can_send": False, "can_embed": False, "name": None, "reason": "Nicht gesetzt"}
+    if not channel_id:
+        return status
+    if not guild:
+        status["reason"] = "Bot/Guild offline"
+        return status
+    try:
+        channel = guild.get_channel(int(channel_id))
+        if not channel:
+            status["reason"] = "Kanal nicht gefunden"
+            return status
+        status["exists"] = True
+        status["name"] = getattr(channel, "name", str(channel_id))
+        me = getattr(guild, "me", None)
+        perms = channel.permissions_for(me) if me and hasattr(channel, "permissions_for") else None
+        status["can_send"] = bool(getattr(perms, "send_messages", False)) if perms else True
+        status["can_embed"] = bool(getattr(perms, "embed_links", False)) if perms else True
+        status["ok"] = status["exists"] and status["can_send"] and status["can_embed"]
+        if status["ok"]:
+            status["reason"] = "OK"
+        elif not status["can_send"]:
+            status["reason"] = "Keine Schreibrechte"
+        elif not status["can_embed"]:
+            status["reason"] = "Embed-Recht fehlt"
+    except Exception as e:
+        status["reason"] = str(e)[:120]
+    return status
+
+
+def _log_health_payload(guild_id):
+    cfg = _direct_load_config(guild_id)
+    guild = get_guild(guild_id)
+    default_channel = cfg.get("log_channel")
+    log_channels = cfg.get("log_channels", {}) or {}
+    modules = _all_log_modules()
+    unique_channels = sorted({int(v) for v in list(log_channels.values()) + ([default_channel] if default_channel else []) if v and str(v) != "0"})
+    channel_status = {str(cid): _log_channel_status(guild, cid) for cid in unique_channels}
+    module_status = []
+    ok_count = disabled_count = missing_count = broken_count = 0
+    for module in modules:
+        raw = log_channels.get(module, None)
+        disabled = str(raw) == "0"
+        channel_id = raw if raw not in (None, "") else default_channel
+        st = {"ok": False, "reason": "Nicht gesetzt"} if not channel_id else channel_status.get(str(int(channel_id)), _log_channel_status(guild, channel_id))
+        ok = bool(st.get("ok")) and not disabled
+        if disabled:
+            disabled_count += 1
+            reason = "Deaktiviert"
+        elif not channel_id:
+            missing_count += 1
+            reason = "Kein Kanal"
+        elif not ok:
+            broken_count += 1
+            reason = st.get("reason", "Fehler")
+        else:
+            ok_count += 1
+            reason = "OK"
+        module_status.append({"module": module, "channel_id": channel_id, "ok": ok, "disabled": disabled, "reason": reason, "channel": st.get("name")})
+    score = int(round((ok_count / max(1, len(modules))) * 100))
+    return {
+        "ok": True, "score": score, "modules_total": len(modules), "modules_ok": ok_count,
+        "disabled": disabled_count, "missing": missing_count, "broken": broken_count,
+        "channels": channel_status, "modules": module_status, "bot_online": bot_ready(),
+        "default_channel": default_channel, "webhook_enabled": cfg.get("webhook_logging", {}).get("enabled", False),
+    }
+
+@flask_app.route("/dashboard/<guild_id>/logs")
+@require_auth
+def guild_logs(guild_id):
+    us, g, cfg, err = _dash_guard(guild_id)
+    if err:
+        return err
+
+    text_channels = []
+    if g and hasattr(g, 'text_channels') and g.text_channels:
+        text_channels = [
+            {"id": str(c.id), "name": c.name}
+            for c in sorted(g.text_channels, key=lambda c: c.position)
+        ]
+
+    log_channels = cfg.get("log_channels", {}) or {}
+
+    categories = _log_categories()
+
     total_modules    = sum(len(v) for v in categories.values())
     total_configured = sum(1 for v in log_channels.values() if v)
     default_channel  = cfg.get("log_channel")
@@ -1638,6 +1941,192 @@ def guild_logs(guild_id):
         webhook_enabled=webhook_enabled,
         active="logs",
     )
+
+@flask_app.route("/api/guild/<guild_id>/logs/health")
+@require_auth
+def api_logs_health(guild_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
+        return jsonify({"error": "forbidden"}), 403
+    return jsonify(_log_health_payload(guild_id))
+
+
+def _log_modules_for_preset(preset: str):
+    security = {"antispam", "antinuke", "antiraid", "antimention", "antiscam", "antishortener", "antivpn", "security", "permissions"}
+    moderation = {"moderation", "warns", "cases", "automod", "appeal"}
+    messages = {"messages", "messages_sent", "ghostping"}
+    system = {"default", "verify", "tickets", "welcome", "leave", "backup", "audit", "errors", "members", "nicknames", "roles", "channels", "webhooks", "voice"}
+    if preset == "security":
+        return {"security": security, "moderation": moderation, "messages": messages, "system": system}
+    if preset == "hardcore":
+        return {"security": security, "moderation": moderation, "messages": messages, "system": system}
+    return {"all": set(_all_log_modules())}
+
+
+@flask_app.route("/api/guild/<guild_id>/logs/repair", methods=["POST"])
+@require_auth
+def api_logs_repair(guild_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
+        return jsonify({"error": "forbidden"}), 403
+    data = request.json or {}
+    action = data.get("action", "fill_missing")
+    base_channel = _to_int_or_none(data.get("channel_id"))
+    cfg = _direct_load_config(guild_id)
+    before = _copy.deepcopy(cfg)
+    modules = _all_log_modules()
+    log_channels = cfg.get("log_channels", {}) or {}
+    changed = 0
+    if base_channel:
+        cfg["log_channel"] = base_channel
+    fallback = cfg.get("log_channel") or base_channel
+    if action == "all_to_channel":
+        if not fallback:
+            return jsonify({"error": "Bitte zuerst einen Ziel-Kanal auswählen."}), 400
+        log_channels = {m: int(fallback) for m in modules}
+        changed = len(modules)
+    elif action == "fill_missing":
+        if not fallback:
+            return jsonify({"error": "Bitte zuerst Standard-Log-Kanal setzen."}), 400
+        for m in modules:
+            if m not in log_channels or log_channels.get(m) in (None, ""):
+                log_channels[m] = int(fallback)
+                changed += 1
+    elif action == "remove_broken":
+        payload = _log_health_payload(guild_id)
+        broken = {m["module"] for m in payload["modules"] if (not m["ok"] and not m["disabled"] and m.get("channel_id"))}
+        for m in broken:
+            if m in log_channels:
+                log_channels.pop(m, None)
+                changed += 1
+    elif action == "disable_broken":
+        payload = _log_health_payload(guild_id)
+        broken = {m["module"] for m in payload["modules"] if (not m["ok"] and not m["disabled"] and m.get("channel_id"))}
+        for m in broken:
+            log_channels[m] = 0
+            changed += 1
+    else:
+        return jsonify({"error": "Unbekannte Reparatur-Aktion"}), 400
+    cfg["log_channels"] = log_channels
+    _save_config_version(guild_id, before, source=f"before-log-repair-{action}")
+    if not _direct_save_config(guild_id, cfg):
+        return jsonify({"error": "Speichern fehlgeschlagen"}), 500
+    return jsonify({"ok": True, "changed": changed, "health": _log_health_payload(guild_id)})
+
+
+@flask_app.route("/api/guild/<guild_id>/logs/preset", methods=["POST"])
+@require_auth
+def api_logs_preset(guild_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
+        return jsonify({"error": "forbidden"}), 403
+    data = request.json or {}
+    preset = data.get("preset", "simple")
+    base_channel = _to_int_or_none(data.get("channel_id"))
+    cfg = _direct_load_config(guild_id)
+    before = _copy.deepcopy(cfg)
+    guild = get_guild(guild_id)
+    modules = _all_log_modules()
+    created = {}
+
+    async def _ensure_channel(name):
+        if not guild:
+            return None
+        existing = next((c for c in getattr(guild, "text_channels", []) if c.name == name), None)
+        if existing:
+            return existing.id
+        me = getattr(guild, "me", None)
+        if not me or not getattr(me.guild_permissions, "manage_channels", False):
+            return None
+        ch = await guild.create_text_channel(name, reason="ModForge Log-Preset")
+        return ch.id
+
+    if preset == "hardcore":
+        names = {"security": "modforge-security", "moderation": "modforge-mod", "messages": "modforge-messages", "system": "modforge-system"}
+        for group, name in names.items():
+            cid = safe_async(_ensure_channel(name), None)
+            if cid:
+                created[group] = cid
+        if len(created) < 4 and not base_channel:
+            return jsonify({"error": "Konnte Kanäle nicht erstellen. Bot braucht Manage Channels oder wähle einen Kanal."}), 400
+    else:
+        if not base_channel:
+            return jsonify({"error": "Bitte Ziel-Kanal auswählen."}), 400
+
+    log_channels = {}
+    if preset == "simple":
+        cfg["log_channel"] = int(base_channel)
+        log_channels = {m: int(base_channel) for m in modules}
+    elif preset == "security":
+        cfg["log_channel"] = int(base_channel)
+        groups = _log_modules_for_preset("security")
+        for m in modules:
+            log_channels[m] = int(base_channel)
+        # Mark important security modules explicitly, same channel but visible config.
+        for m in groups["security"] | groups["moderation"]:
+            if m in modules:
+                log_channels[m] = int(base_channel)
+    elif preset == "hardcore":
+        fallback = int(base_channel) if base_channel else int(created.get("system") or next(iter(created.values())))
+        cfg["log_channel"] = fallback
+        groups = _log_modules_for_preset("hardcore")
+        for m in modules:
+            if m in groups["security"]:
+                log_channels[m] = int(created.get("security", fallback))
+            elif m in groups["moderation"]:
+                log_channels[m] = int(created.get("moderation", fallback))
+            elif m in groups["messages"]:
+                log_channels[m] = int(created.get("messages", fallback))
+            else:
+                log_channels[m] = int(created.get("system", fallback))
+    else:
+        return jsonify({"error": "Unbekanntes Preset"}), 400
+    cfg["log_channels"] = log_channels
+    _save_config_version(guild_id, before, source=f"before-log-preset-{preset}")
+    if not _direct_save_config(guild_id, cfg):
+        return jsonify({"error": "Speichern fehlgeschlagen"}), 500
+    return jsonify({"ok": True, "preset": preset, "created": created, "health": _log_health_payload(guild_id)})
+
+
+@flask_app.route("/api/guild/<guild_id>/logs/test", methods=["POST"])
+@require_auth
+def api_logs_test(guild_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
+        return jsonify({"error": "forbidden"}), 403
+    if not bot_ready():
+        return jsonify({"error": "Bot ist offline"}), 503
+    guild = get_guild(guild_id)
+    if not guild:
+        return jsonify({"error": "Server nicht gefunden"}), 404
+    health = _log_health_payload(guild_id)
+    channel_ids = sorted({int(m["channel_id"]) for m in health["modules"] if m.get("channel_id") and not m.get("disabled")})
+    results = []
+
+    async def _send_tests():
+        import discord
+        sent = []
+        for cid in channel_ids[:25]:
+            channel = guild.get_channel(int(cid))
+            if not channel:
+                sent.append({"channel_id": cid, "ok": False, "reason": "Kanal nicht gefunden"})
+                continue
+            try:
+                embed = discord.Embed(
+                    title="📢 ModForge Log-Test",
+                    description="**Beschreibung**\nDieser Kanal kann ModForge-Logs empfangen.\n\n**User-Struktur**\nTestUser\n`(123456789)`",
+                    color=0x3CB371, timestamp=datetime.datetime.utcnow(),
+                )
+                embed.add_field(name="📌 Modul", value="`log_test`", inline=True)
+                embed.add_field(name="🆔 Server", value=f"`{guild.id}`", inline=True)
+                embed.set_footer(text="ModForge Log-Test")
+                await channel.send(embed=embed)
+                sent.append({"channel_id": cid, "ok": True, "reason": "OK", "name": channel.name})
+            except Exception as e:
+                sent.append({"channel_id": cid, "ok": False, "reason": str(e)[:160], "name": getattr(channel, "name", str(cid))})
+        return sent
+    results = safe_async(_send_tests(), []) or []
+    return jsonify({"ok": True, "tested": len(results), "results": results})
 
 @flask_app.route("/dashboard/<guild_id>/cases")
 @require_auth
@@ -1967,6 +2456,78 @@ def _ts(value):
         except Exception:
             return ""
     return ""
+def _collection_to_list(query, collection, sort=None, limit=100):
+    """Lädt Motor- oder PyMongo-Collection zuverlässig als Liste."""
+    if collection is None:
+        return []
+    try:
+        cursor = collection.find(query)
+        if sort:
+            cursor = cursor.sort(sort)
+        if hasattr(cursor, "to_list"):
+            return safe_async(cursor.to_list(limit), []) or []
+        if limit:
+            cursor = cursor.limit(limit)
+        return list(cursor)
+    except Exception as e:
+        log.debug(f"collection_to_list failed: {e}")
+        return []
+
+
+def _collection_find_one(query, collection):
+    if collection is None:
+        return None
+    try:
+        result = collection.find_one(query)
+        if hasattr(result, "__await__"):
+            return safe_async(result, None)
+        return result
+    except Exception as e:
+        log.debug(f"collection_find_one failed: {e}")
+        return None
+
+
+def _collection_delete_one(query, collection):
+    if collection is None:
+        return None
+    try:
+        result = collection.delete_one(query)
+        if hasattr(result, "__await__"):
+            return safe_async(result, None)
+        return result
+    except Exception as e:
+        log.debug(f"collection_delete_one failed: {e}")
+        return None
+
+
+def _collection_update_one(query, update, collection, upsert=False):
+    if collection is None:
+        return None
+    try:
+        result = collection.update_one(query, update, upsert=upsert)
+        if hasattr(result, "__await__"):
+            return safe_async(result, None)
+        return result
+    except Exception as e:
+        log.debug(f"collection_update_one failed: {e}")
+        return None
+
+
+def _backup_query(guild_id, backup_id=None):
+    query = _guild_query(guild_id)
+    if backup_id is not None:
+        query["backup_id"] = backup_id
+    return query
+
+
+def _template_query(guild_id=None, backup_id=None):
+    query = {}
+    if guild_id is not None:
+        query.update(_guild_query(guild_id))
+    if backup_id is not None:
+        query["backup_id"] = backup_id
+    return query
+
 def _enrich_backup_doc(doc):
     """Macht aus einem rohen Backup-DB-Dokument ein Template-fertiges Dict."""
     if not doc:
@@ -1976,9 +2537,14 @@ def _enrich_backup_doc(doc):
     channels = payload.get("channels") or []
     categories = payload.get("categories") or []
     emojis = payload.get("emojis") or []
+    approx_size = 0
+    try:
+        approx_size = len(json.dumps(payload, default=str, ensure_ascii=False).encode("utf-8"))
+    except Exception:
+        pass
     return {
         "id": doc.get("backup_id") or doc.get("id") or "?",
-        "label": doc.get("label") or "Backup",
+        "label": doc.get("label") or payload.get("label") or "Backup",
         "created_ts": _ts(doc.get("created_at") or doc.get("timestamp")),
         "created_by": str(doc.get("created_by") or "—"),
         "guild_name": doc.get("guild_name") or payload.get("guild_name") or "?",
@@ -1989,6 +2555,8 @@ def _enrich_backup_doc(doc):
         "emojis": len(emojis) if isinstance(emojis, list) else 0,
         "has_password": bool(doc.get("password_hash") or doc.get("has_password")),
         "verification": payload.get("verification_level", 0),
+        "size_bytes": approx_size,
+        "size_label": f"{approx_size/1024:.1f} KB" if approx_size else "—",
     }
 @flask_app.route("/dashboard/<guild_id>/backup")
 @require_auth
@@ -1999,37 +2567,19 @@ def guild_backup(guild_id):
     public_ids = set()
     col = _backups_col()
     if col is not None:
-        try:
-            # gilt für Motor (async) UND PyMongo (sync) — wir versuchen async zuerst
-            try:
-                raw = safe_async(
-                    col.find({"guild_id": int(guild_id)}).sort("created_at", -1).to_list(50),
-                    None,
-                )
-                if raw is None:
-                    # PyMongo-Fallback
-                    raw = list(col.find({"guild_id": int(guild_id)}).sort("created_at", -1).limit(50))
-            except Exception:
-                raw = list(col.find({"guild_id": int(guild_id)}).sort("created_at", -1).limit(50))
+        raw = _collection_to_list(_backup_query(guild_id), col, sort=[("created_at", -1), ("timestamp", -1)], limit=100)
+        for b in raw or []:
+            enriched = _enrich_backup_doc(b)
+            if enriched:
+                backups.append(enriched)
 
-            for b in raw or []:
-                enriched = _enrich_backup_doc(b)
-                if enriched:
-                    backups.append(enriched)
-        except Exception as ex:
-            log.debug(f"Backup load: {ex}")
-
+    backups.sort(key=lambda b: int(b.get("created_ts") or 0), reverse=True)
     # Welche dieser Backups sind bereits public?
     pcol = _public_backups_col()
     if pcol is not None and backups:
         try:
             ids = [b["id"] for b in backups]
-            try:
-                pubs = safe_async(pcol.find({"backup_id": {"$in": ids}}).to_list(100), None)
-                if pubs is None:
-                    pubs = list(pcol.find({"backup_id": {"$in": ids}}))
-            except Exception:
-                pubs = list(pcol.find({"backup_id": {"$in": ids}}))
+            pubs = _collection_to_list({"backup_id": {"$in": ids}}, pcol, limit=100)
             public_ids = {p.get("backup_id") for p in (pubs or [])}
         except Exception:
             pass
@@ -2047,6 +2597,50 @@ def guild_backup(guild_id):
         bot_ready=bot_ready(),
         active="backup",
     )
+def _template_score_from_counts(roles=0, channels=0, categories=0, downloads=0, likes=0, description=""):
+    score = 35
+    score += min(int(roles or 0), 30) * 1.0
+    score += min(int(channels or 0), 30) * 1.0
+    score += min(int(categories or 0), 10) * 1.5
+    score += min(int(downloads or 0), 50) * 0.4
+    score += min(int(likes or 0), 50) * 0.8
+    if description and len(description) >= 40:
+        score += 8
+    return max(0, min(100, int(round(score))))
+
+
+def _template_recommendations(category, roles=0, channels=0, support=False):
+    rec = []
+    c = (category or "general").lower()
+    if c in ("gaming", "community", "support", "business", "security"):
+        rec.append(c)
+    if int(channels or 0) >= 8 and "community" not in rec:
+        rec.append("community")
+    if int(roles or 0) >= 8 and "security" not in rec:
+        rec.append("security")
+    return rec[:3] or ["general"]
+
+
+def _template_risk_from_backup(payload, current_guild=None):
+    roles = len(payload.get("roles") or [])
+    channels = len(payload.get("channels") or [])
+    categories = len(payload.get("categories") or [])
+    danger = []
+    level = "low"
+    if roles > 25 or channels > 35:
+        level = "high"
+        danger.append("Sehr großes Template – viele Änderungen möglich")
+    elif roles > 10 or channels > 15:
+        level = "medium"
+        danger.append("Mittelgroßes Template – vor Import prüfen")
+    if current_guild:
+        current_channels = len(getattr(current_guild, "channels", []) or [])
+        if channels > current_channels + 20:
+            level = "high"
+            danger.append("Template erstellt deutlich mehr Kanäle als aktuell vorhanden")
+    return {"level": level, "warnings": danger, "roles": roles, "channels": channels, "categories": categories}
+
+
 @flask_app.route("/dashboard/<guild_id>/templates")
 @require_auth
 def guild_templates(guild_id):
@@ -2058,47 +2652,39 @@ def guild_templates(guild_id):
     all_public = []
     pcol = _public_backups_col()
     if pcol is not None:
-        try:
-            # Eigene geteilte
-            try:
-                mine_raw = safe_async(
-                    pcol.find({"guild_id": str(guild_id)}).sort("shared_at", -1).to_list(50), None,
-                )
-                if mine_raw is None:
-                    mine_raw = list(pcol.find({"guild_id": str(guild_id)}).sort("shared_at", -1).limit(50))
-            except Exception:
-                mine_raw = list(pcol.find({"guild_id": str(guild_id)}).sort("shared_at", -1).limit(50))
-            # Alle öffentlichen (für Galerie)
-            try:
-                public_raw = safe_async(
-                    pcol.find({}).sort([("downloads", -1), ("shared_at", -1)]).to_list(200), None,
-                )
-                if public_raw is None:
-                    public_raw = list(pcol.find({}).sort([("downloads", -1), ("shared_at", -1)]).limit(200))
-            except Exception:
-                public_raw = list(pcol.find({}).sort([("downloads", -1), ("shared_at", -1)]).limit(200))
-        except Exception as e:
-            log.debug(f"templates load: {e}")
-            mine_raw, public_raw = [], []
+        mine_raw = _collection_to_list(_template_query(guild_id), pcol, sort=[("shared_at", -1)], limit=50)
+        public_raw = _collection_to_list({}, pcol, sort=[("downloads", -1), ("shared_at", -1)], limit=200)
     else:
         mine_raw, public_raw = [], []
 
     def _shape(p):
+        roles = int(p.get("roles_count") or 0)
+        channels = int(p.get("channels_count") or 0)
+        cats = int(p.get("categories_count") or 0)
+        downloads = int(p.get("downloads") or 0)
+        likes = int(p.get("likes") or 0)
+        category = (p.get("category") or "general").lower()
+        desc = p.get("description") or ""
+        score = _template_score_from_counts(roles, channels, cats, downloads, likes, desc)
         return {
             "id": p.get("backup_id", "?"),
             "name": p.get("name") or "Unbenannt",
-            "description": p.get("description") or "",
-            "category": (p.get("category") or "general").lower(),
+            "description": desc,
+            "category": category,
             "guild_name": p.get("guild_name") or "?",
             "guild_icon": p.get("guild_icon") or "",
             "shared_by": str(p.get("shared_by") or "—"),
             "shared_ts": _ts(p.get("shared_at")),
-            "roles": int(p.get("roles_count") or 0),
-            "channels": int(p.get("channels_count") or 0),
-            "categories": int(p.get("categories_count") or 0),
+            "roles": roles,
+            "channels": channels,
+            "categories": cats,
             "emojis": int(p.get("emojis_count") or 0),
-            "downloads": int(p.get("downloads") or 0),
-            "is_mine": str(p.get("guild_id")) == str(guild_id),
+            "downloads": downloads,
+            "likes": likes,
+            "score": score,
+            "risk": "high" if roles > 25 or channels > 35 else "medium" if roles > 10 or channels > 15 else "low",
+            "recommended": _template_recommendations(category, roles, channels),
+            "is_mine": str(p.get("guild_id")) == str(guild_id) or str(p.get("guild_id_str")) == str(guild_id),
         }
 
     my_shared = [_shape(p) for p in (mine_raw or [])]
@@ -2108,6 +2694,7 @@ def guild_templates(guild_id):
     categories = {}
     for tpl in all_public:
         categories.setdefault(tpl["category"], []).append(tpl)
+    popular_templates = sorted(all_public, key=lambda t: (t.get("likes", 0) * 2 + t.get("downloads", 0) + t.get("score", 0)), reverse=True)[:5]
 
     return render_template(
         "dashboard/templates.html",
@@ -2115,6 +2702,7 @@ def guild_templates(guild_id):
         my_shared=my_shared,
         all_public=all_public,
         categories=categories,
+        popular_templates=popular_templates,
         bot_ready=bot_ready(),
     )
 
@@ -2317,7 +2905,7 @@ def api_guild_config(guild_id):
         cfg = data["_raw"]
 
     # Handle module configs (anti_spam, anti_nuke, etc.)
-    for key in ["anti_spam","anti_nuke","anti_raid","anti_mention","anti_scam","automod","badge_automation"]:
+    for key in ["anti_spam","anti_nuke","anti_raid","anti_mention","anti_scam","automod","badge_automation","backup_system"]:
         if key in data:
             mod = cfg.get(key, {})
             mod.update(data[key])
@@ -2342,35 +2930,140 @@ def api_guild_automod(guild_id):
         return jsonify({"error": "forbidden"}), 403
     data = request.json or {}
     cfg = _direct_load_config(guild_id)
-    am = cfg.get("automod", {})
+    before = _copy.deepcopy(cfg)
+    am = cfg.get("automod", {}) or {}
     action = data.get("action")
-    if action == "add_word":
-        words = am.get("bad_words", [])
-        if data["value"] not in words: words.append(data["value"])
-        am["bad_words"] = words
-    elif action == "del_word":
-        am["bad_words"] = [w for w in am.get("bad_words",[]) if w != data["value"]]
-    elif action == "add_regex":
-        rules = am.get("regex_rules", [])
-        rules.append(data["value"])
-        am["regex_rules"] = rules
-    elif action == "del_regex":
-        rules = am.get("regex_rules", [])
-        idx = int(data.get("index", -1))
-        if 0 <= idx < len(rules): rules.pop(idx)
-        am["regex_rules"] = rules
-    elif action == "add_domain":
-        domains = am.get("allowed_domains", [])
-        if data["value"] not in domains: domains.append(data["value"])
-        am["allowed_domains"] = domains
-    elif action == "del_domain":
-        am["allowed_domains"] = [d for d in am.get("allowed_domains",[]) if d != data["value"]]
-    cfg["automod"] = am
+
     try:
+        if action == "add_word":
+            value = str(data.get("value", "")).strip().lower()[:80]
+            if not value:
+                return jsonify({"error": "Wort fehlt"}), 400
+            words = list(am.get("bad_words", []) or [])
+            if value not in [str(w).lower() for w in words]:
+                words.append(value)
+            am["bad_words"] = sorted(words, key=str.lower)
+        elif action == "del_word":
+            value = str(data.get("value", "")).strip().lower()
+            am["bad_words"] = [w for w in am.get("bad_words", []) if str(w).lower() != value]
+        elif action == "add_regex":
+            value = str(data.get("value", "")).strip()[:500]
+            if not value:
+                return jsonify({"error": "Regex fehlt"}), 400
+            report = _automod_regex_report([value])[0]
+            if not report["ok"]:
+                return jsonify({"error": f"Regex ungültig: {report['message']}"}), 400
+            rules = list(am.get("regex_rules", []) or [])
+            if value not in rules:
+                rules.append(value)
+            am["regex_rules"] = rules
+        elif action == "del_regex":
+            rules = list(am.get("regex_rules", []) or [])
+            idx = int(data.get("index", -1))
+            if 0 <= idx < len(rules):
+                rules.pop(idx)
+            am["regex_rules"] = rules
+        elif action == "add_domain":
+            value = str(data.get("value", "")).strip().lower().replace("https://", "").replace("http://", "").split("/")[0][:120]
+            if not value or "." not in value:
+                return jsonify({"error": "Bitte gültige Domain eingeben"}), 400
+            domains = list(am.get("allowed_domains", []) or [])
+            if value not in [str(d).lower() for d in domains]:
+                domains.append(value)
+            am["allowed_domains"] = sorted(domains, key=str.lower)
+        elif action == "del_domain":
+            value = str(data.get("value", "")).strip().lower()
+            am["allowed_domains"] = [d for d in am.get("allowed_domains", []) if str(d).lower() != value]
+        elif action == "bulk_words":
+            mode = data.get("mode", "append")
+            words = [w.strip().lower()[:80] for w in str(data.get("value", "")).replace(",", "\n").splitlines() if w.strip()]
+            words = sorted(set(words), key=str.lower)
+            am["bad_words"] = words if mode == "replace" else sorted(set(list(am.get("bad_words", []) or []) + words), key=str.lower)
+        elif action == "bulk_domains":
+            mode = data.get("mode", "append")
+            domains = []
+            for d in str(data.get("value", "")).replace(",", "\n").splitlines():
+                domain = d.strip().lower().replace("https://", "").replace("http://", "").split("/")[0]
+                if domain and "." in domain:
+                    domains.append(domain[:120])
+            domains = sorted(set(domains), key=str.lower)
+            am["allowed_domains"] = domains if mode == "replace" else sorted(set(list(am.get("allowed_domains", []) or []) + domains), key=str.lower)
+        else:
+            return jsonify({"error": "Unbekannte AutoMod-Aktion"}), 400
+        cfg["automod"] = am
+        _save_config_version(guild_id, before, source=f"before-automod-{action}")
         _direct_save_config(guild_id, cfg)
+        return jsonify({"ok": True, "automod": am, "suggestions": _automod_suggestions(cfg), "regex_report": _automod_regex_report(am.get("regex_rules", []))})
     except Exception as e:
+        log.error(f"[AUTOMOD API] {e}")
         return jsonify({"error": str(e)}), 500
-    return jsonify({"ok": True})
+
+
+@flask_app.route("/api/guild/<guild_id>/automod/test", methods=["POST"])
+@require_auth
+def api_guild_automod_test(guild_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
+        return jsonify({"error": "forbidden"}), 403
+    data = request.json or {}
+    cfg = _direct_load_config(guild_id)
+    text = str(data.get("text", ""))[:4000]
+    return jsonify({"ok": True, "result": _automod_evaluate(cfg, text)})
+
+
+@flask_app.route("/api/guild/<guild_id>/automod/export")
+@require_auth
+def api_guild_automod_export(guild_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
+        return jsonify({"error": "forbidden"}), 403
+    cfg = _direct_load_config(guild_id)
+    payload = {
+        "guild_id": int(guild_id),
+        "exported_at": datetime.datetime.utcnow().isoformat() + "Z",
+        "automod": cfg.get("automod", {}) or {},
+        "anti_scam": cfg.get("anti_scam", {}) or {},
+        "anti_url_shortener": cfg.get("anti_url_shortener", {}) or {},
+    }
+    return Response(
+        json.dumps(payload, ensure_ascii=False, indent=2),
+        mimetype="application/json",
+        headers={"Content-Disposition": f"attachment; filename=automod-{guild_id}.json"},
+    )
+
+
+@flask_app.route("/api/guild/<guild_id>/automod/import", methods=["POST"])
+@require_auth
+def api_guild_automod_import(guild_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
+        return jsonify({"error": "forbidden"}), 403
+    data = request.json or {}
+    mode = data.get("mode", "merge")
+    incoming = data.get("automod", data)
+    if not isinstance(incoming, dict):
+        return jsonify({"error": "Ungültiger Import"}), 400
+    cfg = _direct_load_config(guild_id)
+    before = _copy.deepcopy(cfg)
+    current = cfg.get("automod", {}) or {}
+    allowed_keys = {"bad_words", "regex_rules", "invite_filter", "link_filter", "block_all_links", "allowed_domains", "zalgo_filter", "unicode_abuse", "phishing_check", "punishment"}
+    clean = {k: v for k, v in incoming.items() if k in allowed_keys}
+    if mode == "replace":
+        current = clean
+    else:
+        for key, value in clean.items():
+            if isinstance(value, list) and isinstance(current.get(key), list):
+                current[key] = sorted(set(list(current.get(key, [])) + value), key=str)
+            else:
+                current[key] = value
+    # Validate regex after import.
+    bad_regex = [r for r in _automod_regex_report(current.get("regex_rules", [])) if not r["ok"]]
+    if bad_regex:
+        return jsonify({"error": f"Import enthält {len(bad_regex)} ungültige Regex-Regel(n).", "regex_report": bad_regex}), 400
+    cfg["automod"] = current
+    _save_config_version(guild_id, before, source="before-automod-import")
+    _direct_save_config(guild_id, cfg)
+    return jsonify({"ok": True, "automod": current, "suggestions": _automod_suggestions(cfg)})
 
 @flask_app.route("/api/guild/<guild_id>/autoresponse", methods=["POST"])
 @require_auth
@@ -3227,7 +3920,7 @@ def admin_server_dashboard(guild_id, subpage=""):
                     "categories": int(p.get("categories_count") or 0),
                     "emojis": int(p.get("emojis_count") or 0),
                     "downloads": int(p.get("downloads") or 0),
-                    "is_mine": str(p.get("guild_id")) == str(guild_id),
+                    "is_mine": str(p.get("guild_id")) == str(guild_id) or str(p.get("guild_id_str")) == str(guild_id),
                 }
             my_shared = [_shape(p) for p in (mine_raw or [])]
             all_public = [_shape(p) for p in (pub_raw or [])]
@@ -3698,7 +4391,11 @@ def api_backup_restore(guild_id, backup_id):
     try:
         from bot.bot import BOT_REF; _bcog = BOT_REF.get_cog("BackupCog") if BOT_REF else None
         # Eigenes Backup bevorzugt, Cross-Server als Fallback
-        doc = _run_async(_bcog._backup_db_get(int(guild_id), backup_id)) if _bcog else None or _run_async(_bcog._backup_db_get_any(backup_id)) if _bcog else None
+        doc = None
+        if _bcog:
+            doc = _run_async(_bcog._backup_db_get(int(guild_id), backup_id)) or _run_async(_bcog._backup_db_get_any(backup_id))
+        if not doc:
+            doc = _collection_find_one(_backup_query(guild_id, backup_id), _backups_col()) or _collection_find_one({"backup_id": backup_id}, _backups_col())
         if not doc or not doc.get("data"):
             return jsonify({"error": "Backup nicht gefunden"}), 404
         if doc.get("password_hash"):
@@ -3720,26 +4417,13 @@ def api_backup_delete(guild_id, backup_id):
     if col is None:
         return jsonify({"error": "Keine DB-Verbindung"}), 503
     try:
-        deleted = 0
-        try:
-            res = safe_async(col.delete_one({"guild_id": int(guild_id), "backup_id": backup_id}), None)
-            if res is None:
-                res = col.delete_one({"guild_id": int(guild_id), "backup_id": backup_id})
-            deleted = getattr(res, "deleted_count", 0) or 0
-        except Exception:
-            res = col.delete_one({"guild_id": int(guild_id), "backup_id": backup_id})
-            deleted = getattr(res, "deleted_count", 0) or 0
+        res = _collection_delete_one(_backup_query(guild_id, backup_id), col)
+        deleted = getattr(res, "deleted_count", 0) or 0
 
         # Auch aus der öffentlichen Liste entfernen, falls geteilt
         pcol = _public_backups_col()
         if pcol is not None:
-            try:
-                try:
-                    safe_async(pcol.delete_one({"backup_id": backup_id, "guild_id": str(guild_id)}), None)
-                except Exception:
-                    pcol.delete_one({"backup_id": backup_id, "guild_id": str(guild_id)})
-            except Exception:
-                pass
+            _collection_delete_one(_template_query(guild_id, backup_id), pcol)
 
         if not deleted:
             return jsonify({"error": "Backup nicht gefunden"}), 404
@@ -3757,12 +4441,7 @@ def api_backup_download(guild_id, backup_id):
     if col is None:
         return jsonify({"error": "Keine DB-Verbindung"}), 503
     try:
-        try:
-            doc = safe_async(col.find_one({"guild_id": int(guild_id), "backup_id": backup_id}), None)
-            if doc is None:
-                doc = col.find_one({"guild_id": int(guild_id), "backup_id": backup_id})
-        except Exception:
-            doc = col.find_one({"guild_id": int(guild_id), "backup_id": backup_id})
+        doc = _collection_find_one(_backup_query(guild_id, backup_id), col)
         if not doc:
             return jsonify({"error": "Backup nicht gefunden"}), 404
         # _id und Passwort-Hash NICHT mit ausliefern
@@ -3800,12 +4479,7 @@ def api_template_share(guild_id):
         return jsonify({"error": "Keine DB-Verbindung"}), 503
 
     try:
-        try:
-            backup = safe_async(col.find_one({"guild_id": int(guild_id), "backup_id": backup_id}), None)
-            if backup is None:
-                backup = col.find_one({"guild_id": int(guild_id), "backup_id": backup_id})
-        except Exception:
-            backup = col.find_one({"guild_id": int(guild_id), "backup_id": backup_id})
+        backup = _collection_find_one(_backup_query(guild_id, backup_id), col)
         if not backup:
             return jsonify({"error": "Backup nicht gefunden"}), 404
         if backup.get("password_hash"):
@@ -3817,7 +4491,8 @@ def api_template_share(guild_id):
 
         update_doc = {
             "backup_id": backup_id,
-            "guild_id": str(guild_id),
+            "guild_id": int(guild_id),
+            "guild_id_str": str(guild_id),
             "name": name[:60],
             "description": description[:500],
             "category": (category or "general")[:30],
@@ -3830,18 +4505,11 @@ def api_template_share(guild_id):
             "categories_count": len(payload.get("categories") or []),
             "emojis_count": len(payload.get("emojis") or []),
         }
-        try:
-            safe_async(pcol.update_one(
-                {"backup_id": backup_id},
-                {"$set": update_doc, "$setOnInsert": {"downloads": 0}},
-                upsert=True,
-            ), None)
-        except Exception:
-            pcol.update_one(
-                {"backup_id": backup_id},
-                {"$set": update_doc, "$setOnInsert": {"downloads": 0}},
-                upsert=True,
-            )
+        _collection_update_one(
+            {"backup_id": backup_id},
+            {"$set": update_doc, "$setOnInsert": {"downloads": 0}},
+            pcol, upsert=True,
+        )
         return jsonify({"ok": True})
     except Exception as e:
         log.error(f"[TEMPLATE SHARE] {e}")
@@ -3856,12 +4524,7 @@ def api_template_unshare(guild_id, backup_id):
     if pcol is None:
         return jsonify({"error": "Keine DB-Verbindung"}), 503
     try:
-        try:
-            res = safe_async(pcol.delete_one({"backup_id": backup_id, "guild_id": str(guild_id)}), None)
-            if res is None:
-                res = pcol.delete_one({"backup_id": backup_id, "guild_id": str(guild_id)})
-        except Exception:
-            res = pcol.delete_one({"backup_id": backup_id, "guild_id": str(guild_id)})
+        res = _collection_delete_one(_template_query(guild_id, backup_id), pcol)
         deleted = getattr(res, "deleted_count", 0) or 0
         if not deleted:
             return jsonify({"error": "Template nicht gefunden oder gehört nicht diesem Server"}), 404
@@ -3869,6 +4532,114 @@ def api_template_unshare(guild_id, backup_id):
     except Exception as e:
         log.error(f"[TEMPLATE UNSHARE] {e}")
         return jsonify({"error": str(e)}), 500
+def _backup_doc_any(backup_id, guild_id=None):
+    col = _backups_col()
+    if col is None:
+        return None
+    doc = _collection_find_one(_backup_query(guild_id, backup_id), col) if guild_id is not None else None
+    if not doc:
+        doc = _collection_find_one({"backup_id": backup_id}, col)
+    return doc
+
+
+@flask_app.route("/api/guild/<guild_id>/templates/preview/<backup_id>")
+@require_auth
+def api_template_preview(guild_id, backup_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
+        return jsonify({"error": "forbidden"}), 403
+    pcol = _public_backups_col()
+    public = _collection_find_one({"backup_id": backup_id}, pcol) if pcol is not None else None
+    doc = _backup_doc_any(backup_id)
+    if not doc:
+        return jsonify({"error": "Template/Backup nicht gefunden"}), 404
+    payload = doc.get("data") or doc
+    roles = payload.get("roles") or []
+    channels = payload.get("channels") or []
+    categories_raw = payload.get("categories") or []
+    score = _template_score_from_counts(len(roles), len(channels), len(categories_raw), (public or {}).get("downloads", 0), (public or {}).get("likes", 0), (public or {}).get("description", ""))
+    risk = _template_risk_from_backup(payload, get_guild(guild_id))
+    return jsonify({
+        "ok": True,
+        "template": {
+            "id": backup_id,
+            "name": (public or {}).get("name") or doc.get("label") or "Template",
+            "description": (public or {}).get("description") or "",
+            "category": (public or {}).get("category", "general"),
+            "score": score, "risk": risk,
+            "downloads": int((public or {}).get("downloads") or 0),
+            "likes": int((public or {}).get("likes") or 0),
+            "recommended": _template_recommendations((public or {}).get("category"), len(roles), len(channels)),
+            "roles": [{"name": r.get("name", str(r)) if isinstance(r, dict) else str(r)} for r in roles[:25]],
+            "channels": [{"name": c.get("name", str(c)) if isinstance(c, dict) else str(c), "type": c.get("type", "text") if isinstance(c, dict) else "text"} for c in channels[:35]],
+            "categories": [{"name": c.get("name", str(c)) if isinstance(c, dict) else str(c)} for c in categories_raw[:20]],
+        }
+    })
+
+
+@flask_app.route("/api/guild/<guild_id>/templates/check/<backup_id>")
+@require_auth
+def api_template_check(guild_id, backup_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
+        return jsonify({"error": "forbidden"}), 403
+    g = get_guild(guild_id)
+    doc = _backup_doc_any(backup_id)
+    if not doc:
+        return jsonify({"error": "Template/Backup nicht gefunden"}), 404
+    payload = doc.get("data") or doc
+    roles = payload.get("roles") or []
+    channels = payload.get("channels") or []
+    cats = payload.get("categories") or []
+    current_roles = {r.name.lower() for r in getattr(g, "roles", []) if not r.is_default()} if g else set()
+    current_channels = {c.name.lower() for c in getattr(g, "channels", [])} if g else set()
+    role_names = [r.get("name", str(r)).lower() if isinstance(r, dict) else str(r).lower() for r in roles]
+    channel_names = [c.get("name", str(c)).lower() if isinstance(c, dict) else str(c).lower() for c in channels]
+    added_roles = [r for r in role_names if r not in current_roles]
+    existing_roles = [r for r in role_names if r in current_roles]
+    added_channels = [c for c in channel_names if c not in current_channels]
+    existing_channels = [c for c in channel_names if c in current_channels]
+    risk = _template_risk_from_backup(payload, g)
+    warnings = list(risk.get("warnings", []))
+    if existing_roles:
+        warnings.append(f"{len(existing_roles)} Rolle(n) existieren bereits und können übersprungen werden")
+    if existing_channels:
+        warnings.append(f"{len(existing_channels)} Kanal/Kanäle existieren bereits und können übersprungen werden")
+    return jsonify({
+        "ok": True, "risk": risk.get("level", "low"), "warnings": warnings,
+        "summary": {
+            "roles_total": len(roles), "roles_new": len(added_roles), "roles_existing": len(existing_roles),
+            "channels_total": len(channels), "channels_new": len(added_channels), "channels_existing": len(existing_channels),
+            "categories_total": len(cats),
+        },
+        "samples": {"roles_new": added_roles[:12], "channels_new": added_channels[:12]},
+    })
+
+
+@flask_app.route("/api/guild/<guild_id>/templates/like/<backup_id>", methods=["POST"])
+@require_auth
+def api_template_like(guild_id, backup_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
+        return jsonify({"error": "forbidden"}), 403
+    pcol = _public_backups_col()
+    if pcol is None:
+        return jsonify({"error": "Keine DB-Verbindung"}), 503
+    uid = str(user_session.get("user", {}).get("id", "0"))
+    doc = _collection_find_one({"backup_id": backup_id}, pcol)
+    if not doc:
+        return jsonify({"error": "Template nicht gefunden"}), 404
+    liked_by = set(str(x) for x in (doc.get("liked_by") or []))
+    if uid in liked_by:
+        _collection_update_one({"backup_id": backup_id}, {"$pull": {"liked_by": uid}, "$inc": {"likes": -1}}, pcol)
+        liked = False
+    else:
+        _collection_update_one({"backup_id": backup_id}, {"$addToSet": {"liked_by": uid}, "$inc": {"likes": 1}}, pcol)
+        liked = True
+    new_doc = _collection_find_one({"backup_id": backup_id}, pcol) or {}
+    return jsonify({"ok": True, "liked": liked, "likes": max(0, int(new_doc.get("likes", 0) or 0))})
+
+
 @flask_app.route("/api/guild/<guild_id>/templates/import/<backup_id>", methods=["POST"])
 @require_auth
 def api_template_import(guild_id, backup_id):
@@ -3887,6 +4658,8 @@ def api_template_import(guild_id, backup_id):
     try:
         from bot.bot import BOT_REF; _bcog = BOT_REF.get_cog("BackupCog") if BOT_REF else None
         doc = _run_async(_bcog._backup_db_get_any(backup_id)) if _bcog else None
+        if not doc:
+            doc = _backup_doc_any(backup_id)
         if not doc or not doc.get("data"):
             return jsonify({"error": "Template nicht gefunden"}), 404
         if doc.get("password_hash"):
@@ -3897,10 +4670,7 @@ def api_template_import(guild_id, backup_id):
         pcol = _public_backups_col()
         if pcol is not None:
             try:
-                try:
-                    safe_async(pcol.update_one({"backup_id": backup_id}, {"$inc": {"downloads": 1}}), None)
-                except Exception:
-                    pcol.update_one({"backup_id": backup_id}, {"$inc": {"downloads": 1}})
+                _collection_update_one({"backup_id": backup_id}, {"$inc": {"downloads": 1}}, pcol)
             except Exception:
                 pass
         return jsonify({"ok": True, "report": report or {}})

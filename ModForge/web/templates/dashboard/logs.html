@@ -93,6 +93,19 @@
   flex-wrap: wrap;
 }
 
+/* ── Command Center ───────────────────────────────────────────── */
+.log-command-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:14px;margin:14px 0}
+.log-command-card{padding:16px;border:1px solid var(--border);border-radius:16px;background:rgba(255,255,255,.025)}
+.log-score-ring{width:86px;height:86px;border-radius:999px;display:grid;place-items:center;background:conic-gradient(var(--green) calc(var(--score,0)*1%),rgba(255,255,255,.07) 0);position:relative;flex-shrink:0}
+.log-score-ring::after{content:'';position:absolute;inset:8px;border-radius:999px;background:rgba(8,8,22,.96);border:1px solid var(--border)}
+.log-score-ring b{position:relative;z-index:1;font-size:1.2rem;font-family:'Geist Mono',monospace}
+.log-health-list{display:grid;gap:6px;max-height:210px;overflow:auto}
+.log-health-item{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border-radius:10px;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.04);font-size:.72rem}
+.log-health-dot{width:20px;text-align:center;font-size:.72rem;flex-shrink:0}
+.log-health-dot.ok{color:var(--green)}.log-health-dot.warn{color:var(--amberl)}.log-health-dot.bad{color:#f87171}
+.log-preset-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:8px}
+.log-result{margin-top:10px;padding:10px;border-radius:12px;background:rgba(0,0,0,.18);border:1px solid var(--border);font-size:.75rem;color:var(--muted);max-height:160px;overflow:auto}
+
 @media(max-width:700px) {
   .log-mod-row { flex-wrap: wrap; }
   .log-mod-select { min-width: 100%; max-width: 100%; }
@@ -164,6 +177,40 @@
   </label>
 </div>
 
+<div class="log-command-grid">
+  <div class="log-command-card">
+    <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+      <div class="log-score-ring" id="logScoreRing" style="--score:0"><b id="logScore">…</b></div>
+      <div style="flex:1;min-width:220px">
+        <div style="font-weight:900;font-size:1rem;margin-bottom:4px">📢 Log Command Center</div>
+        <div class="cfg-desc">Prüfe Kanäle, repariere kaputte Module, teste Logs und setze Routing-Presets.</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px">
+          <button class="btn-glass btn-sm btn-glass-primary" onclick="runLogHealth()">🩺 Health Check</button>
+          <button class="btn-glass btn-sm btn-glass-ghost" onclick="runLogTest()">🧪 Test senden</button>
+          <button class="btn-glass btn-sm btn-glass-amber" onclick="repairLogs('fill_missing')">🛠️ Fehlende füllen</button>
+          <button class="btn-glass btn-sm btn-glass-danger" onclick="repairLogs('remove_broken')">🧹 Kaputte entfernen</button>
+        </div>
+      </div>
+    </div>
+    <div id="logHealthSummary" class="log-result">Health Check wird geladen…</div>
+  </div>
+
+  <div class="log-command-card">
+    <div style="font-weight:800;margin-bottom:8px">⚙️ Routing Presets</div>
+    <div class="cfg-desc" style="margin-bottom:10px">Wähle einen Ziel-Kanal. Hardcore kann eigene Log-Kanäle erstellen, wenn der Bot Rechte hat.</div>
+    <select id="presetChannel" class="cfg-select" style="width:100%;margin-bottom:10px">
+      <option value="">— Ziel-Kanal wählen —</option>
+      {% for ch in channels %}<option value="{{ ch.id }}" {% if default_channel|string == ch.id|string %}selected{% endif %}>#{{ ch.name }}</option>{% endfor %}
+    </select>
+    <div class="log-preset-grid">
+      <button class="btn-glass btn-sm" onclick="applyLogPreset('simple')">📌 Einfach</button>
+      <button class="btn-glass btn-sm" onclick="applyLogPreset('security')">🛡️ Security</button>
+      <button class="btn-glass btn-sm btn-glass-primary" onclick="applyLogPreset('hardcore')">🚀 Hardcore</button>
+    </div>
+    <div id="logPresetResult" class="log-result" style="display:none"></div>
+  </div>
+</div>
+
 <div class="db-card" style="padding:16px;margin:14px 0">
   <div class="db-card-header"><span class="db-card-title">👁️ Log Embed Live Preview</span></div>
   <div class="embed-preview">
@@ -233,6 +280,7 @@
         </option>
         {% endfor %}
       </select>
+      <div class="log-health-dot" id="health-{{ mod.key }}" title="Noch nicht geprüft">◌</div>
       <div class="log-mod-indicator" id="ind-{{ mod.key }}">
         {% if ch_val | string == "0" %}
         <span style="color:#f87171" title="Explizit deaktiviert">⛔</span>
@@ -256,6 +304,35 @@
 <script>
 const GID             = "{{ guild.id }}";
 const HAS_DEFAULT_CH  = {{ 'true' if default_channel else 'false' }};
+
+function logResult(el, html, show=true){ const box=document.getElementById(el); if(!box)return; box.style.display=show?'block':'none'; box.innerHTML=html; }
+function healthIcon(item){ if(item.disabled) return ['warn','⛔']; if(item.ok) return ['ok','✅']; if(item.reason==='Kein Kanal') return ['bad','❌']; return ['bad','⚠️']; }
+async function runLogHealth(){
+  try{
+    const r=await fetch(`/api/guild/${GID}/logs/health`); const d=await r.json();
+    if(!d.ok) throw new Error(d.error||'Health fehlgeschlagen');
+    document.getElementById('logScore').textContent=d.score+'%';
+    document.getElementById('logScoreRing').style.setProperty('--score', d.score);
+    d.modules.forEach(m=>{ const dot=document.getElementById('health-'+m.module); if(dot){ const [cls,ico]=healthIcon(m); dot.className='log-health-dot '+cls; dot.textContent=ico; dot.title=m.reason + (m.channel ? ' · #'+m.channel : ''); }});
+    const worst=d.modules.filter(m=>!m.ok && !m.disabled).slice(0,8);
+    logResult('logHealthSummary', `<b style="color:var(--fg)">Score ${d.score}%</b> · ✅ ${d.modules_ok}/${d.modules_total} OK · ⚠️ ${d.broken} defekt · ❌ ${d.missing} ohne Kanal · ⛔ ${d.disabled} deaktiviert` + (worst.length? `<div style="margin-top:8px">${worst.map(x=>`<div class="log-health-item"><span>${x.module}</span><span>${x.reason}</span></div>`).join('')}</div>`:''));
+  }catch(e){ logResult('logHealthSummary','❌ '+e.message); }
+}
+async function runLogTest(){
+  if(!confirm('Test-Logs in alle konfigurierten Log-Kanäle senden?')) return;
+  logResult('logHealthSummary','⏳ Test läuft…');
+  try{ const r=await fetch(`/api/guild/${GID}/logs/test`,{method:'POST'}); const d=await r.json(); if(!d.ok) throw new Error(d.error||'Test fehlgeschlagen'); logResult('logHealthSummary',`🧪 ${d.tested} Kanäle getestet<div style="margin-top:8px">${(d.results||[]).map(x=>`<div class="log-health-item"><span>${x.ok?'✅':'❌'} ${x.name||x.channel_id}</span><span>${x.reason}</span></div>`).join('')}</div>`); }catch(e){ logResult('logHealthSummary','❌ '+e.message); }
+}
+async function repairLogs(action){
+  const channel_id=document.getElementById('presetChannel').value || document.getElementById('defaultLog').value || null;
+  if((action==='fill_missing'||action==='all_to_channel') && !channel_id) return showToast('Bitte Ziel- oder Standard-Kanal wählen', 'err');
+  try{ const r=await fetch(`/api/guild/${GID}/logs/repair`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,channel_id})}); const d=await r.json(); if(d.ok){showToast(`Logs repariert: ${d.changed} Änderungen`,'ok'); await runLogHealth(); setTimeout(()=>location.reload(),900)} else showToast(d.error||'Fehler','err'); }catch(e){showToast('Netzwerkfehler','err')}
+}
+async function applyLogPreset(preset){
+  if(preset==='hardcore' && !confirm('Hardcore-Preset kann eigene Log-Kanäle erstellen. Fortfahren?')) return;
+  const channel_id=document.getElementById('presetChannel').value || document.getElementById('defaultLog').value || null;
+  try{ const r=await fetch(`/api/guild/${GID}/logs/preset`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({preset,channel_id})}); const d=await r.json(); if(d.ok){logResult('logPresetResult',`✅ Preset <b>${preset}</b> gesetzt`+(Object.keys(d.created||{}).length?`<br>Erstellt: ${Object.entries(d.created).map(([k,v])=>`${k}: <#${v}>`).join(', ')}`:'')); showToast('Preset gespeichert','ok'); setTimeout(()=>location.reload(),1000)} else logResult('logPresetResult','❌ '+(d.error||'Fehler')); }catch(e){logResult('logPresetResult','❌ Netzwerkfehler')}
+}
 
 // ─── Dirty Tracking ───────────────────────────────────────────────
 function onChangeLocal() {
@@ -383,6 +460,7 @@ document.querySelectorAll('.log-cat-body').forEach((b, i) => {
   }
 });
 
+runLogHealth();
 window._dirty = false;
 </script>
 {% endblock %}
