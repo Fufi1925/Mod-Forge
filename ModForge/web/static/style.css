@@ -3020,3 +3020,6 @@ body:not(.mf-dashboard-ready) .db-main .ov-stat::before {
 @keyframes badgePulse { 0%,100%{transform:scale(1);box-shadow:0 0 10px color-mix(in srgb,var(--bc,#94a3b8) 20%,transparent)} 50%{transform:scale(1.04);box-shadow:0 0 24px color-mix(in srgb,var(--bc,#94a3b8) 46%,transparent)} }
 @keyframes legendaryFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-2px)} }
 .badge-def-card .mf-user-badge { margin-bottom:8px; }
+.mini-badge-btn { border:0; border-radius:999px; padding:0 5px; font-size:.65rem; line-height:1.2; cursor:pointer; color:inherit; background:rgba(255,255,255,.12); margin-left:2px; }
+.mini-badge-btn:hover { background:rgba(255,255,255,.24); }
+.mini-badge-btn.danger { color:#fca5a5; }

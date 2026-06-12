@@ -193,6 +193,53 @@ BADGES = {
     "server_booster":    {"name": "Server Booster",   "emoji": "💜", "color": "#d946ef", "desc": "Boostet den Server", "category": "support", "rarity": "epic", "style": "pulse", "level": 2},
 }
 
+BADGES.update({
+    "bot_owner_dev": {"name": "Bot Owner/Dev", "emoji": "👑", "color": "#f59e0b", "desc": "Offizieller ModForge Bot-Owner und Entwickler", "category": "team", "rarity": "mythic", "style": "legendary", "level": 999},
+    "security_expert": {"name": "Security Expert", "emoji": "🔐", "color": "#60a5fa", "desc": "Kennt sich mit Discord-Security besonders gut aus", "category": "moderation", "rarity": "epic", "style": "glow", "level": 5},
+    "raid_defender": {"name": "Raid Defender", "emoji": "🛡️", "color": "#22c55e", "desc": "Hat beim Abwehren eines Raids geholfen", "category": "moderation", "rarity": "legendary", "style": "shine", "level": 7},
+    "case_master": {"name": "Case Master", "emoji": "📋", "color": "#a78bfa", "desc": "Hat viele Cases sauber bearbeitet", "category": "moderation", "rarity": "rare", "style": "outline", "level": 4},
+    "event_host": {"name": "Event Host", "emoji": "🎤", "color": "#fb7185", "desc": "Organisiert Community-Events", "category": "event", "rarity": "rare", "style": "pulse", "level": 3},
+    "community_star": {"name": "Community Star", "emoji": "🌟", "color": "#facc15", "desc": "Besonders positives Community-Mitglied", "category": "community", "rarity": "epic", "style": "shine", "level": 5},
+    "trusted_member": {"name": "Trusted Member", "emoji": "✅", "color": "#34d399", "desc": "Sehr vertrauenswürdiges Mitglied", "category": "community", "rarity": "rare", "style": "glow", "level": 2},
+    "legend": {"name": "Server Legende", "emoji": "🏆", "color": "#f97316", "desc": "Legendäres Mitglied mit besonderem Status", "category": "loyalty", "rarity": "legendary", "style": "legendary", "level": 10},
+    "mythic_supporter": {"name": "Mythic Supporter", "emoji": "💠", "color": "#22d3ee", "desc": "Außergewöhnlicher Supporter", "category": "support", "rarity": "mythic", "style": "legendary", "level": 20},
+    "founder_friend": {"name": "Founder Friend", "emoji": "🤝", "color": "#c084fc", "desc": "Enger Unterstützer des Projekts", "category": "team", "rarity": "legendary", "style": "shine", "level": 8},
+})
+
+_BADGE_STYLE_PRESETS = {
+    "bug_hunter": ("moderation", "epic", "glow", 4),
+    "premium": ("premium", "epic", "shine", 3),
+    "early_supporter": ("support", "legendary", "legendary", 7),
+    "contributor": ("team", "rare", "glow", 4),
+    "translator": ("community", "rare", "outline", 2),
+    "designer": ("team", "epic", "shine", 4),
+    "moderator": ("moderation", "rare", "glow", 3),
+    "veteran": ("loyalty", "legendary", "pulse", 6),
+    "challenger": ("event", "epic", "shine", 4),
+    "event_winner": ("event", "legendary", "legendary", 8),
+    "nitro_booster": ("support", "epic", "pulse", 4),
+    "verified": ("community", "common", "solid", 1),
+    "partner": ("team", "epic", "outline", 4),
+    "staff": ("team", "rare", "glow", 5),
+    "developer": ("team", "epic", "shine", 6),
+    "streamer": ("community", "rare", "pulse", 3),
+    "artist": ("community", "rare", "shine", 3),
+    "musician": ("community", "rare", "pulse", 3),
+    "gamer": ("community", "common", "solid", 1),
+    "collector": ("activity", "epic", "shine", 5),
+    "helper": ("community", "rare", "glow", 3),
+    "innovator": ("team", "epic", "glow", 5),
+    "beta_tester": ("team", "rare", "outline", 3),
+    "donator": ("support", "epic", "pulse", 4),
+    "og_member": ("loyalty", "legendary", "legendary", 7),
+}
+for _bid, (_cat, _rarity, _style, _level) in _BADGE_STYLE_PRESETS.items():
+    if _bid in BADGES:
+        BADGES[_bid].setdefault("category", _cat)
+        BADGES[_bid].setdefault("rarity", _rarity)
+        BADGES[_bid].setdefault("style", _style)
+        BADGES[_bid].setdefault("level", _level)
+
 FOOTER_TEXT = "Powered by BotForge 🔒"
 FOOTER_ICON = "https://cdn.discordapp.com/attachments/1509625552120840315/1511461866512056460/178042110349811.png?ex=6a208a0e&is=6a1f388e&hm=2e4a3f12ba9013ea8991f5835c39a5542b8e1c3385521d9a6ac88f0361a8a5eb"
 VERIFY_BANNER_URL = "https://cdn.discordapp.com/attachments/1484260674145353928/1491861030601490432/1775755687339.png?ex=69d93b5b&is=69d7e9db&hm=d65f0da063a98be84b880e8abbdaeaac62eefe7f674724835b3a7e56b20f4943"

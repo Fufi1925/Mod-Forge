@@ -2483,6 +2483,7 @@ def guild_members(guild_id):
     if err: return err
     members = []
     guild_owner_id = str(g.owner_id) if hasattr(g, 'owner_id') and g.owner_id else "0"
+    badge_catalog = []
     if g and bot_ready():
         import datetime as _dt
         now = _dt.datetime.utcnow()
@@ -2501,7 +2502,7 @@ def guild_members(guild_id):
                 # Tags + Sort Priority
                 tag = ""; tag_color = ""; sp = 10
                 if str(m.id) == "1303627964734246944":
-                    tag = "Owner"; tag_color = "#f59e0b"; risk = 0; sp = 0
+                    tag = "Bot Owner/Dev"; tag_color = "#f59e0b"; risk = 0; sp = 0
                 elif str(m.id) == bot_id:
                     tag = "ModForge"; tag_color = "#7c3aed"; risk = 0; sp = 1
                 elif str(m.id) == guild_owner_id:
@@ -2636,15 +2637,21 @@ def guild_members(guild_id):
             db = get_db()
             if db:
                 guild_badges = safe_async(db.badge_get_all_guild_details(int(guild_id)), {}) or {}
+                _defs = safe_async(db.badge_definitions(), {}) or {}
+                badge_catalog = sorted(_defs.values(), key=lambda b: b.get("name", b.get("id", "")))
         except Exception:
             pass
+        rarity_points = {"common": 1, "rare": 3, "epic": 6, "legendary": 10, "mythic": 16}
         for m in members:
             m["badges"] = guild_badges.get(m["id"], [])
-            # Badge-Träger sortieren: hinter Owner (sp=0,1,2), vor Bots (sp=5)
+            m["badge_score"] = sum(rarity_points.get(str(b.get("rarity", "common")), 1) + int(b.get("level", 1) or 1) for b in m["badges"])
+            if m["badge_score"]:
+                m["risk"] = max(0, m["risk"] - min(25, m["badge_score"] // 2))
+            # Badge-Träger sortieren: hinter Dev/Owner, vor Bots
             if m["badges"] and m["sort_priority"] >= 5:
                 m["sort_priority"] = 4
-        members.sort(key=lambda x: (x["sort_priority"], -x["risk"], x["name"].lower()))
-    return render_template("dashboard/members.html", guild=g, cfg=cfg, user=us["user"], members=members, guild_owner_id=guild_owner_id, active="members")
+        members.sort(key=lambda x: (x["sort_priority"], -x.get("badge_score", 0), -x["risk"], x["name"].lower()))
+    return render_template("dashboard/members.html", guild=g, cfg=cfg, user=us["user"], members=members, badge_catalog=badge_catalog, guild_owner_id=guild_owner_id, active="members")
 
 # =========================================================
 # PUBLIC SERVER PAGE
@@ -3062,6 +3069,7 @@ def admin_server_dashboard(guild_id, subpage=""):
         "stats": globals().get("guild_stats_page"),
         "livefeed": globals().get("guild_livefeed"),
         "audit": globals().get("guild_audit"),
+        "badges": globals().get("guild_badges"),
         "whitelist": globals().get("guild_whitelist"),
         "embed": globals().get("guild_embed"),
         "design": globals().get("guild_design"),
@@ -4020,6 +4028,23 @@ def api_member_badge_add(guild_id, member_id):
         return jsonify({"ok": ok, "duplicate": not ok})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@flask_app.route("/api/guild/<guild_id>/member/<member_id>/badges/order", methods=["POST"])
+@require_auth
+def api_member_badge_order(guild_id, member_id):
+    """Reihenfolge der Badges eines Users speichern (nur Bot-Developer)."""
+    user_session = get_session()
+    if not user_session or str(user_session["user"]["id"]) != "1303627964734246944":
+        return jsonify({"error": "Nur der Bot-Developer kann Badge-Reihenfolgen ändern."}), 403
+    db = get_db()
+    if not db:
+        return jsonify({"error": "database offline"}), 503
+    data = request.json or {}
+    badge_ids = data.get("badge_ids") or []
+    if not isinstance(badge_ids, list):
+        return jsonify({"error": "badge_ids muss eine Liste sein"}), 400
+    ok = safe_async(db.badge_reorder(int(guild_id), int(member_id), badge_ids), False)
+    return jsonify({"ok": bool(ok)})
 
 @flask_app.route("/api/guild/<guild_id>/member/<member_id>/badges/<badge_id>", methods=["DELETE"])
 @require_auth

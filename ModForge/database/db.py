@@ -579,9 +579,10 @@ class Database:
             existing = await self.badges.find_one({"guild_id": guild_id, "user_id": user_id, "badge_id": badge_id})
             if existing:
                 return False
+            count = await self.badges.count_documents({"guild_id": guild_id, "user_id": user_id})
             await self.badges.insert_one({
                 "guild_id": guild_id, "user_id": user_id, "badge_id": badge_id,
-                "added_by": added_by, "added_at": datetime.datetime.utcnow(),
+                "position": count, "added_by": added_by, "added_at": datetime.datetime.utcnow(),
             })
             await self.badge_event(guild_id, user_id, added_by, "grant", badge_id)
             return True
@@ -602,10 +603,23 @@ class Database:
     async def badge_get_all(self, guild_id: int, user_id: int) -> list:
         """Alle Badge-IDs eines Users in einer Guild."""
         try:
-            docs = await self.badges.find({"guild_id": guild_id, "user_id": user_id}).sort("added_at", DESCENDING).to_list(length=10000)
+            docs = await self.badges.find({"guild_id": guild_id, "user_id": user_id}).sort([("position", ASCENDING), ("added_at", ASCENDING)]).to_list(length=10000)
             return [d["badge_id"] for d in docs]
         except PyMongoError as e:
             log.error(f"badge_get_all: {e}"); return []
+
+    async def badge_reorder(self, guild_id: int, user_id: int, badge_ids: List[str]) -> bool:
+        """Speichert die sichtbare Reihenfolge der Badges eines Users."""
+        try:
+            clean_ids = [self._normalize_badge_id(bid) for bid in badge_ids if self._normalize_badge_id(bid)]
+            for pos, badge_id in enumerate(clean_ids):
+                await self.badges.update_one(
+                    {"guild_id": guild_id, "user_id": user_id, "badge_id": badge_id},
+                    {"$set": {"position": pos}},
+                )
+            return True
+        except PyMongoError as e:
+            log.error(f"badge_reorder: {e}"); return False
 
     async def badge_get_details(self, guild_id: int, user_id: int) -> list:
         defs = await self.badge_definitions()
@@ -615,7 +629,7 @@ class Database:
     async def badge_get_all_guild(self, guild_id: int) -> dict:
         """Alle Badge-IDs in einer Guild: {user_id: [badge_ids]}."""
         try:
-            docs = await self.badges.find({"guild_id": guild_id}).sort("added_at", DESCENDING).to_list(length=50000)
+            docs = await self.badges.find({"guild_id": guild_id}).sort([("user_id", ASCENDING), ("position", ASCENDING), ("added_at", ASCENDING)]).to_list(length=50000)
             result = {}
             for d in docs:
                 uid = str(d["user_id"])

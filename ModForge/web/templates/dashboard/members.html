@@ -38,7 +38,7 @@
   .mp-section{margin-top:24px}
   .mp-section-title{font-size:.7rem;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;margin-bottom:12px;display:flex;align-items:center;gap:8px}
   .mp-section-title::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--border),transparent)}
-  .mp-grid-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .mp-grid-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
   .mp-stat-card{background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:14px;padding:12px;text-align:center;transition:.2s}
   .mp-stat-card:hover{background:rgba(255,255,255,0.05);border-color:rgba(59,130,246,0.3)}
   .mp-stat-v{font-size:1.2rem;font-weight:900;font-family:'Geist Mono',monospace;color:#fff}
@@ -79,7 +79,7 @@
     .mp{width:100%;max-width:100%}
   }
   @media(max-width:600px){
-    .mp-grid-stats{grid-template-columns:repeat(3,1fr)}
+    .mp-grid-stats{grid-template-columns:repeat(2,1fr)}
     .timeout-grid{grid-template-columns:repeat(4,1fr)}
   }
 </style>
@@ -113,6 +113,13 @@
       <option value="online">🟢 Online</option>
     </select>
 
+    <select class="cfg-select ignore-dirty" id="badgeFilter" onchange="filt()" style="border-radius:14px;min-width:170px">
+      <option value="">🏅 Alle Badges</option>
+      <option value="__has">✅ Hat Badges</option>
+      <option value="__none">○ Ohne Badges</option>
+      {% for b in badge_catalog %}<option value="{{ b.id }}">{{ b.emoji }} {{ b.name }}</option>{% endfor %}
+    </select>
+
     <div style="background:rgba(59,130,246,0.1);color:var(--vl);padding:10px 18px;border-radius:14px;font-weight:800;font-size:.85rem;border:1px solid rgba(59,130,246,0.2);white-space:nowrap;flex-shrink:0">
       <span id="mVisible">{{ members | length }}</span>
       <span style="font-weight:500;opacity:.7"> / {{ members | length }}</span>
@@ -134,6 +141,7 @@
        data-timeout="{{ (m.timeout != '') | int }}"
        data-voice="{{ (m.voice_ch != '') | int }}"
        data-risk="{{ m.risk }}"
+       data-badges="{{ (m.badges|map(attribute='id')|join(',')) if m.badges else '' }}"
        data-status="{{ m.status }}">
 
     <div class="m-av-container">
@@ -244,12 +252,18 @@ function fmtRelative(ts) {
 function filt() {
   const q = document.getElementById('mSearch').value.toLowerCase().trim();
   const f = document.getElementById('mFilter').value;
+  const bf = document.getElementById('badgeFilter')?.value || '';
   let count = 0;
 
   document.querySelectorAll('.m-card').forEach(card => {
     const matchSearch = !q || card.dataset.search.includes(q);
     const risk  = parseInt(card.dataset.risk, 10);
     let matchFilter = true;
+    let matchBadge = true;
+    const badgeIds = (card.dataset.badges || '').split(',').filter(Boolean);
+    if (bf === '__has') matchBadge = badgeIds.length > 0;
+    else if (bf === '__none') matchBadge = badgeIds.length === 0;
+    else if (bf) matchBadge = badgeIds.includes(bf);
 
     switch (f) {
       case 'humans':   matchFilter = card.dataset.bot     === '0'; break;
@@ -261,7 +275,7 @@ function filt() {
       case 'online':   matchFilter = card.dataset.status  !== 'offline'; break;
     }
 
-    const show = matchSearch && matchFilter;
+    const show = matchSearch && matchFilter && matchBadge;
     card.style.display = show ? 'flex' : 'none';
     if (show) count++;
   });
@@ -300,7 +314,7 @@ function openProfile(idx) {
 
   // permissions
   const badgesHTML = Array.isArray(m.badges) && m.badges.length
-    ? m.badges.map(b => `<span class="mf-user-badge" title="${escapeHtml(b.desc || b.id)}" style="--bc:${escapeHtml(b.color || '#94a3b8')}">${escapeHtml(b.emoji || '🏷️')} ${escapeHtml(b.name || b.id)}</span>`).join('')
+    ? m.badges.map(b => `<span class="mf-user-badge mf-badge-${escapeHtml(b.style || 'solid')} mf-rarity-${escapeHtml(b.rarity || 'common')}" title="${escapeHtml(b.desc || b.id)}" style="--bc:${escapeHtml(b.color || '#94a3b8')}">${escapeHtml(b.emoji || '🏷️')} ${escapeHtml(b.name || b.id)}</span>`).join('')
     : '<span style="color:var(--muted);font-size:.75rem">Keine Badges</span>';
 
   const permsObj = m.all_perms ?? {};
@@ -324,6 +338,10 @@ function openProfile(idx) {
         <div class="mp-stat-v">${m.cases ?? 0}</div>
         <div class="mp-stat-l">Cases</div>
       </div>
+      <div class="mp-stat-card">
+        <div class="mp-stat-v" style="color:var(--amberl)">${m.badge_score ?? 0}</div>
+        <div class="mp-stat-l">Badge Trust</div>
+      </div>
     </div>
 
     <div class="mp-tabs" id="mpTabs">
@@ -340,6 +358,7 @@ function openProfile(idx) {
         <div class="mp-data-l">📱 Status</div>
         <div class="mp-data-v">${st}</div>
       </div>
+      <div style="margin:10px 0"><a class="btn-glass btn-sm" href="/server/${GUILD_ID}/user/${m.id}" target="_blank">🌐 Öffentliches Badge-Profil</a></div>
       <div class="mp-data-row">
         <div class="mp-data-l">📥 Beigetreten</div>
         <div class="mp-data-v">${fmtDate(m.joined)}</div>
@@ -534,7 +553,7 @@ async function loadBadges() {
     const publicEl = document.getElementById('pPublicBadgeList');
     if (publicEl) {
       publicEl.innerHTML = MEMBER_BADGES.length
-        ? MEMBER_BADGES.map(b => `<span class="mf-user-badge" title="${escapeHtml(b.desc || b.id)}" style="--bc:${escapeHtml(b.color || '#94a3b8')}">${escapeHtml(b.emoji || '🏷️')} ${escapeHtml(b.name || b.id)}</span>`).join('')
+        ? MEMBER_BADGES.map(b => `<span class="mf-user-badge mf-badge-${escapeHtml(b.style || 'solid')} mf-rarity-${escapeHtml(b.rarity || 'common')}" title="${escapeHtml(b.desc || b.id)}" style="--bc:${escapeHtml(b.color || '#94a3b8')}">${escapeHtml(b.emoji || '🏷️')} ${escapeHtml(b.name || b.id)}</span>`).join('')
         : '<span style="color:var(--muted);font-size:.75rem">Keine Badges</span>';
     }
 
@@ -544,9 +563,12 @@ async function loadBadges() {
       if (MEMBER_BADGES.length === 0) {
         listEl.innerHTML = '<span style="color:var(--muted);font-size:.7rem">Keine Badges</span>';
       } else {
-        listEl.innerHTML = MEMBER_BADGES.map(b =>
-          `<span title="${b.desc || ''}" style="display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border-radius:10px;background:${b.color}20;border:1px solid ${b.color}50;cursor:pointer;font-size:.72rem" onclick="removeBadge('${b.id}')">
-            ${b.emoji} ${b.name} <span style="font-size:.55rem;opacity:.5">×</span>
+        listEl.innerHTML = MEMBER_BADGES.map((b, i) =>
+          `<span class="mf-user-badge mf-badge-${escapeHtml(b.style || 'solid')} mf-rarity-${escapeHtml(b.rarity || 'common')}" title="${escapeHtml(b.desc || '')}" style="--bc:${escapeHtml(b.color || '#94a3b8')};cursor:default">
+            ${escapeHtml(b.emoji || '🏷️')} ${escapeHtml(b.name || b.id)}
+            <button class="mini-badge-btn" onclick="moveBadge(${i}, -1)" title="nach links">‹</button>
+            <button class="mini-badge-btn" onclick="moveBadge(${i}, 1)" title="nach rechts">›</button>
+            <button class="mini-badge-btn danger" onclick="removeBadge('${b.id}')" title="entfernen">×</button>
           </span>`
         ).join('');
       }
@@ -572,11 +594,31 @@ async function createBadgeDef() {
   try {
     const r = await fetch(`/api/guild/${GUILD_ID}/badges/definitions`, {
       method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({id, name, emoji: document.getElementById('bdEmoji')?.value || '🏷️', color: document.getElementById('bdColor')?.value || '#94a3b8', desc: document.getElementById('bdDesc')?.value || ''})
+      body: JSON.stringify({id, name, emoji: document.getElementById('bdEmoji')?.value || '🏷️', color: document.getElementById('bdColor')?.value || '#94a3b8', desc: document.getElementById('bdDesc')?.value || '', style:'glow', rarity:'rare', category:'custom', level:1})
     });
     const d = await r.json();
     if (d.ok) { showToast('Custom Badge gespeichert', 'ok'); await loadBadges(); }
     else showToast(d.error || 'Fehler', 'err');
+  } catch(e) { showToast('Netzwerkfehler', 'err'); }
+}
+
+async function moveBadge(index, dir) {
+  const next = index + dir;
+  if (next < 0 || next >= MEMBER_BADGES.length) return;
+  const tmp = MEMBER_BADGES[index];
+  MEMBER_BADGES[index] = MEMBER_BADGES[next];
+  MEMBER_BADGES[next] = tmp;
+  const listEl = document.getElementById('pBadgeList');
+  if (listEl) {
+    listEl.innerHTML = MEMBER_BADGES.map((b, i) =>
+      `<span class="mf-user-badge mf-badge-${escapeHtml(b.style || 'solid')} mf-rarity-${escapeHtml(b.rarity || 'common')}" style="--bc:${escapeHtml(b.color || '#94a3b8')}">${escapeHtml(b.emoji || '🏷️')} ${escapeHtml(b.name || b.id)} <button class="mini-badge-btn" onclick="moveBadge(${i}, -1)">‹</button><button class="mini-badge-btn" onclick="moveBadge(${i}, 1)">›</button><button class="mini-badge-btn danger" onclick="removeBadge('${b.id}')">×</button></span>`
+    ).join('');
+  }
+  try {
+    const r = await fetch(`/api/guild/${GUILD_ID}/member/${currentMember.id}/badges/order`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({badge_ids: MEMBER_BADGES.map(b => b.id)})});
+    const d = await r.json();
+    if (!d.ok) showToast(d.error || 'Reihenfolge nicht gespeichert', 'err');
+    else showToast('Badge-Reihenfolge gespeichert', 'ok');
   } catch(e) { showToast('Netzwerkfehler', 'err'); }
 }
 
