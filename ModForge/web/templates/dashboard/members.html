@@ -150,7 +150,7 @@
         {% if m.badges %}
         <span style="display:flex;gap:3px;flex-wrap:wrap;margin-top:3px">
           {% for b in m.badges[:4] %}
-          <span title="{{ b.name }} – {{ b.desc }}" style="font-size:.58rem;padding:1px 5px;border-radius:999px;background:{{ b.color }}20;color:{{ b.color }};border:1px solid {{ b.color }}45;line-height:1.4">{{ b.emoji }} {{ b.name }}</span>
+          <span class="mf-user-badge mf-badge-{{ b.style|default('solid') }} mf-rarity-{{ b.rarity|default('common') }}" title="{{ b.name }} – {{ b.desc }}" style="--bc:{{ b.color }};font-size:.58rem;padding:1px 5px">{{ b.emoji }} {{ b.name }}</span>
           {% endfor %}
           {% if m.badges|length > 4 %}
           <span style="font-size:.55rem;color:var(--muted)">+{{ m.badges|length - 4 }}</span>

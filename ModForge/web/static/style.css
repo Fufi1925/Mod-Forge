@@ -3004,3 +3004,19 @@ body:not(.mf-dashboard-ready) .db-main .ov-stat::before {
 .mf-wizard-actions { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-top:14px; }
 @media(max-width:620px){ .mf-wizard-grid{grid-template-columns:1fr} }
 .mf-user-badge { display:inline-flex; align-items:center; gap:4px; padding:4px 9px; border-radius:999px; font-size:.68rem; font-weight:800; color:var(--bc,#94a3b8); background:color-mix(in srgb, var(--bc,#94a3b8) 16%, transparent); border:1px solid color-mix(in srgb, var(--bc,#94a3b8) 42%, transparent); box-shadow:0 0 18px color-mix(in srgb, var(--bc,#94a3b8) 10%, transparent); }
+
+/* Krasses Badge-System */
+.mf-user-badge.mf-badge-outline { background:transparent !important; border-width:2px; }
+.mf-user-badge.mf-badge-glow { box-shadow:0 0 18px color-mix(in srgb, var(--bc,#94a3b8) 45%, transparent), inset 0 0 16px color-mix(in srgb, var(--bc,#94a3b8) 12%, transparent); }
+.mf-user-badge.mf-badge-shine { position:relative; overflow:hidden; }
+.mf-user-badge.mf-badge-shine::after { content:''; position:absolute; inset:-30%; background:linear-gradient(90deg,transparent,rgba(255,255,255,.34),transparent); transform:translateX(-120%) rotate(18deg); animation:badgeShine 2.8s ease-in-out infinite; }
+.mf-user-badge.mf-badge-pulse { animation:badgePulse 1.9s ease-in-out infinite; }
+.mf-user-badge.mf-badge-legendary { position:relative; color:#fff !important; border-color:rgba(255,255,255,.32) !important; background:linear-gradient(135deg, color-mix(in srgb, var(--bc,#f59e0b) 42%, #7c3aed), color-mix(in srgb, var(--bc,#f59e0b) 50%, #ef4444)) !important; box-shadow:0 0 24px color-mix(in srgb, var(--bc,#f59e0b) 55%, transparent), 0 0 55px rgba(168,85,247,.22); animation:legendaryFloat 2.6s ease-in-out infinite; }
+.mf-rarity-common { filter:saturate(.95); }
+.mf-rarity-rare { text-shadow:0 0 8px rgba(56,189,248,.28); }
+.mf-rarity-epic { text-shadow:0 0 10px rgba(192,132,252,.38); }
+.mf-rarity-legendary, .mf-rarity-mythic { text-shadow:0 0 12px rgba(251,191,36,.55); }
+@keyframes badgeShine { 0%,55%{transform:translateX(-130%) rotate(18deg)} 100%{transform:translateX(130%) rotate(18deg)} }
+@keyframes badgePulse { 0%,100%{transform:scale(1);box-shadow:0 0 10px color-mix(in srgb,var(--bc,#94a3b8) 20%,transparent)} 50%{transform:scale(1.04);box-shadow:0 0 24px color-mix(in srgb,var(--bc,#94a3b8) 46%,transparent)} }
+@keyframes legendaryFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-2px)} }
+.badge-def-card .mf-user-badge { margin-bottom:8px; }

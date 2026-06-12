@@ -387,12 +387,15 @@ class UtilityCog(commands.Cog):
     @app_commands.command(name="badge", description="Badges ansehen/verwalten")
     @app_commands.describe(
         action="view/list/add/remove/create/delete", user="Der Nutzer", badge="Badge-ID",
-        name="Name für create", emoji="Emoji für create", color="Hex-Farbe", description="Beschreibung"
+        name="Name für create", emoji="Emoji für create", color="Hex-Farbe", description="Beschreibung",
+        category="Kategorie", rarity="common/rare/epic/legendary/mythic", style="solid/outline/glow/shine/pulse/legendary",
+        level="Badge-Level"
     )
     async def slash_badge(self, interaction: discord.Interaction, action: str,
                           user: Optional[discord.Member] = None, badge: Optional[str] = None,
                           name: Optional[str] = None, emoji: str = "🏷️", color: str = "#94a3b8",
-                          description: str = ""):
+                          description: str = "", category: str = "general", rarity: str = "common",
+                          style: str = "solid", level: int = 1):
         action = (action or "view").lower()
         defs = await self.bot.db.badge_definitions()
 
@@ -419,7 +422,7 @@ class UtilityCog(commands.Cog):
                 f"{E.FAIL}", "Nur der Bot-Developer kann Badges vergeben oder erstellen.", COLOR_DANGER), ephemeral=True)
 
         if action == "create" and badge and name:
-            ok = await self.bot.db.badge_def_upsert(badge, name, emoji, color, description, interaction.user.id)
+            ok = await self.bot.db.badge_def_upsert(badge, name, emoji, color, description, interaction.user.id, category, rarity, style, level)
             return await interaction.response.send_message(embed=create_embed(
                 f"{E.OK if ok else E.FAIL} Badge {'gespeichert' if ok else 'nicht gespeichert'}",
                 f"{emoji} **{name}** (`{badge}`)\n{description}", COLOR_SUCCESS if ok else COLOR_DANGER), ephemeral=True)
@@ -439,6 +442,13 @@ class UtilityCog(commands.Cog):
                     f"{E.FAIL}", f"Badge `{badge}` existiert nicht. Nutze `/badge list`.", COLOR_DANGER), ephemeral=True)
             ok = await self.bot.db.badge_add(interaction.guild.id, user.id, badge, interaction.user.id)
             bd = defs[badge]
+            if ok and bd.get("role_id"):
+                try:
+                    role = interaction.guild.get_role(int(bd["role_id"]))
+                    if role:
+                        await user.add_roles(role, reason=f"Badge-Rolle: {badge}")
+                except (discord.Forbidden, discord.HTTPException, ValueError):
+                    pass
             return await interaction.response.send_message(embed=create_embed(
                 f"{E.OK if ok else E.FAIL} Badge",
                 f"{bd.get('emoji','🏷️')} **{bd.get('name')}** {'an ' + user.mention + ' vergeben' if ok else 'war bereits vorhanden'}.",

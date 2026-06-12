@@ -187,6 +187,10 @@ BADGES = {
     "beta_tester":      {"name": "Beta Tester",       "emoji": "🧪", "color": "#94a3b8", "desc": "Testet neue Features vor Release"},
     "donator":          {"name": "Donator",           "emoji": "❤️", "color": "#f43f5e", "desc": "Hat ModForge gespendet"},
     "og_member":        {"name": "OG Member",          "emoji": "👑", "color": "#eab308", "desc": "Eines der ersten 100 Mitglieder"},
+    "message_100":       {"name": "Chat Aktiv",       "emoji": "💬", "color": "#38bdf8", "desc": "Hat 100 Nachrichten geschrieben", "category": "activity", "rarity": "rare", "style": "glow", "level": 1},
+    "invite_10":         {"name": "Einlader",         "emoji": "📨", "color": "#22c55e", "desc": "Hat 10 Mitglieder eingeladen", "category": "activity", "rarity": "epic", "style": "shine", "level": 2},
+    "member_one_year":   {"name": "1 Jahr Mitglied",  "emoji": "🎂", "color": "#f59e0b", "desc": "Ist seit mindestens einem Jahr auf dem Server", "category": "loyalty", "rarity": "legendary", "style": "legendary", "level": 3},
+    "server_booster":    {"name": "Server Booster",   "emoji": "💜", "color": "#d946ef", "desc": "Boostet den Server", "category": "support", "rarity": "epic", "style": "pulse", "level": 2},
 }
 
 FOOTER_TEXT = "Powered by BotForge 🔒"
@@ -563,6 +567,20 @@ DEFAULT_CONFIG = {
         "wizard_popup_seen": False,
         "wizard_popup_seen_at": None,
         "wizard_profile": None,
+    },
+    "badge_automation": {
+        "enabled": True,
+        "message_badge_enabled": True,
+        "message_threshold": 100,
+        "message_badge_id": "message_100",
+        "invite_badge_enabled": True,
+        "invite_threshold": 10,
+        "invite_badge_id": "invite_10",
+        "one_year_enabled": True,
+        "one_year_days": 365,
+        "one_year_badge_id": "member_one_year",
+        "booster_enabled": True,
+        "booster_badge_id": "server_booster",
     },
     "server_tag": {"enabled": False, "tag": None, "reward_role": None},
     "auto_nickname": {"enabled": False, "rules": []},

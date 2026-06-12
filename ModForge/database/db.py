@@ -473,10 +473,15 @@ class Database:
     async def badge_definitions(self) -> dict:
         """Alle Badge-Definitionen: statische Badges + unbegrenzt viele Custom-Badges."""
         from bot.config import BADGES
-        defs = {
-            key: {"id": key, "custom": False, **value}
-            for key, value in BADGES.items()
-        }
+        defs = {}
+        for key, value in BADGES.items():
+            item = {"id": key, "custom": False, **value}
+            item.setdefault("category", "general")
+            item.setdefault("rarity", "common")
+            item.setdefault("style", "solid")
+            item.setdefault("level", 1)
+            item.setdefault("role_id", None)
+            defs[key] = item
         try:
             docs = await self.badge_defs.find({}).to_list(length=10000)
             for doc in docs:
@@ -489,26 +494,50 @@ class Database:
                     "emoji": doc.get("emoji", "🏷️"),
                     "color": doc.get("color", "#94a3b8"),
                     "desc": doc.get("desc", ""),
+                    "category": doc.get("category", "general"),
+                    "rarity": doc.get("rarity", "common"),
+                    "style": doc.get("style", "solid"),
+                    "level": int(doc.get("level", 1) or 1),
+                    "role_id": doc.get("role_id"),
                     "custom": True,
                 }
         except PyMongoError as e:
             log.error(f"badge_definitions: {e}")
         return defs
 
-    async def badge_def_upsert(self, badge_id: str, name: str, emoji: str, color: str, desc: str, created_by: int) -> bool:
+    async def badge_def_upsert(
+        self, badge_id: str, name: str, emoji: str, color: str, desc: str, created_by: int,
+        category: str = "general", rarity: str = "common", style: str = "solid",
+        level: int = 1, role_id: Optional[int] = None,
+    ) -> bool:
         badge_id = self._normalize_badge_id(badge_id)
         if not badge_id or not name:
             return False
+        allowed_rarity = {"common", "rare", "epic", "legendary", "mythic"}
+        allowed_style = {"solid", "outline", "glow", "shine", "pulse", "legendary"}
+        rarity = rarity if rarity in allowed_rarity else "common"
+        style = style if style in allowed_style else "solid"
+        try:
+            level = max(1, min(int(level or 1), 999))
+        except (TypeError, ValueError):
+            level = 1
+        try:
+            role_id = int(role_id) if role_id else None
+        except (TypeError, ValueError):
+            role_id = None
         try:
             await self.badge_defs.update_one(
                 {"badge_id": badge_id},
                 {"$set": {
                     "badge_id": badge_id, "name": name[:64], "emoji": (emoji or "🏷️")[:16],
                     "color": color if str(color).startswith("#") else "#94a3b8",
-                    "desc": desc[:256], "updated_at": datetime.datetime.utcnow(), "updated_by": created_by,
+                    "desc": desc[:256], "category": (category or "general")[:32],
+                    "rarity": rarity, "style": style, "level": level, "role_id": role_id,
+                    "updated_at": datetime.datetime.utcnow(), "updated_by": created_by,
                  }, "$setOnInsert": {"created_at": datetime.datetime.utcnow(), "created_by": created_by}},
                 upsert=True,
             )
+            await self.badge_event(0, 0, created_by, "definition_upsert", badge_id, {"name": name})
             return True
         except PyMongoError as e:
             log.error(f"badge_def_upsert: {e}"); return False
@@ -519,9 +548,29 @@ class Database:
             res = await self.badge_defs.delete_one({"badge_id": badge_id})
             if res.deleted_count:
                 await self.badges.delete_many({"badge_id": badge_id})
+                await self.badge_event(0, 0, 0, "definition_delete", badge_id)
             return res.deleted_count > 0
         except PyMongoError as e:
             log.error(f"badge_def_delete: {e}"); return False
+
+    async def badge_event(self, guild_id: int, user_id: int, actor_id: int, action: str, badge_id: str, extra: Optional[dict] = None) -> None:
+        try:
+            await self.data.insert_one({
+                "type": "badge_event", "guild_id": guild_id, "user_id": user_id,
+                "actor_id": actor_id, "action": action, "badge_id": badge_id,
+                "extra": extra or {}, "created_at": datetime.datetime.utcnow(),
+            })
+        except PyMongoError as e:
+            log.error(f"badge_event: {e}")
+
+    async def badge_history(self, guild_id: int, limit: int = 100) -> list:
+        try:
+            docs = await self.data.find({"type": "badge_event", "guild_id": guild_id}).sort("created_at", DESCENDING).to_list(length=limit)
+            for d in docs:
+                d["_id"] = str(d.get("_id"))
+            return docs
+        except PyMongoError as e:
+            log.error(f"badge_history: {e}"); return []
 
     async def badge_add(self, guild_id: int, user_id: int, badge_id: str, added_by: int) -> bool:
         """Fügt ein Badge hinzu. Gibt False zurück wenn bereits vorhanden."""
@@ -534,6 +583,7 @@ class Database:
                 "guild_id": guild_id, "user_id": user_id, "badge_id": badge_id,
                 "added_by": added_by, "added_at": datetime.datetime.utcnow(),
             })
+            await self.badge_event(guild_id, user_id, added_by, "grant", badge_id)
             return True
         except PyMongoError as e:
             log.error(f"badge_add: {e}"); return False
@@ -543,6 +593,8 @@ class Database:
         badge_id = self._normalize_badge_id(badge_id)
         try:
             r = await self.badges.delete_one({"guild_id": guild_id, "user_id": user_id, "badge_id": badge_id})
+            if r.deleted_count:
+                await self.badge_event(guild_id, user_id, 0, "remove", badge_id)
             return r.deleted_count > 0
         except PyMongoError as e:
             log.error(f"badge_remove: {e}"); return False
@@ -764,6 +816,7 @@ class Database:
             await self.badges.create_index(
                 [("guild_id", ASCENDING), ("badge_id", ASCENDING)], name="badges_guild_lookup")
             await self.badge_defs.create_index("badge_id", unique=True, name="badge_defs_unique")
+            await self.data.create_index([("type", ASCENDING), ("guild_id", ASCENDING), ("created_at", DESCENDING)], name="data_type_guild_created")
             await self.notes.create_index(
                 [("guild_id", ASCENDING), ("user_id", ASCENDING), ("created_at", DESCENDING)], name="notes_user_lookup")
             await self.tempvoice_channels.create_index(

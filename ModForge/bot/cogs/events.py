@@ -33,6 +33,84 @@ class EventsCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
+    async def _award_auto_badge(self, guild, member, badge_id: str, reason: str):
+        if not badge_id or member.bot:
+            return False
+        try:
+            defs = await self.bot.db.badge_definitions()
+            if badge_id not in defs:
+                return False
+            ok = await self.bot.db.badge_add(guild.id, member.id, badge_id, self.bot.user.id if self.bot.user else 0)
+            if not ok:
+                return False
+            bd = defs.get(badge_id, {})
+            role_id = bd.get("role_id")
+            if role_id:
+                try:
+                    role = guild.get_role(int(role_id))
+                    if role:
+                        await member.add_roles(role, reason=f"Badge-Rolle: {badge_id}")
+                except (discord.Forbidden, discord.HTTPException, ValueError):
+                    pass
+            await self.bot.log_action(guild, "🏅 Badge automatisch vergeben",
+                f"{member.mention} erhielt **{bd.get('emoji','🏷️')} {bd.get('name', badge_id)}**.\nGrund: {reason}",
+                COLOR_SUCCESS, user=member, module="members")
+            return True
+        except Exception as e:
+            log.debug(f"auto badge award failed: {e}")
+            return False
+
+    async def _track_badge_message(self, message, cfg):
+        ba = cfg.get("badge_automation", {}) or {}
+        if not ba.get("enabled", True):
+            return
+        guild, member = message.guild, message.author
+        try:
+            from pymongo import ReturnDocument
+            doc = await self.bot.db.data.find_one_and_update(
+                {"type": "badge_metric", "guild_id": guild.id, "user_id": member.id},
+                {"$inc": {"messages": 1}, "$set": {"updated_at": discord.utils.utcnow()},
+                 "$setOnInsert": {"created_at": discord.utils.utcnow()}},
+                upsert=True, return_document=ReturnDocument.AFTER,
+            )
+            if ba.get("message_badge_enabled", True) and int(doc.get("messages", 0)) >= int(ba.get("message_threshold", 100)):
+                await self._award_auto_badge(guild, member, ba.get("message_badge_id", "message_100"), f"{doc.get('messages', 0)} Nachrichten")
+            joined = getattr(member, "joined_at", None)
+            if ba.get("one_year_enabled", True) and joined:
+                days = (discord.utils.utcnow() - joined.replace(tzinfo=None)).days
+                if days >= int(ba.get("one_year_days", 365)):
+                    await self._award_auto_badge(guild, member, ba.get("one_year_badge_id", "member_one_year"), f"{days} Tage Mitglied")
+        except Exception as e:
+            log.debug(f"badge message tracking failed: {e}")
+
+    async def _track_invite_badge(self, member, cfg):
+        ba = cfg.get("badge_automation", {}) or {}
+        if not ba.get("enabled", True) or not ba.get("invite_badge_enabled", True):
+            return
+        guild = member.guild
+        if not guild.me.guild_permissions.manage_guild:
+            return
+        try:
+            old = self.bot.tracker.invite_cache.get(guild.id, {}) or {}
+            invites = await guild.invites()
+            new = {inv.code: inv.uses for inv in invites}
+            used = next((inv for inv in invites if (inv.uses or 0) > old.get(inv.code, 0)), None)
+            self.bot.tracker.invite_cache[guild.id] = new
+            if used and used.inviter and not used.inviter.bot:
+                from pymongo import ReturnDocument
+                doc = await self.bot.db.data.find_one_and_update(
+                    {"type": "badge_metric", "guild_id": guild.id, "user_id": used.inviter.id},
+                    {"$inc": {"invites": 1}, "$set": {"updated_at": discord.utils.utcnow()},
+                     "$setOnInsert": {"created_at": discord.utils.utcnow()}},
+                    upsert=True, return_document=ReturnDocument.AFTER,
+                )
+                if int(doc.get("invites", 0)) >= int(ba.get("invite_threshold", 10)):
+                    inviter_member = guild.get_member(used.inviter.id)
+                    if inviter_member:
+                        await self._award_auto_badge(guild, inviter_member, ba.get("invite_badge_id", "invite_10"), f"{doc.get('invites', 0)} Einladungen")
+        except Exception as e:
+            log.debug(f"invite badge tracking failed: {e}")
+
     async def _nuke_event(self, guild, user_id, action):
         """Leitet Nuke-Events an den SecurityCog weiter (der hat die volle Engine)."""
         sec = self.bot.get_cog("SecurityCog")
@@ -78,6 +156,7 @@ class EventsCog(commands.Cog):
         raid_cfg = cfg.get("anti_raid", {})
         ACTIVITY.push("join", f"{member} ist **{guild.name}** beigetreten ({guild.member_count} Member).",
                       guild_id=guild.id, guild_name=guild.name, user_id=member.id, user_name=str(member))
+        await self._track_invite_badge(member, cfg)
         if self.bot.is_whitelisted(member, "bypass_antinuke"):
             await self.bot.log_action(guild, f"{E.PLUS} Mitglied beigetreten", f"{member.mention}", COLOR_SUCCESS, user=member, module="members")
             return
@@ -181,6 +260,8 @@ class EventsCog(commands.Cog):
         member = message.author
         cfg = self.bot.db.get_config(guild.id)
         content = message.content or ""
+
+        await self._track_badge_message(message, cfg)
 
         # Message archive
         if cfg.get("message_archive", {}).get("enabled"):
@@ -365,6 +446,10 @@ class EventsCog(commands.Cog):
     async def on_member_update(self, before, after):
         if before.bot: return
         guild = after.guild
+        cfg = self.bot.db.get_config(guild.id)
+        ba = cfg.get("badge_automation", {}) or {}
+        if ba.get("enabled", True) and ba.get("booster_enabled", True) and not before.premium_since and after.premium_since:
+            await self._award_auto_badge(guild, after, ba.get("booster_badge_id", "server_booster"), "Server Boost")
         if before.nick != after.nick:
             await self.bot.log_action(guild, f"{E.NICK} Nickname geändert",
                 f"{after.mention}: `{before.nick or before.name}` → `{after.nick or after.name}`", COLOR_INFO, user=after, module="nicknames")
