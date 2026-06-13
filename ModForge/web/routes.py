@@ -1331,6 +1331,95 @@ def _color_int(value, default=0x22c55e):
         return default
 
 
+def _verify_role_health(guild, add_roles=None, remove_roles=None):
+    items = []
+    if not guild:
+        return items
+    me = getattr(guild, "me", None)
+    def check(role_id, kind):
+        item = {"id": str(role_id), "kind": kind, "name": str(role_id), "ok": False, "reason": "Rolle nicht gefunden"}
+        try:
+            role = guild.get_role(int(role_id))
+            if not role:
+                return item
+            item["name"] = role.name
+            if role.is_default():
+                item["reason"] = "@everyone kann nicht verwaltet werden"
+            elif getattr(role, "managed", False):
+                item["reason"] = "Managed Rolle kann nicht vergeben/entfernt werden"
+            elif not me or not getattr(me.guild_permissions, "manage_roles", False):
+                item["reason"] = "Bot braucht Manage Roles"
+            elif getattr(me, "top_role", None) and role >= me.top_role:
+                item["reason"] = "Bot-Rolle ist zu niedrig"
+            else:
+                item["ok"] = True
+                item["reason"] = "OK"
+        except Exception as e:
+            item["reason"] = str(e)[:120]
+        return item
+    for rid in add_roles or []:
+        items.append(check(rid, "add"))
+    for rid in remove_roles or []:
+        items.append(check(rid, "remove"))
+    return items
+
+
+def _verify_panel_status(guild, cfg):
+    vs = cfg.get("verify_system", {}) or {}
+    channel_id = vs.get("verify_channel")
+    message_id = vs.get("message_id")
+    status = {"channel_ok": False, "message_id": message_id, "channel_id": channel_id, "reason": "Kein Kanal gesetzt"}
+    if not guild or not channel_id:
+        return status
+    try:
+        ch = guild.get_channel(int(channel_id))
+        if not ch:
+            status["reason"] = "Kanal nicht gefunden"
+            return status
+        me = getattr(guild, "me", None)
+        perms = ch.permissions_for(me) if me and hasattr(ch, "permissions_for") else None
+        if perms and not getattr(perms, "send_messages", False):
+            status["reason"] = "Bot darf dort nicht schreiben"
+            return status
+        if perms and not getattr(perms, "embed_links", False):
+            status["reason"] = "Bot braucht Embed Links"
+            return status
+        status.update({"channel_ok": True, "reason": "OK", "channel_name": getattr(ch, "name", str(channel_id))})
+    except Exception as e:
+        status["reason"] = str(e)[:120]
+    return status
+
+
+@flask_app.route("/dashboard/<guild_id>/verification")
+@require_auth
+def guild_verification(guild_id):
+    us, g, cfg, err = _dash_guard(guild_id)
+    if err:
+        return err
+    vs = cfg.get("verify_system", {}) or {}
+    ve = cfg.get("verify_extended", {}) or {}
+    channels = [{"id": str(ch.id), "name": ch.name} for ch in (g.text_channels if g and getattr(g, "text_channels", None) else [])]
+    roles = [
+        {"id": str(r.id), "name": r.name, "position": getattr(r, "position", 0), "managed": getattr(r, "managed", False)}
+        for r in (g.roles if g and getattr(g, "roles", None) else [])
+        if not r.is_default()
+    ]
+    role_health = _verify_role_health(g, vs.get("add_roles", []), vs.get("remove_roles", []))
+    panel_status = _verify_panel_status(g, cfg)
+    verify_stats = {
+        "enabled": bool(vs.get("enabled")),
+        "mode": vs.get("mode", "one_click"),
+        "add_roles": len(vs.get("add_roles", []) or []),
+        "remove_roles": len(vs.get("remove_roles", []) or []),
+        "quiz_questions": len(ve.get("quiz_questions", []) or []),
+        "timer": ve.get("timer_minutes", 0) if ve.get("timer_enabled") else 0,
+    }
+    return render_template(
+        "dashboard/verification.html", guild=g, cfg=cfg, user=us["user"], active="verification",
+        vs=vs, ve=ve, channels=channels, roles=roles, role_health=role_health,
+        panel_status=panel_status, verify_stats=verify_stats,
+    )
+
 @flask_app.route("/dashboard/<guild_id>/welcome")
 @require_auth
 def guild_welcome(guild_id):
@@ -1365,6 +1454,188 @@ def guild_welcome(guild_id):
         channels=channels, guild_roles=guild_roles, bot_id=bot_id,
         role_health=role_health, placeholder_warnings=placeholder_warnings,
     )
+def _parse_id_list(value):
+    if isinstance(value, list):
+        raw = value
+    else:
+        raw = re.split(r"[\s,;]+", str(value or ""))
+    out = []
+    for item in raw:
+        try:
+            num = int(str(item).strip().replace("<@&", "").replace(">", "").replace("<@", ""))
+            if num not in out:
+                out.append(num)
+        except (TypeError, ValueError):
+            continue
+    return out
+
+
+@flask_app.route("/api/guild/<guild_id>/verification/save", methods=["POST"])
+@require_auth
+def api_verification_save(guild_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
+        return jsonify({"error": "forbidden"}), 403
+    data = request.json or {}
+    cfg = _direct_load_config(guild_id)
+    before = _copy.deepcopy(cfg)
+    vs = cfg.get("verify_system", {}) or {}
+    ve = cfg.get("verify_extended", {}) or {}
+
+    if "enabled" in data: vs["enabled"] = bool(data.get("enabled"))
+    if data.get("mode") in ("one_click", "captcha", "math", "quiz"):
+        vs["mode"] = data.get("mode")
+    if "verify_channel" in data:
+        vs["verify_channel"] = _to_int_or_none(data.get("verify_channel"))
+    if "captcha_difficulty" in data and data.get("captcha_difficulty") in ("easy", "medium", "hard"):
+        vs["captcha_difficulty"] = data.get("captcha_difficulty")
+    if "add_roles" in data: vs["add_roles"] = _parse_id_list(data.get("add_roles"))
+    if "remove_roles" in data: vs["remove_roles"] = _parse_id_list(data.get("remove_roles"))
+
+    # Extended settings
+    for key in ("timer_enabled", "trust_score_enabled", "anti_alt_account", "admin_approval_required", "quiz_mode", "math_captcha"):
+        if key in data:
+            ve[key] = bool(data.get(key))
+    for key, minv, maxv in (
+        ("timer_minutes", 0, 1440), ("anti_alt_min_age_hours", 0, 720),
+        ("trust_score_min", 0, 100), ("rate_limit_per_minute", 1, 20),
+        ("bypass_account_age_days", 0, 3650),
+    ):
+        if key in data:
+            ve[key] = _to_int_or_none(data.get(key), minimum=minv, maximum=maxv) or 0
+    if data.get("timer_action") in ("kick", "ban"):
+        ve["timer_action"] = data.get("timer_action")
+    if "admin_approval_channel" in data:
+        ve["admin_approval_channel"] = _to_int_or_none(data.get("admin_approval_channel"))
+    if "whitelist_ids" in data:
+        ve["whitelist_ids"] = _parse_id_list(data.get("whitelist_ids"))
+    if "blacklist_ids" in data:
+        ve["blacklist_ids"] = _parse_id_list(data.get("blacklist_ids"))
+    for key in ("embed_title", "embed_description", "embed_color", "button_label", "button_emoji"):
+        if key in data:
+            ve[key] = str(data.get(key) or "")[:2000]
+    if "quiz_questions" in data and isinstance(data.get("quiz_questions"), list):
+        questions = []
+        for q in data.get("quiz_questions")[:25]:
+            if isinstance(q, dict) and q.get("question") and q.get("answer"):
+                questions.append({"question": str(q.get("question"))[:300], "answer": str(q.get("answer"))[:200]})
+        ve["quiz_questions"] = questions
+
+    # Mode helpers stay consistent with dashboard mode.
+    ve["math_captcha"] = vs.get("mode") == "math"
+    ve["quiz_mode"] = vs.get("mode") == "quiz"
+
+    cfg["verify_system"] = vs
+    cfg["verify_extended"] = ve
+    _save_config_version(guild_id, before, source="before-verification-save")
+    if not _direct_save_config(guild_id, cfg):
+        return jsonify({"error": "Speichern fehlgeschlagen"}), 500
+    return jsonify({"ok": True, "verify_system": vs, "verify_extended": ve})
+
+
+@flask_app.route("/api/guild/<guild_id>/verification/quiz", methods=["POST", "DELETE"])
+@require_auth
+def api_verification_quiz(guild_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
+        return jsonify({"error": "forbidden"}), 403
+    cfg = _direct_load_config(guild_id)
+    ve = cfg.get("verify_extended", {}) or {}
+    questions = list(ve.get("quiz_questions", []) or [])
+    if request.method == "DELETE":
+        idx = _to_int_or_none((request.json or {}).get("index"), minimum=0, maximum=999)
+        if idx is None or idx >= len(questions):
+            return jsonify({"error": "Ungültiger Index"}), 400
+        questions.pop(idx)
+    else:
+        data = request.json or {}
+        if not data.get("question") or not data.get("answer"):
+            return jsonify({"error": "Frage und Antwort erforderlich"}), 400
+        questions.append({"question": str(data.get("question"))[:300], "answer": str(data.get("answer"))[:200]})
+    ve["quiz_questions"] = questions[:25]
+    cfg["verify_extended"] = ve
+    _direct_save_config(guild_id, cfg)
+    return jsonify({"ok": True, "quiz_questions": ve["quiz_questions"]})
+
+
+@flask_app.route("/api/guild/<guild_id>/verification/panel", methods=["POST"])
+@require_auth
+def api_verification_panel(guild_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
+        return jsonify({"error": "forbidden"}), 403
+    if not bot_ready():
+        return jsonify({"error": "Bot ist offline"}), 503
+    guild = get_guild(guild_id)
+    if not guild:
+        return jsonify({"error": "Server nicht gefunden"}), 404
+    data = request.json or {}
+    cfg = _direct_load_config(guild_id)
+    vs = cfg.get("verify_system", {}) or {}
+    ve = cfg.get("verify_extended", {}) or {}
+    channel_id = _to_int_or_none(data.get("channel_id")) or vs.get("verify_channel")
+    if not channel_id:
+        return jsonify({"error": "Verify-Kanal fehlt"}), 400
+
+    async def _send_or_update():
+        import discord
+        from bot.cogs.verification import ExtendedVerifyView
+        channel = guild.get_channel(int(channel_id))
+        if not channel:
+            raise RuntimeError("Verify-Kanal nicht gefunden")
+        color = _color_int(ve.get("embed_color", "#4169E1"), 0x4169E1)
+        title = ve.get("embed_title") or "✅ Verifizierung"
+        desc = ve.get("embed_description") or "Klicke auf den Button, um dich zu verifizieren."
+        embed = discord.Embed(title=title[:256], description=desc[:4000], color=color, timestamp=datetime.datetime.utcnow())
+        embed.set_footer(text="ModForge Verify · bleibt nach Neustart aktiv")
+        try:
+            from bot.config import VERIFY_BANNER_URL
+            embed.set_image(url=VERIFY_BANNER_URL)
+        except Exception:
+            pass
+        view = ExtendedVerifyView(bot)
+        message = None
+        if data.get("update") and vs.get("message_id"):
+            try:
+                old = await channel.fetch_message(int(vs.get("message_id")))
+                await old.edit(embed=embed, view=view)
+                message = old
+            except Exception:
+                message = None
+        if message is None:
+            message = await channel.send(embed=embed, view=view)
+        return message
+
+    try:
+        message = safe_async(_send_or_update(), None)
+        if not message:
+            return jsonify({"error": "Panel konnte nicht gesendet werden"}), 500
+        vs["enabled"] = True
+        vs["verify_channel"] = int(channel_id)
+        vs["message_id"] = int(message.id)
+        cfg["verify_system"] = vs
+        if not _direct_save_config(guild_id, cfg):
+            return jsonify({"error": "Panel gesendet, aber Config konnte nicht gespeichert werden"}), 500
+        return jsonify({"ok": True, "channel_id": int(channel_id), "message_id": int(message.id), "jump_url": getattr(message, "jump_url", None)})
+    except Exception as e:
+        log.error(f"[VERIFY PANEL] {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@flask_app.route("/api/guild/<guild_id>/verification/test", methods=["POST"])
+@require_auth
+def api_verification_test(guild_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
+        return jsonify({"error": "forbidden"}), 403
+    cfg = _direct_load_config(guild_id)
+    g = get_guild(guild_id)
+    role_health = _verify_role_health(g, cfg.get("verify_system", {}).get("add_roles", []), cfg.get("verify_system", {}).get("remove_roles", []))
+    panel = _verify_panel_status(g, cfg)
+    bad = [r for r in role_health if not r.get("ok")]
+    return jsonify({"ok": True, "role_health": role_health, "panel_status": panel, "warnings": len(bad)})
+
+
 @flask_app.route("/api/guild/<guild_id>/welcome/test", methods=["POST"])
 @require_auth
 def api_welcome_test(guild_id):
@@ -2513,6 +2784,19 @@ def _collection_update_one(query, update, collection, upsert=False):
         return None
 
 
+def _collection_insert_one(collection, document):
+    if collection is None:
+        return None
+    try:
+        result = collection.insert_one(document)
+        if hasattr(result, "__await__"):
+            return safe_async(result, None)
+        return result
+    except Exception as e:
+        log.debug(f"collection_insert_one failed: {e}")
+        return None
+
+
 def _id_variants(value):
     vals = []
     try:
@@ -2679,6 +2963,83 @@ def _backup_preview(guild_id, backup_id, allow_any=False):
         },
         "samples": {"roles_new": new_roles[:15], "channels_new": new_channels[:15], "categories": [_name(c) for c in categories[:12]]},
     }
+
+
+def _collect_backup_payload_web(guild):
+    """Fallback-Collector, damit Web-Backups auch ohne BackupCog gespeichert werden."""
+    roles = []
+    for r in sorted(getattr(guild, "roles", []) or [], key=lambda x: getattr(x, "position", 0), reverse=True):
+        try:
+            if r.is_default() or getattr(r, "managed", False):
+                continue
+            roles.append({
+                "role_id": r.id,
+                "name": r.name,
+                "color": getattr(getattr(r, "color", None), "value", 0),
+                "permissions": getattr(getattr(r, "permissions", None), "value", 0),
+                "hoist": getattr(r, "hoist", False),
+                "mentionable": getattr(r, "mentionable", False),
+                "position": getattr(r, "position", 0),
+            })
+        except Exception:
+            continue
+    categories = []
+    for c in getattr(guild, "categories", []) or []:
+        categories.append({"id": c.id, "name": c.name, "position": getattr(c, "position", 0), "overwrites": {}})
+    channels = []
+    for ch in getattr(guild, "channels", []) or []:
+        try:
+            if str(getattr(ch, "type", "")) == "category":
+                continue
+            item = {
+                "id": ch.id,
+                "name": ch.name,
+                "type": str(getattr(ch, "type", "text")),
+                "position": getattr(ch, "position", 0),
+                "category_id": getattr(ch, "category_id", None),
+            }
+            for attr in ("topic", "slowmode_delay", "nsfw", "bitrate", "user_limit"):
+                if hasattr(ch, attr):
+                    item[attr] = getattr(ch, attr)
+            channels.append(item)
+        except Exception:
+            continue
+    emojis = []
+    for e in getattr(guild, "emojis", []) or []:
+        try:
+            emojis.append({"id": e.id, "name": e.name, "url": str(e.url)})
+        except Exception:
+            continue
+    return {
+        "guild_id": guild.id,
+        "guild_name": guild.name,
+        "roles": roles,
+        "categories": categories,
+        "channels": channels,
+        "emojis": emojis,
+        "icon_url": str(guild.icon.url) if getattr(guild, "icon", None) else None,
+        "created_at": datetime.datetime.utcnow().isoformat(),
+    }
+
+
+def _save_backup_doc_web(guild_id, payload, created_by, label=None):
+    import uuid
+    col = _backups_col()
+    if col is None:
+        return None
+    backup_id = str(uuid.uuid4())[:8]
+    doc = {
+        "backup_id": backup_id,
+        "guild_id": int(guild_id),
+        "guild_id_str": str(guild_id),
+        "guild_name": payload.get("guild_name"),
+        "label": label,
+        "created_by": created_by,
+        "created_at": datetime.datetime.utcnow(),
+        "data": payload,
+    }
+    result = _collection_insert_one(col, doc)
+    return backup_id if result is not None else None
 
 
 @flask_app.route("/dashboard/<guild_id>/backup")
@@ -3878,6 +4239,7 @@ def admin_server_dashboard(guild_id, subpage=""):
         "settings": globals().get("guild_settings"),
         "roles": globals().get("guild_roles"),
         "welcome": globals().get("guild_welcome"),
+        "verification": globals().get("guild_verification"),
         "modules": globals().get("guild_modules"),
         "tickets": globals().get("guild_tickets"),
         "backup": globals().get("guild_backup"),
@@ -4532,14 +4894,20 @@ def api_backup_create(guild_id):
     if not g:
         return jsonify({"error": "Server nicht gefunden"}), 404
     try:
-        from bot.bot import BOT_REF; _bcog = BOT_REF.get_cog("BackupCog") if BOT_REF else None
+        from bot.bot import BOT_REF
+        _bcog = BOT_REF.get_cog("BackupCog") if BOT_REF else None
         payload = _run_async(_bcog._collect_backup_data(g)) if _bcog else None
+        if not payload:
+            payload = _collect_backup_payload_web(g)
         if not payload:
             return jsonify({"error": "Backup-Daten konnten nicht gesammelt werden"}), 500
         bid = _run_async(_bcog._backup_db_save(payload, int(user_session["user"]["id"]), label)) if _bcog else None
         if not bid:
+            bid = _save_backup_doc_web(guild_id, payload, int(user_session["user"]["id"]), label)
+        if not bid:
             return jsonify({"error": "Backup konnte nicht gespeichert werden"}), 500
-        return jsonify({"ok": True, "backup_id": bid})
+        preview = _backup_preview(guild_id, bid) or {"meta": _enrich_backup_doc({"backup_id": bid, "guild_id": int(guild_id), "guild_id_str": str(guild_id), "label": label, "data": payload})}
+        return jsonify({"ok": True, "backup_id": bid, "backup": preview.get("meta")})
     except Exception as e:
         log.error(f"[BACKUP CREATE] {e}")
         return jsonify({"error": str(e)}), 500
@@ -4871,14 +5239,14 @@ def api_template_import(guild_id, backup_id):
 
         restore_log.append("Template gefunden und geprüft.")
         # Auto-Backup VOR Import
-        pre_payload = _run_async(_bcog._collect_backup_data(g))
+        pre_payload = _run_async(_bcog._collect_backup_data(g)) or _collect_backup_payload_web(g)
         if not pre_payload:
             return jsonify({"error": "Sicherheits-Backup vor Import konnte nicht erstellt werden."}), 500
         pre_backup_id = _run_async(_bcog._backup_db_save(
             pre_payload,
             int(user_session["user"]["id"]),
             f"Auto-Backup vor Template {backup_id}",
-        ))
+        )) or _save_backup_doc_web(guild_id, pre_payload, int(user_session["user"]["id"]), f"Auto-Backup vor Template {backup_id}")
         if not pre_backup_id:
             return jsonify({"error": "Sicherheits-Backup vor Import konnte nicht gespeichert werden."}), 500
         restore_log.append(f"Sicherheits-Backup erstellt: {pre_backup_id}")
