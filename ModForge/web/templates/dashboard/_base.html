@@ -471,7 +471,7 @@
     localStorage.setItem('mf-anim-preset', v || 'smooth');
   }
   (function applyStoredDesign(){
-    setTheme  (localStorage.getItem('mf-theme')   || 'purple');
+    setTheme  (localStorage.getItem('mf-theme')   || '{{ cfg.get("dashboard_theme") }}'   || 'purple');
     setAccent (localStorage.getItem('mf-accent')  || '');
     setDensity(localStorage.getItem('mf-density') || 'comfy');
     setRadius (localStorage.getItem('mf-radius')  || 'rounded');

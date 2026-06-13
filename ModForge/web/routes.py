@@ -3505,6 +3505,8 @@ def api_guild_config(guild_id):
         cfg["log_channels"] = _normalize_log_channels(data.get("_log_channels") or {})
     if "_prefix" in data:
         cfg["prefix"] = str(data["_prefix"])[:5] or "!"
+    if "_dashboard_theme" in data:
+        cfg["dashboard_theme"] = str(data["_dashboard_theme"])
     if "_no_prefix" in data:
         cfg["no_prefix"] = bool(data["_no_prefix"])
     if "_report_channel" in data:
@@ -3800,6 +3802,24 @@ def api_guild_roles(guild_id):
         cfg["sticky_roles"] = sr
     elif action == "del_sticky":
         cfg["sticky_roles"] = [r for r in cfg.get("sticky_roles",[]) if r != rid]
+    elif action == "add_verify":
+        vs = cfg.setdefault("verify_system", {"enabled": True, "add_roles": [], "remove_roles": []})
+        vs.setdefault("add_roles", [])
+        if rid not in vs["add_roles"]: vs["add_roles"].append(rid)
+        cfg["verify_system"] = vs
+    elif action == "del_verify":
+        vs = cfg.setdefault("verify_system", {"enabled": True, "add_roles": [], "remove_roles": []})
+        vs["add_roles"] = [r for r in vs.get("add_roles", []) if r != rid]
+        cfg["verify_system"] = vs
+    elif action == "add_unverify":
+        vs = cfg.setdefault("verify_system", {"enabled": True, "add_roles": [], "remove_roles": []})
+        vs.setdefault("remove_roles", [])
+        if rid not in vs["remove_roles"]: vs["remove_roles"].append(rid)
+        cfg["verify_system"] = vs
+    elif action == "del_unverify":
+        vs = cfg.setdefault("verify_system", {"enabled": True, "add_roles": [], "remove_roles": []})
+        vs["remove_roles"] = [r for r in vs.get("remove_roles", []) if r != rid]
+        cfg["verify_system"] = vs
     try:
         _direct_save_config(guild_id, cfg)
     except Exception as e:
@@ -5911,6 +5931,76 @@ def api_cases_export(guild_id):
         body = f"<html><meta charset='utf-8'><body><h1>Cases {guild_id}</h1><table border='1' cellspacing='0' cellpadding='6'>{rows}</table></body></html>"
         return Response(body, mimetype="text/html", headers={"Content-Disposition": f"attachment; filename=cases-{guild_id}.html"})
     return Response(json.dumps(cases, ensure_ascii=False, indent=2), mimetype="application/json", headers={"Content-Disposition": f"attachment; filename=cases-{guild_id}.json"})
+
+
+@flask_app.route("/api/guild/<guild_id>/case/<case_id>/reason", methods=["POST"])
+@require_auth
+def api_case_edit_reason(guild_id, case_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
+        return jsonify({"error": "forbidden"}), 403
+    data = request.json or {}
+    new_reason = data.get("reason", "").strip()
+    db = get_db()
+    if not db:
+        return jsonify({"error": "Datenbank offline"}), 503
+    try:
+        q = {"guild_id": {"$in": _guild_id_values(guild_id)}, "case_id": {"$in": [int(case_id), str(case_id)]}}
+        res = db.cases.update_one(q, {"$set": {"reason": new_reason}})
+        if res.modified_count > 0 or res.matched_count > 0:
+            return jsonify({"ok": True})
+        return jsonify({"error": "Case nicht gefunden"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@flask_app.route("/api/guild/<guild_id>/case/<case_id>/evidence", methods=["POST"])
+@require_auth
+def api_case_add_evidence(guild_id, case_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
+        return jsonify({"error": "forbidden"}), 403
+    data = request.json or {}
+    url = data.get("url", "").strip()
+    note = data.get("note", "").strip()
+    if not url:
+        return jsonify({"error": "Beweis-URL fehlt"}), 400
+    db = get_db()
+    if not db:
+        return jsonify({"error": "Datenbank offline"}), 503
+    try:
+        q = {"guild_id": {"$in": _guild_id_values(guild_id)}, "case_id": {"$in": [int(case_id), str(case_id)]}}
+        evidence_entry = {
+            "url": url,
+            "note": note,
+            "added_by": user_session.get("user", {}).get("id") or 0,
+            "added_at": datetime.datetime.utcnow().isoformat()
+        }
+        res = db.cases.update_one(q, {"$push": {"evidence": evidence_entry}})
+        if res.modified_count > 0 or res.matched_count > 0:
+            return jsonify({"ok": True})
+        return jsonify({"error": "Case nicht gefunden"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@flask_app.route("/api/guild/<guild_id>/case/<case_id>", methods=["DELETE"])
+@require_auth
+def api_case_delete(guild_id, case_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
+        return jsonify({"error": "forbidden"}), 403
+    db = get_db()
+    if not db:
+        return jsonify({"error": "Datenbank offline"}), 503
+    try:
+        q = {"guild_id": {"$in": _guild_id_values(guild_id)}, "case_id": {"$in": [int(case_id), str(case_id)]}}
+        res = db.cases.delete_one(q)
+        if res.deleted_count > 0:
+            return jsonify({"ok": True})
+        return jsonify({"error": "Case nicht gefunden"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @flask_app.route("/api/guild/<guild_id>/config/versions")
