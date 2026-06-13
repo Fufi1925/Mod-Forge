@@ -337,19 +337,84 @@ def guild_tempvoice(guild_id):
     us, g, cfg, err = _dash_guard(guild_id)
     if err:
         return err
-
     categories = [{"id": str(c.id), "name": c.name} for c in g.categories] if g else []
     voice_channels = [{"id": str(c.id), "name": c.name} for c in g.voice_channels] if g else []
+    text_channels = [{"id": str(c.id), "name": c.name} for c in g.text_channels] if g else []
+    active_channels = []
+    db = get_db()
+    if db:
+        try:
+            docs = safe_async(db.tempvoice_channels.find(_guild_query(guild_id)).to_list(100), []) or []
+            for d in docs:
+                ch = g.get_channel(int(d.get("channel_id"))) if g and d.get("channel_id") else None
+                owner = g.get_member(int(d.get("user_id"))) if g and d.get("user_id") else None
+                active_channels.append({"channel_id": str(d.get("channel_id")), "user_id": str(d.get("user_id")), "channel_name": ch.name if ch else "?", "owner_name": owner.display_name if owner else "?", "members": len(ch.members) if ch and hasattr(ch, "members") else 0})
+        except Exception as e:
+            log.debug(f"tempvoice load failed: {e}")
+    return render_template("dashboard/tempvoice.html", guild=g, cfg=cfg, user=us["user"], categories=categories, voice_channels=voice_channels, text_channels=text_channels, active_channels=active_channels, active="tempvoice")
 
-    return render_template(
-        "dashboard/tempvoice.html",
-        guild=g,
-        cfg=cfg,
-        user=us["user"],
-        categories=categories,
-        voice_channels=voice_channels,
-        active="tempvoice"
-    )
+@flask_app.route("/api/guild/<guild_id>/tempvoice/health")
+@require_auth
+def api_tempvoice_health(guild_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
+        return jsonify({"error": "forbidden"}), 403
+    g = get_guild(guild_id)
+    cfg = _direct_load_config(guild_id)
+    tv = cfg.get("temp_voice", {}) or {}
+    checks = []
+    def add(ok, label, reason): checks.append({"ok": bool(ok), "label": label, "reason": reason})
+    hub = g.get_channel(int(tv.get("hub_channel_id"))) if g and tv.get("hub_channel_id") else None
+    cat = g.get_channel(int(tv.get("category_id"))) if g and tv.get("category_id") else None
+    panel = g.get_channel(int(tv.get("panel_channel_id"))) if g and tv.get("panel_channel_id") else None
+    me = getattr(g, "me", None) if g else None
+    perms = getattr(me, "guild_permissions", None)
+    add(tv.get("enabled"), "TempVoice", "aktiv" if tv.get("enabled") else "deaktiviert")
+    add(hub is not None, "Hub-Kanal", "OK" if hub else "nicht gesetzt/gefunden")
+    add(cat is not None or not tv.get("category_id"), "Kategorie", "OK" if cat or not tv.get("category_id") else "nicht gefunden")
+    add(panel is not None or not tv.get("panel_channel_id"), "Panel-Kanal", "OK" if panel or not tv.get("panel_channel_id") else "nicht gefunden")
+    add(getattr(perms, "manage_channels", False), "Manage Channels", "OK" if getattr(perms, "manage_channels", False) else "fehlt")
+    add(getattr(perms, "move_members", False), "Move Members", "OK" if getattr(perms, "move_members", False) else "fehlt")
+    return jsonify({"ok": True, "checks": checks})
+
+
+@flask_app.route("/api/guild/<guild_id>/tempvoice/panel", methods=["POST"])
+@require_auth
+def api_tempvoice_panel(guild_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
+        return jsonify({"error": "forbidden"}), 403
+    if not bot_ready():
+        return jsonify({"error": "Bot ist offline"}), 503
+    g = get_guild(guild_id)
+    cfg = _direct_load_config(guild_id)
+    data = request.json or {}
+    channel_id = _to_int_or_none(data.get("panel_channel_id")) or cfg.get("temp_voice", {}).get("panel_channel_id")
+    if not g or not channel_id:
+        return jsonify({"error": "Panel-Kanal fehlt"}), 400
+    async def _send_panel():
+        import discord
+        from bot.bot import TempVoiceView
+        ch = g.get_channel(int(channel_id))
+        if not ch:
+            raise RuntimeError("Panel-Kanal nicht gefunden")
+        emb = discord.Embed(title="🎤 TempVoice Panel", description="Tritt dem Hub-Kanal bei und verwalte deinen Kanal hier.", color=0x00B0F4, timestamp=datetime.datetime.utcnow())
+        msg = await ch.send(embed=emb, view=TempVoiceView(bot))
+        return msg
+    try:
+        msg = safe_async(_send_panel(), None)
+        if not msg:
+            return jsonify({"error": "Panel konnte nicht gesendet werden"}), 500
+        tv = cfg.get("temp_voice", {}) or {}
+        tv["enabled"] = True
+        tv["panel_channel_id"] = int(channel_id)
+        tv["panel_message_id"] = int(msg.id)
+        cfg["temp_voice"] = tv
+        _direct_save_config(guild_id, cfg)
+        return jsonify({"ok": True, "message_id": int(msg.id)})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 # =========================================================
 # SAFE ASYNC
@@ -2615,8 +2680,90 @@ def guild_tickets(guild_id):
     if err: return err
     channels = [{"id":str(ch.id),"name":ch.name} for ch in g.text_channels] if g else []
     categories = [{"id":str(c.id),"name":c.name} for c in g.categories] if g else []
+    ticket_docs = []
+    ticket_stats = {"total": 0, "open": 0, "closed": 0, "claimed": 0}
+    db = get_db()
+    if db:
+        try:
+            ticket_docs = safe_async(db.data.find({"type": "ticket", "guild_id": {"$in": _guild_id_values(guild_id)}}).sort("created_at", -1).to_list(100), []) or []
+            for t in ticket_docs:
+                t["_id"] = str(t.get("_id", ""))
+                if hasattr(t.get("created_at"), "isoformat"):
+                    t["created_at_iso"] = t["created_at"].isoformat()
+            ticket_stats["total"] = len(ticket_docs)
+            ticket_stats["open"] = sum(1 for t in ticket_docs if t.get("status") == "open")
+            ticket_stats["closed"] = sum(1 for t in ticket_docs if t.get("status") == "closed")
+            ticket_stats["claimed"] = sum(1 for t in ticket_docs if t.get("assigned_to"))
+        except Exception as e:
+            log.debug(f"ticket docs load failed: {e}")
     return render_template("dashboard/tickets.html", guild=g, cfg=cfg, user=us["user"],
-                           channels=channels, categories=categories, active="tickets")
+                           channels=channels, categories=categories, ticket_docs=ticket_docs[:25], ticket_stats=ticket_stats, active="tickets")
+
+@flask_app.route("/api/guild/<guild_id>/tickets/panel", methods=["POST"])
+@require_auth
+def api_tickets_panel(guild_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
+        return jsonify({"error": "forbidden"}), 403
+    if not bot_ready():
+        return jsonify({"error": "Bot ist offline"}), 503
+    data = request.json or {}
+    guild = get_guild(guild_id)
+    cfg = _direct_load_config(guild_id)
+    if not guild:
+        return jsonify({"error": "Server nicht gefunden"}), 404
+    channel_id = _to_int_or_none(data.get("channel_id")) or cfg.get("ticket_system", {}).get("panel_channel_id")
+    if not channel_id:
+        return jsonify({"error": "Panel-Kanal fehlt"}), 400
+    async def _send_panel():
+        import discord
+        from bot.bot import TicketView
+        ch = guild.get_channel(int(channel_id))
+        if not ch:
+            raise RuntimeError("Kanal nicht gefunden")
+        title = data.get("title") or "🎫 Support Tickets"
+        desc = data.get("description") or "Klicke auf den Button, um ein Ticket zu öffnen."
+        emb = discord.Embed(title=title[:256], description=desc[:4000], color=0x5865F2, timestamp=datetime.datetime.utcnow())
+        emb.set_footer(text="ModForge Tickets")
+        msg = await ch.send(embed=emb, view=TicketView(bot))
+        return msg
+    try:
+        msg = safe_async(_send_panel(), None)
+        if not msg:
+            return jsonify({"error": "Panel konnte nicht gesendet werden"}), 500
+        ts = cfg.get("ticket_system", {}) or {}
+        ts["enabled"] = True
+        ts["ticket_message_id"] = int(msg.id)
+        ts["panel_channel_id"] = int(channel_id)
+        cfg["ticket_system"] = ts
+        _direct_save_config(guild_id, cfg)
+        return jsonify({"ok": True, "message_id": int(msg.id), "channel_id": int(channel_id), "jump_url": getattr(msg, "jump_url", None)})
+    except Exception as e:
+        log.error(f"ticket panel failed: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@flask_app.route("/api/guild/<guild_id>/tickets/health")
+@require_auth
+def api_tickets_health(guild_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
+        return jsonify({"error": "forbidden"}), 403
+    g = get_guild(guild_id)
+    cfg = _direct_load_config(guild_id)
+    ts = cfg.get("ticket_system", {}) or {}
+    checks = []
+    def add(ok, label, reason): checks.append({"ok": bool(ok), "label": label, "reason": reason})
+    cat = g.get_channel(int(ts.get("category_id"))) if g and ts.get("category_id") else None
+    log_ch = g.get_channel(int(ts.get("log_channel_id"))) if g and ts.get("log_channel_id") else None
+    me = getattr(g, "me", None) if g else None
+    perms = getattr(me, "guild_permissions", None)
+    add(ts.get("enabled"), "Ticket-System", "aktiv" if ts.get("enabled") else "deaktiviert")
+    add(cat is not None or not ts.get("category_id"), "Kategorie", "OK" if cat or not ts.get("category_id") else "nicht gefunden")
+    add(log_ch is not None or not ts.get("log_channel_id"), "Log-Kanal", "OK" if log_ch or not ts.get("log_channel_id") else "nicht gefunden")
+    add(getattr(perms, "manage_channels", False), "Manage Channels", "OK" if getattr(perms, "manage_channels", False) else "Bot braucht Manage Channels")
+    add(getattr(perms, "send_messages", False), "Send Messages", "OK" if getattr(perms, "send_messages", False) else "Bot braucht Send Messages")
+    return jsonify({"ok": True, "checks": checks})
 
 @flask_app.route("/dashboard/<guild_id>/autoresponse")
 @require_auth
@@ -2629,6 +2776,48 @@ def guild_autoresponse(guild_id):
 # ═══════════════════════════════════════════════════════════════════
 # ROLES
 # ═══════════════════════════════════════════════════════════════════
+
+def _role_danger_permissions(role):
+    danger = ["administrator", "manage_roles", "ban_members", "kick_members", "manage_channels", "manage_guild", "manage_webhooks", "mention_everyone", "moderate_members"]
+    perms = getattr(role, "permissions", None)
+    return [p for p in danger if getattr(perms, p, False)]
+
+
+def _role_can_manage(guild, role):
+    me = getattr(guild, "me", None) if guild else None
+    if not role:
+        return False, "Rolle fehlt"
+    if getattr(role, "managed", False):
+        return False, "Managed Rolle"
+    if role.is_default():
+        return False, "@everyone"
+    if not me or not getattr(me.guild_permissions, "manage_roles", False):
+        return False, "Manage Roles fehlt"
+    if getattr(me, "top_role", None) and role >= me.top_role:
+        return False, "Bot-Rolle zu niedrig"
+    return True, "OK"
+
+
+def _role_summary(guild, role):
+    danger = _role_danger_permissions(role)
+    ok, reason = _role_can_manage(guild, role)
+    members = len(getattr(role, "members", []) or [])
+    score = 0
+    if "administrator" in danger:
+        score += 60
+    score += min(40, len([p for p in danger if p != "administrator"]) * 8)
+    if members > 20:
+        score += 10
+    return {
+        "id": str(role.id), "name": role.name,
+        "color": str(role.color) if getattr(role, "color", None) and role.color.value else "",
+        "pos": getattr(role, "position", 0), "members": members,
+        "managed": getattr(role, "managed", False), "mentionable": getattr(role, "mentionable", False),
+        "hoist": getattr(role, "hoist", False), "danger_perms": danger,
+        "risk": min(100, score), "can_manage": ok, "health": reason,
+    }
+
+
 @flask_app.route("/dashboard/<guild_id>/roles")
 @require_auth
 def guild_roles(guild_id):
@@ -2637,53 +2826,47 @@ def guild_roles(guild_id):
         return err
 
     guild_roles = []
+    dangerous_roles = []
+    manageable_count = 0
     if g and hasattr(g, 'roles') and g.roles:
-        guild_roles = [
-            {
-                "id":    str(r.id),
-                "name":  r.name,
-                "color": str(r.color) if r.color and r.color.value else "",
-                "pos":   r.position,
-            }
-            for r in sorted(g.roles, key=lambda r: r.position, reverse=True)
-            if not r.is_default() and not r.managed
-        ]
+        for role in sorted(g.roles, key=lambda r: r.position, reverse=True):
+            if role.is_default():
+                continue
+            data = _role_summary(g, role)
+            if data["can_manage"]:
+                manageable_count += 1
+            if data["danger_perms"]:
+                dangerous_roles.append(data)
+            if not data["managed"]:
+                guild_roles.append(data)
 
     role_map = {r["id"]: r["name"] for r in guild_roles}
-
-    # Auto-Roles
-    ar_ids    = cfg.get("auto_role", {}).get("roles", []) or []
-    auto_roles = [
-        {"id": str(rid), "name": role_map.get(str(rid), str(rid))}
-        for rid in ar_ids
-    ]
-
-    # Sticky-Roles
-    sr_ids       = cfg.get("sticky_roles", []) or []
-    sticky_roles = [
-        {"id": str(rid), "name": role_map.get(str(rid), str(rid))}
-        for rid in sr_ids
-    ]
-
-    # Verify-Config
+    ar_ids = cfg.get("auto_role", {}).get("roles", []) or []
+    auto_roles = [{"id": str(rid), "name": role_map.get(str(rid), str(rid))} for rid in ar_ids]
+    sr_ids = cfg.get("sticky_roles", []) or []
+    sticky_roles = [{"id": str(rid), "name": role_map.get(str(rid), str(rid))} for rid in sr_ids]
     vs = cfg.get("verify_system", {}) or {}
+    verify_add = [{"id": str(rid), "name": role_map.get(str(rid), str(rid))} for rid in vs.get("add_roles", [])]
+    verify_remove = [{"id": str(rid), "name": role_map.get(str(rid), str(rid))} for rid in vs.get("remove_roles", [])]
 
-    # Text-Channels für Verify-Setup
-    text_channels = []
-    if g and hasattr(g, 'text_channels') and g.text_channels:
-        text_channels = [
-            {"id": str(c.id), "name": c.name}
-            for c in sorted(g.text_channels, key=lambda c: c.position)
-        ]
+    role_health = []
+    for group, items in (("auto", auto_roles), ("sticky", sticky_roles), ("verify_add", verify_add), ("verify_remove", verify_remove)):
+        for item in items:
+            role = g.get_role(int(item["id"])) if g and str(item["id"]).isdigit() else None
+            ok, reason = _role_can_manage(g, role)
+            role_health.append({"group": group, "id": item["id"], "name": item["name"], "ok": ok, "reason": reason})
+
+    role_stats = {
+        "total": len(guild_roles), "dangerous": len(dangerous_roles),
+        "manageable": manageable_count, "auto": len(auto_roles), "sticky": len(sticky_roles),
+        "verify": len(verify_add) + len(verify_remove),
+    }
 
     return render_template(
-        "dashboard/roles.html",
-        guild=g, cfg=cfg, user=us["user"],
-        guild_roles=guild_roles,
-        auto_roles=auto_roles,
-        sticky_roles=sticky_roles,
-        vs=vs,
-        text_channels=text_channels,
+        "dashboard/roles.html", guild=g, cfg=cfg, user=us["user"],
+        guild_roles=guild_roles, auto_roles=auto_roles, sticky_roles=sticky_roles,
+        verify_add=verify_add, verify_remove=verify_remove, vs=vs,
+        role_health=role_health, dangerous_roles=dangerous_roles, role_stats=role_stats,
         active="roles",
     )
 
@@ -3392,7 +3575,7 @@ def api_guild_config(guild_id):
         cfg = data["_raw"]
 
     # Handle module configs (anti_spam, anti_nuke, etc.)
-    for key in ["anti_spam","anti_nuke","anti_raid","anti_mention","anti_scam","automod","badge_automation","backup_system"]:
+    for key in ["anti_spam","anti_nuke","anti_raid","anti_mention","anti_scam","automod","badge_automation","backup_system","ticket_extended"]:
         if key in data:
             mod = cfg.get(key, {})
             mod.update(data[key])
@@ -3576,6 +3759,21 @@ def api_guild_autoresponse(guild_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     return jsonify({"ok": True})
+
+@flask_app.route("/api/guild/<guild_id>/roles/preview/<role_id>")
+@require_auth
+def api_role_preview(guild_id, role_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
+        return jsonify({"error": "forbidden"}), 403
+    guild = get_guild(guild_id)
+    if not guild:
+        return jsonify({"error": "Server nicht gefunden"}), 404
+    role = guild.get_role(int(role_id)) if str(role_id).isdigit() else None
+    if not role:
+        return jsonify({"error": "Rolle nicht gefunden"}), 404
+    return jsonify({"ok": True, "role": _role_summary(guild, role)})
+
 
 @flask_app.route("/api/guild/<guild_id>/roles", methods=["POST"])
 @require_auth

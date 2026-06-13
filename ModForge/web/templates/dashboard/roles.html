@@ -1,349 +1,76 @@
 {% extends "dashboard/_base.html" %}
 {% set active = 'roles' %}
-{% block title %}Rollen-Manager{% endblock %}
-{% block page_title %}🏷️ Rollen-Manager{% endblock %}
-{% block page_desc %}Auto-Rollen · Sticky-Rollen · Verifizierung{% endblock %}
-
+{% block title %}Rollen Command Center{% endblock %}
+{% block page_title %}🏷️ Rollen Command Center{% endblock %}
+{% block page_desc %}Auto-Rollen · Sticky-Rollen · Verify-Rollen · Risiko · Hierarchie · Role Preview{% endblock %}
 {% block head %}
 <style>
-.roles-stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-  gap: 8px;
-  margin-bottom: 16px;
-}
-
-.role-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 6px 13px;
-  border-radius: 999px;
-  font-size: .74rem;
-  font-weight: 700;
-  margin: 3px;
-  transition: .15s;
-}
-.role-tag .rm-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: .85rem;
-  font-weight: 800;
-  padding: 0;
-  line-height: 1;
-  opacity: .5;
-  transition: opacity .1s;
-  font-family: inherit;
-}
-.role-tag .rm-btn:hover { opacity: 1; }
-
-.role-tag.auto {
-  background: rgba(59,130,246,0.08);
-  color: var(--vl);
-  border: 1px solid rgba(59,130,246,0.2);
-}
-.role-tag.sticky {
-  background: rgba(34,211,238,0.08);
-  color: var(--cl);
-  border: 1px solid rgba(34,211,238,0.2);
-}
-
-.add-role-row {
-  display: flex;
-  gap: 8px;
-  margin-top: 12px;
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-.verify-mode-grid {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  margin-top: 6px;
-}
-.verify-mode-btn {
-  flex: 1;
-  min-width: 120px;
-  padding: 12px;
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  background: rgba(255,255,255,0.02);
-  color: var(--muted);
-  font-size: .76rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: .15s;
-  text-align: center;
-  font-family: inherit;
-}
-.verify-mode-btn:hover {
-  border-color: rgba(59,130,246,0.3);
-  background: rgba(59,130,246,0.05);
-  color: var(--fg);
-}
-.verify-mode-btn.active {
-  border-color: var(--v);
-  background: rgba(59,130,246,0.12);
-  color: #fff;
-  box-shadow: 0 0 0 1px rgba(59,130,246,0.3);
-}
+.role-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:18px;align-items:start}.role-card{padding:18px;border:1px solid var(--border);border-radius:18px;background:rgba(255,255,255,.028);margin-bottom:14px}.role-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:8px;margin-bottom:16px}.role-stat{padding:16px;border-radius:16px;border:1px solid var(--border);background:rgba(255,255,255,.03);text-align:center}.role-v{font-size:1.15rem;font-weight:900;font-family:'Geist Mono',monospace}.role-pill{display:inline-flex;align-items:center;gap:7px;padding:6px 11px;border-radius:999px;font-size:.72rem;font-weight:800;border:1px solid var(--border);background:rgba(255,255,255,.035);margin:3px}.role-pill.auto{color:var(--vl);background:rgba(59,130,246,.08);border-color:rgba(59,130,246,.2)}.role-pill.sticky{color:var(--cl);background:rgba(34,211,238,.08);border-color:rgba(34,211,238,.2)}.role-pill.verify{color:var(--green);background:rgba(34,197,94,.08);border-color:rgba(34,197,94,.2)}.role-pill.remove{color:var(--amberl);background:rgba(245,158,11,.08);border-color:rgba(245,158,11,.2)}.role-pill button{border:0;background:transparent;color:inherit;font-weight:900;cursor:pointer}.role-list{display:grid;gap:7px;max-height:430px;overflow:auto}.role-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:13px;border:1px solid var(--border);background:rgba(255,255,255,.025);cursor:pointer}.role-row:hover{border-color:rgba(96,165,250,.25);background:rgba(255,255,255,.045)}.role-dot{width:14px;height:14px;border-radius:50%;background:var(--rc,#64748b);box-shadow:0 0 12px color-mix(in srgb,var(--rc,#64748b) 35%,transparent)}.risk-tag{padding:3px 8px;border-radius:999px;font-size:.58rem;font-weight:900}.risk-low{background:rgba(34,197,94,.1);color:#86efac}.risk-mid{background:rgba(245,158,11,.1);color:#fcd34d}.risk-high{background:rgba(239,68,68,.12);color:#fca5a5}.role-health-row{display:flex;justify-content:space-between;gap:8px;padding:9px 11px;border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,.03);font-size:.76rem;margin-bottom:6px}.role-health-row.ok{border-color:rgba(34,197,94,.2);background:rgba(34,197,94,.055)}.role-health-row.bad{border-color:rgba(239,68,68,.22);background:rgba(239,68,68,.055)}.role-select-line{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.role-select-line select{flex:1;min-width:220px}@media(max-width:980px){.role-grid{grid-template-columns:1fr}}
 </style>
 {% endblock %}
-
 {% block content %}
-
-{# ── STATS ── #}
-<div class="roles-stats">
-  <div class="ov-stat">
-    <div class="ov-sv" style="color:var(--vl)">{{ auto_roles | length }}</div>
-    <div class="ov-sl">🤖 Auto-Rollen</div>
-  </div>
-  <div class="ov-stat">
-    <div class="ov-sv" style="color:var(--cl)">{{ sticky_roles | length }}</div>
-    <div class="ov-sl">📌 Sticky</div>
-  </div>
-  <div class="ov-stat">
-    <div class="ov-sv" style="color:{% if vs.get('enabled') %}var(--green){% else %}var(--muted){% endif %}">
-      {% if vs.get('enabled') %}AN{% else %}AUS{% endif %}
-    </div>
-    <div class="ov-sl">✅ Verify</div>
-  </div>
-  <div class="ov-stat">
-    <div class="ov-sv" style="color:var(--fg)">{{ guild_roles | length }}</div>
-    <div class="ov-sl">🏷️ Gesamt</div>
-  </div>
+<div class="role-stats">
+  <div class="role-stat"><div class="role-v" style="color:var(--fg)">{{ role_stats.total }}</div><div class="ov-sl">Rollen</div></div>
+  <div class="role-stat"><div class="role-v" style="color:#fca5a5">{{ role_stats.dangerous }}</div><div class="ov-sl">Gefährlich</div></div>
+  <div class="role-stat"><div class="role-v" style="color:var(--green)">{{ role_stats.manageable }}</div><div class="ov-sl">Bot kann verwalten</div></div>
+  <div class="role-stat"><div class="role-v" style="color:var(--vl)">{{ role_stats.auto }}</div><div class="ov-sl">Auto-Rollen</div></div>
+  <div class="role-stat"><div class="role-v" style="color:var(--cl)">{{ role_stats.sticky }}</div><div class="ov-sl">Sticky</div></div>
+  <div class="role-stat"><div class="role-v" style="color:var(--amberl)">{{ role_stats.verify }}</div><div class="ov-sl">Verify</div></div>
 </div>
 
-{# ── AUTO-ROLLEN ── #}
-<div class="db-card" style="padding:18px;margin-bottom:14px">
-  <div style="font-weight:700;font-size:.86rem;margin-bottom:4px;
-              display:flex;align-items:center;gap:7px">
-    🤖 Auto-Rollen
-    <span style="padding:2px 8px;border-radius:999px;font-size:.55rem;
-      background:rgba(59,130,246,0.08);color:var(--vl)">{{ auto_roles | length }}</span>
-  </div>
-  <div class="cfg-desc" style="margin-bottom:13px">
-    Werden jedem neuen Mitglied automatisch beim Server-Join zugewiesen.
-    Mehrere Rollen möglich.
+<div class="role-grid">
+<section>
+  <div class="role-card">
+    <div class="db-card-header"><span class="db-card-title">🤖 Auto-Rollen</span><span class="tag">{{ auto_roles|length }}</span></div>
+    <div>{% for r in auto_roles %}<span class="role-pill auto">@{{ r.name }} <button onclick="delRole('del_auto','{{ r.id }}')">×</button></span>{% else %}<span class="cfg-desc">Keine Auto-Rollen.</span>{% endfor %}</div>
+    <div class="role-select-line"><select id="autoRoleSel" class="cfg-select"><option value="">— Rolle wählen —</option>{% for r in guild_roles %}<option value="{{ r.id }}">@{{ r.name }}</option>{% endfor %}</select><button class="btn-glass btn-sm btn-glass-primary" onclick="addRole('add_auto','autoRoleSel')">➕ Hinzufügen</button></div>
   </div>
 
-  <div style="display:flex;flex-wrap:wrap;gap:4px;min-height:32px" id="autoRoleList">
-    {% for r in auto_roles %}
-    <span class="role-tag auto">
-      @{{ r.name }}
-      <button class="rm-btn" onclick="delAutoRole('{{ r.id }}')" title="Entfernen">✕</button>
-    </span>
-    {% else %}
-    <span style="font-size:.74rem;color:var(--muted)">Noch keine Auto-Rollen konfiguriert</span>
-    {% endfor %}
+  <div class="role-card">
+    <div class="db-card-header"><span class="db-card-title">📌 Sticky-Rollen</span><span class="tag">{{ sticky_roles|length }}</span></div>
+    <div>{% for r in sticky_roles %}<span class="role-pill sticky">@{{ r.name }} <button onclick="delRole('del_sticky','{{ r.id }}')">×</button></span>{% else %}<span class="cfg-desc">Keine Sticky-Rollen.</span>{% endfor %}</div>
+    <div class="role-select-line"><select id="stickyRoleSel" class="cfg-select"><option value="">— Rolle wählen —</option>{% for r in guild_roles %}<option value="{{ r.id }}">@{{ r.name }}</option>{% endfor %}</select><button class="btn-glass btn-sm btn-glass-primary" onclick="addRole('add_sticky','stickyRoleSel')">➕ Hinzufügen</button></div>
   </div>
 
-  <div class="add-role-row">
-    <select class="cfg-select" id="autoRoleSel" style="flex:1;min-width:200px">
-      <option value="">— Rolle auswählen —</option>
-      {% for r in guild_roles %}
-      <option value="{{ r.id }}">@{{ r.name }}</option>
-      {% endfor %}
-    </select>
-    <button class="btn-glass btn-glass-primary btn-sm" onclick="addAutoRole()">
-      ➕ Hinzufügen
-    </button>
+  <div class="role-card">
+    <div class="db-card-header"><span class="db-card-title">✅ Verify-Rollen</span><a class="btn-glass btn-sm" href="{{ dash_base|default('/dashboard/' ~ guild.id) }}/verification">Verifizierung öffnen</a></div>
+    <div style="margin-bottom:8px"><b style="font-size:.78rem">Nach Verifizierung geben</b><br>{% for r in verify_add %}<span class="role-pill verify">@{{ r.name }}</span>{% else %}<span class="cfg-desc">Keine Add-Rollen gesetzt.</span>{% endfor %}</div>
+    <div><b style="font-size:.78rem">Nach Verifizierung entfernen</b><br>{% for r in verify_remove %}<span class="role-pill remove">@{{ r.name }}</span>{% else %}<span class="cfg-desc">Keine Remove-Rollen gesetzt.</span>{% endfor %}</div>
   </div>
+
+  <div class="role-card">
+    <div class="db-card-header"><span class="db-card-title">📋 Alle Rollen</span><input id="roleSearch" class="cfg-input ignore-dirty" placeholder="Suchen …" oninput="filterRoles()" style="max-width:220px"></div>
+    <div class="role-list" id="roleList">{% for r in guild_roles %}
+      {% set risk_cls = 'risk-low' if r.risk < 30 else 'risk-mid' if r.risk < 70 else 'risk-high' %}
+      <div class="role-row" data-search="{{ (r.name ~ ' ' ~ r.id ~ ' ' ~ r.danger_perms|join(' '))|lower }}" onclick="previewRole('{{ r.id }}')">
+        <span class="role-dot" style="--rc:{{ r.color or '#64748b' }}"></span><div style="flex:1;min-width:0"><b>@{{ r.name }}</b><div class="cfg-desc">Pos {{ r.pos }} · {{ r.members }} Member · {{ r.health }}</div></div><span class="risk-tag {{ risk_cls }}">{{ r.risk }}%</span>
+      </div>{% endfor %}</div>
+  </div>
+</section>
+
+<aside>
+  <div class="role-card">
+    <div class="db-card-header"><span class="db-card-title">🚨 Gefährliche Rollen</span><span class="tag">{{ dangerous_roles|length }}</span></div>
+    {% for r in dangerous_roles[:10] %}<div class="role-health-row bad"><span>@{{ r.name }}</span><span>{{ r.danger_perms|join(', ') }}</span></div>{% else %}<div class="role-health-row ok"><span>Keine gefährlichen Rollen gefunden</span><span>OK</span></div>{% endfor %}
+  </div>
+  <div class="role-card">
+    <div class="db-card-header"><span class="db-card-title">🩺 Role Health</span></div>
+    {% for h in role_health %}<div class="role-health-row {% if h.ok %}ok{% else %}bad{% endif %}"><span>{{ h.group }} · @{{ h.name }}</span><span>{{ h.reason }}</span></div>{% else %}<p class="cfg-desc">Noch keine verwalteten Rollen.</p>{% endfor %}
+  </div>
+  <div class="role-card">
+    <div class="db-card-header"><span class="db-card-title">👁️ Role Preview</span></div>
+    <div id="rolePreview"><p class="cfg-desc">Klicke links auf eine Rolle.</p></div>
+  </div>
+</aside>
 </div>
-
-{# ── STICKY-ROLLEN ── #}
-<div class="db-card" style="padding:18px;margin-bottom:14px">
-  <div style="font-weight:700;font-size:.86rem;margin-bottom:4px;
-              display:flex;align-items:center;gap:7px">
-    📌 Sticky-Rollen
-    <span style="padding:2px 8px;border-radius:999px;font-size:.55rem;
-      background:rgba(34,211,238,0.08);color:var(--cl)">{{ sticky_roles | length }}</span>
-  </div>
-  <div class="cfg-desc" style="margin-bottom:13px">
-    Werden bei <strong>Leave + Rejoin</strong> automatisch zurückgegeben.
-    Ideal für Mute-Rollen – verhindert, dass User durch Verlassen ihre Strafe umgehen.
-  </div>
-
-  <div style="display:flex;flex-wrap:wrap;gap:4px;min-height:32px" id="stickyRoleList">
-    {% for r in sticky_roles %}
-    <span class="role-tag sticky">
-      @{{ r.name }}
-      <button class="rm-btn" onclick="delStickyRole('{{ r.id }}')" title="Entfernen">✕</button>
-    </span>
-    {% else %}
-    <span style="font-size:.74rem;color:var(--muted)">Noch keine Sticky-Rollen konfiguriert</span>
-    {% endfor %}
-  </div>
-
-  <div class="add-role-row">
-    <select class="cfg-select" id="stickyRoleSel" style="flex:1;min-width:200px">
-      <option value="">— Rolle auswählen —</option>
-      {% for r in guild_roles %}
-      <option value="{{ r.id }}">@{{ r.name }}</option>
-      {% endfor %}
-    </select>
-    <button class="btn-glass btn-glass-primary btn-sm" onclick="addStickyRole()">
-      ➕ Hinzufügen
-    </button>
-  </div>
-</div>
-
-{# ── VERIFIZIERUNG ── #}
-<div class="db-card" style="padding:18px">
-  <div style="font-weight:700;font-size:.86rem;margin-bottom:4px;
-              display:flex;align-items:center;gap:8px">
-    ✅ Verifizierung
-    <span style="padding:2px 8px;border-radius:999px;font-size:.58rem;font-weight:800;
-      background:{% if vs.get('enabled') %}rgba(34,197,94,0.1){% else %}rgba(100,116,139,0.1){% endif %};
-      color:{% if vs.get('enabled') %}#4ade80{% else %}var(--muted){% endif %}">
-      {% if vs.get('enabled') %}Aktiv{% else %}Inaktiv{% endif %}
-    </span>
-  </div>
-  <div class="cfg-desc" style="margin-bottom:16px">
-    Schützt vor Bot-Raids: neue Mitglieder müssen sich erst verifizieren bevor sie
-    Zugriff auf den Server erhalten. Nutze
-    <code style="color:var(--vl)">/setup_verify</code> für den vollständigen Aufbau.
-  </div>
-
-  <div class="cfg-row">
-    <div>
-      <span class="cfg-label">System aktiv</span>
-      <div class="cfg-desc">Verifizierung für neue Mitglieder erforderlich</div>
-    </div>
-    <label class="toggle">
-      <input type="checkbox" id="vOn"
-             {% if vs.get('enabled') %}checked{% endif %}
-             onchange="showSaveBar()">
-      <span class="slider"></span>
-    </label>
-  </div>
-
-  <div style="margin-top:12px">
-    <div style="font-size:.65rem;color:var(--muted);font-weight:700;
-                text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">
-      Modus
-    </div>
-    <div class="verify-mode-grid" id="verifyModeGrid">
-      {% for mode, label, desc in [
-        ('one_click', '🖱️ One-Click',  'Nur Button drücken – schnell & einfach'),
-        ('captcha',   '🔐 Captcha',    'Code aus Bild eingeben – höhere Sicherheit'),
-      ] %}
-      <button class="verify-mode-btn {% if vs.get('mode', 'one_click') == mode %}active{% endif %}"
-              data-mode="{{ mode }}"
-              onclick="selectVerifyMode('{{ mode }}', this)">
-        <div style="font-size:1.1rem;margin-bottom:3px">{{ label.split(' ')[0] }}</div>
-        <div>{{ label.split(' ', 1)[1] }}</div>
-        <div style="font-size:.58rem;opacity:.6;margin-top:2px">{{ desc }}</div>
-      </button>
-      {% endfor %}
-    </div>
-    <input type="hidden" id="vMode" value="{{ vs.get('mode', 'one_click') }}">
-  </div>
-
-  <div id="captchaDiffRow" style="margin-top:12px;{% if vs.get('mode') != 'captcha' %}display:none{% endif %}">
-    <div class="cfg-row">
-      <div>
-        <span class="cfg-label">Captcha-Schwierigkeit</span>
-        <div class="cfg-desc">Hard = mehr Rauschen und Linien im Bild</div>
-      </div>
-      <select class="cfg-select" id="vDiff" style="min-width:130px" onchange="showSaveBar()">
-        {% for opt, label in [('easy','🟢 Einfach'),('medium','🟡 Mittel'),('hard','🔴 Schwer')] %}
-        <option value="{{ opt }}" {% if vs.get('captcha_difficulty', 'medium') == opt %}selected{% endif %}>
-          {{ label }}
-        </option>
-        {% endfor %}
-      </select>
-    </div>
-  </div>
-</div>
-
 {% endblock %}
-
 {% block scripts %}
 <script>
-const GID = "{{ guild.id }}";
-
-async function roleApi(body) {
-  try {
-    const r = await fetch(`/api/guild/${GID}/roles`, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify(body),
-    });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    return await r.json();
-  } catch (e) {
-    return { ok: false, error: e.message };
-  }
-}
-
-async function addAutoRole() {
-  const sel = document.getElementById('autoRoleSel');
-  if (!sel.value) { showToast('❌ Bitte eine Rolle auswählen', 'err'); return; }
-  const d = await roleApi({ action: 'add_auto', role_id: sel.value });
-  if (d.ok) {
-    showToast('✅ Auto-Rolle hinzugefügt', 'ok');
-    setTimeout(() => location.reload(), 400);
-  } else {
-    showToast('❌ ' + (d.error || 'Fehler'), 'err');
-  }
-}
-
-async function delAutoRole(rid) {
-  const d = await roleApi({ action: 'del_auto', role_id: rid });
-  if (d.ok) { showToast('🗑️ Entfernt', 'ok'); setTimeout(() => location.reload(), 400); }
-  else showToast('❌ ' + (d.error || 'Fehler'), 'err');
-}
-
-async function addStickyRole() {
-  const sel = document.getElementById('stickyRoleSel');
-  if (!sel.value) { showToast('❌ Bitte eine Rolle auswählen', 'err'); return; }
-  const d = await roleApi({ action: 'add_sticky', role_id: sel.value });
-  if (d.ok) {
-    showToast('✅ Sticky-Rolle hinzugefügt', 'ok');
-    setTimeout(() => location.reload(), 400);
-  } else {
-    showToast('❌ ' + (d.error || 'Fehler'), 'err');
-  }
-}
-
-async function delStickyRole(rid) {
-  const d = await roleApi({ action: 'del_sticky', role_id: rid });
-  if (d.ok) { showToast('🗑️ Entfernt', 'ok'); setTimeout(() => location.reload(), 400); }
-  else showToast('❌ ' + (d.error || 'Fehler'), 'err');
-}
-
-function selectVerifyMode(mode, btn) {
-  document.querySelectorAll('.verify-mode-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  document.getElementById('vMode').value = mode;
-  document.getElementById('captchaDiffRow').style.display = mode === 'captcha' ? '' : 'none';
-  showSaveBar();
-}
-
-async function saveConfig() {
-  try {
-    const r = await fetch(`/api/guild/${GID}/config`, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({
-        _verify_system: {
-          enabled:             document.getElementById('vOn').checked,
-          mode:                document.getElementById('vMode').value,
-          captcha_difficulty:  document.getElementById('vDiff').value,
-        },
-      }),
-    });
-    const d = await r.json();
-    if (d.ok) markSaved();
-    else showToast('❌ ' + (d.error || 'Fehler'), 'err');
-  } catch (e) {
-    showToast('❌ Netzwerkfehler', 'err');
-  }
-}
-
-window._dirty = false;
+const GID='{{ guild.id }}';
+async function roleApi(body){const r=await fetch(`/api/guild/${GID}/roles`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||'Fehler');return d;}
+async function addRole(action,selId){const sel=document.getElementById(selId);if(!sel.value)return showToast('Rolle wählen','err');try{await roleApi({action,role_id:sel.value});showToast('Rolle gespeichert','ok');setTimeout(()=>location.reload(),500)}catch(e){showToast(e.message,'err')}}
+async function delRole(action,rid){try{await roleApi({action,role_id:rid});showToast('Rolle entfernt','ok');setTimeout(()=>location.reload(),500)}catch(e){showToast(e.message,'err')}}
+function filterRoles(){const q=(roleSearch.value||'').toLowerCase().trim();document.querySelectorAll('#roleList .role-row').forEach(r=>r.style.display=!q||r.dataset.search.includes(q)?'flex':'none')}
+async function previewRole(id){rolePreview.innerHTML='⏳ Lade…';try{const d=await fetch(`/api/guild/${GID}/roles/preview/${id}`).then(r=>r.json());if(!d.ok)throw new Error(d.error);const r=d.role;const danger=(r.danger_perms||[]).join(', ')||'Keine';rolePreview.innerHTML=`<div style="display:flex;gap:10px;align-items:center;margin-bottom:10px"><span class="role-dot" style="--rc:${r.color||'#64748b'}"></span><div><b>@${r.name}</b><div class="cfg-desc">ID ${r.id}</div></div></div><div class="role-health-row ${r.can_manage?'ok':'bad'}"><span>Bot kann verwalten</span><span>${r.health}</span></div><div class="role-health-row"><span>Mitglieder</span><span>${r.members}</span></div><div class="role-health-row"><span>Position</span><span>${r.pos}</span></div><div class="role-health-row ${r.risk>=70?'bad':r.risk>=30?'':'ok'}"><span>Risiko</span><span>${r.risk}%</span></div><div class="role-health-row"><span>Gefährliche Rechte</span><span>${danger}</span></div>`}catch(e){rolePreview.innerHTML='<span style="color:#f87171">'+e.message+'</span>'}}
 </script>
 {% endblock %}

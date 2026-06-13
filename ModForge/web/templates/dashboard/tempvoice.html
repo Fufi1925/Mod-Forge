@@ -1,96 +1,25 @@
 {% extends "dashboard/_base.html" %}
 {% set active = 'tempvoice' %}
-{% block title %}Temp-Voice – ModForge{% endblock %}
-{% block page_title %}🎤 Temp-Voice (Join-to-Create){% endblock %}
-{% block page_desc %}Erstelle dynamische, temporäre Sprachkanäle.{% endblock %}
-
+{% set tv = cfg.get('temp_voice', {}) or {} %}
+{% block title %}TempVoice Command Center{% endblock %}
+{% block page_title %}🎤 TempVoice Command Center{% endblock %}
+{% block page_desc %}Setup · Panel · aktive Kanäle · Health · Owner Tools{% endblock %}
+{% block head %}
+<style>
+.tv-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:18px;align-items:start}.tv-card{padding:18px;border:1px solid var(--border);border-radius:18px;background:rgba(255,255,255,.028);margin-bottom:14px}.tv-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:16px}.tv-stat{padding:16px;border-radius:16px;border:1px solid var(--border);background:rgba(255,255,255,.03);text-align:center}.tv-v{font-size:1.15rem;font-weight:900;font-family:'Geist Mono',monospace}.tv-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px;border-radius:12px;background:rgba(255,255,255,.025);border:1px solid var(--border);margin-bottom:7px;font-size:.78rem}.tv-health-row{display:flex;justify-content:space-between;gap:8px;padding:9px 11px;border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,.03);font-size:.76rem;margin-bottom:6px}.tv-health-row.ok{border-color:rgba(34,197,94,.2);background:rgba(34,197,94,.055)}.tv-health-row.bad{border-color:rgba(239,68,68,.22);background:rgba(239,68,68,.055)}.tv-preview{background:#2f3136;border-left:4px solid var(--cl);border-radius:0 8px 8px 0;padding:13px}.tv-controls{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}@media(max-width:980px){.tv-grid{grid-template-columns:1fr}.tv-controls{grid-template-columns:1fr 1fr}}
+</style>
+{% endblock %}
 {% block content %}
-<div class="db-card" style="padding:24px;border:1px solid rgba(59,130,246,0.3);background:rgba(59,130,246,0.05);">
-  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:20px;">
-    <div>
-      <h3 style="margin-bottom:4px;font-size:1.15rem;font-weight:800;color:var(--fg)">Join-to-Create aktivieren</h3>
-      <p style="color:var(--muted);font-size:.85rem;line-height:1.5;max-width:500px;">
-        Nutzer treten dem "Hub-Kanal" bei und der Bot erstellt sofort einen eigenen temporären Kanal für sie. <br>Sie können den Kanal über ein Klick-Panel im Textkanal (Interface) mit Buttons verwalten (Lock, Kick, Limit, etc.).
-      </p>
-    </div>
-    <label class="toggle" style="transform:scale(1.1)">
-      <input type="checkbox" id="tv_enabled" {% if cfg.temp_voice.enabled %}checked{% endif %} onchange="showSaveBar()">
-      <span class="slider"></span>
-    </label>
-  </div>
-  
-  <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:16px;">
-    <div class="cfg-row" style="flex-direction:column;align-items:flex-start;">
-      <div style="margin-bottom:8px;">
-        <div class="cfg-label">Kategorie (für neue Kanäle)</div>
-        <div class="cfg-desc">Wo sollen die temporären Kanäle erstellt werden?</div>
-      </div>
-      <select id="tv_cat" class="cfg-select" onchange="showSaveBar()" style="width:100%">
-        <option value="">-- Keine Kategorie --</option>
-        {% for cat in categories %}
-        <option value="{{ cat.id }}" {% if cfg.temp_voice.category_id | string == cat.id %}selected{% endif %}>{{ cat.name }}</option>
-        {% endfor %}
-      </select>
-    </div>
-
-    <div class="cfg-row" style="flex-direction:column;align-items:flex-start;">
-      <div style="margin-bottom:8px;">
-        <div class="cfg-label">Hub-Sprachkanal</div>
-        <div class="cfg-desc">Dem Kanal, den Nutzer betreten müssen (z.B. "➕ Join to Create").</div>
-      </div>
-      <select id="tv_hub" class="cfg-select" onchange="showSaveBar()" style="width:100%">
-        <option value="">-- Nicht gesetzt --</option>
-        {% for ch in voice_channels %}
-        <option value="{{ ch.id }}" {% if cfg.temp_voice.hub_channel_id | string == ch.id %}selected{% endif %}>🔊 {{ ch.name }}</option>
-        {% endfor %}
-      </select>
-    </div>
-
-    <div class="cfg-row" style="flex-direction:column;align-items:flex-start;grid-column:1/-1;">
-      <div style="margin-bottom:8px;">
-        <div class="cfg-label">Kanal-Namensvorlage</div>
-        <div class="cfg-desc">Nutze <code>{user}</code> für den Namen des Besitzers.</div>
-      </div>
-      <input type="text" id="tv_name" class="cfg-input" value="{{ cfg.temp_voice.name_template or "🔊 {user}'s Kanal" }}" oninput="showSaveBar()" style="width:100%;max-width:400px;">
-    </div>
-  </div>
-
-  <div style="margin-top:24px;padding-top:20px;border-top:1px solid var(--border);">
-    <div style="display:flex;align-items:center;gap:12px;background:rgba(255,255,255,0.03);padding:16px;border-radius:12px;border:1px solid rgba(255,255,255,0.06);">
-      <div style="font-size:1.8rem">🚀</div>
-      <div>
-        <h4 style="margin-bottom:4px;font-size:.95rem;color:var(--fg)">Tipp: Automatische Einrichtung</h4>
-        <p style="color:var(--muted);font-size:.8rem;">Nutze den Befehl <code>/setup_tempvoice</code> in deinem Discord Server. Der Bot erstellt den Hub-Kanal, die Kategorie und postet automatisch das Button-Panel für die Nutzer!</p>
-      </div>
-    </div>
-  </div>
-</div>
-
+<div class="tv-stats"><div class="tv-stat"><div class="tv-v" style="color:{% if tv.get('enabled') %}var(--green){% else %}var(--muted){% endif %}">{% if tv.get('enabled') %}AN{% else %}AUS{% endif %}</div><div class="ov-sl">System</div></div><div class="tv-stat"><div class="tv-v" style="color:var(--cl)">{{ active_channels|length }}</div><div class="ov-sl">Aktive Kanäle</div></div><div class="tv-stat"><div class="tv-v" style="color:var(--vl)">{% if tv.get('hub_channel_id') %}OK{% else %}—{% endif %}</div><div class="ov-sl">Hub</div></div><div class="tv-stat"><div class="tv-v" style="color:var(--amberl)">{% if tv.get('panel_message_id') %}OK{% else %}—{% endif %}</div><div class="ov-sl">Panel</div></div></div>
+<div class="tv-grid"><section><div class="tv-card"><div class="db-card-header"><span class="db-card-title">⚙️ Setup</span><button class="btn-glass btn-sm btn-glass-primary" onclick="saveConfig()">💾 Speichern</button></div><div class="cfg-row"><div><span class="cfg-label">TempVoice aktiv</span><div class="cfg-desc">Join-to-Create-System aktivieren</div></div><label class="toggle"><input id="tv_enabled" type="checkbox" {% if tv.get('enabled') %}checked{% endif %} onchange="showSaveBar()"><span class="slider"></span></label></div><div class="cfg-row"><div><span class="cfg-label">Kategorie</span></div><select id="tv_cat" class="cfg-select" onchange="showSaveBar()"><option value="">— Keine —</option>{% for cat in categories %}<option value="{{ cat.id }}" {% if tv.get('category_id')|string == cat.id|string %}selected{% endif %}>{{ cat.name }}</option>{% endfor %}</select></div><div class="cfg-row"><div><span class="cfg-label">Hub-Sprachkanal</span></div><select id="tv_hub" class="cfg-select" onchange="showSaveBar()"><option value="">— Nicht gesetzt —</option>{% for ch in voice_channels %}<option value="{{ ch.id }}" {% if tv.get('hub_channel_id')|string == ch.id|string %}selected{% endif %}>🔊 {{ ch.name }}</option>{% endfor %}</select></div><div class="cfg-row"><div><span class="cfg-label">Panel-Kanal</span></div><select id="tv_panel" class="cfg-select" onchange="showSaveBar()"><option value="">— Nicht gesetzt —</option>{% for ch in text_channels %}<option value="{{ ch.id }}" {% if tv.get('panel_channel_id')|string == ch.id|string %}selected{% endif %}>#{{ ch.name }}</option>{% endfor %}</select></div><div class="cfg-row"><div><span class="cfg-label">Namensvorlage</span><div class="cfg-desc">Nutze {user}</div></div><input id="tv_name" class="cfg-input" value="{{ tv.get('name_template', "🔊 {user}'s Kanal") }}" oninput="updatePreview();showSaveBar()" style="min-width:280px"></div></div><div class="tv-card"><div class="db-card-header"><span class="db-card-title">📨 Panel senden</span></div><div class="tv-preview"><b>🎤 TempVoice Panel</b><div class="cfg-desc">Tritt dem Hub-Kanal bei und verwalte deinen Kanal hier.</div><div class="tv-controls" style="margin-top:10px"><span class="tag">🔒 Lock</span><span class="tag">🔓 Unlock</span><span class="tag">👑 Claim</span></div></div><button class="btn-glass btn-glass-primary" style="margin-top:12px" onclick="sendPanel()">📨 Panel senden</button></div><div class="tv-card"><div class="db-card-header"><span class="db-card-title">🎙️ Aktive Temp-Kanäle</span></div>{% for c in active_channels %}<div class="tv-row"><div><b>{{ c.channel_name }}</b><div class="cfg-desc">Owner {{ c.owner_name }} · {{ c.members }} Member</div></div><span class="tag">{{ c.channel_id }}</span></div>{% else %}<p class="cfg-desc">Aktuell keine TempVoice-Kanäle.</p>{% endfor %}</div></section><aside><div class="tv-card"><div class="db-card-header"><span class="db-card-title">👁️ Namensvorschau</span></div><div style="font-size:1.2rem;font-weight:900" id="namePreview"></div><div class="cfg-desc">Beispiel für User „Alex“</div></div><div class="tv-card"><div class="db-card-header"><span class="db-card-title">🩺 Health</span><button class="btn-glass btn-sm" onclick="runHealth()">Check</button></div><div id="healthBox"><p class="cfg-desc">Klicke auf Check.</p></div></div><div class="tv-card"><div class="db-card-header"><span class="db-card-title">👑 Owner Tools</span></div><div class="tv-controls"><span class="tag">Claim</span><span class="tag">Transfer</span><span class="tag">Lock</span><span class="tag">Unlock</span><span class="tag">Limit</span><span class="tag">Rename</span></div><p class="cfg-desc" style="margin-top:10px">Diese Tools sind im Panel und per /tempvoice verfügbar.</p></div></aside></div>
+{% endblock %}
+{% block scripts %}
 <script>
-async function saveConfig() {
-  const data = {
-    _temp_voice: {
-      enabled: document.getElementById('tv_enabled').checked,
-      category_id: document.getElementById('tv_cat').value ? parseInt(document.getElementById('tv_cat').value) : null,
-      hub_channel_id: document.getElementById('tv_hub').value ? parseInt(document.getElementById('tv_hub').value) : null,
-      name_template: document.getElementById('tv_name').value || "🔊 {user}'s Kanal"
-    }
-  };
-
-  try {
-    const res = await fetch(`/api/guild/{{ guild.id }}/config`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-    if (res.ok) {
-      markSaved();
-    } else {
-      showToast('❌ Fehler beim Speichern', 'err');
-    }
-  } catch (err) {
-    showToast('❌ Netzwerkfehler', 'err');
-  }
-}
+const GID='{{ guild.id }}';
+function updatePreview(){namePreview.textContent=(tv_name.value||'🔊 {user}\'s Kanal').replace('{user}','Alex')}
+async function saveConfig(){const body={_temp_voice:{enabled:tv_enabled.checked,category_id:tv_cat.value?Number(tv_cat.value):null,hub_channel_id:tv_hub.value?Number(tv_hub.value):null,panel_channel_id:tv_panel.value?Number(tv_panel.value):null,name_template:tv_name.value}};const r=await fetch(`/api/guild/${GID}/config`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const d=await r.json();if(d.ok)markSaved();else markError(d.error)}
+async function sendPanel(){await saveConfig();if(!tv_panel.value)return showToast('Panel-Kanal wählen','err');const r=await fetch(`/api/guild/${GID}/tempvoice/panel`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({panel_channel_id:tv_panel.value})});const d=await r.json();if(d.ok){showToast('Panel gesendet','ok');setTimeout(()=>location.reload(),700)}else showToast(d.error||'Fehler','err')}
+async function runHealth(){const r=await fetch(`/api/guild/${GID}/tempvoice/health`);const d=await r.json();if(!d.ok)return showToast(d.error||'Fehler','err');healthBox.innerHTML=d.checks.map(c=>`<div class="tv-health-row ${c.ok?'ok':'bad'}"><span>${c.ok?'✅':'❌'} ${c.label}</span><span>${c.reason}</span></div>`).join('')}
+const tv_enabled=document.getElementById('tv_enabled'),tv_cat=document.getElementById('tv_cat'),tv_hub=document.getElementById('tv_hub'),tv_panel=document.getElementById('tv_panel'),tv_name=document.getElementById('tv_name'),namePreview=document.getElementById('namePreview');updatePreview();window._dirty=false;
 </script>
 {% endblock %}

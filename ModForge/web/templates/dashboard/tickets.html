@@ -1,49 +1,29 @@
 {% extends "dashboard/_base.html" %}
 {% set active = 'tickets' %}
-{% block title %}Tickets{% endblock %}
-{% block page_title %}🎫 Ticket-System{% endblock %}
+{% set ts = cfg.get('ticket_system', {}) or {} %}
+{% set te = cfg.get('ticket_extended', {}) or {} %}
+{% block title %}Tickets Command Center{% endblock %}
+{% block page_title %}🎫 Tickets Command Center{% endblock %}
+{% block page_desc %}Panel senden · Kategorien · Health · Stats · Transcripts{% endblock %}
+{% block head %}
+<style>
+.tix-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:18px;align-items:start}.tix-card{padding:18px;border:1px solid var(--border);border-radius:18px;background:rgba(255,255,255,.028);margin-bottom:14px}.tix-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:16px}.tix-stat{padding:16px;border-radius:16px;border:1px solid var(--border);background:rgba(255,255,255,.03);text-align:center}.tix-v{font-size:1.15rem;font-weight:900;font-family:'Geist Mono',monospace}.tix-preview{background:#36393f;border-radius:12px;padding:14px}.tix-embed{background:#2f3136;border-left:4px solid #5865f2;border-radius:0 6px 6px 0;padding:12px 14px}.tix-health-row{display:flex;justify-content:space-between;gap:8px;padding:9px 11px;border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,.03);font-size:.76rem;margin-bottom:6px}.tix-health-row.ok{border-color:rgba(34,197,94,.2);background:rgba(34,197,94,.055)}.tix-health-row.bad{border-color:rgba(239,68,68,.22);background:rgba(239,68,68,.055)}.tix-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px;border-radius:12px;background:rgba(255,255,255,.025);border:1px solid var(--border);margin-bottom:7px;font-size:.78rem}@media(max-width:980px){.tix-grid{grid-template-columns:1fr}}
+</style>
+{% endblock %}
 {% block content %}
-<div class="cfg-row" style="{% if cfg.get('ticket_system',{}).get('enabled') %}background:rgba(74,222,128,0.03);border-color:rgba(74,222,128,0.12){% endif %};margin-bottom:14px">
-  <div><span class="cfg-label">Ticket-System</span><div class="cfg-desc">User können per Button Support-Tickets erstellen</div></div>
-  <label class="toggle"><input type="checkbox" id="tOn" {% if cfg.get('ticket_system',{}).get('enabled') %}checked{% endif %} onchange="showSaveBar()"><span class="slider"></span></label>
-</div>
-<div class="db-card" style="padding:16px">
-  <div style="font-weight:700;font-size:.85rem;margin-bottom:10px">⚙️ Konfiguration</div>
-  <div class="cfg-row"><div><span class="cfg-label">Ticket-Kategorie</span><div class="cfg-desc">Wo neue Tickets erstellt werden</div></div>
-    <select class="cfg-select" id="tCat" style="min-width:200px" onchange="showSaveBar()"><option value="">— Wählen —</option>{% for cat in categories %}<option value="{{ cat.id }}" {% if cat.id|string==cfg.get('ticket_system',{}).get('category_id','')|string %}selected{% endif %}>{{ cat.name }}</option>{% endfor %}</select></div>
-  <div class="cfg-row"><div><span class="cfg-label">Log-Kanal</span><div class="cfg-desc">Transkripte werden hierhin gesendet</div></div>
-    <select class="cfg-select" id="tLog" style="min-width:200px" onchange="showSaveBar()"><option value="">— Wählen —</option>{% for ch in channels %}<option value="{{ ch.id }}" {% if ch.id|string==cfg.get('ticket_system',{}).get('log_channel_id','')|string %}selected{% endif %}>#{{ ch.name }}</option>{% endfor %}</select></div>
-</div>
-<div class="db-card" style="padding:14px;margin-top:14px;background:rgba(59,130,246,0.02);border-color:rgba(59,130,246,0.08)">
-  <div style="font-size:.72rem;color:var(--muted);line-height:1.6"><strong style="color:var(--fg)">💡</strong> Nach dem Speichern nutze <code style="color:var(--vl)">/setup_tickets</code> in Discord um das Ticket-Panel zu senden.</div>
-</div>
-<div class="db-card" style="padding:16px;margin-top:14px">
-  <div class="db-card-header"><span class="db-card-title">👁️ Ticket Embed Live Preview</span></div>
-  <div class="embed-preview">
-    <div class="ep-title">🎫 Support Tickets</div>
-    <div class="ep-desc">Klicke auf den Button um ein Ticket zu öffnen. Ein privater Support-Kanal wird automatisch erstellt.</div>
-    <div class="tag" style="margin-top:10px">🎫 Ticket öffnen</div>
-  </div>
-</div>
+<div class="tix-stats"><div class="tix-stat"><div class="tix-v" style="color:{% if ts.get('enabled') %}var(--green){% else %}var(--muted){% endif %}">{% if ts.get('enabled') %}AN{% else %}AUS{% endif %}</div><div class="ov-sl">System</div></div><div class="tix-stat"><div class="tix-v" style="color:var(--vl)">{{ ticket_stats.total }}</div><div class="ov-sl">Tickets</div></div><div class="tix-stat"><div class="tix-v" style="color:var(--green)">{{ ticket_stats.open }}</div><div class="ov-sl">Offen</div></div><div class="tix-stat"><div class="tix-v" style="color:var(--amberl)">{{ ticket_stats.closed }}</div><div class="ov-sl">Geschlossen</div></div><div class="tix-stat"><div class="tix-v" style="color:var(--cl)">{{ ticket_stats.claimed }}</div><div class="ov-sl">Übernommen</div></div></div>
+<div class="tix-grid"><section><div class="tix-card"><div class="db-card-header"><span class="db-card-title">⚙️ Setup</span><button class="btn-glass btn-sm btn-glass-primary" onclick="saveConfig()">💾 Speichern</button></div><div class="cfg-row"><div><span class="cfg-label">Ticket-System</span><div class="cfg-desc">User können private Support-Kanäle öffnen</div></div><label class="toggle"><input id="tOn" type="checkbox" {% if ts.get('enabled') %}checked{% endif %} onchange="showSaveBar()"><span class="slider"></span></label></div><div class="cfg-row"><div><span class="cfg-label">Ticket-Kategorie</span></div><select id="tCat" class="cfg-select" onchange="showSaveBar()"><option value="">— Keine —</option>{% for c in categories %}<option value="{{ c.id }}" {% if ts.get('category_id')|string == c.id|string %}selected{% endif %}>{{ c.name }}</option>{% endfor %}</select></div><div class="cfg-row"><div><span class="cfg-label">Log-Kanal</span></div><select id="tLog" class="cfg-select" onchange="showSaveBar()"><option value="">— Kein Log —</option>{% for ch in channels %}<option value="{{ ch.id }}" {% if ts.get('log_channel_id')|string == ch.id|string %}selected{% endif %}>#{{ ch.name }}</option>{% endfor %}</select></div><div class="cfg-row"><div><span class="cfg-label">Max offene Tickets pro User</span></div><input id="tMax" type="number" min="1" max="20" class="cfg-input" value="{{ te.get('max_open_per_user',3) }}" oninput="showSaveBar()"></div><div class="cfg-row"><div><span class="cfg-label">Auto-Close nach Stunden</span></div><input id="tClose" type="number" min="0" max="720" class="cfg-input" value="{{ te.get('auto_close_hours',48) }}" oninput="showSaveBar()"></div></div>
+<div class="tix-card"><div class="db-card-header"><span class="db-card-title">📨 Ticket Panel</span></div><div class="cfg-row"><div><span class="cfg-label">Panel-Kanal</span></div><select id="panelCh" class="cfg-select"><option value="">— wählen —</option>{% for ch in channels %}<option value="{{ ch.id }}">#{{ ch.name }}</option>{% endfor %}</select></div><div class="cfg-row"><div><span class="cfg-label">Panel-Titel</span></div><input id="panelTitle" class="cfg-input" value="🎫 Support Tickets" oninput="updatePreview()"></div><div class="cfg-row" style="flex-direction:column;align-items:stretch"><span class="cfg-label">Panel-Beschreibung</span><textarea id="panelDesc" class="vf-textarea" rows="3" oninput="updatePreview()">Klicke auf den Button, um ein Ticket zu öffnen.</textarea></div><button class="btn-glass btn-glass-primary" onclick="sendPanel()">📨 Panel senden</button></div>
+<div class="tix-card"><div class="db-card-header"><span class="db-card-title">📋 Letzte Tickets</span></div>{% for t in ticket_docs %}<div class="tix-row"><div><b>#{{ t.channel_id }}</b><div class="cfg-desc">User {{ t.user_id }} · {{ t.status }}</div></div><span class="tag">{{ t.priority or 'medium' }}</span></div>{% else %}<p class="cfg-desc">Noch keine Tickets in der Datenbank.</p>{% endfor %}</div></section>
+<aside><div class="tix-card"><div class="db-card-header"><span class="db-card-title">👁️ Panel Preview</span></div><div class="tix-preview"><div class="tix-embed"><div style="font-weight:800;color:#fff;margin-bottom:5px" id="prevTitle">🎫 Support Tickets</div><div style="color:#dcddde;font-size:.82rem;line-height:1.5" id="prevDesc">Klicke auf den Button, um ein Ticket zu öffnen.</div><div class="tag" style="margin-top:10px">🎫 Ticket öffnen</div></div></div></div><div class="tix-card"><div class="db-card-header"><span class="db-card-title">🩺 Health</span><button class="btn-glass btn-sm" onclick="runHealth()">Check</button></div><div id="healthBox"><p class="cfg-desc">Klicke auf Check.</p></div></div><div class="tix-card"><div class="db-card-header"><span class="db-card-title">💡 Hinweis</span></div><p class="cfg-desc" style="line-height:1.6">Panel senden speichert Message-ID und aktiviert das Ticket-System. Kategorie und Log-Kanal werden in der DB gespeichert.</p></div></aside></div>
+{% endblock %}
 {% block scripts %}
 <script>
-async function saveConfig(){
-  try {
-    const r=await fetch('/api/guild/{{ guild.id }}/config',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        _ticket_system: {
-          enabled: document.getElementById('tOn').checked,
-          category_id: document.getElementById('tCat').value || null,
-          log_channel_id: document.getElementById('tLog').value || null
-        }
-      })
-    });
-    const data = await r.json();
-    if(data.ok) markSaved(); else markError(data.error);
-  } catch(e) { markError(e.message); }
-}
+const GID='{{ guild.id }}';
+function updatePreview(){prevTitle.textContent=panelTitle.value||'🎫 Support Tickets';prevDesc.textContent=panelDesc.value||'Klicke auf den Button, um ein Ticket zu öffnen.'}
+async function saveConfig(){const body={_ticket_system:{enabled:tOn.checked,category_id:tCat.value?Number(tCat.value):null,log_channel_id:tLog.value?Number(tLog.value):null},ticket_extended:{max_open_per_user:Number(tMax.value||3),auto_close_hours:Number(tClose.value||48)}};const r=await fetch(`/api/guild/${GID}/config`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const d=await r.json();if(d.ok)markSaved();else markError(d.error)}
+async function sendPanel(){if(!panelCh.value)return showToast('Panel-Kanal wählen','err');await saveConfig();const r=await fetch(`/api/guild/${GID}/tickets/panel`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({channel_id:panelCh.value,title:panelTitle.value,description:panelDesc.value})});const d=await r.json();if(d.ok){showToast('Ticket Panel gesendet','ok');setTimeout(()=>location.reload(),600)}else showToast(d.error||'Fehler','err')}
+async function runHealth(){const r=await fetch(`/api/guild/${GID}/tickets/health`);const d=await r.json();if(!d.ok)return showToast(d.error||'Fehler','err');healthBox.innerHTML=d.checks.map(c=>`<div class="tix-health-row ${c.ok?'ok':'bad'}"><span>${c.ok?'✅':'❌'} ${c.label}</span><span>${c.reason}</span></div>`).join('')}
+updatePreview();window._dirty=false;
 </script>
-{% endblock %}
 {% endblock %}
