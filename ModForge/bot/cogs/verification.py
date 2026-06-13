@@ -422,5 +422,5 @@ class VerificationCog(commands.Cog):
 async def setup(bot):
     cog = VerificationCog(bot)
     await bot.add_cog(cog)
-    # Register persistent view
+    # View registrieren
     bot.add_view(ExtendedVerifyView(bot))

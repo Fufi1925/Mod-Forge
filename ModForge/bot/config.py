@@ -888,7 +888,7 @@ HELP_DATA = {
             ),
             (
                 "/tempmute <member> <duration> [reason]",
-                "Persistenter Mute",
+                "Temporärer Timeout",
                 "Moderate Members",
                 "/tempmute @User 2h Spam",
             ),

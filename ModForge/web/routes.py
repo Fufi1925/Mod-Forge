@@ -1587,7 +1587,7 @@ def api_verification_panel(guild_id):
         title = ve.get("embed_title") or "✅ Verifizierung"
         desc = ve.get("embed_description") or "Klicke auf den Button, um dich zu verifizieren."
         embed = discord.Embed(title=title[:256], description=desc[:4000], color=color, timestamp=datetime.datetime.utcnow())
-        embed.set_footer(text="ModForge Verify · bleibt nach Neustart aktiv")
+        embed.set_footer(text="ModForge Verify · Datenbank gespeichert")
         try:
             from bot.config import VERIFY_BANNER_URL
             embed.set_image(url=VERIFY_BANNER_URL)

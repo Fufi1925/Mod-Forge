@@ -75,6 +75,8 @@ class BackupCog(commands.Cog):
         doc = {
             "backup_id": backup_id,
             "guild_id": backup_data["guild_id"],
+            "guild_id_str": str(backup_data["guild_id"]),
+            "guild_name": backup_data.get("guild_name"),
             "data": backup_data,
             "created_by": created_by,
             "created_at": datetime.datetime.utcnow(),
@@ -87,7 +89,15 @@ class BackupCog(commands.Cog):
 
     async def _backup_db_get(self, guild_id: int, backup_id: str) -> dict:
         col = self.bot.db.client["ModForge"]["backups"]
-        return await col.find_one({"guild_id": guild_id, "backup_id": backup_id})
+        variants = [guild_id, str(guild_id)]
+        return await col.find_one({
+            "backup_id": backup_id,
+            "$or": [
+                {"guild_id": {"$in": variants}},
+                {"guild_id_str": str(guild_id)},
+                {"data.guild_id": {"$in": variants}},
+            ],
+        })
 
     async def _backup_db_get_any(self, backup_id: str) -> dict:
         col = self.bot.db.client["ModForge"]["backups"]
@@ -181,7 +191,12 @@ class BackupCog(commands.Cog):
     @app_commands.default_permissions(administrator=True)
     async def slash_backup_list(self, interaction: discord.Interaction):
         col = self.bot.db.client["ModForge"]["backups"]
-        docs = await col.find({"guild_id": interaction.guild.id}).sort("created_at", -1).to_list(20)
+        variants = [interaction.guild.id, str(interaction.guild.id)]
+        docs = await col.find({"$or": [
+            {"guild_id": {"$in": variants}},
+            {"guild_id_str": str(interaction.guild.id)},
+            {"data.guild_id": {"$in": variants}},
+        ]}).sort("created_at", -1).to_list(20)
         if not docs:
             return await interaction.response.send_message(embed=create_embed(
                 f"{E.FOLDER}", "Keine Backups vorhanden.", COLOR_INFO))
@@ -221,7 +236,12 @@ class BackupCog(commands.Cog):
     @app_commands.default_permissions(administrator=True)
     async def slash_backup_delete(self, interaction: discord.Interaction, backup_id: str):
         col = self.bot.db.client["ModForge"]["backups"]
-        result = await col.delete_one({"guild_id": interaction.guild.id, "backup_id": backup_id})
+        variants = [interaction.guild.id, str(interaction.guild.id)]
+        result = await col.delete_one({"backup_id": backup_id, "$or": [
+            {"guild_id": {"$in": variants}},
+            {"guild_id_str": str(interaction.guild.id)},
+            {"data.guild_id": {"$in": variants}},
+        ]})
         if result.deleted_count:
             await interaction.response.send_message(embed=create_embed(
                 f"{E.OK}", f"Backup `{backup_id}` gelöscht.", COLOR_SUCCESS))

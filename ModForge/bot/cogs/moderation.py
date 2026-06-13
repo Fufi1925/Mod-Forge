@@ -267,7 +267,7 @@ class ModerationCog(commands.Cog):
         except discord.Forbidden:
             await interaction.response.send_message(embed=create_embed(f"{E.FAIL}", "Keine Berechtigung.", COLOR_DANGER), ephemeral=True)
 
-    @app_commands.command(name="tempmute", description="Persistenter Timeout (überlebt Neustart)")
+    @app_commands.command(name="tempmute", description="Temporärer Timeout mit Datenbank-Speicherung")
     @app_commands.describe(member="Der Nutzer", duration="Dauer (z.B. 1d, 2h)", reason="Grund")
     @app_commands.default_permissions(moderate_members=True)
     async def slash_tempmute(self, interaction: discord.Interaction, member: discord.Member,

@@ -694,7 +694,7 @@ class ModForge(commands.Bot):
         return cfg.get("prefix", "!")
 
     async def setup_hook(self) -> None:
-        # Persistent Views
+        # Dauerhafte UI-Views
         self.add_view(TempVoiceView(self))
         self.add_view(VerifyView(self))
         self.add_view(TicketView(self))
@@ -720,7 +720,7 @@ class ModForge(commands.Bot):
             dev_print(f"Slash-Command Sync fehlgeschlagen: {e}", "error", "Commands")
 
         # Tasks starten (Reconnect-/Reload-sicher)
-        for task in (self.cleanup_trackers, self.tempaction_loop, self.restore_persistent_mutes):
+        for task in (self.cleanup_trackers, self.tempaction_loop, self.restore_active_mutes):
             if not task.is_running():
                 task.start()
 
@@ -1155,7 +1155,7 @@ class ModForge(commands.Bot):
                 await self.db.adeactivate_tempaction(entry["_id"])
 
     @tasks.loop(count=1)
-    async def restore_persistent_mutes(self) -> None:
+    async def restore_active_mutes(self) -> None:
         await self.wait_until_ready()
         active = await self.db.aget_active_mutes()
         now = utcnow()
@@ -1169,17 +1169,17 @@ class ModForge(commands.Bot):
             end_time = to_aware_utc(entry.get("end_time"))
             if end_time and end_time <= now:
                 try:
-                    await member.timeout(None, reason="Persistent-Mute abgelaufen (Recovery)")
+                    await member.timeout(None, reason="Mute abgelaufen (Recovery)")
                 except (discord.Forbidden, discord.NotFound, discord.HTTPException):
                     pass
                 await self.db.adeactivate_mute(guild.id, member.id)
                 continue
             if end_time:
                 try:
-                    await member.timeout(end_time, reason="Persistent-Mute Wiederherstellung nach Neustart")
+                    await member.timeout(end_time, reason="Mute-Zustand erneut angewendet")
                 except (discord.Forbidden, discord.NotFound, discord.HTTPException):
                     pass
-        dev_print(f"{len(active)} persistente Mutes geprüft.", "success", "Mutes")
+        dev_print(f"{len(active)} aktive Mutes geprüft.", "success", "Mutes")
 
 
 # ═══════════════════════════════════════════════════════════════════
