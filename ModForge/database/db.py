@@ -45,6 +45,15 @@ class Database:
         self.badges: AsyncIOMotorCollection = self.db["badges"]
         self.badge_defs: AsyncIOMotorCollection = self.db["badge_defs"]
 
+        # Neue Collections für erweiterte Features
+        self.role_health: AsyncIOMotorCollection = self.db["role_health"]
+        self.ticket_transcripts: AsyncIOMotorCollection = self.db["ticket_transcripts"]
+        self.tempvoice_live: AsyncIOMotorCollection = self.db["tempvoice_live"]
+        self.livefeed_events: AsyncIOMotorCollection = self.db["livefeed_events"]
+        self.config_versions: AsyncIOMotorCollection = self.db["config_versions"]
+        self.ticket_panels: AsyncIOMotorCollection = self.db["ticket_panels"]
+        self.tempvoice_panels: AsyncIOMotorCollection = self.db["tempvoice_panels"]
+
         self._config_cache: TTLCache = TTLCache(
             maxsize=self.CONFIG_CACHE_MAXSIZE, ttl=self.CONFIG_CACHE_TTL
         )
@@ -1065,3 +1074,183 @@ class Database:
         except PyMongoError as e:
             log.error(f"DB aget_recent_guild_events Fehler: {e}")
             return []
+
+
+    # ── Role Health ────────────────────────────────────────
+    async def asave_role_health(self, guild_id: int, role_id: int, health_data: dict) -> None:
+        try:
+            await self.role_health.update_one(
+                {"guild_id": guild_id, "role_id": role_id},
+                {"$set": {"data": health_data, "updated_at": datetime.datetime.utcnow()}},
+                upsert=True
+            )
+        except PyMongoError as e:
+            log.error(f"DB asave_role_health Fehler: {e}")
+
+    async def aget_role_health(self, guild_id: int, role_id: int) -> Optional[dict]:
+        try:
+            doc = await self.role_health.find_one({"guild_id": guild_id, "role_id": role_id})
+            return doc.get("data") if doc else None
+        except PyMongoError as e:
+            log.error(f"DB aget_role_health Fehler: {e}")
+            return None
+
+    async def aget_all_role_health(self, guild_id: int) -> List[dict]:
+        try:
+            cursor = self.role_health.find({"guild_id": guild_id})
+            return await cursor.to_list(length=1000)
+        except PyMongoError as e:
+            log.error(f"DB aget_all_role_health Fehler: {e}")
+            return []
+
+    # ── Ticket Transcripts ─────────────────────────────────
+    async def asave_ticket_transcript(self, guild_id: int, ticket_id: str, transcript_data: dict) -> None:
+        try:
+            await self.ticket_transcripts.update_one(
+                {"guild_id": guild_id, "ticket_id": ticket_id},
+                {"$set": transcript_data},
+                upsert=True
+            )
+        except PyMongoError as e:
+            log.error(f"DB asave_ticket_transcript Fehler: {e}")
+
+    async def aget_ticket_transcripts(self, guild_id: int, limit: int = 50) -> List[dict]:
+        try:
+            cursor = self.ticket_transcripts.find({"guild_id": guild_id}).sort("closed_at", DESCENDING).limit(limit)
+            return await cursor.to_list(length=limit)
+        except PyMongoError as e:
+            log.error(f"DB aget_ticket_transcripts Fehler: {e}")
+            return []
+
+    async def asearch_ticket_transcripts(self, guild_id: int, query: str) -> List[dict]:
+        try:
+            cursor = self.ticket_transcripts.find({
+                "guild_id": guild_id,
+                "$or": [
+                    {"user_id": {"$regex": query, "$options": "i"}},
+                    {"ticket_id": {"$regex": query, "$options": "i"}}
+                ]
+            }).limit(20)
+            return await cursor.to_list(length=20)
+        except PyMongoError as e:
+            log.error(f"DB asearch_ticket_transcripts Fehler: {e}")
+            return []
+
+    # ── TempVoice Live ─────────────────────────────────────
+    async def atv_set_live_channel(self, guild_id: int, channel_id: int, owner_id: int, member_count: int) -> None:
+        try:
+            await self.tempvoice_live.update_one(
+                {"guild_id": guild_id, "channel_id": channel_id},
+                {"$set": {"owner_id": owner_id, "member_count": member_count, "updated_at": datetime.datetime.utcnow()}},
+                upsert=True
+            )
+        except PyMongoError as e:
+            log.error(f"DB atv_set_live_channel Fehler: {e}")
+
+    async def atv_remove_live_channel(self, guild_id: int, channel_id: int) -> None:
+        try:
+            await self.tempvoice_live.delete_one({"guild_id": guild_id, "channel_id": channel_id})
+        except PyMongoError as e:
+            log.error(f"DB atv_remove_live_channel Fehler: {e}")
+
+    async def atv_get_live_channels(self, guild_id: int) -> List[dict]:
+        try:
+            cursor = self.tempvoice_live.find({"guild_id": guild_id})
+            return await cursor.to_list(length=500)
+        except PyMongoError as e:
+            log.error(f"DB atv_get_live_channels Fehler: {e}")
+            return []
+
+    # ── Livefeed Events ────────────────────────────────────
+    async def arecord_livefeed_event(self, guild_id: int, event_type: str, data: dict) -> None:
+        try:
+            await self.livefeed_events.insert_one({
+                "guild_id": guild_id,
+                "event_type": event_type,
+                "data": data,
+                "timestamp": datetime.datetime.utcnow()
+            })
+        except PyMongoError as e:
+            log.error(f"DB arecord_livefeed_event Fehler: {e}")
+
+    async def aget_livefeed_events(self, guild_id: int, limit: int = 100) -> List[dict]:
+        try:
+            cursor = self.livefeed_events.find({"guild_id": guild_id}).sort("timestamp", DESCENDING).limit(limit)
+            return await cursor.to_list(length=limit)
+        except PyMongoError as e:
+            log.error(f"DB aget_livefeed_events Fehler: {e}")
+            return []
+
+    # ── Config Versions (Rollback) ─────────────────────────
+    async def asave_config_version(self, guild_id: int, config: dict, source: str = "dashboard") -> str:
+        try:
+            from bson import ObjectId
+            doc = {
+                "guild_id": guild_id,
+                "config": config,
+                "source": source,
+                "created_at": datetime.datetime.utcnow()
+            }
+            result = await self.config_versions.insert_one(doc)
+            return str(result.inserted_id)
+        except PyMongoError as e:
+            log.error(f"DB asave_config_version Fehler: {e}")
+            return ""
+
+    async def aget_config_versions(self, guild_id: int, limit: int = 25) -> List[dict]:
+        try:
+            cursor = self.config_versions.find({"guild_id": guild_id}).sort("created_at", DESCENDING).limit(limit)
+            docs = await cursor.to_list(length=limit)
+            for d in docs:
+                d["_id"] = str(d["_id"])
+            return docs
+        except PyMongoError as e:
+            log.error(f"DB aget_config_versions Fehler: {e}")
+            return []
+
+    async def aget_config_version(self, version_id: str) -> Optional[dict]:
+        try:
+            from bson import ObjectId
+            doc = await self.config_versions.find_one({"_id": ObjectId(version_id)})
+            if doc:
+                doc["_id"] = str(doc["_id"])
+            return doc
+        except PyMongoError as e:
+            log.error(f"DB aget_config_version Fehler: {e}")
+            return None
+
+    # ── Ticket Panels ──────────────────────────────────────
+    async def asave_ticket_panel(self, guild_id: int, panel_data: dict) -> None:
+        try:
+            await self.ticket_panels.update_one(
+                {"guild_id": guild_id},
+                {"$set": panel_data},
+                upsert=True
+            )
+        except PyMongoError as e:
+            log.error(f"DB asave_ticket_panel Fehler: {e}")
+
+    async def aget_ticket_panel(self, guild_id: int) -> Optional[dict]:
+        try:
+            return await self.ticket_panels.find_one({"guild_id": guild_id})
+        except PyMongoError as e:
+            log.error(f"DB aget_ticket_panel Fehler: {e}")
+            return None
+
+    # ── TempVoice Panels ───────────────────────────────────
+    async def asave_tempvoice_panel(self, guild_id: int, panel_data: dict) -> None:
+        try:
+            await self.tempvoice_panels.update_one(
+                {"guild_id": guild_id},
+                {"$set": panel_data},
+                upsert=True
+            )
+        except PyMongoError as e:
+            log.error(f"DB asave_tempvoice_panel Fehler: {e}")
+
+    async def aget_tempvoice_panel(self, guild_id: int) -> Optional[dict]:
+        try:
+            return await self.tempvoice_panels.find_one({"guild_id": guild_id})
+        except PyMongoError as e:
+            log.error(f"DB aget_tempvoice_panel Fehler: {e}")
+            return None
