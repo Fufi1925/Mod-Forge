@@ -9,6 +9,7 @@ from bot.config import (
     E, LOG_MODULES, LOG_MODULES_EXTRA, dev_print,
 )
 from bot.utils import create_embed
+from bot.embed_config import get_embed
 
 
 ALL_LOG_MODULES = tuple(dict.fromkeys(

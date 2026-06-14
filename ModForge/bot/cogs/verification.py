@@ -16,7 +16,8 @@ from bot.config import (
     COLOR_PRIMARY, COLOR_SUCCESS, COLOR_WARNING, COLOR_DANGER,
     COLOR_INFO, E, VERIFY_BANNER_URL, log,
 )
-from bot.utils import create_embed, generate_captcha
+from bot.utils import create_embed
+from bot.embed_config import get_embed, generate_captcha
 from bot.bot import CaptchaEntryView
 
 # ═══════════════════════════════════════════════════════════════
@@ -289,7 +290,7 @@ class VerificationCog(commands.Cog):
         except ValueError:
             embed_color = COLOR_PRIMARY
 
-        embed = discord.Embed(title=embed_title, description=embed_desc, color=embed_color)
+        embed = get_embed("verification_panel", guild=interaction.guild, bot=self.bot)
         embed.set_image(url=VERIFY_BANNER_URL)
         view = ExtendedVerifyView(self.bot)
         msg = await channel.send(embed=embed, view=view)

@@ -13,6 +13,7 @@ from discord import app_commands
 
 from bot.config import COLOR_PRIMARY, COLOR_SUCCESS, COLOR_WARNING, COLOR_DANGER, COLOR_INFO, E, log
 from bot.utils import create_embed
+from bot.embed_config import get_embed
 from bot.bot import TicketView
 
 
@@ -61,12 +62,7 @@ class TicketCategorySelect(discord.ui.Select):
         except ValueError:
             color = COLOR_INFO
 
-        embed = discord.Embed(
-            title=f"{E.TICKET} Ticket – {category_id.title()}",
-            description=f"Willkommen {interaction.user.mention}!\n\n"
-                        f"**Kategorie:** {category_id}\n**Priorität:** {priority}\n"
-                        f"Beschreibe dein Anliegen so detailliert wie möglich.",
-            color=color)
+        embed = get_embed("ticket_panel", guild=interaction.guild, bot=self.bot)
         embed.set_footer(text=f"Ticket erstellt am {datetime.datetime.utcnow().strftime('%d.%m.%Y %H:%M')}")
 
         # Save ticket to DB

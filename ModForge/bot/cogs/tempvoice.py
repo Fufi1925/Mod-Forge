@@ -7,6 +7,7 @@ from typing import Optional
 
 from bot.config import COLOR_PRIMARY, COLOR_SUCCESS, COLOR_DANGER, COLOR_INFO, E
 from bot.utils import create_embed
+from bot.embed_config import get_embed
 from bot.bot import TempVoiceView
 
 

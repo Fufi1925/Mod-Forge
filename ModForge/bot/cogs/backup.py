@@ -10,6 +10,7 @@ from discord import app_commands
 
 from bot.config import COLOR_PRIMARY, COLOR_SUCCESS, COLOR_DANGER, COLOR_INFO, E, log
 from bot.utils import create_embed
+from bot.embed_config import get_embed
 
 
 class BackupCog(commands.Cog):

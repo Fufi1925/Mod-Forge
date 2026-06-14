@@ -18,6 +18,7 @@ from bot.config import (
     COLOR_INFO, E, log,
 )
 from bot.utils import create_embed
+from bot.embed_config import get_embed
 from bot.bot import safe_dm
 
 # ═══════════════════════════════════════════════════════════════
