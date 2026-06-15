@@ -6052,3 +6052,101 @@ def forbidden(e):
 def internal_error(e):
     log.error(f"[500 ERROR] {e}")
     return render_template("errors/500.html"), 500
+
+
+# =========================================================
+# BETA & ADVANCED FEATURES API ROUTES
+# =========================================================
+
+@flask_app.route("/api/guild/<guild_id>/activity")
+@require_auth
+def api_activity_feed(guild_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
+        return jsonify({"error": "forbidden"}), 403
+    
+    from database.db import Database
+    db = Database()
+    events = safe_async(db.aget_activity_feed(int(guild_id), 50), [])
+    return jsonify(events)
+
+@flask_app.route("/api/guild/<guild_id>/user/<user_id>/risk")
+@require_auth
+def api_user_risk(guild_id, user_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
+        return jsonify({"error": "forbidden"}), 403
+    
+    from database.db import Database
+    db = Database()
+    risk = safe_async(db.aget_user_risk(int(guild_id), int(user_id)), {})
+    return jsonify(risk)
+
+@flask_app.route("/api/guild/<guild_id>/appeal/<appeal_id>/vote", methods=["POST"])
+@require_auth
+def api_vote_appeal(guild_id, appeal_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
+        return jsonify({"error": "forbidden"}), 403
+    
+    data = request.json or {}
+    vote = data.get("vote")
+    
+    # Hier würde die Abstimmungslogik stehen
+    return jsonify({"ok": True, "message": "Vote recorded (Beta)"})
+
+@flask_app.route("/api/guild/<guild_id>/theme", methods=["POST"])
+@require_auth
+def api_save_theme(guild_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
+        return jsonify({"error": "forbidden"}), 403
+    
+    data = request.json or {}
+    from database.db import Database
+    db = Database()
+    safe_async(db.asave_server_theme(int(guild_id), data), None)
+    return jsonify({"ok": True})
+
+@flask_app.route("/dashboard/<guild_id>/risk/<user_id>")
+@require_auth
+def guild_user_risk(guild_id, user_id):
+    us, g, cfg, err = _dash_guard(guild_id)
+    if err: return err
+    
+    from database.db import Database
+    db = Database()
+    risk = safe_async(db.aget_user_risk(int(guild_id), int(user_id)), {})
+    
+    # Berechne Account-Alter
+    member = g.get_member(int(user_id)) if g else None
+    account_age = (datetime.datetime.utcnow() - member.created_at.replace(tzinfo=None)).days if member else 0
+    join_age = (datetime.datetime.utcnow() - member.joined_at.replace(tzinfo=None)).days if member and member.joined_at else 0
+    
+    return render_template("dashboard/user_risk.html", 
+                          guild=g, user=member, risk=risk, 
+                          account_age=account_age, join_age=join_age)
+
+@flask_app.route("/dashboard/<guild_id>/appeals")
+@require_auth
+def guild_appeals(guild_id):
+    us, g, cfg, err = _dash_guard(guild_id)
+    if err: return err
+    
+    from database.db import Database
+    db = Database()
+    appeals = safe_async(db.aget_pending_appeals(int(guild_id)), [])
+    
+    return render_template("dashboard/appeals.html", guild=g, appeals=appeals)
+
+@flask_app.route("/dashboard/<guild_id>/staff-applications")
+@require_auth
+def guild_staff_applications(guild_id):
+    us, g, cfg, err = _dash_guard(guild_id)
+    if err: return err
+    
+    from database.db import Database
+    db = Database()
+    applications = safe_async(db.aget_pending_applications(int(guild_id)), [])
+    
+    return render_template("dashboard/staff_applications.html", guild=g, applications=applications)

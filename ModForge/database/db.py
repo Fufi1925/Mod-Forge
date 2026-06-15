@@ -1254,3 +1254,116 @@ class Database:
         except PyMongoError as e:
             log.error(f"DB aget_tempvoice_panel Fehler: {e}")
             return None
+
+
+    # ── Activity Feed ─────────────────────────────────────
+    async def arecord_activity(self, guild_id: int, event_type: str, data: dict):
+        try:
+            await self.activity_feed.insert_one({
+                "guild_id": guild_id,
+                "event_type": event_type,
+                "data": data,
+                "timestamp": datetime.datetime.utcnow()
+            })
+        except Exception as e:
+            log.error(f"DB arecord_activity Fehler: {e}")
+
+    async def aget_activity_feed(self, guild_id: int, limit: int = 50):
+        try:
+            cursor = self.activity_feed.find({"guild_id": guild_id}).sort("timestamp", -1).limit(limit)
+            return await cursor.to_list(length=limit)
+        except Exception as e:
+            log.error(f"DB aget_activity_feed Fehler: {e}")
+            return []
+
+    # ── User Risk Profiles ────────────────────────────────
+    async def aget_user_risk(self, guild_id: int, user_id: int):
+        try:
+            doc = await self.user_risk_profiles.find_one({"guild_id": guild_id, "user_id": user_id})
+            if not doc:
+                return {"score": 0, "cases": 0, "last_punishment": None, "flags": []}
+            return doc
+        except Exception as e:
+            log.error(f"DB aget_user_risk Fehler: {e}")
+            return {"score": 0, "cases": 0, "last_punishment": None, "flags": []}
+
+    async def aupdate_user_risk(self, guild_id: int, user_id: int, score_delta: int, flag: str = None):
+        try:
+            update = {"$inc": {"score": score_delta, "cases": 1}}
+            if flag:
+                update["$addToSet"] = {"flags": flag}
+            await self.user_risk_profiles.update_one(
+                {"guild_id": guild_id, "user_id": user_id},
+                update,
+                upsert=True
+            )
+        except Exception as e:
+            log.error(f"DB aupdate_user_risk Fehler: {e}")
+
+    # ── Appeals ───────────────────────────────────────────
+    async def acreate_appeal(self, guild_id: int, user_id: int, reason: str):
+        try:
+            doc = {
+                "guild_id": guild_id,
+                "user_id": user_id,
+                "reason": reason,
+                "status": "pending",
+                "created_at": datetime.datetime.utcnow(),
+                "votes": {"yes": 0, "no": 0, "voters": []}
+            }
+            result = await self.appeals.insert_one(doc)
+            return str(result.inserted_id)
+        except Exception as e:
+            log.error(f"DB acreate_appeal Fehler: {e}")
+            return None
+
+    async def aget_pending_appeals(self, guild_id: int):
+        try:
+            cursor = self.appeals.find({"guild_id": guild_id, "status": "pending"})
+            return await cursor.to_list(length=50)
+        except Exception as e:
+            log.error(f"DB aget_pending_appeals Fehler: {e}")
+            return []
+
+    # ── Staff Applications ────────────────────────────────
+    async def acreate_staff_application(self, guild_id: int, user_id: int, answers: dict):
+        try:
+            doc = {
+                "guild_id": guild_id,
+                "user_id": user_id,
+                "answers": answers,
+                "status": "pending",
+                "created_at": datetime.datetime.utcnow()
+            }
+            result = await self.staff_applications.insert_one(doc)
+            return str(result.inserted_id)
+        except Exception as e:
+            log.error(f"DB acreate_staff_application Fehler: {e}")
+            return None
+
+    async def aget_pending_applications(self, guild_id: int):
+        try:
+            cursor = self.staff_applications.find({"guild_id": guild_id, "status": "pending"})
+            return await cursor.to_list(length=50)
+        except Exception as e:
+            log.error(f"DB aget_pending_applications Fehler: {e}")
+            return []
+
+    # ── Server Themes ─────────────────────────────────────
+    async def asave_server_theme(self, guild_id: int, theme: dict):
+        try:
+            await self.server_themes.update_one(
+                {"guild_id": guild_id},
+                {"$set": theme},
+                upsert=True
+            )
+        except Exception as e:
+            log.error(f"DB asave_server_theme Fehler: {e}")
+
+    async def aget_server_theme(self, guild_id: int):
+        try:
+            doc = await self.server_themes.find_one({"guild_id": guild_id})
+            return doc or {"dark_mode": True, "accent_color": "#5865F2"}
+        except Exception as e:
+            log.error(f"DB aget_server_theme Fehler: {e}")
+            return {"dark_mode": True, "accent_color": "#5865F2"}
