@@ -10,8 +10,8 @@ from bot.config import (
     COLOR_INFO, E, URL_REGEX, INVITE_REGEX, ZALGO_REGEX,
     SUSPICIOUS_NAME_REGEX, SCAM_DOMAINS, URL_SHORTENERS, log,
 )
-from bot.utils import create_embed
-from bot.embed_config import get_embed, check_phishing_url
+from bot.utils import create_embed, check_phishing_url
+from bot.embed_config import get_embed
 from bot.bot import _snipe_cache
 
 # ══════════════════════════════════════════════════

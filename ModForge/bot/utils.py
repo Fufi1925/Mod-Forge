@@ -6,6 +6,7 @@ import io
 import random
 import string
 import re
+import time
 import datetime
 from typing import Optional, Tuple, Any, Union, List, Callable, Awaitable
 import discord
@@ -245,6 +246,29 @@ def _run_async(coro, timeout: float = 8.0):
     except Exception as ex:
         log.debug(f"_run_async: {ex}")
         return None
+
+
+# SAFE DM - Verhindert doppelte DMs und handhabt Discord-Fehler
+_dm_sent = {}
+
+
+async def safe_dm(user, embed, cooldown_key=None, cooldown_seconds=30):
+    """Sendet eine DM mit Cooldown-Schutz."""
+    if user is None or getattr(user, "bot", False):
+        return False
+    key = cooldown_key or f"{user.id}:{embed.title or 'dm'}"
+    now = time.time()
+    if key in _dm_sent and now - _dm_sent[key] < cooldown_seconds:
+        return False
+    try:
+        await user.send(embed=embed)
+        _dm_sent[key] = now
+        expired = [k for k, v in _dm_sent.items() if now - v > 300]
+        for k in expired:
+            _dm_sent.pop(k, None)
+        return True
+    except (discord.Forbidden, discord.HTTPException):
+        return False
 
 
 class RingLogHandler(logging.Handler):

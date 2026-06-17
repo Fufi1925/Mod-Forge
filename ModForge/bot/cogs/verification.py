@@ -16,8 +16,8 @@ from bot.config import (
     COLOR_PRIMARY, COLOR_SUCCESS, COLOR_WARNING, COLOR_DANGER,
     COLOR_INFO, E, VERIFY_BANNER_URL, log,
 )
-from bot.utils import create_embed
-from bot.embed_config import get_embed, generate_captcha
+from bot.utils import create_embed, generate_captcha
+from bot.embed_config import get_embed
 from bot.bot import CaptchaEntryView
 
 # ═══════════════════════════════════════════════════════════════

@@ -4473,6 +4473,7 @@ def admin_server_dashboard(guild_id, subpage=""):
         "embed": globals().get("guild_embed"),
         "design": globals().get("guild_design"),
         "autonick": globals().get("guild_autonick"),
+        "beta": globals().get("guild_beta"),
     }
     target = dispatch.get(subpage or "overview")
     if target is not None and hasattr(target, "__wrapped__"):
@@ -4722,6 +4723,9 @@ def admin_server_dashboard(guild_id, subpage=""):
                        for r in g.roles if not r.is_default() and not r.managed] if g and hasattr(g,'roles') and g.roles else []
         return render_template("dashboard/autonick.html", guild=g, cfg=cfg, user=admin_user,
             rules=rules, enabled=enabled, guild_roles=guild_roles, active="autonick")
+
+    elif subpage == "beta":
+        return guild_beta.__wrapped__(guild_id)
 
     elif subpage == "livefeed":
         activities = []
@@ -6038,6 +6042,230 @@ def api_config_rollback(guild_id):
     _save_config_version(guild_id, _direct_load_config(guild_id), source="before-rollback")
     _direct_save_config(guild_id, doc.get("config", {}))
     return jsonify({"ok": True})
+
+# ═══════════════════════════════════════════════════════════════════
+# BETA-FEATURE DASHBOARD (Dark Mode, Appeals, Staff Applications)
+# Hinweis: Alle Funktionen in diesem Bereich sind als BETA markiert.
+# Es können Fehler auftreten. Funktionen werden kontinuierlich verbessert.
+# ═══════════════════════════════════════════════════════════════════
+
+def _beta_warning():
+    """Returns a standardized BETA warning text."""
+    return {
+        "beta": True,
+        "warning": "⚠️ Diese Funktionen sind BETA. Es können Fehler auftreten. "
+                   "Bei Problemen bitte im Support-Channel melden. "
+                   "Alle Daten werden sicher in der MongoDB gespeichert."
+    }
+
+
+@flask_app.route("/dashboard/<guild_id>/beta")
+@require_auth
+def guild_beta(guild_id):
+    """Zeigt das BETA-Dashboard mit allen experimentellen Features."""
+    us, g, cfg, err = _dash_guard(guild_id)
+    if err:
+        return err
+
+    # Aktuelle Beta-Settings aus Config
+    beta_cfg = cfg.get("beta_features", {}) or {}
+
+    # Lade Daten aus DB
+    appeals = []
+    staff_apps = []
+    theme = {}
+    try:
+        from database.db import Database
+        db = Database()
+        appeals = safe_async(db.aget_all_appeals(int(guild_id)), []) or []
+        staff_apps = safe_async(db.aget_all_staff_applications(int(guild_id)), []) or []
+        theme = safe_async(db.aget_server_theme(int(guild_id)), {}) or {}
+    except Exception as ex:
+        log.debug(f"Beta dashboard load: {ex}")
+
+    # Counts
+    appeals_count = len(appeals)
+    appeals_pending = sum(1 for a in appeals if a.get("status") == "pending")
+    staff_count = len(staff_apps)
+    staff_pending = sum(1 for s in staff_apps if s.get("status") == "pending")
+
+    # Aktuelle Theme-Einstellung
+    current_theme = theme.get("theme_name") or beta_cfg.get("theme", "dark")
+    auto_dm = beta_cfg.get("auto_dm_enabled", True)
+    smart_timeout = beta_cfg.get("smart_timeout_enabled", True)
+    risk_alerts = beta_cfg.get("risk_alerts_enabled", True)
+
+    # Verfügbare Themes
+    THEMES_LIST = [
+        ("dark", "🌙 Dark", "#5865F2"),
+        ("light", "☀️ Light", "#7C3AED"),
+        ("midnight", "🌌 Midnight", "#8B5CF6"),
+        ("sunset", "🌅 Sunset", "#EC4899"),
+        ("forest", "🌲 Forest", "#22C55E"),
+        ("neon", "⚡ Neon", "#FACC15"),
+        ("ocean", "🌊 Ocean", "#06B6D4"),
+        ("lavender", "💜 Lavender", "#C084FC"),
+    ]
+
+    return render_template(
+        "dashboard/beta.html",
+        guild=g, cfg=cfg, user=us["user"],
+        active="beta",
+        beta_warning=_beta_warning(),
+        themes=THEMES_LIST,
+        current_theme=current_theme,
+        auto_dm=auto_dm,
+        smart_timeout=smart_timeout,
+        risk_alerts=risk_alerts,
+        appeals=appeals[:20],
+        staff_apps=staff_apps[:20],
+        appeals_count=appeals_count,
+        appeals_pending=appeals_pending,
+        staff_count=staff_count,
+        staff_pending=staff_pending,
+        theme_data=theme,
+    )
+
+
+# ── API: Theme Settings ─────────────────────────────────────
+@flask_app.route("/api/guild/<guild_id>/beta/theme", methods=["POST"])
+@require_auth
+def api_beta_theme(guild_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
+        return jsonify({"error": "forbidden"}), 403
+    data = request.json or {}
+    theme = data.get("theme", "dark")
+    if theme not in ["dark", "light", "midnight", "sunset", "forest", "neon", "ocean", "lavender"]:
+        return jsonify({"error": "Unbekanntes Theme"}), 400
+    try:
+        from database.db import Database
+        db = Database()
+        _run_async(db.asave_server_theme(int(guild_id), {
+            "guild_id": int(guild_id),
+            "theme_name": theme,
+            "accent_color": data.get("accent_color", "#5865F2"),
+            "updated_at": datetime.datetime.utcnow(),
+        }))
+        # Auch in Config speichern
+        cfg = _direct_load_config(guild_id)
+        beta_cfg = cfg.get("beta_features", {}) or {}
+        beta_cfg["theme"] = theme
+        cfg["beta_features"] = beta_cfg
+        _direct_save_config(guild_id, cfg)
+        return jsonify({"ok": True, "theme": theme})
+    except Exception as e:
+        log.error(f"Beta theme save error: {e}")
+        return jsonify({"error": str(e), "beta": True}), 500
+
+
+# ── API: Beta Settings (auto_dm, smart_timeout, risk_alerts) ─
+@flask_app.route("/api/guild/<guild_id>/beta/settings", methods=["POST"])
+@require_auth
+def api_beta_settings(guild_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
+        return jsonify({"error": "forbidden"}), 403
+    data = request.json or {}
+    try:
+        cfg = _direct_load_config(guild_id)
+        beta_cfg = cfg.get("beta_features", {}) or {}
+        if "auto_dm_enabled" in data:
+            beta_cfg["auto_dm_enabled"] = bool(data["auto_dm_enabled"])
+        if "smart_timeout_enabled" in data:
+            beta_cfg["smart_timeout_enabled"] = bool(data["smart_timeout_enabled"])
+        if "risk_alerts_enabled" in data:
+            beta_cfg["risk_alerts_enabled"] = bool(data["risk_alerts_enabled"])
+        beta_cfg["updated_at"] = datetime.datetime.utcnow().isoformat()
+        cfg["beta_features"] = beta_cfg
+        if _direct_save_config(guild_id, cfg):
+            return jsonify({"ok": True, "beta_features": beta_cfg})
+        return jsonify({"error": "Speichern fehlgeschlagen"}), 500
+    except Exception as e:
+        log.error(f"Beta settings save error: {e}")
+        return jsonify({"error": str(e), "beta": True}), 500
+
+
+# ── API: Appeal Status Update ──────────────────────────────────
+@flask_app.route("/api/guild/<guild_id>/beta/appeals/<appeal_id>", methods=["POST"])
+@require_auth
+def api_beta_appeal_update(guild_id, appeal_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
+        return jsonify({"error": "forbidden"}), 403
+    data = request.json or {}
+    action = data.get("action", "approve")  # approve, reject, delete
+    reviewer_id = int(user_session.get("user", {}).get("id", 0)) if user_session.get("user", {}).get("id") not in (None, "0") else None
+    try:
+        from database.db import Database
+        db = Database()
+        if action == "delete":
+            ok = safe_async(db.adelete_appeal(appeal_id), False)
+            return jsonify({"ok": bool(ok), "action": "deleted"})
+        status = "approved" if action == "approve" else "rejected"
+        ok = safe_async(db.aupdate_appeal_status(appeal_id, status, reviewer_id=reviewer_id), False)
+        return jsonify({"ok": bool(ok), "status": status})
+    except Exception as e:
+        log.error(f"Appeal update error: {e}")
+        return jsonify({"error": str(e), "beta": True}), 500
+
+
+# ── API: Staff Application Status Update ──────────────────────
+@flask_app.route("/api/guild/<guild_id>/beta/staff/<app_id>", methods=["POST"])
+@require_auth
+def api_beta_staff_update(guild_id, app_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
+        return jsonify({"error": "forbidden"}), 403
+    data = request.json or {}
+    action = data.get("action", "approve")
+    notes = data.get("notes", "")
+    reviewer_id = int(user_session.get("user", {}).get("id", 0)) if user_session.get("user", {}).get("id") not in (None, "0") else None
+    try:
+        from database.db import Database
+        db = Database()
+        if action == "delete":
+            ok = safe_async(db.adelete_staff_application(app_id), False)
+            return jsonify({"ok": bool(ok), "action": "deleted"})
+        status = "approved" if action == "approve" else "rejected"
+        ok = safe_async(db.aupdate_staff_application_status(app_id, status, reviewer_id=reviewer_id, notes=notes), False)
+        return jsonify({"ok": bool(ok), "status": status})
+    except Exception as e:
+        log.error(f"Staff update error: {e}")
+        return jsonify({"error": str(e), "beta": True}), 500
+
+
+# ── API: Get Risk Profile (Dashboard) ─────────────────────────
+@flask_app.route("/api/guild/<guild_id>/beta/risk/<user_id>")
+@require_auth
+def api_beta_risk(guild_id, user_id):
+    user_session = _api_session_or_admin(guild_id)
+    if not user_session:
+        return jsonify({"error": "forbidden"}), 403
+    try:
+        from bot.cogs.beta import compute_user_risk
+        g = get_guild(guild_id)
+        if not g:
+            return jsonify({"error": "Server nicht gefunden"}), 404
+        member = g.get_member(int(user_id))
+        if not member:
+            return jsonify({"error": "User nicht gefunden"}), 404
+        cfg = _direct_load_config(guild_id)
+        cases = []
+        try:
+            from database.db import Database
+            db = Database()
+            cases = safe_async(db.cases.find({"guild_id": str(guild_id), "user_id": int(user_id)}).to_list(100), []) or []
+        except Exception:
+            pass
+        risk = compute_user_risk(member, cfg, cases)
+        risk["user_name"] = str(member)
+        risk["user_avatar"] = member.display_avatar.url
+        return jsonify({"ok": True, "risk": risk})
+    except Exception as e:
+        log.error(f"Risk profile error: {e}")
+        return jsonify({"error": str(e), "beta": True}), 500
+
 
 # 404 / 403 / 500 HANDLER
 # =========================================================

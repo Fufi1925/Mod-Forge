@@ -54,6 +54,11 @@ class Database:
         self.ticket_panels: AsyncIOMotorCollection = self.db["ticket_panels"]
         self.tempvoice_panels: AsyncIOMotorCollection = self.db["tempvoice_panels"]
 
+        # BETA-Features Collections
+        self.appeals: AsyncIOMotorCollection = self.db["appeals"]
+        self.staff_applications: AsyncIOMotorCollection = self.db["staff_applications"]
+        self.server_themes: AsyncIOMotorCollection = self.db["server_themes"]
+
         self._config_cache: TTLCache = TTLCache(
             maxsize=self.CONFIG_CACHE_MAXSIZE, ttl=self.CONFIG_CACHE_TTL
         )
@@ -1367,3 +1372,120 @@ class Database:
         except Exception as e:
             log.error(f"DB aget_server_theme Fehler: {e}")
             return {"dark_mode": True, "accent_color": "#5865F2"}
+
+    # ══════════════════════════════════════════════════════════════════
+    # BETA-FEATURE METHODEN (Appeals, Staff Applications, Themes)
+    # ══════════════════════════════════════════════════════════════════
+
+    async def aget_all_appeals(self, guild_id, limit=100):
+        try:
+            cursor = self.appeals.find({"guild_id": guild_id}).sort("created_at", -1).limit(limit)
+            return await cursor.to_list(length=limit)
+        except Exception as e:
+            log.error(f"aget_all_appeals: {e}")
+            return []
+
+    async def aget_appeal_by_id(self, appeal_id):
+        try:
+            from bson import ObjectId
+            return await self.appeals.find_one({"_id": ObjectId(appeal_id)})
+        except Exception as e:
+            log.error(f"aget_appeal_by_id: {e}")
+            return None
+
+    async def aupdate_appeal_status(self, appeal_id, status, reviewer_id=None):
+        try:
+            from bson import ObjectId
+            update_doc = {"status": status, "reviewed_at": datetime.datetime.utcnow()}
+            if reviewer_id:
+                update_doc["reviewer_id"] = reviewer_id
+            result = await self.appeals.update_one(
+                {"_id": ObjectId(appeal_id)},
+                {"$set": update_doc}
+            )
+            return result.modified_count > 0
+        except Exception as e:
+            log.error(f"aupdate_appeal_status: {e}")
+            return False
+
+    async def adelete_appeal(self, appeal_id):
+        try:
+            from bson import ObjectId
+            result = await self.appeals.delete_one({"_id": ObjectId(appeal_id)})
+            return result.deleted_count > 0
+        except Exception as e:
+            log.error(f"adelete_appeal: {e}")
+            return False
+
+    async def acount_appeals(self, guild_id, status=None):
+        try:
+            query = {"guild_id": guild_id}
+            if status:
+                query["status"] = status
+            return await self.appeals.count_documents(query)
+        except Exception as e:
+            log.error(f"acount_appeals: {e}")
+            return 0
+
+    async def aget_all_staff_applications(self, guild_id, limit=100):
+        try:
+            cursor = self.staff_applications.find({"guild_id": guild_id}).sort("created_at", -1).limit(limit)
+            return await cursor.to_list(length=limit)
+        except Exception as e:
+            log.error(f"aget_all_staff_applications: {e}")
+            return []
+
+    async def aget_staff_application_by_id(self, app_id):
+        try:
+            from bson import ObjectId
+            return await self.staff_applications.find_one({"_id": ObjectId(app_id)})
+        except Exception as e:
+            log.error(f"aget_staff_application_by_id: {e}")
+            return None
+
+    async def aupdate_staff_application_status(self, app_id, status, reviewer_id=None, notes=None):
+        try:
+            from bson import ObjectId
+            update_doc = {"status": status, "reviewed_at": datetime.datetime.utcnow()}
+            if reviewer_id:
+                update_doc["reviewer_id"] = reviewer_id
+            if notes:
+                update_doc["reviewer_notes"] = notes
+            result = await self.staff_applications.update_one(
+                {"_id": ObjectId(app_id)},
+                {"$set": update_doc}
+            )
+            return result.modified_count > 0
+        except Exception as e:
+            log.error(f"aupdate_staff_application_status: {e}")
+            return False
+
+    async def adelete_staff_application(self, app_id):
+        try:
+            from bson import ObjectId
+            result = await self.staff_applications.delete_one({"_id": ObjectId(app_id)})
+            return result.deleted_count > 0
+        except Exception as e:
+            log.error(f"adelete_staff_application: {e}")
+            return False
+
+    async def acount_staff_applications(self, guild_id, status=None):
+        try:
+            query = {"guild_id": guild_id}
+            if status:
+                query["status"] = status
+            return await self.staff_applications.count_documents(query)
+        except Exception as e:
+            log.error(f"acount_staff_applications: {e}")
+            return 0
+
+    async def acount_server_themes(self, guild_id=None):
+        try:
+            if guild_id is None:
+                return await self.server_themes.count_documents({})
+            return await self.server_themes.count_documents({"guild_id": guild_id})
+        except Exception as e:
+            log.error(f"acount_server_themes: {e}")
+            return 0
+
+

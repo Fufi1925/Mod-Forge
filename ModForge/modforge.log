@@ -284,3 +284,8 @@
 2026-06-14 08:33:38,715 [WARNING] discord.client: davey is not installed, voice will NOT be supported
 2026-06-14 08:33:58,746 [WARNING] discord.client: davey is not installed, voice will NOT be supported
 2026-06-14 08:34:25,086 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-06-17 15:26:11,968 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-06-17 15:26:12,278 [INFO] ModForge.Web.App: SocketIO läuft mit gevent.
+2026-06-17 15:26:57,829 [WARNING] discord.client: davey is not installed, voice will NOT be supported
+2026-06-17 15:26:58,039 [INFO] ModForge.Web.App: SocketIO läuft mit gevent.
+2026-06-17 15:27:05,077 [WARNING] discord.client: davey is not installed, voice will NOT be supported
