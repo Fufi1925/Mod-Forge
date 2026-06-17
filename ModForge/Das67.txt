@@ -1,0 +1,10649 @@
+Mach diese Funktion hinzufügen 
+
+
+
+So ich ahbe alle embeds verbessert nutze genau die 
+
+
+
+ 
+
+ 
+
+"""
+
+
+
+ 
+
+ 
+
+ModForge – ZENTRALE EMBED KONFIGURATION (VOLLSTÄNDIG)
+
+
+
+ 
+
+ 
+
+======================================================
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+Diese Datei enthält **JEDES** Embed, das der Bot jemals senden kann.
+
+
+
+ 
+
+ 
+
+Inklusive aller DM-Embeds, Error-Embeds, Success-Embeds, Help-Embeds etc.
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+------------------------------------------------------------------
+
+
+
+ 
+
+ 
+
+EINHEITLICHER AUFBAU – JEDES EMBED FOLGT DIESEM SCHEMA:
+
+
+
+ 
+
+ 
+
+------------------------------------------------------------------
+
+
+
+ 
+
+ 
+
+1. Author + Icon
+
+
+
+ 
+
+ 
+
+   -&amp;amp;gt; Immer die Person, die die Aktion AUSGEFÜHRT hat
+
+
+
+ 
+
+ 
+
+      (z.B. der Mod beim Ban, der Bot bei automatisierten Events).
+
+
+
+ 
+
+ 
+
+      Name + Avatar dieser Person/des Bots werden als Author gesetzt.
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+2. Titel
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+3. Beschreibung
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+4. Felder im 2-Spalten-Layout:
+
+
+
+ 
+
+ 
+
+       Feld 1 | Feld 2
+
+
+
+ 
+
+ 
+
+       Feld 3 | Feld 4
+
+
+
+ 
+
+ 
+
+   (wird automatisch über _add_fields() angeordnet)
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+5. Thumbnail (oben rechts)
+
+
+
+ 
+
+ 
+
+   -&amp;amp;gt; Immer das Profilbild der Person, um die es im Embed geht
+
+
+
+ 
+
+ 
+
+      (z.B. der gebannte User, der neue Member, ...).
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+6. Großes Bild
+
+
+
+ 
+
+ 
+
+   -&amp;amp;gt; Nur wenn passend (z.B. Server-Banner bei Welcome-Embeds).
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+7. Footer + Icon
+
+
+
+ 
+
+ 
+
+   -&amp;amp;gt; Immer "Powered by BotForge" + Bot-Icon.
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+8. Timestamp
+
+
+
+ 
+
+ 
+
+   -&amp;amp;gt; Immer aktuell (UTC).
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+------------------------------------------------------------------
+
+
+
+ 
+
+ 
+
+Verwendung:
+
+
+
+ 
+
+ 
+
+    from bot.embed_config import get_embed
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    embed = get_embed(
+
+
+
+ 
+
+ 
+
+        "ban",
+
+
+
+ 
+
+ 
+
+        user=user,          # betroffener User -&amp;amp;gt; Thumbnail
+
+
+
+ 
+
+ 
+
+        mod=mod,            # ausführender Mod -&amp;amp;gt; Author
+
+
+
+ 
+
+ 
+
+        reason=reason,
+
+
+
+ 
+
+ 
+
+        guild=guild,
+
+
+
+ 
+
+ 
+
+        bot=bot,            # für Footer-/Fallback-Icon
+
+
+
+ 
+
+ 
+
+    )
+
+
+
+ 
+
+ 
+
+    await channel.send(embed=embed)
+
+
+
+ 
+
+ 
+
+"""
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+import discord
+
+
+
+ 
+
+ 
+
+from datetime import datetime, timezone
+
+
+
+ 
+
+ 
+
+from typing import Optional, Dict, Any, List, Union
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+# =========================================================
+
+
+
+ 
+
+ 
+
+# GLOBALE FARBPALETTE
+
+
+
+ 
+
+ 
+
+# =========================================================
+
+
+
+ 
+
+ 
+
+COLORS = {
+
+
+
+ 
+
+ 
+
+    "primary": 0x5865F2,
+
+
+
+ 
+
+ 
+
+    "success": 0x22C55E,
+
+
+
+ 
+
+ 
+
+    "warning": 0xF59E0B,
+
+
+
+ 
+
+ 
+
+    "danger": 0xEF4444,
+
+
+
+ 
+
+ 
+
+    "info": 0x3B82F6,
+
+
+
+ 
+
+ 
+
+    "purple": 0x8B5CF6,
+
+
+
+ 
+
+ 
+
+    "pink": 0xEC4899,
+
+
+
+ 
+
+ 
+
+    "teal": 0x14B8A6,
+
+
+
+ 
+
+ 
+
+    "dark": 0x1F2937,
+
+
+
+ 
+
+ 
+
+    "gold": 0xFBBF24,
+
+
+
+ 
+
+ 
+
+    "black": 0x000000,
+
+
+
+ 
+
+ 
+
+}
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+# =========================================================
+
+
+
+ 
+
+ 
+
+# BOT BRANDING (Footer)
+
+
+
+ 
+
+ 
+
+# =========================================================
+
+
+
+ 
+
+ 
+
+BOT_NAME = "BotForge"
+
+
+
+ 
+
+ 
+
+# TODO: Hier die finale Icon-URL des Bots eintragen (z.B. CDN-Link zum Logo).
+
+
+
+ 
+
+ 
+
+# Wird nur verwendet, falls kein `bot`-Objekt übergeben wird, aus dem
+
+
+
+ 
+
+ 
+
+# automatisch der Avatar des Bots gelesen werden kann.
+
+
+
+ 
+
+ 
+
+BOT_ICON_URL = "https://cdn.discordapp.com/embed/avatars/0.png"
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+ 
+
+# =========================================================
+
+
+
+ 
+
+ 
+
+# HAUPTFUNKTION
+
+
+
+ 
+
+ 
+
+# =========================================================
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+def get_embed(name: str, **kwargs) -&amp;amp;gt; discord.Embed:
+
+
+
+ 
+
+ 
+
+    """Gibt ein zentral definiertes Embed zurück."""
+
+
+
+ 
+
+ 
+
+    func = EMBEDS.get(name)
+
+
+
+ 
+
+ 
+
+    if func:
+
+
+
+ 
+
+ 
+
+        return func(**kwargs)
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    # Fallback
+
+
+
+ 
+
+ 
+
+    embed = discord.Embed(
+
+
+
+ 
+
+ 
+
+        title="❌ Embed nicht gefunden",
+
+
+
+ 
+
+ 
+
+        description=f"Das Embed `{name}` ist nicht definiert.",
+
+
+
+ 
+
+ 
+
+        color=COLORS["danger"],
+
+
+
+ 
+
+ 
+
+    )
+
+
+
+ 
+
+ 
+
+    embed.set_footer(text=f"Powered by {BOT_NAME}", icon_url=BOT_ICON_URL)
+
+
+
+ 
+
+ 
+
+    embed.timestamp = datetime.now(timezone.utc)
+
+
+
+ 
+
+ 
+
+    return embed
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+ 
+
+# =========================================================
+
+
+
+ 
+
+ 
+
+# HELPER: Avatare / Icons sicher auslesen
+
+
+
+ 
+
+ 
+
+# =========================================================
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+def _avatar_url(entity: Any) -&amp;amp;gt; Optional[str]:
+
+
+
+ 
+
+ 
+
+    """Liefert die Avatar-URL eines User/Member/ClientUser-Objekts."""
+
+
+
+ 
+
+ 
+
+    if entity is None:
+
+
+
+ 
+
+ 
+
+        return None
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    avatar = getattr(entity, "display_avatar", None)
+
+
+
+ 
+
+ 
+
+    if avatar is not None:
+
+
+
+ 
+
+ 
+
+        return avatar.url
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    avatar = getattr(entity, "avatar", None)
+
+
+
+ 
+
+ 
+
+    if avatar is not None:
+
+
+
+ 
+
+ 
+
+        return avatar.url
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    default = getattr(entity, "default_avatar", None)
+
+
+
+ 
+
+ 
+
+    if default is not None:
+
+
+
+ 
+
+ 
+
+        return default.url
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    return None
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+ 
+
+def _thumbnail_url(entity: Any) -&amp;amp;gt; Optional[str]:
+
+
+
+ 
+
+ 
+
+    """
+
+
+
+ 
+
+ 
+
+    Liefert die Thumbnail-URL für das "Worum geht es"-Objekt.
+
+
+
+ 
+
+ 
+
+    Unterstützt User/Member (-&amp;amp;gt; Avatar) und Guild (-&amp;amp;gt; Server-Icon)
+
+
+
+ 
+
+ 
+
+    als Fallback, falls kein konkreter User vorhanden ist.
+
+
+
+ 
+
+ 
+
+    """
+
+
+
+ 
+
+ 
+
+    if entity is None:
+
+
+
+ 
+
+ 
+
+        return None
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    if isinstance(entity, discord.Guild):
+
+
+
+ 
+
+ 
+
+        icon = getattr(entity, "icon", None)
+
+
+
+ 
+
+ 
+
+        return icon.url if icon else None
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    return _avatar_url(entity)
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+ 
+
+def _bot_icon(bot: Any) -&amp;amp;gt; Optional[str]:
+
+
+
+ 
+
+ 
+
+    """Icon für den Footer ('Powered by BotForge')."""
+
+
+
+ 
+
+ 
+
+    if bot is not None:
+
+
+
+ 
+
+ 
+
+        bot_user = getattr(bot, "user", bot)
+
+
+
+ 
+
+ 
+
+        url = _avatar_url(bot_user)
+
+
+
+ 
+
+ 
+
+        if url:
+
+
+
+ 
+
+ 
+
+            return url
+
+
+
+ 
+
+ 
+
+    return BOT_ICON_URL
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+ 
+
+def _bot_name(bot: Any) -&amp;amp;gt; str:
+
+
+
+ 
+
+ 
+
+    if bot is not None:
+
+
+
+ 
+
+ 
+
+        bot_user = getattr(bot, "user", bot)
+
+
+
+ 
+
+ 
+
+        name = getattr(bot_user, "name", None)
+
+
+
+ 
+
+ 
+
+        if name:
+
+
+
+ 
+
+ 
+
+            return name
+
+
+
+ 
+
+ 
+
+    return BOT_NAME
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+ 
+
+def _guild_banner(guild: Any) -&amp;amp;gt; Optional[str]:
+
+
+
+ 
+
+ 
+
+    if guild is None:
+
+
+
+ 
+
+ 
+
+        return None
+
+
+
+ 
+
+ 
+
+    banner = getattr(guild, "banner", None)
+
+
+
+ 
+
+ 
+
+    return banner.url if banner else None
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+ 
+
+def _fmt_dt(dt: Any, style: str = "F") -&amp;amp;gt; str:
+
+
+
+ 
+
+ 
+
+    """Formatiert ein datetime-Objekt als dynamischen Discord-Timestamp."""
+
+
+
+ 
+
+ 
+
+    if dt is None:
+
+
+
+ 
+
+ 
+
+        return "Unbekannt"
+
+
+
+ 
+
+ 
+
+    try:
+
+
+
+ 
+
+ 
+
+        return f"&amp;amp;lt;t:{int(dt.timestamp())}:{style}&amp;amp;gt;"
+
+
+
+ 
+
+ 
+
+    except (AttributeError, ValueError, OSError):
+
+
+
+ 
+
+ 
+
+        return "Unbekannt"
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+ 
+
+# =========================================================
+
+
+
+ 
+
+ 
+
+# HELPER: Felder im 2-Spalten-Layout (Feld1 | Feld2 / Feld3 | Feld4)
+
+
+
+ 
+
+ 
+
+# =========================================================
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+def _add_fields(embed: discord.Embed, fields: Optional[List[Dict[str, Any]]]) -&amp;amp;gt; None:
+
+
+
+ 
+
+ 
+
+    """
+
+
+
+ 
+
+ 
+
+    Fügt Felder zum Embed hinzu.
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    - Felder ohne explizites "inline" werden automatisch im 2er-Raster
+
+
+
+ 
+
+ 
+
+      angeordnet: Feld1 | Feld2 / Feld3 | Feld4 ...
+
+
+
+ 
+
+ 
+
+    - Felder mit inline=False (z.B. lange Texte) belegen die volle Breite
+
+
+
+ 
+
+ 
+
+      und schließen die aktuelle Zeile ab.
+
+
+
+ 
+
+ 
+
+    """
+
+
+
+ 
+
+ 
+
+    if not fields:
+
+
+
+ 
+
+ 
+
+        return
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    pending_inline = 0
+
+
+
+ 
+
+ 
+
+    for f in fields:
+
+
+
+ 
+
+ 
+
+        name = f.get("name") or "\u200b"
+
+
+
+ 
+
+ 
+
+        value = f.get("value")
+
+
+
+ 
+
+ 
+
+        if value is None or value == "":
+
+
+
+ 
+
+ 
+
+            value = "—"
+
+
+
+ 
+
+ 
+
+        inline = f.get("inline", True)
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+        if inline:
+
+
+
+ 
+
+ 
+
+            embed.add_field(name=name, value=value, inline=True)
+
+
+
+ 
+
+ 
+
+            pending_inline += 1
+
+
+
+ 
+
+ 
+
+            if pending_inline == 2:
+
+
+
+ 
+
+ 
+
+                pending_inline = 0
+
+
+
+ 
+
+ 
+
+        else:
+
+
+
+ 
+
+ 
+
+            # Offene Inline-Zeile mit unsichtbarem Spacer abschließen,
+
+
+
+ 
+
+ 
+
+            # damit das Vollbreite-Feld in einer eigenen Zeile steht.
+
+
+
+ 
+
+ 
+
+            if pending_inline == 1:
+
+
+
+ 
+
+ 
+
+                embed.add_field(name="\u200b", value="\u200b", inline=True)
+
+
+
+ 
+
+ 
+
+                pending_inline = 0
+
+
+
+ 
+
+ 
+
+            embed.add_field(name=name, value=value, inline=False)
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+ 
+
+# =========================================================
+
+
+
+ 
+
+ 
+
+# HELPER: Flexibles Embed bauen (zentrale Struktur)
+
+
+
+ 
+
+ 
+
+# =========================================================
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+def _build_embed(
+
+
+
+ 
+
+ 
+
+    title: str = "",
+
+
+
+ 
+
+ 
+
+    description: str = "",
+
+
+
+ 
+
+ 
+
+    color: int = COLORS["primary"],
+
+
+
+ 
+
+ 
+
+    executor: Any = None,
+
+
+
+ 
+
+ 
+
+    subject: Any = None,
+
+
+
+ 
+
+ 
+
+    fields: Optional[List[Dict[str, Any]]] = None,
+
+
+
+ 
+
+ 
+
+    image: Optional[str] = None,
+
+
+
+ 
+
+ 
+
+    bot: Any = None,
+
+
+
+ 
+
+ 
+
+    author_name: Optional[str] = None,
+
+
+
+ 
+
+ 
+
+    author_icon: Optional[str] = None,
+
+
+
+ 
+
+ 
+
+) -&amp;amp;gt; discord.Embed:
+
+
+
+ 
+
+ 
+
+    """
+
+
+
+ 
+
+ 
+
+    Erstellt ein Embed nach dem einheitlichen ModForge-Schema:
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    Author (= executor)  -&amp;amp;gt;  Titel  -&amp;amp;gt;  Beschreibung
+
+
+
+ 
+
+ 
+
+    -&amp;amp;gt;  Felder (2-spaltig)
+
+
+
+ 
+
+ 
+
+    -&amp;amp;gt;  Thumbnail (= subject)
+
+
+
+ 
+
+ 
+
+    -&amp;amp;gt;  Großes Bild (optional)
+
+
+
+ 
+
+ 
+
+    -&amp;amp;gt;  Footer "Powered by BotForge"
+
+
+
+ 
+
+ 
+
+    -&amp;amp;gt;  Timestamp
+
+
+
+ 
+
+ 
+
+    """
+
+
+
+ 
+
+ 
+
+    embed = discord.Embed(title=title, description=description, color=color)
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    # ---------- Author = ausführende Person/System ----------
+
+
+
+ 
+
+ 
+
+    if author_name is not None:
+
+
+
+ 
+
+ 
+
+        embed.set_author(name=author_name, icon_url=author_icon)
+
+
+
+ 
+
+ 
+
+    elif executor is not None:
+
+
+
+ 
+
+ 
+
+        embed.set_author(name=str(executor), icon_url=_avatar_url(executor))
+
+
+
+ 
+
+ 
+
+    elif bot is not None:
+
+
+
+ 
+
+ 
+
+        embed.set_author(name=_bot_name(bot), icon_url=_bot_icon(bot))
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    # ---------- Felder (2-spaltig) ----------
+
+
+
+ 
+
+ 
+
+    _add_fields(embed, fields)
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    # ---------- Thumbnail = betroffene Person/Server ----------
+
+
+
+ 
+
+ 
+
+    thumb = _thumbnail_url(subject)
+
+
+
+ 
+
+ 
+
+    if thumb:
+
+
+
+ 
+
+ 
+
+        embed.set_thumbnail(url=thumb)
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    # ---------- Großes Bild (nur wenn passend) ----------
+
+
+
+ 
+
+ 
+
+    if image:
+
+
+
+ 
+
+ 
+
+        embed.set_image(url=image)
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    # ---------- Footer: immer "Powered by BotForge" ----------
+
+
+
+ 
+
+ 
+
+    embed.set_footer(text=f"Powered by {BOT_NAME}", icon_url=_bot_icon(bot))
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    # ---------- Timestamp ----------
+
+
+
+ 
+
+ 
+
+    embed.timestamp = datetime.now(timezone.utc)
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    return embed
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+ 
+
+# =========================================================
+
+
+
+ 
+
+ 
+
+# ALLE EMBEDS (VOLLSTÄNDIG)
+
+
+
+ 
+
+ 
+
+# =========================================================
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+# ─────────────────────────────────────────────────────────
+
+
+
+ 
+
+ 
+
+# WELCOME / LEAVE / ONBOARDING / DMs
+
+
+
+ 
+
+ 
+
+# ─────────────────────────────────────────────────────────
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+def embed_welcome(**kwargs):
+
+
+
+ 
+
+ 
+
+    guild = kwargs.get("guild")
+
+
+
+ 
+
+ 
+
+    user = kwargs.get("user")
+
+
+
+ 
+
+ 
+
+    bot = kwargs.get("bot")
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    member_count = getattr(guild, "member_count", None) if guild else None
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    fields = [
+
+
+
+ 
+
+ 
+
+        {"name": "👤 Mitglied", "value": user.mention if user else "—"},
+
+
+
+ 
+
+ 
+
+        {"name": "📅 Account erstellt", "value": _fmt_dt(getattr(user, "created_at", None))},
+
+
+
+ 
+
+ 
+
+        {"name": "📊 Mitglieder", "value": f"#{member_count}" if member_count else "Unbekannt"},
+
+
+
+ 
+
+ 
+
+        {"name": "🏠 Server", "value": guild.name if guild else "—"},
+
+
+
+ 
+
+ 
+
+    ]
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    return _build_embed(
+
+
+
+ 
+
+ 
+
+        title="👋 Willkommen!",
+
+
+
+ 
+
+ 
+
+        description=(
+
+
+
+ 
+
+ 
+
+            f"Schön, dass du da bist, {user.mention if user else 'dort'}!\n\n"
+
+
+
+ 
+
+ 
+
+            "Bitte lies dir die Regeln im Regel-Kanal durch."
+
+
+
+ 
+
+ 
+
+        ),
+
+
+
+ 
+
+ 
+
+        color=COLORS["success"],
+
+
+
+ 
+
+ 
+
+        executor=bot,
+
+
+
+ 
+
+ 
+
+        subject=user,
+
+
+
+ 
+
+ 
+
+        fields=fields,
+
+
+
+ 
+
+ 
+
+        image=_guild_banner(guild),
+
+
+
+ 
+
+ 
+
+        bot=bot,
+
+
+
+ 
+
+ 
+
+    )
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+ 
+
+def embed_welcome_dm(**kwargs):
+
+
+
+ 
+
+ 
+
+    guild = kwargs.get("guild")
+
+
+
+ 
+
+ 
+
+    user = kwargs.get("user")
+
+
+
+ 
+
+ 
+
+    bot = kwargs.get("bot")
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    fields = [
+
+
+
+ 
+
+ 
+
+        {"name": "🏠 Server", "value": guild.name if guild else "—"},
+
+
+
+ 
+
+ 
+
+        {"name": "📌 Nächster Schritt", "value": "Bitte verifiziere dich für vollen Zugriff."},
+
+
+
+ 
+
+ 
+
+    ]
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    return _build_embed(
+
+
+
+ 
+
+ 
+
+        title=f"👋 Willkommen auf {guild.name if guild else 'dem Server'}!",
+
+
+
+ 
+
+ 
+
+        description=(
+
+
+
+ 
+
+ 
+
+            f"Hallo {user.name if user else ''}!\n\n"
+
+
+
+ 
+
+ 
+
+            "Wir freuen uns, dich hier zu haben.\n\n"
+
+
+
+ 
+
+ 
+
+            "Bitte verifiziere dich, um vollen Zugriff zu erhalten."
+
+
+
+ 
+
+ 
+
+        ),
+
+
+
+ 
+
+ 
+
+        color=COLORS["success"],
+
+
+
+ 
+
+ 
+
+        executor=bot,
+
+
+
+ 
+
+ 
+
+        subject=user,
+
+
+
+ 
+
+ 
+
+        fields=fields,
+
+
+
+ 
+
+ 
+
+        image=_guild_banner(guild),
+
+
+
+ 
+
+ 
+
+        bot=bot,
+
+
+
+ 
+
+ 
+
+    )
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+ 
+
+def embed_leave(**kwargs):
+
+
+
+ 
+
+ 
+
+    guild = kwargs.get("guild")
+
+
+
+ 
+
+ 
+
+    user = kwargs.get("user")
+
+
+
+ 
+
+ 
+
+    bot = kwargs.get("bot")
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    member_count = getattr(guild, "member_count", None) if guild else None
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    fields = [
+
+
+
+ 
+
+ 
+
+        {"name": "👤 Mitglied", "value": str(user) if user else "—"},
+
+
+
+ 
+
+ 
+
+        {"name": "📅 Beigetreten am", "value": _fmt_dt(getattr(user, "joined_at", None))},
+
+
+
+ 
+
+ 
+
+        {"name": "🆕 Account erstellt", "value": _fmt_dt(getattr(user, "created_at", None))},
+
+
+
+ 
+
+ 
+
+        {"name": "📊 Mitglieder übrig", "value": f"#{member_count}" if member_count else "Unbekannt"},
+
+
+
+ 
+
+ 
+
+    ]
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    return _build_embed(
+
+
+
+ 
+
+ 
+
+        title="👋 Auf Wiedersehen",
+
+
+
+ 
+
+ 
+
+        description=f"**{user}** hat den Server verlassen." if user else "Ein Mitglied hat den Server verlassen.",
+
+
+
+ 
+
+ 
+
+        color=COLORS["dark"],
+
+
+
+ 
+
+ 
+
+        executor=bot,
+
+
+
+ 
+
+ 
+
+        subject=user,
+
+
+
+ 
+
+ 
+
+        fields=fields,
+
+
+
+ 
+
+ 
+
+        bot=bot,
+
+
+
+ 
+
+ 
+
+    )
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+ 
+
+def embed_onboarding(**kwargs):
+
+
+
+ 
+
+ 
+
+    guild = kwargs.get("guild")
+
+
+
+ 
+
+ 
+
+    bot = kwargs.get("bot")
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    return _build_embed(
+
+
+
+ 
+
+ 
+
+        title="🎉 Willkommen!",
+
+
+
+ 
+
+ 
+
+        description="Bitte verifiziere dich, um vollen Zugriff zu erhalten.",
+
+
+
+ 
+
+ 
+
+        color=COLORS["primary"],
+
+
+
+ 
+
+ 
+
+        executor=bot,
+
+
+
+ 
+
+ 
+
+        subject=guild,
+
+
+
+ 
+
+ 
+
+        bot=bot,
+
+
+
+ 
+
+ 
+
+    )
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+ 
+
+# ─────────────────────────────────────────────────────────
+
+
+
+ 
+
+ 
+
+# VERIFICATION (inkl. DMs)
+
+
+
+ 
+
+ 
+
+# ─────────────────────────────────────────────────────────
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+def embed_verification_panel(**kwargs):
+
+
+
+ 
+
+ 
+
+    guild = kwargs.get("guild")
+
+
+
+ 
+
+ 
+
+    bot = kwargs.get("bot")
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    return _build_embed(
+
+
+
+ 
+
+ 
+
+        title="✅ Verification",
+
+
+
+ 
+
+ 
+
+        description="Klicke auf den Button unten, um dich zu verifizieren.",
+
+
+
+ 
+
+ 
+
+        color=COLORS["primary"],
+
+
+
+ 
+
+ 
+
+        executor=bot,
+
+
+
+ 
+
+ 
+
+        subject=guild,
+
+
+
+ 
+
+ 
+
+        bot=bot,
+
+
+
+ 
+
+ 
+
+    )
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+ 
+
+def embed_verification_success(**kwargs):
+
+
+
+ 
+
+ 
+
+    user = kwargs.get("user")
+
+
+
+ 
+
+ 
+
+    guild = kwargs.get("guild")
+
+
+
+ 
+
+ 
+
+    bot = kwargs.get("bot")
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    fields = [
+
+
+
+ 
+
+ 
+
+        {"name": "🏠 Server", "value": guild.name if guild else "—"},
+
+
+
+ 
+
+ 
+
+        {"name": "✅ Status", "value": "Verifiziert"},
+
+
+
+ 
+
+ 
+
+    ]
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    return _build_embed(
+
+
+
+ 
+
+ 
+
+        title="✅ Erfolgreich verifiziert!",
+
+
+
+ 
+
+ 
+
+        description=f"{user.mention if user else 'Der User'} wurde erfolgreich verifiziert.",
+
+
+
+ 
+
+ 
+
+        color=COLORS["success"],
+
+
+
+ 
+
+ 
+
+        executor=bot,
+
+
+
+ 
+
+ 
+
+        subject=user,
+
+
+
+ 
+
+ 
+
+        fields=fields,
+
+
+
+ 
+
+ 
+
+        bot=bot,
+
+
+
+ 
+
+ 
+
+    )
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+ 
+
+def embed_verification_failed(**kwargs):
+
+
+
+ 
+
+ 
+
+    user = kwargs.get("user")
+
+
+
+ 
+
+ 
+
+    reason = kwargs.get("reason", "Unbekannter Grund")
+
+
+
+ 
+
+ 
+
+    bot = kwargs.get("bot")
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    fields = [
+
+
+
+ 
+
+ 
+
+        {"name": "📋 Grund", "value": reason},
+
+
+
+ 
+
+ 
+
+        {"name": "🔁 Aktion", "value": "Bitte erneut versuchen"},
+
+
+
+ 
+
+ 
+
+    ]
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    return _build_embed(
+
+
+
+ 
+
+ 
+
+        title="❌ Verification fehlgeschlagen",
+
+
+
+ 
+
+ 
+
+        description="Bitte versuche es erneut oder kontaktiere das Team.",
+
+
+
+ 
+
+ 
+
+        color=COLORS["danger"],
+
+
+
+ 
+
+ 
+
+        executor=bot,
+
+
+
+ 
+
+ 
+
+        subject=user,
+
+
+
+ 
+
+ 
+
+        fields=fields,
+
+
+
+ 
+
+ 
+
+        bot=bot,
+
+
+
+ 
+
+ 
+
+    )
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+ 
+
+def embed_verification_dm(**kwargs):
+
+
+
+ 
+
+ 
+
+    guild = kwargs.get("guild")
+
+
+
+ 
+
+ 
+
+    user = kwargs.get("user")
+
+
+
+ 
+
+ 
+
+    bot = kwargs.get("bot")
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    fields = [
+
+
+
+ 
+
+ 
+
+        {"name": "🏠 Server", "value": guild.name if guild else "—"},
+
+
+
+ 
+
+ 
+
+        {"name": "✅ Status", "value": "Verifiziert"},
+
+
+
+ 
+
+ 
+
+    ]
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    return _build_embed(
+
+
+
+ 
+
+ 
+
+        title="✅ Verification erfolgreich",
+
+
+
+ 
+
+ 
+
+        description=f"Du wurdest auf **{guild.name if guild else 'dem Server'}** erfolgreich verifiziert.\n\nViel Spaß!",
+
+
+
+ 
+
+ 
+
+        color=COLORS["success"],
+
+
+
+ 
+
+ 
+
+        executor=bot,
+
+
+
+ 
+
+ 
+
+        subject=user,
+
+
+
+ 
+
+ 
+
+        fields=fields,
+
+
+
+ 
+
+ 
+
+        bot=bot,
+
+
+
+ 
+
+ 
+
+    )
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+ 
+
+# ─────────────────────────────────────────────────────────
+
+
+
+ 
+
+ 
+
+# TICKETS (alle Varianten + DMs)
+
+
+
+ 
+
+ 
+
+# ─────────────────────────────────────────────────────────
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+def embed_ticket_panel(**kwargs):
+
+
+
+ 
+
+ 
+
+    guild = kwargs.get("guild")
+
+
+
+ 
+
+ 
+
+    bot = kwargs.get("bot")
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    return _build_embed(
+
+
+
+ 
+
+ 
+
+        title="🎫 Ticket System",
+
+
+
+ 
+
+ 
+
+        description="Wähle eine Kategorie aus, um ein Ticket zu öffnen.",
+
+
+
+ 
+
+ 
+
+        color=COLORS["info"],
+
+
+
+ 
+
+ 
+
+        executor=bot,
+
+
+
+ 
+
+ 
+
+        subject=guild,
+
+
+
+ 
+
+ 
+
+        bot=bot,
+
+
+
+ 
+
+ 
+
+    )
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+ 
+
+def embed_ticket_created(**kwargs):
+
+
+
+ 
+
+ 
+
+    ticket_id = kwargs.get("ticket_id", "???")
+
+
+
+ 
+
+ 
+
+    category = kwargs.get("category", "Support")
+
+
+
+ 
+
+ 
+
+    user = kwargs.get("user")
+
+
+
+ 
+
+ 
+
+    bot = kwargs.get("bot")
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    fields = [
+
+
+
+ 
+
+ 
+
+        {"name": "🆔 Ticket-ID", "value": f"#{ticket_id}"},
+
+
+
+ 
+
+ 
+
+        {"name": "📂 Kategorie", "value": category},
+
+
+
+ 
+
+ 
+
+        {"name": "👤 Erstellt von", "value": user.mention if user else "—"},
+
+
+
+ 
+
+ 
+
+        {"name": "📌 Status", "value": "Offen"},
+
+
+
+ 
+
+ 
+
+    ]
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    return _build_embed(
+
+
+
+ 
+
+ 
+
+        title="🎫 Ticket erstellt",
+
+
+
+ 
+
+ 
+
+        description=f"Dein Ticket **#{ticket_id}** wurde erfolgreich erstellt.",
+
+
+
+ 
+
+ 
+
+        color=COLORS["success"],
+
+
+
+ 
+
+ 
+
+        executor=user if user else bot,
+
+
+
+ 
+
+ 
+
+        subject=user,
+
+
+
+ 
+
+ 
+
+        fields=fields,
+
+
+
+ 
+
+ 
+
+        bot=bot,
+
+
+
+ 
+
+ 
+
+    )
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+ 
+
+def embed_ticket_closed(**kwargs):
+
+
+
+ 
+
+ 
+
+    ticket_id = kwargs.get("ticket_id")
+
+
+
+ 
+
+ 
+
+    closed_by = kwargs.get("closed_by")
+
+
+
+ 
+
+ 
+
+    user = kwargs.get("user")
+
+
+
+ 
+
+ 
+
+    bot = kwargs.get("bot")
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    fields = [
+
+
+
+ 
+
+ 
+
+        {"name": "🆔 Ticket-ID", "value": f"#{ticket_id}" if ticket_id is not None else "—"},
+
+
+
+ 
+
+ 
+
+        {"name": "🔒 Geschlossen von", "value": str(closed_by) if closed_by else "—"},
+
+
+
+ 
+
+ 
+
+    ]
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    return _build_embed(
+
+
+
+ 
+
+ 
+
+        title="🔒 Ticket geschlossen",
+
+
+
+ 
+
+ 
+
+        description=f"Ticket **#{ticket_id}** wurde von **{closed_by}** geschlossen.",
+
+
+
+ 
+
+ 
+
+        color=COLORS["dark"],
+
+
+
+ 
+
+ 
+
+        executor=closed_by if closed_by else bot,
+
+
+
+ 
+
+ 
+
+        subject=user if user else closed_by,
+
+
+
+ 
+
+ 
+
+        fields=fields,
+
+
+
+ 
+
+ 
+
+        bot=bot,
+
+
+
+ 
+
+ 
+
+    )
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+ 
+
+def embed_ticket_dm(**kwargs):
+
+
+
+ 
+
+ 
+
+    ticket_id = kwargs.get("ticket_id")
+
+
+
+ 
+
+ 
+
+    guild = kwargs.get("guild")
+
+
+
+ 
+
+ 
+
+    user = kwargs.get("user")
+
+
+
+ 
+
+ 
+
+    bot = kwargs.get("bot")
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    fields = [
+
+
+
+ 
+
+ 
+
+        {"name": "🆔 Ticket-ID", "value": f"#{ticket_id}" if ticket_id is not None else "—"},
+
+
+
+ 
+
+ 
+
+        {"name": "🏠 Server", "value": guild.name if guild else "—"},
+
+
+
+ 
+
+ 
+
+    ]
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    return _build_embed(
+
+
+
+ 
+
+ 
+
+        title="🎫 Dein Ticket wurde erstellt",
+
+
+
+ 
+
+ 
+
+        description=(
+
+
+
+ 
+
+ 
+
+            f"Auf **{guild.name if guild else 'dem Server'}** wurde Ticket **#{ticket_id}** für dich erstellt.\n\n"
+
+
+
+ 
+
+ 
+
+            "Ein Teammitglied wird sich bald bei dir melden."
+
+
+
+ 
+
+ 
+
+        ),
+
+
+
+ 
+
+ 
+
+        color=COLORS["info"],
+
+
+
+ 
+
+ 
+
+        executor=bot,
+
+
+
+ 
+
+ 
+
+        subject=user,
+
+
+
+ 
+
+ 
+
+        fields=fields,
+
+
+
+ 
+
+ 
+
+        bot=bot,
+
+
+
+ 
+
+ 
+
+    )
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+ 
+
+def embed_ticket_claimed(**kwargs):
+
+
+
+ 
+
+ 
+
+    ticket_id = kwargs.get("ticket_id")
+
+
+
+ 
+
+ 
+
+    staff = kwargs.get("staff")
+
+
+
+ 
+
+ 
+
+    user = kwargs.get("user")
+
+
+
+ 
+
+ 
+
+    bot = kwargs.get("bot")
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    fields = [
+
+
+
+ 
+
+ 
+
+        {"name": "🆔 Ticket-ID", "value": f"#{ticket_id}" if ticket_id is not None else "—"},
+
+
+
+ 
+
+ 
+
+        {"name": "🙋 Übernommen von", "value": str(staff) if staff else "—"},
+
+
+
+ 
+
+ 
+
+    ]
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    return _build_embed(
+
+
+
+ 
+
+ 
+
+        title="🙋 Ticket übernommen",
+
+
+
+ 
+
+ 
+
+        description=f"Ticket **#{ticket_id}** wurde von **{staff}** übernommen.",
+
+
+
+ 
+
+ 
+
+        color=COLORS["purple"],
+
+
+
+ 
+
+ 
+
+        executor=staff if staff else bot,
+
+
+
+ 
+
+ 
+
+        subject=user if user else staff,
+
+
+
+ 
+
+ 
+
+        fields=fields,
+
+
+
+ 
+
+ 
+
+        bot=bot,
+
+
+
+ 
+
+ 
+
+    )
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+ 
+
+# ─────────────────────────────────────────────────────────
+
+
+
+ 
+
+ 
+
+# TEMPVOICE
+
+
+
+ 
+
+ 
+
+# ─────────────────────────────────────────────────────────
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+def embed_tempvoice_panel(**kwargs):
+
+
+
+ 
+
+ 
+
+    guild = kwargs.get("guild")
+
+
+
+ 
+
+ 
+
+    bot = kwargs.get("bot")
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    return _build_embed(
+
+
+
+ 
+
+ 
+
+        title="🔊 TempVoice",
+
+
+
+ 
+
+ 
+
+        description="Klicke auf den Button, um einen eigenen Voice-Kanal zu erstellen.",
+
+
+
+ 
+
+ 
+
+        color=COLORS["purple"],
+
+
+
+ 
+
+ 
+
+        executor=bot,
+
+
+
+ 
+
+ 
+
+        subject=guild,
+
+
+
+ 
+
+ 
+
+        bot=bot,
+
+
+
+ 
+
+ 
+
+    )
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+ 
+
+def embed_tempvoice_created(**kwargs):
+
+
+
+ 
+
+ 
+
+    channel = kwargs.get("channel")
+
+
+
+ 
+
+ 
+
+    owner = kwargs.get("owner")
+
+
+
+ 
+
+ 
+
+    bot = kwargs.get("bot")
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    fields = [
+
+
+
+ 
+
+ 
+
+        {"name": "🔊 Kanal", "value": channel.mention if channel else "—"},
+
+
+
+ 
+
+ 
+
+        {"name": "👤 Owner", "value": owner.mention if owner else "—"},
+
+
+
+ 
+
+ 
+
+    ]
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    return _build_embed(
+
+
+
+ 
+
+ 
+
+        title="🔊 Dein TempVoice-Kanal wurde erstellt",
+
+
+
+ 
+
+ 
+
+        description=f"{owner.mention if owner else ''}, dein Kanal {channel.mention if channel else ''} wurde erstellt.",
+
+
+
+ 
+
+ 
+
+        color=COLORS["success"],
+
+
+
+ 
+
+ 
+
+        executor=owner if owner else bot,
+
+
+
+ 
+
+ 
+
+        subject=owner,
+
+
+
+ 
+
+ 
+
+        fields=fields,
+
+
+
+ 
+
+ 
+
+        bot=bot,
+
+
+
+ 
+
+ 
+
+    )
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+ 
+
+def embed_tempvoice_deleted(**kwargs):
+
+
+
+ 
+
+ 
+
+    channel_name = kwargs.get("channel_name")
+
+
+
+ 
+
+ 
+
+    owner = kwargs.get("owner")
+
+
+
+ 
+
+ 
+
+    bot = kwargs.get("bot")
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    fields = [
+
+
+
+ 
+
+ 
+
+        {"name": "🗑️ Kanal", "value": str(channel_name) if channel_name else "—"},
+
+
+
+ 
+
+ 
+
+        {"name": "📌 Status", "value": "Automatisch gelöscht (leer)"},
+
+
+
+ 
+
+ 
+
+    ]
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    return _build_embed(
+
+
+
+ 
+
+ 
+
+        title="🗑️ TempVoice-Kanal gelöscht",
+
+
+
+ 
+
+ 
+
+        description=f"Der Kanal **{channel_name}** wurde automatisch gelöscht.",
+
+
+
+ 
+
+ 
+
+        color=COLORS["dark"],
+
+
+
+ 
+
+ 
+
+        executor=bot,
+
+
+
+ 
+
+ 
+
+        subject=owner,
+
+
+
+ 
+
+ 
+
+        fields=fields,
+
+
+
+ 
+
+ 
+
+        bot=bot,
+
+
+
+ 
+
+ 
+
+    )
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+ 
+
+# ─────────────────────────────────────────────────────────
+
+
+
+ 
+
+ 
+
+# MODERATION (inkl. DMs)
+
+
+
+ 
+
+ 
+
+# ─────────────────────────────────────────────────────────
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+def embed_ban(**kwargs):
+
+
+
+ 
+
+ 
+
+    user = kwargs.get("user")
+
+
+
+ 
+
+ 
+
+    mod = kwargs.get("mod")
+
+
+
+ 
+
+ 
+
+    reason = kwargs.get("reason", "Kein Grund angegeben")
+
+
+
+ 
+
+ 
+
+    guild = kwargs.get("guild")
+
+
+
+ 
+
+ 
+
+    duration = kwargs.get("duration")  # optional, für Tempbans
+
+
+
+ 
+
+ 
+
+    bot = kwargs.get("bot")
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    fields = [
+
+
+
+ 
+
+ 
+
+        {"name": "📋 Grund", "value": reason},
+
+
+
+ 
+
+ 
+
+        {"name": "🏠 Server", "value": guild.name if guild else "—"},
+
+
+
+ 
+
+ 
+
+    ]
+
+
+
+ 
+
+ 
+
+    if duration:
+
+
+
+ 
+
+ 
+
+        fields.append({"name": "⏳ Dauer", "value": str(duration)})
+
+
+
+ 
+
+ 
+
+        fields.append({"name": "📅 Datum", "value": _fmt_dt(datetime.now(timezone.utc))})
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    return _build_embed(
+
+
+
+ 
+
+ 
+
+        title="🔨 Du wurdest gebannt",
+
+
+
+ 
+
+ 
+
+        description=f"Du wurdest von **{mod}** {'aus **' + guild.name + '**' if guild else ''} gebannt.",
+
+
+
+ 
+
+ 
+
+        color=COLORS["danger"],
+
+
+
+ 
+
+ 
+
+        executor=mod,
+
+
+
+ 
+
+ 
+
+        subject=user,
+
+
+
+ 
+
+ 
+
+        fields=fields,
+
+
+
+ 
+
+ 
+
+        bot=bot,
+
+
+
+ 
+
+ 
+
+    )
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+ 
+
+def embed_kick(**kwargs):
+
+
+
+ 
+
+ 
+
+    user = kwargs.get("user")
+
+
+
+ 
+
+ 
+
+    mod = kwargs.get("mod")
+
+
+
+ 
+
+ 
+
+    reason = kwargs.get("reason", "Kein Grund angegeben")
+
+
+
+ 
+
+ 
+
+    guild = kwargs.get("guild")
+
+
+
+ 
+
+ 
+
+    bot = kwargs.get("bot")
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    fields = [
+
+
+
+ 
+
+ 
+
+        {"name": "📋 Grund", "value": reason},
+
+
+
+ 
+
+ 
+
+        {"name": "🏠 Server", "value": guild.name if guild else "—"},
+
+
+
+ 
+
+ 
+
+    ]
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    return _build_embed(
+
+
+
+ 
+
+ 
+
+        title="👢 Du wurdest gekickt",
+
+
+
+ 
+
+ 
+
+        description=f"Du wurdest von **{mod}** {'aus **' + guild.name + '**' if guild else ''} gekickt.",
+
+
+
+ 
+
+ 
+
+        color=COLORS["warning"],
+
+
+
+ 
+
+ 
+
+        executor=mod,
+
+
+
+ 
+
+ 
+
+        subject=user,
+
+
+
+ 
+
+ 
+
+        fields=fields,
+
+
+
+ 
+
+ 
+
+        bot=bot,
+
+
+
+ 
+
+ 
+
+    )
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+ 
+
+def embed_mute(**kwargs):
+
+
+
+ 
+
+ 
+
+    user = kwargs.get("user")
+
+
+
+ 
+
+ 
+
+    mod = kwargs.get("mod")
+
+
+
+ 
+
+ 
+
+    duration = kwargs.get("duration", "Unbekannt")
+
+
+
+ 
+
+ 
+
+    reason = kwargs.get("reason", "Kein Grund angegeben")
+
+
+
+ 
+
+ 
+
+    guild = kwargs.get("guild")
+
+
+
+ 
+
+ 
+
+    bot = kwargs.get("bot")
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    fields = [
+
+
+
+ 
+
+ 
+
+        {"name": "⏳ Dauer", "value": str(duration)},
+
+
+
+ 
+
+ 
+
+        {"name": "📋 Grund", "value": reason},
+
+
+
+ 
+
+ 
+
+        {"name": "🏠 Server", "value": guild.name if guild else "—"},
+
+
+
+ 
+
+ 
+
+    ]
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    return _build_embed(
+
+
+
+ 
+
+ 
+
+        title="🔇 Du wurdest stummgeschaltet",
+
+
+
+ 
+
+ 
+
+        description=f"Du wurdest von **{mod}** für **{duration}** stummgeschaltet.",
+
+
+
+ 
+
+ 
+
+        color=COLORS["purple"],
+
+
+
+ 
+
+ 
+
+        executor=mod,
+
+
+
+ 
+
+ 
+
+        subject=user,
+
+
+
+ 
+
+ 
+
+        fields=fields,
+
+
+
+ 
+
+ 
+
+        bot=bot,
+
+
+
+ 
+
+ 
+
+    )
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+ 
+
+def embed_warn(**kwargs):
+
+
+
+ 
+
+ 
+
+    user = kwargs.get("user")
+
+
+
+ 
+
+ 
+
+    mod = kwargs.get("mod")
+
+
+
+ 
+
+ 
+
+    reason = kwargs.get("reason", "Kein Grund angegeben")
+
+
+
+ 
+
+ 
+
+    guild = kwargs.get("guild")
+
+
+
+ 
+
+ 
+
+    warn_count = kwargs.get("warn_count")  # optional: Anzahl Verwarnungen gesamt
+
+
+
+ 
+
+ 
+
+    bot = kwargs.get("bot")
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    fields = [
+
+
+
+ 
+
+ 
+
+        {"name": "📋 Grund", "value": reason},
+
+
+
+ 
+
+ 
+
+        {"name": "🏠 Server", "value": guild.name if guild else "—"},
+
+
+
+ 
+
+ 
+
+    ]
+
+
+
+ 
+
+ 
+
+    if warn_count is not None:
+
+
+
+ 
+
+ 
+
+        fields.append({"name": "⚠️ Verwarnungen gesamt", "value": str(warn_count)})
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    return _build_embed(
+
+
+
+ 
+
+ 
+
+        title="⚠️ Du wurdest verwarnt",
+
+
+
+ 
+
+ 
+
+        description=f"Du wurdest von **{mod}** verwarnt.",
+
+
+
+ 
+
+ 
+
+        color=COLORS["warning"],
+
+
+
+ 
+
+ 
+
+        executor=mod,
+
+
+
+ 
+
+ 
+
+        subject=user,
+
+
+
+ 
+
+ 
+
+        fields=fields,
+
+
+
+ 
+
+ 
+
+        bot=bot,
+
+
+
+ 
+
+ 
+
+    )
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+ 
+
+def embed_case(**kwargs):
+
+
+
+ 
+
+ 
+
+    case_id = kwargs.get("case_id")
+
+
+
+ 
+
+ 
+
+    action = kwargs.get("action", "unknown").upper()
+
+
+
+ 
+
+ 
+
+    user = kwargs.get("user")
+
+
+
+ 
+
+ 
+
+    mod = kwargs.get("mod")
+
+
+
+ 
+
+ 
+
+    reason = kwargs.get("reason", "Kein Grund angegeben")
+
+
+
+ 
+
+ 
+
+    bot = kwargs.get("bot")
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    color = COLORS["danger"] if action in ["BAN", "KICK"] else COLORS["warning"]
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    fields = [
+
+
+
+ 
+
+ 
+
+        {"name": "⚙️ Aktion", "value": action},
+
+
+
+ 
+
+ 
+
+        {"name": "📋 Grund", "value": reason},
+
+
+
+ 
+
+ 
+
+        {"name": "👤 Betroffen", "value": user.mention if user else "—"},
+
+
+
+ 
+
+ 
+
+        {"name": "🆔 Case-ID", "value": f"#{case_id}" if case_id is not None else "—"},
+
+
+
+ 
+
+ 
+
+    ]
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    return _build_embed(
+
+
+
+ 
+
+ 
+
+        title=f"📋 Case #{case_id}",
+
+
+
+ 
+
+ 
+
+        description=f"**{action}** gegen {user.mention if user else '—'}",
+
+
+
+ 
+
+ 
+
+        color=color,
+
+
+
+ 
+
+ 
+
+        executor=mod,
+
+
+
+ 
+
+ 
+
+        subject=user,
+
+
+
+ 
+
+ 
+
+        fields=fields,
+
+
+
+ 
+
+ 
+
+        bot=bot,
+
+
+
+ 
+
+ 
+
+    )
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+ 
+
+# ─────────────────────────────────────────────────────────
+
+
+
+ 
+
+ 
+
+# AUTOMOD
+
+
+
+ 
+
+ 
+
+# ─────────────────────────────────────────────────────────
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+def embed_automod_hit(**kwargs):
+
+
+
+ 
+
+ 
+
+    user = kwargs.get("user")
+
+
+
+ 
+
+ 
+
+    rule = kwargs.get("rule", "Unbekannt")
+
+
+
+ 
+
+ 
+
+    channel = kwargs.get("channel")
+
+
+
+ 
+
+ 
+
+    bot = kwargs.get("bot")
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    fields = [
+
+
+
+ 
+
+ 
+
+        {"name": "📋 Regel", "value": rule},
+
+
+
+ 
+
+ 
+
+        {"name": "📍 Kanal", "value": channel.mention if channel else "—"},
+
+
+
+ 
+
+ 
+
+    ]
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    return _build_embed(
+
+
+
+ 
+
+ 
+
+        title="🛡️ AutoMod",
+
+
+
+ 
+
+ 
+
+        description=f"{user.mention if user else 'Ein User'} hat gegen eine Regel verstoßen.",
+
+
+
+ 
+
+ 
+
+        color=COLORS["warning"],
+
+
+
+ 
+
+ 
+
+        executor=bot,
+
+
+
+ 
+
+ 
+
+        subject=user,
+
+
+
+ 
+
+ 
+
+        fields=fields,
+
+
+
+ 
+
+ 
+
+        bot=bot,
+
+
+
+ 
+
+ 
+
+    )
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+ 
+
+def embed_automod_blocked(**kwargs):
+
+
+
+ 
+
+ 
+
+    user = kwargs.get("user")
+
+
+
+ 
+
+ 
+
+    rule = kwargs.get("rule")
+
+
+
+ 
+
+ 
+
+    bot = kwargs.get("bot")
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    fields = []
+
+
+
+ 
+
+ 
+
+    if rule:
+
+
+
+ 
+
+ 
+
+        fields.append({"name": "📋 Regel", "value": rule})
+
+
+
+ 
+
+ 
+
+    fields.append({"name": "📌 Status", "value": "Blockiert"})
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    return _build_embed(
+
+
+
+ 
+
+ 
+
+        title="🚫 Nachricht blockiert",
+
+
+
+ 
+
+ 
+
+        description="Deine Nachricht wurde von AutoMod blockiert.",
+
+
+
+ 
+
+ 
+
+        color=COLORS["danger"],
+
+
+
+ 
+
+ 
+
+        executor=bot,
+
+
+
+ 
+
+ 
+
+        subject=user,
+
+
+
+ 
+
+ 
+
+        fields=fields,
+
+
+
+ 
+
+ 
+
+        bot=bot,
+
+
+
+ 
+
+ 
+
+    )
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+ 
+
+def embed_anti_spam(**kwargs):
+
+
+
+ 
+
+ 
+
+    user = kwargs.get("user")
+
+
+
+ 
+
+ 
+
+    action = kwargs.get("action", "eingeschränkt")
+
+
+
+ 
+
+ 
+
+    bot = kwargs.get("bot")
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    fields = [
+
+
+
+ 
+
+ 
+
+        {"name": "⚙️ Maßnahme", "value": action},
+
+
+
+ 
+
+ 
+
+        {"name": "📌 Grund", "value": "Spam erkannt"},
+
+
+
+ 
+
+ 
+
+    ]
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    return _build_embed(
+
+
+
+ 
+
+ 
+
+        title="🚫 Anti-Spam",
+
+
+
+ 
+
+ 
+
+        description=f"{user.mention if user else 'Ein User'} wurde wegen Spam {action}.",
+
+
+
+ 
+
+ 
+
+        color=COLORS["danger"],
+
+
+
+ 
+
+ 
+
+        executor=bot,
+
+
+
+ 
+
+ 
+
+        subject=user,
+
+
+
+ 
+
+ 
+
+        fields=fields,
+
+
+
+ 
+
+ 
+
+        bot=bot,
+
+
+
+ 
+
+ 
+
+    )
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+ 
+
+def embed_anti_raid(**kwargs):
+
+
+
+ 
+
+ 
+
+    guild = kwargs.get("guild")
+
+
+
+ 
+
+ 
+
+    joins = kwargs.get("joins")  # optional: Anzahl verdächtiger Joins
+
+
+
+ 
+
+ 
+
+    bot = kwargs.get("bot")
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    fields = [
+
+
+
+ 
+
+ 
+
+        {"name": "🏠 Server", "value": guild.name if guild else "—"},
+
+
+
+ 
+
+ 
+
+        {"name": "🛡️ Status", "value": "Lockdown aktiv"},
+
+
+
+ 
+
+ 
+
+    ]
+
+
+
+ 
+
+ 
+
+    if joins is not None:
+
+
+
+ 
+
+ 
+
+        fields.append({"name": "📊 Verdächtige Joins", "value": str(joins)})
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    return _build_embed(
+
+
+
+ 
+
+ 
+
+        title="🚨 Anti-Raid erkannt",
+
+
+
+ 
+
+ 
+
+        description="Mögliche Raid-Aktivität wurde erkannt.",
+
+
+
+ 
+
+ 
+
+        color=COLORS["danger"],
+
+
+
+ 
+
+ 
+
+        executor=bot,
+
+
+
+ 
+
+ 
+
+        subject=guild,
+
+
+
+ 
+
+ 
+
+        fields=fields,
+
+
+
+ 
+
+ 
+
+        bot=bot,
+
+
+
+ 
+
+ 
+
+    )
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+ 
+
+# ─────────────────────────────────────────────────────────
+
+
+
+ 
+
+ 
+
+# SECURITY / ANTINUKE
+
+
+
+ 
+
+ 
+
+# ─────────────────────────────────────────────────────────
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+def embed_security_alert(**kwargs):
+
+
+
+ 
+
+ 
+
+    guild = kwargs.get("guild")
+
+
+
+ 
+
+ 
+
+    user = kwargs.get("user")
+
+
+
+ 
+
+ 
+
+    reason = kwargs.get("reason", "Wird untersucht")
+
+
+
+ 
+
+ 
+
+    bot = kwargs.get("bot")
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    fields = [
+
+
+
+ 
+
+ 
+
+        {"name": "📋 Grund", "value": reason},
+
+
+
+ 
+
+ 
+
+        {"name": "🏠 Server", "value": guild.name if guild else "—"},
+
+
+
+ 
+
+ 
+
+    ]
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    return _build_embed(
+
+
+
+ 
+
+ 
+
+        title="🚨 Security Alert",
+
+
+
+ 
+
+ 
+
+        description="Potentiell gefährliche Aktivität erkannt!",
+
+
+
+ 
+
+ 
+
+        color=COLORS["danger"],
+
+
+
+ 
+
+ 
+
+        executor=bot,
+
+
+
+ 
+
+ 
+
+        subject=user if user else guild,
+
+
+
+ 
+
+ 
+
+        fields=fields,
+
+
+
+ 
+
+ 
+
+        bot=bot,
+
+
+
+ 
+
+ 
+
+    )
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+ 
+
+def embed_anti_nuke(**kwargs):
+
+
+
+ 
+
+ 
+
+    user = kwargs.get("user")
+
+
+
+ 
+
+ 
+
+    action = kwargs.get("action", "unbekannt")
+
+
+
+ 
+
+ 
+
+    punishment = kwargs.get("punishment", "Entfernt")
+
+
+
+ 
+
+ 
+
+    bot = kwargs.get("bot")
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    fields = [
+
+
+
+ 
+
+ 
+
+        {"name": "⚙️ Aktion", "value": action},
+
+
+
+ 
+
+ 
+
+        {"name": "👤 Nutzer", "value": user.mention if user else "—"},
+
+
+
+ 
+
+ 
+
+        {"name": "🛡️ Maßnahme", "value": punishment},
+
+
+
+ 
+
+ 
+
+    ]
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    return _build_embed(
+
+
+
+ 
+
+ 
+
+        title="🛡️ Anti-Nuke",
+
+
+
+ 
+
+ 
+
+        description=f"{user.mention if user else 'Ein User'} hat versucht, den Server zu attackieren ({action}).",
+
+
+
+ 
+
+ 
+
+        color=COLORS["danger"],
+
+
+
+ 
+
+ 
+
+        executor=bot,
+
+
+
+ 
+
+ 
+
+        subject=user,
+
+
+
+ 
+
+ 
+
+        fields=fields,
+
+
+
+ 
+
+ 
+
+        bot=bot,
+
+
+
+ 
+
+ 
+
+    )
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+ 
+
+# ─────────────────────────────────────────────────────────
+
+
+
+ 
+
+ 
+
+# BACKUP
+
+
+
+ 
+
+ 
+
+# ─────────────────────────────────────────────────────────
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+def embed_backup_created(**kwargs):
+
+
+
+ 
+
+ 
+
+    guild = kwargs.get("guild")
+
+
+
+ 
+
+ 
+
+    mod = kwargs.get("mod")
+
+
+
+ 
+
+ 
+
+    backup_id = kwargs.get("backup_id")
+
+
+
+ 
+
+ 
+
+    bot = kwargs.get("bot")
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    fields = [
+
+
+
+ 
+
+ 
+
+        {"name": "🏠 Server", "value": guild.name if guild else "—"},
+
+
+
+ 
+
+ 
+
+        {"name": "🆔 Backup-ID", "value": str(backup_id) if backup_id else "—"},
+
+
+
+ 
+
+ 
+
+    ]
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    return _build_embed(
+
+
+
+ 
+
+ 
+
+        title="💾 Backup erstellt",
+
+
+
+ 
+
+ 
+
+        description="Die Server-Einstellungen wurden erfolgreich gesichert.",
+
+
+
+ 
+
+ 
+
+        color=COLORS["success"],
+
+
+
+ 
+
+ 
+
+        executor=mod if mod else bot,
+
+
+
+ 
+
+ 
+
+        subject=guild,
+
+
+
+ 
+
+ 
+
+        fields=fields,
+
+
+
+ 
+
+ 
+
+        bot=bot,
+
+
+
+ 
+
+ 
+
+    )
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+ 
+
+def embed_backup_restored(**kwargs):
+
+
+
+ 
+
+ 
+
+    backup_id = kwargs.get("backup_id")
+
+
+
+ 
+
+ 
+
+    guild = kwargs.get("guild")
+
+
+
+ 
+
+ 
+
+    mod = kwargs.get("mod")
+
+
+
+ 
+
+ 
+
+    bot = kwargs.get("bot")
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    fields = [
+
+
+
+ 
+
+ 
+
+        {"name": "🆔 Backup-ID", "value": str(backup_id) if backup_id else "—"},
+
+
+
+ 
+
+ 
+
+        {"name": "🏠 Server", "value": guild.name if guild else "—"},
+
+
+
+ 
+
+ 
+
+    ]
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    return _build_embed(
+
+
+
+ 
+
+ 
+
+        title="♻️ Backup wiederhergestellt",
+
+
+
+ 
+
+ 
+
+        description=f"Backup **{backup_id}** wurde erfolgreich wiederhergestellt.",
+
+
+
+ 
+
+ 
+
+        color=COLORS["info"],
+
+
+
+ 
+
+ 
+
+        executor=mod if mod else bot,
+
+
+
+ 
+
+ 
+
+        subject=guild,
+
+
+
+ 
+
+ 
+
+        fields=fields,
+
+
+
+ 
+
+ 
+
+        bot=bot,
+
+
+
+ 
+
+ 
+
+    )
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+ 
+
+# ─────────────────────────────────────────────────────────
+
+
+
+ 
+
+ 
+
+# LOGGING
+
+
+
+ 
+
+ 
+
+# ─────────────────────────────────────────────────────────
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+def embed_log_message_delete(**kwargs):
+
+
+
+ 
+
+ 
+
+    user = kwargs.get("user")
+
+
+
+ 
+
+ 
+
+    channel = kwargs.get("channel")
+
+
+
+ 
+
+ 
+
+    content = kwargs.get("content", "") or "Kein Inhalt"
+
+
+
+ 
+
+ 
+
+    mod = kwargs.get("mod")  # optional, falls bekannt (z.B. via Audit-Log)
+
+
+
+ 
+
+ 
+
+    bot = kwargs.get("bot")
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    fields = [
+
+
+
+ 
+
+ 
+
+        {"name": "👤 Autor", "value": user.mention if user else "—"},
+
+
+
+ 
+
+ 
+
+        {"name": "📍 Kanal", "value": channel.mention if channel else "—"},
+
+
+
+ 
+
+ 
+
+        {"name": "📝 Inhalt", "value": content[:1024], "inline": False},
+
+
+
+ 
+
+ 
+
+    ]
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    return _build_embed(
+
+
+
+ 
+
+ 
+
+        title="🗑️ Nachricht gelöscht",
+
+
+
+ 
+
+ 
+
+        description=f"Von {user.mention if user else '—'} in {channel.mention if channel else '—'}",
+
+
+
+ 
+
+ 
+
+        color=COLORS["dark"],
+
+
+
+ 
+
+ 
+
+        executor=mod if mod else bot,
+
+
+
+ 
+
+ 
+
+        subject=user,
+
+
+
+ 
+
+ 
+
+        fields=fields,
+
+
+
+ 
+
+ 
+
+        bot=bot,
+
+
+
+ 
+
+ 
+
+    )
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+ 
+
+def embed_log_message_edit(**kwargs):
+
+
+
+ 
+
+ 
+
+    user = kwargs.get("user")
+
+
+
+ 
+
+ 
+
+    channel = kwargs.get("channel")
+
+
+
+ 
+
+ 
+
+    before = kwargs.get("before", "Nicht verfügbar")
+
+
+
+ 
+
+ 
+
+    after = kwargs.get("after", "Nicht verfügbar")
+
+
+
+ 
+
+ 
+
+    bot = kwargs.get("bot")
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    fields = [
+
+
+
+ 
+
+ 
+
+        {"name": "👤 Autor", "value": user.mention if user else "—"},
+
+
+
+ 
+
+ 
+
+        {"name": "📍 Kanal", "value": channel.mention if channel else "—"},
+
+
+
+ 
+
+ 
+
+        {"name": "📝 Vorher", "value": str(before)[:1024], "inline": False},
+
+
+
+ 
+
+ 
+
+        {"name": "📝 Nachher", "value": str(after)[:1024], "inline": False},
+
+
+
+ 
+
+ 
+
+    ]
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    return _build_embed(
+
+
+
+ 
+
+ 
+
+        title="✏️ Nachricht bearbeitet",
+
+
+
+ 
+
+ 
+
+        description=f"Von {user.mention if user else '—'}",
+
+
+
+ 
+
+ 
+
+        color=COLORS["info"],
+
+
+
+ 
+
+ 
+
+        executor=bot,
+
+
+
+ 
+
+ 
+
+        subject=user,
+
+
+
+ 
+
+ 
+
+        fields=fields,
+
+
+
+ 
+
+ 
+
+        bot=bot,
+
+
+
+ 
+
+ 
+
+    )
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+ 
+
+def embed_log_role_create(**kwargs):
+
+
+
+ 
+
+ 
+
+    role = kwargs.get("role")
+
+
+
+ 
+
+ 
+
+    guild = kwargs.get("guild")
+
+
+
+ 
+
+ 
+
+    mod = kwargs.get("mod")  # optional, falls über Audit-Log bekannt
+
+
+
+ 
+
+ 
+
+    bot = kwargs.get("bot")
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    color_hex = f"#{role.color.value:06x}" if role and getattr(role, "color", None) else "—"
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    fields = [
+
+
+
+ 
+
+ 
+
+        {"name": "🏷️ Rolle", "value": role.mention if role else "—"},
+
+
+
+ 
+
+ 
+
+        {"name": "🎨 Farbe", "value": color_hex},
+
+
+
+ 
+
+ 
+
+    ]
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    return _build_embed(
+
+
+
+ 
+
+ 
+
+        title="➕ Rolle erstellt",
+
+
+
+ 
+
+ 
+
+        description=f"Rolle **{role.name if role else '—'}** wurde erstellt.",
+
+
+
+ 
+
+ 
+
+        color=COLORS["success"],
+
+
+
+ 
+
+ 
+
+        executor=mod if mod else bot,
+
+
+
+ 
+
+ 
+
+        subject=guild,
+
+
+
+ 
+
+ 
+
+        fields=fields,
+
+
+
+ 
+
+ 
+
+        bot=bot,
+
+
+
+ 
+
+ 
+
+    )
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+ 
+
+def embed_log_member_join(**kwargs):
+
+
+
+ 
+
+ 
+
+    user = kwargs.get("user")
+
+
+
+ 
+
+ 
+
+    guild = kwargs.get("guild")
+
+
+
+ 
+
+ 
+
+    bot = kwargs.get("bot")
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    member_count = getattr(guild, "member_count", None) if guild else None
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    fields = [
+
+
+
+ 
+
+ 
+
+        {"name": "📅 Account erstellt", "value": _fmt_dt(getattr(user, "created_at", None))},
+
+
+
+ 
+
+ 
+
+        {"name": "📊 Mitglieder-Anzahl", "value": f"#{member_count}" if member_count else "Unbekannt"},
+
+
+
+ 
+
+ 
+
+    ]
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    return _build_embed(
+
+
+
+ 
+
+ 
+
+        title="➕ Member beigetreten",
+
+
+
+ 
+
+ 
+
+        description=f"{user.mention if user else '—'} ist dem Server beigetreten.",
+
+
+
+ 
+
+ 
+
+        color=COLORS["success"],
+
+
+
+ 
+
+ 
+
+        executor=bot,
+
+
+
+ 
+
+ 
+
+        subject=user,
+
+
+
+ 
+
+ 
+
+        fields=fields,
+
+
+
+ 
+
+ 
+
+        bot=bot,
+
+
+
+ 
+
+ 
+
+    )
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+ 
+
+def embed_log_member_leave(**kwargs):
+
+
+
+ 
+
+ 
+
+    user = kwargs.get("user")
+
+
+
+ 
+
+ 
+
+    bot = kwargs.get("bot")
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    roles = getattr(user, "roles", None)
+
+
+
+ 
+
+ 
+
+    role_text = "—"
+
+
+
+ 
+
+ 
+
+    if roles:
+
+
+
+ 
+
+ 
+
+        named = [r.mention for r in roles if getattr(r, "name", "@everyone") != "@everyone"]
+
+
+
+ 
+
+ 
+
+        role_text = ", ".join(named) if named else "Keine"
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    fields = [
+
+
+
+ 
+
+ 
+
+        {"name": "📅 Beigetreten am", "value": _fmt_dt(getattr(user, "joined_at", None))},
+
+
+
+ 
+
+ 
+
+        {"name": "🎭 Rollen", "value": role_text[:1024]},
+
+
+
+ 
+
+ 
+
+    ]
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    return _build_embed(
+
+
+
+ 
+
+ 
+
+        title="➖ Member verlassen",
+
+
+
+ 
+
+ 
+
+        description=f"{user} hat den Server verlassen." if user else "Ein Member hat den Server verlassen.",
+
+
+
+ 
+
+ 
+
+        color=COLORS["dark"],
+
+
+
+ 
+
+ 
+
+        executor=bot,
+
+
+
+ 
+
+ 
+
+        subject=user,
+
+
+
+ 
+
+ 
+
+        fields=fields,
+
+
+
+ 
+
+ 
+
+        bot=bot,
+
+
+
+ 
+
+ 
+
+    )
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+ 
+
+# ─────────────────────────────────────────────────────────
+
+
+
+ 
+
+ 
+
+# BADGES
+
+
+
+ 
+
+ 
+
+# ─────────────────────────────────────────────────────────
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+def embed_badge_added(**kwargs):
+
+
+
+ 
+
+ 
+
+    user = kwargs.get("user")
+
+
+
+ 
+
+ 
+
+    badge = kwargs.get("badge")
+
+
+
+ 
+
+ 
+
+    mod = kwargs.get("mod")  # optional: wer das Badge vergeben hat
+
+
+
+ 
+
+ 
+
+    bot = kwargs.get("bot")
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    fields = [
+
+
+
+ 
+
+ 
+
+        {"name": "🏅 Badge", "value": str(badge) if badge else "—"},
+
+
+
+ 
+
+ 
+
+        {"name": "📅 Erhalten am", "value": _fmt_dt(datetime.now(timezone.utc))},
+
+
+
+ 
+
+ 
+
+    ]
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    return _build_embed(
+
+
+
+ 
+
+ 
+
+        title="🏅 Badge erhalten",
+
+
+
+ 
+
+ 
+
+        description=f"{user.mention if user else 'Ein User'} hat das Badge **{badge}** erhalten.",
+
+
+
+ 
+
+ 
+
+        color=COLORS["gold"],
+
+
+
+ 
+
+ 
+
+        executor=mod if mod else bot,
+
+
+
+ 
+
+ 
+
+        subject=user,
+
+
+
+ 
+
+ 
+
+        fields=fields,
+
+
+
+ 
+
+ 
+
+        bot=bot,
+
+
+
+ 
+
+ 
+
+    )
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+ 
+
+# ─────────────────────────────────────────────────────────
+
+
+
+ 
+
+ 
+
+# UTILITY / GENERAL (inkl. DMs)
+
+
+
+ 
+
+ 
+
+# ─────────────────────────────────────────────────────────
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+def embed_success(**kwargs):
+
+
+
+ 
+
+ 
+
+    msg = kwargs.get("message", "Erfolgreich!")
+
+
+
+ 
+
+ 
+
+    user = kwargs.get("user")
+
+
+
+ 
+
+ 
+
+    bot = kwargs.get("bot")
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    return _build_embed(
+
+
+
+ 
+
+ 
+
+        title="✅ Erfolg",
+
+
+
+ 
+
+ 
+
+        description=msg,
+
+
+
+ 
+
+ 
+
+        color=COLORS["success"],
+
+
+
+ 
+
+ 
+
+        executor=user if user else bot,
+
+
+
+ 
+
+ 
+
+        subject=user,
+
+
+
+ 
+
+ 
+
+        bot=bot,
+
+
+
+ 
+
+ 
+
+    )
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+ 
+
+def embed_error(**kwargs):
+
+
+
+ 
+
+ 
+
+    msg = kwargs.get("message", "Ein Fehler ist aufgetreten.")
+
+
+
+ 
+
+ 
+
+    user = kwargs.get("user")
+
+
+
+ 
+
+ 
+
+    bot = kwargs.get("bot")
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    return _build_embed(
+
+
+
+ 
+
+ 
+
+        title="❌ Fehler",
+
+
+
+ 
+
+ 
+
+        description=msg,
+
+
+
+ 
+
+ 
+
+        color=COLORS["danger"],
+
+
+
+ 
+
+ 
+
+        executor=user if user else bot,
+
+
+
+ 
+
+ 
+
+        subject=user,
+
+
+
+ 
+
+ 
+
+        bot=bot,
+
+
+
+ 
+
+ 
+
+    )
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+ 
+
+def embed_info(**kwargs):
+
+
+
+ 
+
+ 
+
+    title = kwargs.get("title", "Information")
+
+
+
+ 
+
+ 
+
+    desc = kwargs.get("description", "")
+
+
+
+ 
+
+ 
+
+    user = kwargs.get("user")
+
+
+
+ 
+
+ 
+
+    bot = kwargs.get("bot")
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    return _build_embed(
+
+
+
+ 
+
+ 
+
+        title=title,
+
+
+
+ 
+
+ 
+
+        description=desc,
+
+
+
+ 
+
+ 
+
+        color=COLORS["info"],
+
+
+
+ 
+
+ 
+
+        executor=user if user else bot,
+
+
+
+ 
+
+ 
+
+        subject=user,
+
+
+
+ 
+
+ 
+
+        bot=bot,
+
+
+
+ 
+
+ 
+
+    )
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+ 
+
+def embed_help(**kwargs):
+
+
+
+ 
+
+ 
+
+    cmd = kwargs.get("command", "Befehl")
+
+
+
+ 
+
+ 
+
+    usage = kwargs.get("usage")
+
+
+
+ 
+
+ 
+
+    description = kwargs.get("description")
+
+
+
+ 
+
+ 
+
+    user = kwargs.get("user")
+
+
+
+ 
+
+ 
+
+    bot = kwargs.get("bot")
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    fields = []
+
+
+
+ 
+
+ 
+
+    if usage:
+
+
+
+ 
+
+ 
+
+        fields.append({"name": "📖 Verwendung", "value": f"`{usage}`", "inline": False})
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    return _build_embed(
+
+
+
+ 
+
+ 
+
+        title=f"❓ Hilfe: {cmd}",
+
+
+
+ 
+
+ 
+
+        description=description or "",
+
+
+
+ 
+
+ 
+
+        color=COLORS["primary"],
+
+
+
+ 
+
+ 
+
+        executor=user if user else bot,
+
+
+
+ 
+
+ 
+
+        subject=user,
+
+
+
+ 
+
+ 
+
+        fields=fields,
+
+
+
+ 
+
+ 
+
+        bot=bot,
+
+
+
+ 
+
+ 
+
+    )
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+ 
+
+def embed_dm_generic(**kwargs):
+
+
+
+ 
+
+ 
+
+    title = kwargs.get("title", "Nachricht")
+
+
+
+ 
+
+ 
+
+    desc = kwargs.get("description", "")
+
+
+
+ 
+
+ 
+
+    user = kwargs.get("user")
+
+
+
+ 
+
+ 
+
+    guild = kwargs.get("guild")
+
+
+
+ 
+
+ 
+
+    bot = kwargs.get("bot")
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    fields = []
+
+
+
+ 
+
+ 
+
+    if guild:
+
+
+
+ 
+
+ 
+
+        fields.append({"name": "🏠 Server", "value": guild.name})
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    return _build_embed(
+
+
+
+ 
+
+ 
+
+        title=title,
+
+
+
+ 
+
+ 
+
+        description=desc,
+
+
+
+ 
+
+ 
+
+        color=COLORS["primary"],
+
+
+
+ 
+
+ 
+
+        executor=bot,
+
+
+
+ 
+
+ 
+
+        subject=user,
+
+
+
+ 
+
+ 
+
+        fields=fields,
+
+
+
+ 
+
+ 
+
+        bot=bot,
+
+
+
+ 
+
+ 
+
+    )
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+ 
+
+# ─────────────────────────────────────────────────────────
+
+
+
+ 
+
+ 
+
+# VOICE
+
+
+
+ 
+
+ 
+
+# ─────────────────────────────────────────────────────────
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+def embed_voice_join(**kwargs):
+
+
+
+ 
+
+ 
+
+    user = kwargs.get("user")
+
+
+
+ 
+
+ 
+
+    channel = kwargs.get("channel")
+
+
+
+ 
+
+ 
+
+    bot = kwargs.get("bot")
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    fields = [
+
+
+
+ 
+
+ 
+
+        {"name": "📍 Kanal", "value": channel.mention if channel else "—"},
+
+
+
+ 
+
+ 
+
+        {"name": "🕐 Zeit", "value": _fmt_dt(datetime.now(timezone.utc), style="T")},
+
+
+
+ 
+
+ 
+
+    ]
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    return _build_embed(
+
+
+
+ 
+
+ 
+
+        title="🔊 Voice beigetreten",
+
+
+
+ 
+
+ 
+
+        description=f"{user.mention if user else '—'} ist {channel.mention if channel else '—'} beigetreten.",
+
+
+
+ 
+
+ 
+
+        color=COLORS["teal"],
+
+
+
+ 
+
+ 
+
+        executor=bot,
+
+
+
+ 
+
+ 
+
+        subject=user,
+
+
+
+ 
+
+ 
+
+        fields=fields,
+
+
+
+ 
+
+ 
+
+        bot=bot,
+
+
+
+ 
+
+ 
+
+    )
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+ 
+
+def embed_voice_leave(**kwargs):
+
+
+
+ 
+
+ 
+
+    user = kwargs.get("user")
+
+
+
+ 
+
+ 
+
+    channel = kwargs.get("channel")
+
+
+
+ 
+
+ 
+
+    bot = kwargs.get("bot")
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    fields = [
+
+
+
+ 
+
+ 
+
+        {"name": "📍 Kanal", "value": channel.mention if channel else "—"},
+
+
+
+ 
+
+ 
+
+        {"name": "🕐 Zeit", "value": _fmt_dt(datetime.now(timezone.utc), style="T")},
+
+
+
+ 
+
+ 
+
+    ]
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    return _build_embed(
+
+
+
+ 
+
+ 
+
+        title="🔇 Voice verlassen",
+
+
+
+ 
+
+ 
+
+        description=f"{user.mention if user else '—'} hat {channel.mention if channel else '—'} verlassen.",
+
+
+
+ 
+
+ 
+
+        color=COLORS["dark"],
+
+
+
+ 
+
+ 
+
+        executor=bot,
+
+
+
+ 
+
+ 
+
+        subject=user,
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+        fields=fields,X
+
+
+
+ 
+
+ 
+
+        bot=bot,
+
+
+
+ 
+
+ 
+
+    )
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+ 
+
+# =========================================================
+
+
+
+ 
+
+ 
+
+# REGISTER ALL EMBEDS
+
+
+
+ 
+
+ 
+
+# =========================================================
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+EMBEDS: Dict[str, Any] = {
+
+
+
+ 
+
+ 
+
+    # Welcome / Leave / DMs
+
+
+
+ 
+
+ 
+
+    "welcome": embed_welcome,
+
+
+
+ 
+
+ 
+
+    "welcome_dm": embed_welcome_dm,
+
+
+
+ 
+
+ 
+
+    "leave": embed_leave,
+
+
+
+ 
+
+ 
+
+    "onboarding": embed_onboarding,
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    # Verification + DMs
+
+
+
+ 
+
+ 
+
+    "verification_panel": embed_verification_panel,
+
+
+
+ 
+
+ 
+
+    "verification_success": embed_verification_success,
+
+
+
+ 
+
+ 
+
+    "verification_failed": embed_verification_failed,
+
+
+
+ 
+
+ 
+
+    "verification_dm": embed_verification_dm,
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    # Tickets + DMs
+
+
+
+ 
+
+ 
+
+    "ticket_panel": embed_ticket_panel,
+
+
+
+ 
+
+ 
+
+    "ticket_created": embed_ticket_created,
+
+
+
+ 
+
+ 
+
+    "ticket_closed": embed_ticket_closed,
+
+
+
+ 
+
+ 
+
+    "ticket_dm": embed_ticket_dm,
+
+
+
+ 
+
+ 
+
+    "ticket_claimed": embed_ticket_claimed,
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    # TempVoice
+
+
+
+ 
+
+ 
+
+    "tempvoice_panel": embed_tempvoice_panel,
+
+
+
+ 
+
+ 
+
+    "tempvoice_created": embed_tempvoice_created,
+
+
+
+ 
+
+ 
+
+    "tempvoice_deleted": embed_tempvoice_deleted,
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    # Moderation + DMs
+
+
+
+ 
+
+ 
+
+    "ban": embed_ban,
+
+
+
+ 
+
+ 
+
+    "kick": embed_kick,
+
+
+
+ 
+
+ 
+
+    "mute": embed_mute,
+
+
+
+ 
+
+ 
+
+    "warn": embed_warn,
+
+
+
+ 
+
+ 
+
+    "case": embed_case,
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    # AutoMod
+
+
+
+ 
+
+ 
+
+    "automod_hit": embed_automod_hit,
+
+
+
+ 
+
+ 
+
+    "automod_blocked": embed_automod_blocked,
+
+
+
+ 
+
+ 
+
+    "anti_spam": embed_anti_spam,
+
+
+
+ 
+
+ 
+
+    "anti_raid": embed_anti_raid,
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    # Security
+
+
+
+ 
+
+ 
+
+    "security_alert": embed_security_alert,
+
+
+
+ 
+
+ 
+
+    "anti_nuke": embed_anti_nuke,
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    # Backup
+
+
+
+ 
+
+ 
+
+    "backup_created": embed_backup_created,
+
+
+
+ 
+
+ 
+
+    "backup_restored": embed_backup_restored,
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    # Logging
+
+
+
+ 
+
+ 
+
+    "log_message_delete": embed_log_message_delete,
+
+
+
+ 
+
+ 
+
+    "log_message_edit": embed_log_message_edit,
+
+
+
+ 
+
+ 
+
+    "log_role_create": embed_log_role_create,
+
+
+
+ 
+
+ 
+
+    "log_member_join": embed_log_member_join,
+
+
+
+ 
+
+ 
+
+    "log_member_leave": embed_log_member_leave,
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    # Badges
+
+
+
+ 
+
+ 
+
+    "badge_added": embed_badge_added,
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    # Utility
+
+
+
+ 
+
+ 
+
+    "success": embed_success,
+
+
+
+ 
+
+ 
+
+    "error": embed_error,
+
+
+
+ 
+
+ 
+
+    "info": embed_info,
+
+
+
+ 
+
+ 
+
+    "help": embed_help,
+
+
+
+ 
+
+ 
+
+    "dm_generic": embed_dm_generic,
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+    # Voice
+
+
+
+ 
+
+ 
+
+    "voice_join": embed_voice_join,
+
+
+
+ 
+
+ 
+
+    "voice_leave": embed_voice_leave,
+
+
+
+ 
+
+ 
+
+}
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+print("✅ embed_config.py geladen – Alle Embeds (inkl. DMs) folgen jetzt dem einheitlichen ModForge-Schema.")
+
+
+
+ 
+
+ 
+
+jedes embed jede Antwort soll sein auch wenb ich ein Befehl mache und so und mache das wenn user gestimmt wird dm user automatisch wenn timeout rum ist dm und wenn jemand früher timeout macht vei Kickt dm bei welcome dm und bei warn dm und alles
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+Dark Mode Toggle + Theme pro Server
+
+
+
+ 
+
+ 
+
+Live Server Activity Feed (erweitert)
+
+
+
+ 
+
+ 
+
+Echtzeit-Feed mit Voice-Joins, Message-Spikes, Mass-Joins etc. (nicht nur Moderation)
+
+
+
+ 
+
+ 
+
+User Risk Profile
+
+
+
+ 
+
+ 
+
+Klick auf einen User → zeigt: Account-Alter, Join-Datum, Anzahl Cases, letzte Strafe, Risiko-Score, verdächtige Aktivitäten.
+
+
+
+ 
+
+ 
+
+Smart Timeout Suggestions
+
+
+
+ 
+
+ 
+
+Der Bot schlägt bei /mute automatisch eine Dauer vor (basierend auf vorherigen Cases des Users).
+
+
+
+ 
+
+ 
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+
+
+ 
+
+ 
+
+Und mache die duschen als beta 
+
+
+
+ 
+
+ 
+
+Auto-Appeal System
+
+
+
+ 
+
+ 
+
+Gebannt → User kann über Dashboard einen Appeal stellen → Mods bekommen Notification + Abstimmung
+
+
+
+ 
+
+ 
+
+Staff Application System (Bewerbungen über Dashboard + Review)
