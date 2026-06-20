@@ -31,30 +31,20 @@
   <link rel="stylesheet" href="/static/style.css">
 
   <style>
+    /* ── BASE LAYOUT ── */
     :root {
-      --outage-h: 52px;
-      --trust-h: 52px;
-      --nav-h: 64px;
-      --chrome: calc(var(--outage-h) + var(--trust-h) + var(--nav-h));
-      --r: .25s;
+      --outage-h: 2.6rem;
+      --trust-h:  2.6rem;
+      --nav-h:    4rem;
+      --chrome:   calc(var(--outage-h) + var(--trust-h) + var(--nav-h));
     }
 
-    body {
-      padding-top: var(--chrome);
-    }
+    body { padding-top: var(--chrome); }
 
-    /* HIER DEIN GESAMTER RESTLICHER CSS-CODE */
-  </style>
-
-</head>
-<body>
-
-{% block content %}{% endblock %}
-
-<script src="/static/script.js"></script>
-
-</body>
-</html>
+:root {
+  --outage-h: 52px;
+  --r: .25s;
+}
 
 /* ══════════════════════════════════════════
    ANIMATIONS
