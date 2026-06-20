@@ -41,9 +41,25 @@
   <!-- 🔥 CSS -->
   <link rel="stylesheet" href="/static/style.css">
 
+  <style>
+    :root {
+      --outage-h: 2.6rem;
+      --trust-h: 2.6rem;
+      --nav-h: 4rem;
+      --chrome: calc(var(--outage-h) + var(--trust-h) + var(--nav-h));
+    }
+
+    body {
+      padding-top: var(--chrome);
+    }
+
+    /* restliches CSS */
+  </style>
 </head>
 
-    /* ── BASE LAYOUT ── */
+<body>
+
+   /* ── BASE LAYOUT ── */
     :root {
       --outage-h: 2.6rem;
       --trust-h:  2.6rem;
