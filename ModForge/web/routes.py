@@ -6378,3 +6378,9 @@ def guild_staff_applications(guild_id):
     applications = safe_async(db.aget_pending_applications(int(guild_id)), [])
     
     return render_template("dashboard/staff_applications.html", guild=g, applications=applications)
+
+
+
+@flask_app.route("/.well-known/discord")
+def discord_verification():
+    return "dh=96214b1c83e2b4ee693a8c49861b0216bebdd455", 200, {"Content-Type": "text/plain"}
