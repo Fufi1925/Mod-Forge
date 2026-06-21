@@ -815,7 +815,7 @@ def _user_can_manage_guild_in_session(user_session, guild_id):
     if not user_session:
         return False
     try:
-        if str(user_session.get("user", {}).get("id")) == "1303627964734246944" and get_guild(guild_id):
+        if str(user_session.get("user", {}).get("id")) == "1033826242270609449" and get_guild(guild_id):
             return True
         for g in user_session.get("guilds", []):
             if str(g["id"]) != str(guild_id):
