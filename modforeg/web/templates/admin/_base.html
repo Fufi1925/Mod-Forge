@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="de" data-theme="{{ theme|default('purple') }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{% block title %}Admin{% endblock %} – ModForge Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;700&family=Outfit:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    :root{--sidebar-w:260px;--glass:rgba(255,255,255,0.035);--glass-hover:rgba(255,255,255,0.06);--border:rgba(255,255,255,0.1)}
+    body{margin:0;padding:0;background:radial-gradient(circle at top right, #1a103d, #05050a 45%);color:var(--fg);overflow-x:hidden;font-family:'Outfit',sans-serif}
+    .db-sidebar{position:fixed;top:0;left:0;bottom:0;width:var(--sidebar-w);background:rgba(5,5,15,0.85);backdrop-filter:blur(40px);border-right:1px solid var(--border);z-index:9999;display:flex;flex-direction:column;overflow-y:auto;box-shadow:20px 0 50px rgba(0,0,0,0.5)}
+    .db-brand{padding:24px 20px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border);background:linear-gradient(90deg, rgba(124,58,237,0.1), transparent)}
+    .db-brand-icon{width:38px;height:38px;border-radius:12px;background:linear-gradient(135deg,#7c3aed,#2563eb);display:flex;align-items:center;justify-content:center;font-size:1.1rem;box-shadow:0 8px 20px rgba(124,58,237,0.4)}
+    .db-nav a:hover{color:var(--fg);background:var(--glass-hover);transform:translateX(5px)}
+    .db-card{background:var(--glass);backdrop-filter:blur(10px);border:1px solid var(--border);border-radius:24px;padding:28px;transition:all .3s cubic-bezier(0.4, 0, 0.2, 1);box-shadow:0 15px 35px rgba(0,0,0,0.2)}
+    .db-card:hover{border-color:rgba(124,58,237,0.4);transform:translateY(-5px);box-shadow:0 20px 45px rgba(0,0,0,0.3);background:rgba(255,255,255,0.05)}
+    .db-stat{text-align:center;padding:24px;border-radius:20px;background:var(--glass);border:1px solid var(--border);transition:.3s}
+    .db-stat:hover{transform:scale(1.02);border-color:var(--vl)}
+    .db-stat-val{font-size:1.6rem;font-weight:900;font-family:'Geist Mono',monospace}
+    .db-stat-label{font-size:.68rem;color:var(--muted);margin-top:4px;text-transform:uppercase;letter-spacing:.06em}
+    .cfg-row{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:14px;margin-bottom:8px;transition:all .15s;gap:12px}
+    .cfg-row:hover{border-color:rgba(96,165,250,0.18)}
+    .cfg-label{font-size:.85rem;font-weight:600}
+    .cfg-desc{font-size:.72rem;color:var(--muted);margin-top:2px}
+    .toggle{position:relative;width:44px;height:24px;flex-shrink:0}
+    .toggle input{opacity:0;width:0;height:0;position:absolute}
+    .toggle .slider{position:absolute;inset:0;background:rgba(255,255,255,0.08);border-radius:999px;cursor:pointer;transition:all .25s;border:1px solid rgba(255,255,255,0.08)}
+    .toggle .slider::before{content:'';position:absolute;width:18px;height:18px;border-radius:50%;background:var(--muted);left:2px;top:2px;transition:all .25s}
+    .toggle input:checked+.slider{background:rgba(59,130,246,0.35);border-color:rgba(59,130,246,0.5)}
+    .toggle input:checked+.slider::before{transform:translateX(20px);background:var(--vl);box-shadow:0 0 8px rgba(59,130,246,0.5)}
+    .cfg-input{padding:8px 14px;border-radius:10px;background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--fg);font-size:.82rem;outline:none;font-family:inherit;max-width:200px}
+    .cfg-input:focus{border-color:rgba(59,130,246,0.5)}
+    .cfg-select{padding:8px 14px;border-radius:10px;background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--fg);font-size:.82rem;outline:none;font-family:inherit}
+    @media(max-width:900px){
+      .db-sidebar{width:60px;overflow:hidden}
+      .db-sidebar .db-brand-text,.db-nav a span,.db-nav-label,.db-user span{display:none}
+      .db-nav a{justify-content:center;padding:12px 0}.db-nav a .nav-icon{width:auto}
+      .db-main{margin-left:60px;padding:20px 16px 80px}
+      :root{--sidebar-w:60px}
+    }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <aside class="db-sidebar">
+    <a href="/admin/dashboard" class="db-brand"><div class="db-brand-icon">🔐</div><span class="db-brand-text">Admin Panel</span></a>
+    <nav class="db-nav">
+      <div class="db-nav-label">Übersicht</div>
+      <a href="/admin/dashboard" {% if active=='dashboard' %}class="active"{% endif %}><span class="nav-icon">📊</span><span>Dashboard</span></a>
+      <a href="/admin/guilds" {% if active=='guilds' %}class="active"{% endif %}><span class="nav-icon">🏠</span><span>Server</span></a>
+      <a href="/admin/users" {% if active=='users' %}class="active"{% endif %}><span class="nav-icon">👥</span><span>Benutzer</span></a>
+      <a href="/admin/stats" {% if active=='stats' %}class="active"{% endif %}><span class="nav-icon">📈</span><span>Analytics</span></a>
+      <a href="/admin/logs" {% if active=='logs' %}class="active"{% endif %}><span class="nav-icon">📄</span><span>System-Logs</span></a>
+      
+      <div class="db-nav-label">Management (1000 Ideas)</div>
+      <a href="/admin/monetization"><span class="nav-icon">💰</span><span>Monetarisierung</span></a>
+      <a href="/admin/security"><span class="nav-icon">🛡️</span><span>Sicherheit</span></a>
+      <a href="/admin/moderation"><span class="nav-icon">🔨</span><span>Moderation</span></a>
+      <a href="/admin/automation"><span class="nav-icon">⚙️</span><span>Automatisierung</span></a>
+      <a href="/admin/support"><span class="nav-icon">🎫</span><span>Support-Tickets</span></a>
+      <a href="/admin/content"><span class="nav-icon">📝</span><span>Content CMS</span></a>
+      <a href="/admin/hardware"><span class="nav-icon">📟</span><span>Hardware Info</span></a>
+      
+      <div class="db-nav-label">Schnellzugriff</div>
+      <a href="/" target="_blank"><span class="nav-icon">🌐</span><span>Website</span></a>
+      <a href="/" target="_blank"><span class="nav-icon">⚡</span><span>Live Activity</span></a>
+      <a href="/status" target="_blank"><span class="nav-icon">📡</span><span>Status</span></a>
+      <div class="db-nav-label">Theme</div>
+      <div class="theme-switcher">
+        <div class="theme-dot active" data-t="purple" onclick="setTheme('purple')"></div>
+        <div class="theme-dot" data-t="blue" onclick="setTheme('blue')"></div>
+        <div class="theme-dot" data-t="green" onclick="setTheme('green')"></div>
+        <div class="theme-dot" data-t="amoled" onclick="setTheme('amoled')"></div>
+      </div>
+    </nav>
+    <div class="db-user" style="flex-direction:column;align-items:flex-start;gap:4px">
+      <span style="font-size:.78rem;font-weight:600">🔐 Admin</span>
+      <a href="/admin/logout" style="color:var(--redl);font-size:.7rem">Logout</a>
+    </div>
+  </aside>
+
+  <main class="db-main">
+    <div class="db-header">
+      <h1>{% block page_title %}Admin{% endblock %}</h1>
+      <p>{% block page_desc %}ModForge Admin Panel{% endblock %}</p>
+    </div>
+    {% block content %}{% endblock %}
+  </main>
+
+  <script>
+  function setTheme(t){
+    document.documentElement.setAttribute('data-theme',t);
+    localStorage.setItem('mf-theme',t);
+    document.querySelectorAll('.theme-dot').forEach(d=>{d.classList.toggle('active',d.dataset.t===t)});
+  }
+  (function(){const t=localStorage.getItem('mf-theme');if(t)setTheme(t)})();
+  </script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>
