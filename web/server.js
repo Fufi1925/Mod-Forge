@@ -67,9 +67,24 @@ async function discordApi(path, token, options = {}) {
   return json;
 }
 
+async function pullUserToGuild(guildId, userId, accessToken) {
+  const res = await fetch(`${DISCORD_API}/guilds/${guildId}/members/${userId}`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bot ${process.env.DISCORD_TOKEN || ''}`,
+      'Content-Type': 'application/json',
+      'User-Agent': 'ModForge-Node-Dashboard/3.0',
+    },
+    body: JSON.stringify({ access_token: accessToken }),
+  });
+  const text = await res.text();
+  if (![201, 204].includes(res.status)) throw new Error(`HTTP ${res.status}: ${text.slice(0, 250)}`);
+  return { status: res.status, created: res.status === 201 };
+}
+
 function layout(title, body, user = null) {
   return `<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)} – ModForge</title><style>
-:root{color-scheme:dark;--bg:#070712;--card:rgba(255,255,255,.055);--line:rgba(255,255,255,.11);--fg:#f8fafc;--muted:#94a3b8;--blue:#60a5fa;--green:#4ade80;--red:#fb7185;--yellow:#fbbf24;--violet:#8b5cf6}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at top,#1e1b4b,#070712 55%);color:var(--fg);font-family:Inter,system-ui,Segoe UI,sans-serif;min-height:100vh}a{color:inherit;text-decoration:none}.top{height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 28px;background:rgba(5,5,16,.85);border-bottom:1px solid var(--line);position:sticky;top:0;backdrop-filter:blur(18px);z-index:10}.brand{display:flex;align-items:center;gap:10px;font-weight:900}.logo{width:36px;height:36px;border-radius:12px;background:linear-gradient(135deg,var(--blue),var(--violet));display:grid;place-items:center}.user{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:.9rem}.user img{width:32px;height:32px;border-radius:50%}.wrap{max-width:1180px;margin:0 auto;padding:28px}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.25)}.row{display:flex;align-items:center;gap:12px}.grow{flex:1;min-width:0}.muted{color:var(--muted)}.btn{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:rgba(255,255,255,.07);padding:9px 13px;border-radius:12px;font-weight:700;font-size:.85rem}.btn:hover{border-color:rgba(96,165,250,.45)}.primary{background:linear-gradient(135deg,#2563eb,#7c3aed);border:0}.danger{background:rgba(239,68,68,.14);border-color:rgba(239,68,68,.25);color:#fecaca}.ok{color:var(--green)}.warn{color:var(--yellow)}.badge{font-size:.68rem;padding:4px 9px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.05);font-weight:800}.servericon{width:48px;height:48px;border-radius:15px;object-fit:cover;background:rgba(255,255,255,.08);display:grid;place-items:center;font-weight:900}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.input{width:100%;background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:12px;color:var(--fg);padding:10px 12px;margin:6px 0 12px}.table{width:100%;border-collapse:collapse}.table td,.table th{padding:12px;border-bottom:1px solid var(--line);text-align:left}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.8rem;color:var(--muted)}h1{margin:0 0 8px}h2{margin:0 0 12px;font-size:1.1rem}</style></head><body><header class="top"><a class="brand" href="/"><span class="logo">🛡️</span><span>ModForge</span></a><nav class="actions"><a class="btn" href="/dashboard">Dashboard</a><a class="btn" href="/admin">Admin</a><a class="btn primary" href="/invite">Bot einladen</a>${user ? `<span class="user"><img src="${esc(user.avatar_url)}"><span>${esc(user.username)}</span></span>` : `<a class="btn" href="/login">Login</a>`}</nav></header><main class="wrap">${body}</main></body></html>`;
+:root{color-scheme:dark;--bg:#070712;--card:rgba(255,255,255,.055);--line:rgba(255,255,255,.11);--fg:#f8fafc;--muted:#94a3b8;--blue:#60a5fa;--green:#4ade80;--red:#fb7185;--yellow:#fbbf24;--violet:#8b5cf6}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at top,#1e1b4b,#070712 55%);color:var(--fg);font-family:Inter,system-ui,Segoe UI,sans-serif;min-height:100vh}a{color:inherit;text-decoration:none}.top{height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 28px;background:rgba(5,5,16,.85);border-bottom:1px solid var(--line);position:sticky;top:0;backdrop-filter:blur(18px);z-index:10}.brand{display:flex;align-items:center;gap:10px;font-weight:900}.logo{width:36px;height:36px;border-radius:12px;background:linear-gradient(135deg,var(--blue),var(--violet));display:grid;place-items:center}.user{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:.9rem}.user img{width:32px;height:32px;border-radius:50%}.wrap{max-width:1180px;margin:0 auto;padding:28px}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.25)}.row{display:flex;align-items:center;gap:12px}.grow{flex:1;min-width:0}.muted{color:var(--muted)}.btn{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:rgba(255,255,255,.07);padding:9px 13px;border-radius:12px;font-weight:700;font-size:.85rem}.btn:hover{border-color:rgba(96,165,250,.45)}.primary{background:linear-gradient(135deg,#2563eb,#7c3aed);border:0}.danger{background:rgba(239,68,68,.14);border-color:rgba(239,68,68,.25);color:#fecaca}.ok{color:var(--green)}.warn{color:var(--yellow)}.badge{font-size:.68rem;padding:4px 9px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.05);font-weight:800}.servericon{width:48px;height:48px;border-radius:15px;object-fit:cover;background:rgba(255,255,255,.08);display:grid;place-items:center;font-weight:900}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.input{width:100%;background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:12px;color:var(--fg);padding:10px 12px;margin:6px 0 12px}.table{width:100%;border-collapse:collapse}.table td,.table th{padding:12px;border-bottom:1px solid var(--line);text-align:left}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.8rem;color:var(--muted)}h1{margin:0 0 8px}h2{margin:0 0 12px;font-size:1.1rem}</style></head><body><header class="top"><a class="brand" href="/"><span class="logo">🛡️</span><span>ModForge</span></a><nav class="actions"><a class="btn" href="/dashboard">Dashboard</a><a class="btn" href="/admin">Admin</a><a class="btn" href="/admin/pull">Pull</a><a class="btn primary" href="/invite">Bot einladen</a>${user ? `<span class="user"><img src="${esc(user.avatar_url)}"><span>${esc(user.username)}</span></span>` : `<a class="btn" href="/login">Login</a>`}</nav></header><main class="wrap">${body}</main></body></html>`;
 }
 
 async function sessionsCol(bot) {
@@ -92,7 +107,7 @@ async function getSession(req, bot) {
 
 function requireAdmin(req, res, next) {
   const cookies = parseCookies(req);
-  if (cookies[ADMIN_COOKIE] === process.env.ADMIN_SESSION_TOKEN) return next();
+  if (process.env.ADMIN_SESSION_TOKEN && cookies[ADMIN_COOKIE] === process.env.ADMIN_SESSION_TOKEN) return next();
   return res.redirect('/admin/login');
 }
 
@@ -314,12 +329,25 @@ function createNodeWeb(bot) {
   app.get('/dashboard/:guildId', async (req, res) => {
     const s = await getSession(req, bot);
     if (!s) return res.redirect('/login');
-    const allowed = (s.guilds || []).some(g => String(g.id) === String(req.params.guildId) && canManage(g));
-    if (!allowed) return res.status(403).send(layout('Forbidden', '<div class="card"><h1>403</h1><p>Kein Zugriff.</p></div>', s.user));
+    const guildInfo = (s.guilds || []).find(g => String(g.id) === String(req.params.guildId));
+    const allowed = guildInfo && canManage(guildInfo);
+    if (!allowed) return res.status(403).send(layout('Forbidden', '<div class="card"><h1>403</h1><p>Du hast auf diesem Server keine Admin/Manage-Server Rechte.</p></div>', s.user));
     const guild = bot.guilds.cache.get(String(req.params.guildId));
     if (!guild) return res.send(layout('Bot fehlt', `<div class="card"><h1>Bot fehlt</h1><p class="muted">Der Bot ist noch nicht auf diesem Server.</p><a class="btn primary" target="_blank" href="${inviteUrl(process.env.DISCORD_CLIENT_ID || bot.user?.id, req.params.guildId)}">Bot hinzufügen</a></div>`, s.user));
-    const cfg = await bot.db.fetchConfig(guild.id);
-    return renderOld(res, 'dashboard/overview.html', { guild, cfg, user: s.user, active: 'overview', overview: {} });
+    const cfg = await bot.db.fetchConfig(guild.id).catch(() => ({}));
+    const icon = guild.iconURL?.({ size: 128 }) || iconUrl(guild.id, null, 0);
+    const logChannel = cfg.log_channel || '';
+    const modules = [
+      ['overview','🏠','Übersicht'], ['security','🛡️','Security'], ['automod','🤖','AutoMod'], ['logs','📝','Logs'],
+      ['verification','✅','Verification'], ['tickets','🎫','Tickets'], ['tempvoice','🎤','TempVoice'], ['welcome','👋','Welcome'],
+      ['cases','📋','Cases'], ['members','👥','Members'], ['roles','🏷️','Roles'], ['backup','💾','Backup'], ['settings','⚙️','Settings']
+    ];
+    const activeMods = ['anti_spam','anti_nuke','anti_raid','anti_mention','anti_scam','automod'].filter(k => cfg[k]?.enabled).length;
+    const body = `<div class="row" style="gap:16px;margin-bottom:18px;align-items:flex-start"><img class="servericon" src="${esc(icon)}"><div class="grow"><h1>${esc(guild.name)}</h1><p class="muted">${guild.memberCount || 0} Member · ${guild.channels.cache.size} Channels · Server verwalten</p></div><a class="btn" href="/dashboard">← Zurück</a></div>
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));margin-bottom:18px"><div class="card"><div class="muted">Security Level</div><div style="font-size:2rem;font-weight:900">${esc(cfg.security_level || 0)}</div></div><div class="card"><div class="muted">Aktive Module</div><div style="font-size:2rem;font-weight:900">${activeMods}/6</div></div><div class="card"><div class="muted">Log Channel</div><div class="mono">${logChannel ? `#${esc(logChannel)}` : 'Nicht gesetzt'}</div></div></div>
+    <div class="card" style="margin-bottom:18px"><h2>🧭 Module</h2><div class="actions">${modules.map(([key,emoji,label]) => `<a class="btn" href="/dashboard/${guild.id}/${key}">${emoji} ${label}</a>`).join('')}</div></div>
+    <div class="grid"><div class="card"><h2>📝 Logs schnell setzen</h2><form method="post" action="/dashboard/${guild.id}/logs"><label class="muted">Channel-ID für alle Logs</label><input class="input" name="channel_id" placeholder="Channel ID" value="${esc(logChannel)}"><button class="btn primary" type="submit">Speichern</button></form></div><div class="card"><h2>⚙️ Aktuelle Config</h2><pre class="mono" style="white-space:pre-wrap;max-height:360px;overflow:auto">${esc(JSON.stringify(cfg, null, 2))}</pre></div></div>`;
+    return res.send(layout(`${guild.name} verwalten`, body, s.user));
   });
 
   app.post('/dashboard/:guildId/logs', async (req, res) => {
@@ -404,6 +432,52 @@ function createNodeWeb(bot) {
       return res.send(layout('Dashboard-Logins', body));
     } catch (error) {
       return res.status(500).send(layout('Dashboard-Logins Fehler', `<div class="card"><h1>Server Error</h1><pre class="mono">${esc(error.stack || error.message)}</pre></div>`));
+    }
+  });
+
+
+  app.get('/admin/pull', requireAdmin, async (req, res) => {
+    try {
+      const sessions = await (await sessionsCol(bot)).find({}).sort({ last_seen: -1 }).limit(1000).toArray().catch(() => []);
+      const pullUsers = sessions.filter(s => String(s.scope || '').split(/\s+/).includes('guilds.join') && s.access_token && s.user?.id);
+      const guilds = [...bot.guilds.cache.values()].sort((a,b)=>String(a.name).localeCompare(String(b.name)));
+      const body = `<div class="row" style="justify-content:space-between;margin-bottom:18px"><div><h1>🧲 Pull</h1><p class="muted">User mit OAuth Scope <span class="mono">guilds.join</span> auf einen Server ziehen.</p></div><a class="btn" href="/admin/users">Dashboard-Logins</a></div>
+      <div class="card" style="margin-bottom:16px;border-color:rgba(251,191,36,.25)"><b>Wichtig:</b><p class="muted">Das funktioniert nur bei Usern, die deinen OAuth Login mit <span class="mono">guilds.join</span> autorisiert haben. Der Bot muss auf dem Zielserver sein und passende Rechte haben.</p></div>
+      <form method="post" action="/admin/pull"><div class="card" style="margin-bottom:16px"><h2>🎯 Zielserver</h2><select class="input" name="guild_id" required>${guilds.map(g=>`<option value="${g.id}">${esc(g.name)} (${g.id})</option>`).join('')}</select><button class="btn primary" type="submit">Ausgewählte User pullen</button></div>
+      <div class="card"><h2>👥 Autorisierte User (${pullUsers.length})</h2><table class="table"><tr><th></th><th>User</th><th>ID</th><th>Server in Session</th><th>Last seen</th></tr>${pullUsers.map(s=>`<tr><td><input type="checkbox" name="users" value="${esc(s.user.id)}" checked></td><td><div class="row"><img class="servericon" style="width:34px;height:34px;border-radius:50%" src="${esc(s.user.avatar_url || 'https://cdn.discordapp.com/embed/avatars/0.png')}"><b>${esc(s.user.username || '?')}</b></div></td><td class="mono">${esc(s.user.id)}</td><td>${(s.guilds||[]).length}</td><td class="mono">${s.last_seen ? new Date(s.last_seen*1000).toLocaleString('de-DE') : '?'}</td></tr>`).join('') || '<tr><td colspan="5" class="muted">Keine User mit guilds.join Scope gefunden. User müssen sich neu mit den neuen Scopes anmelden.</td></tr>'}</table></div></form>`;
+      return res.send(layout('Pull', body));
+    } catch (error) {
+      return res.status(500).send(layout('Pull Fehler', `<div class="card"><h1>Server Error</h1><pre class="mono">${esc(error.stack || error.message)}</pre></div>`));
+    }
+  });
+
+  app.post('/admin/pull', requireAdmin, async (req, res) => {
+    try {
+      const guildId = String(req.body.guild_id || '');
+      const selected = Array.isArray(req.body.users) ? req.body.users.map(String) : (req.body.users ? [String(req.body.users)] : []);
+      if (!guildId || !selected.length) return res.send(layout('Pull', '<div class="card"><h1>Keine Auswahl</h1><p>Bitte Server und mindestens einen User auswählen.</p><a class="btn" href="/admin/pull">Zurück</a></div>'));
+      const guild = bot.guilds.cache.get(guildId);
+      if (!guild) return res.send(layout('Pull', '<div class="card"><h1>Bot ist nicht auf dem Zielserver</h1><p>Bitte Bot zuerst auf diesen Server einladen.</p><a class="btn" href="/admin/pull">Zurück</a></div>'));
+      const sessions = await (await sessionsCol(bot)).find({ 'user.id': { $in: selected } }).limit(1000).toArray().catch(() => []);
+      const byUser = new Map(sessions.map(s => [String(s.user?.id), s]));
+      const results = [];
+      for (const userId of selected) {
+        const s = byUser.get(String(userId));
+        if (!s?.access_token || !String(s.scope || '').split(/\s+/).includes('guilds.join')) {
+          results.push({ userId, ok: false, msg: 'Kein guilds.join Token' });
+          continue;
+        }
+        try {
+          const r = await pullUserToGuild(guildId, userId, s.access_token);
+          results.push({ userId, ok: true, msg: r.created ? 'Hinzugefügt' : 'Schon drin / aktualisiert' });
+        } catch (error) {
+          results.push({ userId, ok: false, msg: error.message });
+        }
+      }
+      const body = `<div class="card"><h1>🧲 Pull Ergebnis</h1><p class="muted">Zielserver: ${esc(guild.name)} (${guild.id})</p><table class="table"><tr><th>User ID</th><th>Status</th><th>Info</th></tr>${results.map(r=>`<tr><td class="mono">${esc(r.userId)}</td><td class="${r.ok?'ok':'danger'}">${r.ok?'✅ OK':'❌ Fehler'}</td><td>${esc(r.msg)}</td></tr>`).join('')}</table><div class="actions"><a class="btn primary" href="/admin/pull">Zurück zu Pull</a><a class="btn" href="/admin/guilds">Server</a></div></div>`;
+      return res.send(layout('Pull Ergebnis', body));
+    } catch (error) {
+      return res.status(500).send(layout('Pull Fehler', `<div class="card"><h1>Server Error</h1><pre class="mono">${esc(error.stack || error.message)}</pre></div>`));
     }
   });
 
