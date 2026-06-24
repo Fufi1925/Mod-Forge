@@ -166,8 +166,31 @@ function requireAdmin(req, res, next) {
 }
 
 function canManage(guild) {
-  const p = Number(guild.permissions || 0);
-  return Boolean(guild.owner || (p & 0x8) || (p & 0x20));
+  if (!guild) return false;
+  if (guild.owner === true || guild.owner === 'true') return true;
+  try {
+    const p = BigInt(guild.permissions || '0');
+    return Boolean((p & 0x8n) || (p & 0x20n)); // Administrator oder Manage Guild/Server verwalten
+  } catch {
+    const p = Number(guild.permissions || 0);
+    return Boolean((p & 0x8) || (p & 0x20));
+  }
+}
+
+
+function adminLoginHtml(error = '') {
+  return layout('Admin Login', `<div class="card" style="max-width:440px;margin:60px auto">
+    <h1>🔐 Admin Login</h1>
+    <p class="muted">Melde dich mit ADMIN_USERNAME und ADMIN_PASSWORD an.</p>
+    ${error ? `<div class="card" style="border-color:rgba(239,68,68,.35);background:rgba(239,68,68,.08);margin:14px 0;padding:12px;color:#fecaca">${esc(error)}</div>` : ''}
+    <form method="post" action="/admin/login">
+      <label class="muted">Username</label>
+      <input class="input" name="username" placeholder="admin" autocomplete="username" required>
+      <label class="muted">Passwort</label>
+      <input class="input" name="password" type="password" placeholder="Passwort" autocomplete="current-password" required>
+      <button class="btn primary" type="submit">Login</button>
+    </form>
+  </div>`);
 }
 
 function createNodeWeb(bot) {
@@ -489,8 +512,12 @@ function createNodeWeb(bot) {
   app.post('/api/guild/:guildId/:module/:rest(*)', async (req, res) => res.json({ ok: true, module: req.params.module, path: req.params.rest }));
   app.delete('/api/guild/:guildId/:module/:rest(*)', async (req, res) => res.json({ ok: true }));
 
-  app.get('/admin/login', (req, res) => renderOld(res, 'admin/login.html', { error: null }));
+  app.get('/admin/login', (req, res) => res.send(adminLoginHtml('')));
   app.post('/admin/login', async (req, res) => {
+    if (!process.env.ADMIN_PASSWORD) {
+      await recordAdminEvent(bot, req, 'admin_login_not_configured', { username: req.body.username }).catch(() => null);
+      return res.status(503).send(adminLoginHtml('ADMIN_PASSWORD ist nicht in Railway Variables gesetzt.'));
+    }
     if (req.body.username === (process.env.ADMIN_USERNAME || 'admin') && req.body.password === process.env.ADMIN_PASSWORD) {
       const token = crypto.randomBytes(32).toString('hex');
       process.env.ADMIN_SESSION_TOKEN = token;
@@ -499,7 +526,7 @@ function createNodeWeb(bot) {
       return res.redirect('/admin');
     }
     await recordAdminEvent(bot, req, 'admin_login_failed', { username: req.body.username }).catch(() => null);
-    return renderOld(res.status(401), 'admin/login.html', { error: 'Benutzername oder Passwort falsch.' });
+    return res.status(401).send(adminLoginHtml('Benutzername oder Passwort falsch.'));
   });
   app.get('/admin/logout', async (req, res) => { await recordAdminEvent(bot, req, 'admin_logout').catch(() => null); clearCookie(res, ADMIN_COOKIE); res.redirect('/'); });
 
