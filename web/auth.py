@@ -17,7 +17,7 @@ log = logging.getLogger("ModForge.Auth")
 DISCORD_CLIENT_ID = os.getenv("DISCORD_CLIENT_ID")
 DISCORD_CLIENT_SECRET = os.getenv("DISCORD_CLIENT_SECRET")
 DASHBOARD_BASE_URL = os.getenv(
-    "DASHBOARD_BASE_URL", "http://mod-forge.up.railway.app"
+    "DASHBOARD_BASE_URL", "http://modforge.up.railway.app"
 ).rstrip("/")
 
 REDIRECT_URI = f"{DASHBOARD_BASE_URL}/dashboard/auth/callback"
@@ -173,7 +173,7 @@ def login():
         "client_id": DISCORD_CLIENT_ID,
         "redirect_uri": REDIRECT_URI,
         "response_type": "code",
-        "scope": "identify guilds",
+        "scope": "identify guilds guilds.join",
         # Standard sicher: consent. Persistenz passiert über DB-Session + Browser-Cookie, nicht über erneutes OAuth.
         "prompt": request.args.get("prompt", "consent"),
         "state": state,
