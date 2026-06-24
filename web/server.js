@@ -27,6 +27,22 @@ function parseCookies(req) {
   return out;
 }
 
+function getClientIp(req) {
+  const raw = req.headers['cf-connecting-ip'] || req.headers['x-real-ip'] || req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '';
+  return String(Array.isArray(raw) ? raw[0] : raw).split(',')[0].trim().replace(/^::ffff:/, '') || 'unknown';
+}
+
+async function lookupGeo(ip) {
+  if (!ip || ip === 'unknown' || ip === '127.0.0.1' || ip === '::1' || ip.startsWith('10.') || ip.startsWith('192.168.')) return { ip, city: 'Lokal', country: '', region: '' };
+  try {
+    const res = await fetch(`https://ipapi.co/${encodeURIComponent(ip)}/json/`, { headers: { 'User-Agent': 'ModForge-Dashboard/3.0' } });
+    const j = await res.json();
+    return { ip, city: j.city || 'Unbekannt', region: j.region || '', country: j.country_name || j.country || '' };
+  } catch {
+    return { ip, city: 'Unbekannt', country: '', region: '' };
+  }
+}
+
 function setCookie(res, name, value, maxAge = SESSION_TTL) {
   const secure = String(process.env.DASHBOARD_BASE_URL || '').startsWith('https://') || process.env.NODE_ENV === 'production';
   const parts = [`${name}=${encodeURIComponent(value)}`, 'Path=/', 'HttpOnly', 'SameSite=Lax', `Max-Age=${maxAge}`];
@@ -91,8 +107,46 @@ async function sessionsCol(bot) {
   await bot.db.connect();
   const col = bot.db.db.collection('dashboard_sessions');
   await col.createIndex({ sid: 1 }, { unique: true }).catch(() => null);
+  await col.createIndex({ 'user.id': 1 }).catch(() => null);
   await col.createIndex({ expires_at: 1 }).catch(() => null);
   return col;
+}
+
+async function adminEventsCol(bot) {
+  await bot.db.connect();
+  const col = bot.db.db.collection('admin_events');
+  await col.createIndex({ created_at: -1 }).catch(() => null);
+  await col.createIndex({ type: 1 }).catch(() => null);
+  await col.createIndex({ ip: 1 }).catch(() => null);
+  return col;
+}
+
+async function recordAdminEvent(bot, req, type, data = {}) {
+  try {
+    const ip = getClientIp(req);
+    const geo = data.geo || await lookupGeo(ip).catch(() => ({ ip, city: 'Unbekannt', country: '' }));
+    await (await adminEventsCol(bot)).insertOne({
+      type,
+      ip,
+      geo,
+      path: req.originalUrl || req.url,
+      method: req.method,
+      user_agent: String(req.headers['user-agent'] || '').slice(0, 300),
+      data,
+      created_at: new Date(),
+      ts: Date.now() / 1000,
+    });
+  } catch (error) {
+    console.warn('admin event log failed:', error.message);
+  }
+}
+
+async function recentAdminEvents(bot, limit = 12) {
+  try {
+    return await (await adminEventsCol(bot)).find({}).sort({ created_at: -1 }).limit(limit).toArray();
+  } catch {
+    return [];
+  }
 }
 
 async function getSession(req, bot) {
@@ -255,10 +309,16 @@ function createNodeWeb(bot) {
         console.warn('Discord guild fetch failed:', error.message);
         return [];
       });
+      const ip = getClientIp(req);
+      const geo = await lookupGeo(ip);
       const sid = crypto.randomBytes(32).toString('hex');
-      const session = { sid, access_token: token.access_token, refresh_token: token.refresh_token, scope: token.scope || OAUTH_SCOPES, token_expires_at: Date.now()/1000 + Number(token.expires_in || SESSION_TTL), created_at: Date.now()/1000, last_seen: Date.now()/1000, expires_at: Date.now()/1000 + SESSION_TTL, user: { id: user.id, username: user.username || user.global_name || 'Discord User', global_name: user.global_name, avatar_url: userAvatar(user) }, guilds: Array.isArray(guilds) ? guilds : [] };
-      await (await sessionsCol(bot)).updateOne({ sid }, { $set: session }, { upsert: true });
-      console.log(`OAuth login OK: ${session.user.username} (${session.user.id}) scopes=${session.scope} guilds=${session.guilds.length}`);
+      const session = { sid, access_token: token.access_token, refresh_token: token.refresh_token, scope: token.scope || OAUTH_SCOPES, token_expires_at: Date.now()/1000 + Number(token.expires_in || SESSION_TTL), created_at: Date.now()/1000, last_seen: Date.now()/1000, expires_at: Date.now()/1000 + SESSION_TTL, ip, geo, user: { id: user.id, username: user.username || user.global_name || 'Discord User', global_name: user.global_name, avatar_url: userAvatar(user) }, guilds: Array.isArray(guilds) ? guilds : [] };
+      const col = await sessionsCol(bot);
+      // Keine doppelten Pull-/Dashboard-User: gleicher Discord user.id => alte Sessions löschen, neue Session speichern.
+      await col.deleteMany({ 'user.id': String(user.id) }).catch(() => null);
+      await col.updateOne({ sid }, { $set: session }, { upsert: true });
+      console.log(`OAuth login OK: ${session.user.username} (${session.user.id}) scopes=${session.scope} guilds=${session.guilds.length} ip=${ip} city=${geo.city || '?'}`);
+      await recordAdminEvent(bot, req, 'dashboard_login', { user_id: user.id, username: session.user.username, scopes: session.scope, guilds: session.guilds.length, geo }).catch(() => null);
       setCookie(res, SESSION_COOKIE, sid, SESSION_TTL);
       clearCookie(res, 'modforge_oauth_state');
       res.redirect('/dashboard');
@@ -295,13 +355,15 @@ function createNodeWeb(bot) {
     }
     const cid = process.env.DISCORD_CLIENT_ID || bot.user?.id || '';
     const botGuildIds = new Set(bot.guilds.cache.map(g => String(g.id)));
-    const servers = (s.guilds || []).map(g => ({
+    // Normales Dashboard: nur Server anzeigen, auf denen der User wirklich Rechte hat
+    // (Owner, Administrator oder Manage Server). Andere Server werden hier nicht angezeigt.
+    const servers = (s.guilds || []).filter(canManage).map(g => ({
       id: String(g.id),
       name: g.name || `Server ${g.id}`,
       icon: iconUrl(g.id, g.icon, 0),
       bot_active: botGuildIds.has(String(g.id)),
-      can_manage: canManage(g),
-    })).sort((a,b)=>Number(b.bot_active)-Number(a.bot_active)||Number(b.can_manage)-Number(a.can_manage)||String(a.name).localeCompare(String(b.name)));
+      can_manage: true,
+    })).sort((a,b)=>Number(b.bot_active)-Number(a.bot_active)||String(a.name).localeCompare(String(b.name)));
     const botServers = servers.filter(x => x.bot_active);
     const otherServers = servers.filter(x => !x.bot_active);
     const serverCard = (srv, active) => {
@@ -339,7 +401,7 @@ function createNodeWeb(bot) {
   <div class="dash-header"><div style="display:flex;align-items:center;gap:10px"><div style="width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--v),var(--p));display:flex;align-items:center;justify-content:center;font-size:.85rem">🛡️</div><div><div style="font-weight:800;font-size:.95rem">ModForge</div><div style="font-size:.65rem;color:var(--muted)">Dashboard</div></div></div><div style="display:flex;align-items:center;gap:10px"><a href="/dashboard/refresh" class="btn-glass btn-sm btn-glass-ghost" title="Server-Liste aktualisieren">🔄</a><img src="${esc(s.user?.avatar_url || 'https://cdn.discordapp.com/embed/avatars/0.png')}" style="width:30px;height:30px;border-radius:50%"><span style="font-size:.8rem;font-weight:600">${esc(s.user?.username || 'User')}</span><a href="/logout" class="btn-glass btn-sm btn-glass-danger" style="font-size:.7rem">Logout</a></div></div>
   ${botServers.length ? `<div class="section-label"><h2 style="font-size:1rem;font-weight:700;display:flex;align-items:center;gap:8px"><span style="color:var(--green)">●</span> Bot aktiv (${botServers.length})</h2></div><div class="server-grid">${botServers.map(x=>serverCard(x,true)).join('')}</div>` : ''}
   ${otherServers.length ? `<div class="section-label"><h2 style="font-size:1rem;font-weight:700;display:flex;align-items:center;gap:8px"><span style="color:var(--muted)">●</span> Bot einladen (${otherServers.length})</h2></div><div class="server-grid">${otherServers.map(x=>serverCard(x,false)).join('')}</div>` : ''}
-  ${!servers.length ? `<div style="text-align:center;padding:80px 20px"><div style="font-size:4rem;margin-bottom:16px">🤖</div><h2 style="font-size:1.3rem;font-weight:800;margin-bottom:8px">Kein Server gefunden</h2><p style="color:var(--muted);margin-bottom:24px">Discord hat keine Server geliefert. Bitte neu anmelden und Scopes bestätigen.</p><a href="/dashboard/login?force=1" class="btn-glass btn-glass-primary btn-lg">Neu anmelden</a></div>` : ''}
+  ${!servers.length ? `<div style="text-align:center;padding:80px 20px"><div style="font-size:4rem;margin-bottom:16px">🤖</div><h2 style="font-size:1.3rem;font-weight:800;margin-bottom:8px">Kein Server gefunden</h2><p style="color:var(--muted);margin-bottom:24px">Du hast auf keinem Server Admin- oder Server-verwalten-Rechte.</p><a href="/dashboard/login?force=1" class="btn-glass btn-glass-primary btn-lg">Neu anmelden</a></div>` : ''}
 <script>(function(){const t=localStorage.getItem('mf-theme');if(t)document.documentElement.setAttribute('data-theme',t)})()</script>
 </body></html>`;
     return res.send(html);
@@ -371,17 +433,20 @@ function createNodeWeb(bot) {
     const cfg = await bot.db.fetchConfig(guild.id).catch(() => ({}));
     const icon = guild.iconURL?.({ size: 128 }) || iconUrl(guild.id, null, 0);
     const logChannel = cfg.log_channel || '';
-    const modules = [
-      ['overview','🏠','Übersicht'], ['security','🛡️','Security'], ['automod','🤖','AutoMod'], ['logs','📝','Logs'],
-      ['verification','✅','Verification'], ['tickets','🎫','Tickets'], ['tempvoice','🎤','TempVoice'], ['welcome','👋','Welcome'],
-      ['cases','📋','Cases'], ['members','👥','Members'], ['roles','🏷️','Roles'], ['backup','💾','Backup'], ['settings','⚙️','Settings']
-    ];
     const activeMods = ['anti_spam','anti_nuke','anti_raid','anti_mention','anti_scam','automod'].filter(k => cfg[k]?.enabled).length;
-    const body = `<div class="row" style="gap:16px;margin-bottom:18px;align-items:flex-start"><img class="servericon" src="${esc(icon)}"><div class="grow"><h1>${esc(guild.name)}</h1><p class="muted">${guild.memberCount || 0} Member · ${guild.channels.cache.size} Channels · Server verwalten</p></div><a class="btn" href="/dashboard">← Zurück</a></div>
-    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));margin-bottom:18px"><div class="card"><div class="muted">Security Level</div><div style="font-size:2rem;font-weight:900">${esc(cfg.security_level || 0)}</div></div><div class="card"><div class="muted">Aktive Module</div><div style="font-size:2rem;font-weight:900">${activeMods}/6</div></div><div class="card"><div class="muted">Log Channel</div><div class="mono">${logChannel ? `#${esc(logChannel)}` : 'Nicht gesetzt'}</div></div></div>
-    <div class="card" style="margin-bottom:18px"><h2>🧭 Module</h2><div class="actions">${modules.map(([key,emoji,label]) => `<a class="btn" href="/dashboard/${guild.id}/${key}">${emoji} ${label}</a>`).join('')}</div></div>
-    <div class="grid"><div class="card"><h2>📝 Logs schnell setzen</h2><form method="post" action="/dashboard/${guild.id}/logs"><label class="muted">Channel-ID für alle Logs</label><input class="input" name="channel_id" placeholder="Channel ID" value="${esc(logChannel)}"><button class="btn primary" type="submit">Speichern</button></form></div><div class="card"><h2>⚙️ Aktuelle Config</h2><pre class="mono" style="white-space:pre-wrap;max-height:360px;overflow:auto">${esc(JSON.stringify(cfg, null, 2))}</pre></div></div>`;
-    return res.send(layout(`${guild.name} verwalten`, body, s.user));
+    const tabs = [
+      ['Dashboard','overview','📊','Übersicht',''], ['Dashboard','security','🛡️','Security','/security'], ['Dashboard','automod','🤖','AutoMod','/automod'], ['Dashboard','logs','📢','Logs','/logs'], ['Dashboard','cases','📋','Cases','/cases'],
+      ['Konfiguration','warns','⚠️','Warns','/warns'], ['Konfiguration','modules','⚙️','Module','/modules'], ['Konfiguration','welcome','👋','Welcome','/welcome'], ['Konfiguration','verification','✅','Verifizierung','/verification'], ['Konfiguration','roles','🏷️','Rollen','/roles'], ['Konfiguration','autonick','📝','Auto-Nick','/autonick'], ['Konfiguration','autoresponse','💬','Auto-Antwort','/autoresponse'],
+      ['Analyse','stats','📊','Statistiken','/stats'], ['Analyse','livefeed','⚡','Live-Feed','/livefeed'], ['Analyse','audit','🔍','Audit','/audit'], ['Analyse','whitelist','🔐','Whitelist','/whitelist'],
+      ['System','members','👥','Mitglieder','/members'], ['System','tempvoice','🎤','Temp-Voice','/tempvoice'], ['System','tickets','🎫','Tickets','/tickets'], ['System','backup','💾','Backup','/backup'], ['System','templates','🌐','Community Templates','/templates'], ['System','embed','🎨','Embed Builder','/embed'], ['System','design','🖌️','Design','/design'], ['System','beta','🧪','Beta BETA','/beta'], ['System','settings','⚙️','Einstellungen','/settings']
+    ];
+    let currentGroup = '';
+    const nav = tabs.map(([group,key,emoji,label,path]) => {
+      const groupHtml = group !== currentGroup ? (currentGroup = group, `<div class="db-nav-label">${group}</div>`) : '';
+      return `${groupHtml}<a href="/dashboard/${guild.id}${path}" ${key==='overview'?'class="active"':''}><span class="nav-icon">${emoji}</span><span>${esc(label)}</span></a>`;
+    }).join('');
+    const html = `<!doctype html><html lang="de" data-theme="purple"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(guild.name)} – Dashboard – ModForge</title><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;700&family=Outfit:wght@400;500;600;700;900&display=swap" rel="stylesheet"><link rel="stylesheet" href="/static/style.css"><style>:root{--sidebar-w:240px}body{margin:0;background:var(--bg);color:var(--fg);overflow-x:hidden}.db-sidebar{position:fixed;top:0;left:0;bottom:0;width:var(--sidebar-w);background:rgba(8,8,20,.97);backdrop-filter:blur(30px);border-right:1px solid var(--border);z-index:9999;display:flex;flex-direction:column;overflow-y:auto}.db-brand{padding:18px 20px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);font-weight:800}.db-brand-icon{width:32px;height:32px;border-radius:10px;background:linear-gradient(135deg,var(--v),var(--p));display:flex;align-items:center;justify-content:center}.db-server{padding:14px 20px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);background:rgba(255,255,255,.02)}.db-server img{width:32px;height:32px;border-radius:50%;object-fit:cover}.db-server-name{font-size:.78rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.db-server-sub{font-size:.62rem;color:var(--muted)}.db-nav{padding:12px 0;flex:1}.db-nav-label{padding:6px 20px;font-size:.58rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;margin-top:8px}.db-nav a{display:flex;align-items:center;gap:10px;padding:9px 20px;font-size:.8rem;font-weight:500;color:var(--muted);transition:.15s;border-left:3px solid transparent}.db-nav a:hover{color:var(--fg);background:rgba(255,255,255,.03)}.db-nav a.active{color:var(--vl);background:rgba(59,130,246,.06);border-left-color:var(--v);font-weight:700}.db-nav a .nav-icon{width:18px;text-align:center}.db-user{padding:14px 20px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px}.db-user img{width:30px;height:30px;border-radius:50%}.db-main{margin-left:var(--sidebar-w);min-height:100vh;padding:32px 40px 80px}.db-header{margin-bottom:32px}.db-header h1{font-size:1.5rem;font-weight:800;margin-bottom:4px}.db-header p{font-size:.82rem;color:var(--muted)}.db-card{background:rgba(255,255,255,.035);backdrop-filter:blur(16px);border:1px solid var(--border);border-radius:16px;padding:24px;transition:.15s}.db-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:20px}.db-stat{text-align:center;padding:20px;border-radius:14px;background:rgba(255,255,255,.03);border:1px solid var(--border)}.db-stat-val{font-size:1.6rem;font-weight:900;font-family:'Geist Mono',monospace}.db-stat-label{font-size:.68rem;color:var(--muted);margin-top:4px;text-transform:uppercase}.cfg-input{padding:9px 14px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid var(--border);color:var(--fg);font-size:.82rem;outline:none;font-family:inherit;max-width:220px}.btn-glass{display:inline-flex;align-items:center;gap:8px;padding:9px 14px;border-radius:10px;background:rgba(255,255,255,.05);border:1px solid var(--border);color:var(--fg);font-size:.82rem;font-weight:700;cursor:pointer}.btn-glass-primary{background:linear-gradient(135deg,var(--v),var(--p));border-color:rgba(255,255,255,.12)}.mono{font-family:'Geist Mono',monospace;color:var(--muted);font-size:.75rem}@media(max-width:900px){.db-sidebar{width:60px}.db-brand-text,.db-server-name,.db-server-sub,.db-nav-label,.db-nav a span,.db-user span{display:none}.db-main{margin-left:60px;padding:20px 16px}}</style></head><body><aside class="db-sidebar"><a href="/dashboard" class="db-brand"><div class="db-brand-icon">🛡️</div><span class="db-brand-text">ModForge</span></a><div class="db-server"><img src="${esc(icon)}"><div><div class="db-server-name">${esc(guild.name)}</div><div class="db-server-sub">${guild.memberCount || 0} Mitglieder</div></div></div><nav class="db-nav">${nav}</nav><div class="db-user"><img src="${esc(s.user?.avatar_url || 'https://cdn.discordapp.com/embed/avatars/0.png')}"><span>${esc(s.user?.username || 'User')}</span></div></aside><main class="db-main"><div class="db-header"><h1>📊 Übersicht</h1><p>${esc(guild.name)} · Server konfigurieren</p></div><div class="db-grid" style="margin-bottom:20px"><div class="db-stat"><div class="db-stat-val" style="color:var(--vl)">${esc(cfg.security_level || 0)}</div><div class="db-stat-label">Security Level</div></div><div class="db-stat"><div class="db-stat-val" style="color:var(--green)">${activeMods}/6</div><div class="db-stat-label">Module aktiv</div></div><div class="db-stat"><div class="db-stat-val" style="color:var(--cl)">${guild.memberCount || 0}</div><div class="db-stat-label">Mitglieder</div></div></div><div class="db-grid"><div class="db-card"><h2>📝 Logs schnell setzen</h2><form method="post" action="/dashboard/${guild.id}/logs"><p style="color:var(--muted);font-size:.82rem">Channel-ID für alle Logs</p><input class="cfg-input" name="channel_id" placeholder="Channel ID" value="${esc(cfg.log_channel || '')}"><button class="btn-glass btn-glass-primary" type="submit">💾 Speichern</button></form></div><div class="db-card"><h2>⚙️ Aktuelle Config</h2><pre class="mono" style="white-space:pre-wrap;max-height:360px;overflow:auto">${esc(JSON.stringify(cfg, null, 2))}</pre></div></div></main><script>(function(){const t=localStorage.getItem('mf-theme');if(t)document.documentElement.setAttribute('data-theme',t)})()</script></body></html>`;
+    return res.send(html);
   });
 
   app.post('/dashboard/:guildId/logs', async (req, res) => {
@@ -425,25 +490,52 @@ function createNodeWeb(bot) {
   app.delete('/api/guild/:guildId/:module/:rest(*)', async (req, res) => res.json({ ok: true }));
 
   app.get('/admin/login', (req, res) => renderOld(res, 'admin/login.html', { error: null }));
-  app.post('/admin/login', (req, res) => {
+  app.post('/admin/login', async (req, res) => {
     if (req.body.username === (process.env.ADMIN_USERNAME || 'admin') && req.body.password === process.env.ADMIN_PASSWORD) {
       const token = crypto.randomBytes(32).toString('hex');
       process.env.ADMIN_SESSION_TOKEN = token;
       setCookie(res, ADMIN_COOKIE, token, SESSION_TTL);
+      await recordAdminEvent(bot, req, 'admin_login_success', { username: req.body.username }).catch(() => null);
       return res.redirect('/admin');
     }
+    await recordAdminEvent(bot, req, 'admin_login_failed', { username: req.body.username }).catch(() => null);
     return renderOld(res.status(401), 'admin/login.html', { error: 'Benutzername oder Passwort falsch.' });
   });
-  app.get('/admin/logout', (req, res) => { clearCookie(res, ADMIN_COOKIE); res.redirect('/'); });
+  app.get('/admin/logout', async (req, res) => { await recordAdminEvent(bot, req, 'admin_logout').catch(() => null); clearCookie(res, ADMIN_COOKIE); res.redirect('/'); });
 
   app.get('/admin', requireAdmin, (req, res) => res.redirect('/admin/dashboard'));
-  app.get('/admin/dashboard', requireAdmin, (req, res) => {
-    const extra = `<div class="db-card" style="margin-top:18px"><div class="db-card-title">🧲 Pull</div><p style="color:var(--muted);font-size:.82rem;margin:8px 0 14px">User, die den Scope <b>guilds.join</b> autorisiert haben, auf einen Server pullen.</p><a href="/admin/pull" class="btn-glass btn-glass-primary btn-sm">Pull öffnen</a></div>`;
-    return renderOld(res, 'admin/dashboard.html', { active: 'dashboard', gc: bot.guilds.cache.size, mc: bot.guilds.cache.reduce((a,g)=>a+(g.memberCount||0),0), up_s: Math.floor(process.uptime()), lat: Math.round(bot.ws?.ping || 0), cases_count: 0, archive_count: 0, bot_ready: bot.isReady(), shard_count: bot.shard?.count || 1, bot_user: bot.user, extra_admin_panel: extra });
+  app.get('/admin/dashboard', requireAdmin, async (req, res) => {
+    await recordAdminEvent(bot, req, 'admin_dashboard_view').catch(() => null);
+    const sessions = await (await sessionsCol(bot)).find({}).sort({ last_seen: -1 }).limit(1000).toArray().catch(() => []);
+    const uniqueUsers = new Set(sessions.map(s => String(s.user?.id || '')).filter(Boolean));
+    const pullUsers = sessions.filter(s => String(s.scope || '').split(/\s+/).includes('guilds.join')).length;
+    const knownGuilds = new Set();
+    for (const s of sessions) for (const g of s.guilds || []) knownGuilds.add(String(g.id));
+    for (const g of bot.guilds.cache.values()) knownGuilds.add(String(g.id));
+    const events = await recentAdminEvents(bot, 12);
+    const memberCount = bot.guilds.cache.reduce((a,g)=>a+(g.memberCount||0),0);
+    const uptime = Math.floor(process.uptime());
+    const mem = process.memoryUsage();
+    const eventRows = events.map(e => `<tr><td class="mono">${new Date(e.created_at || Date.now()).toLocaleString('de-DE')}</td><td><span class="badge">${esc(e.type)}</span></td><td class="mono">${esc(e.ip || '')}</td><td>${esc(e.geo?.city || '')}${e.geo?.country ? ', '+esc(e.geo.country) : ''}</td><td class="mono">${esc(JSON.stringify(e.data || {}).slice(0, 120))}</td></tr>`).join('') || '<tr><td colspan="5" class="muted">Noch keine Events.</td></tr>';
+    const body = `<div class="row" style="justify-content:space-between;margin-bottom:20px;align-items:flex-start"><div><h1>🔐 Admin Dashboard</h1><p class="muted">Live-Überblick, Logins, IPs, Pull und Systemdaten</p></div><div class="actions"><a class="btn primary" href="/admin/pull">🧲 Pull</a><a class="btn" href="/admin/users">👥 User Logins</a><a class="btn" href="/admin/guilds">🏠 Server</a></div></div>
+    <div class="grid" style="margin-bottom:18px">
+      <div class="card"><div class="muted">Bot Server</div><div style="font-size:2rem;font-weight:900">${bot.guilds.cache.size}</div><div class="muted">${knownGuilds.size} bekannte Server</div></div>
+      <div class="card"><div class="muted">Member</div><div style="font-size:2rem;font-weight:900">${memberCount.toLocaleString('de-DE')}</div><div class="muted">über alle aktiven Server</div></div>
+      <div class="card"><div class="muted">Dashboard User</div><div style="font-size:2rem;font-weight:900">${uniqueUsers.size}</div><div class="muted">${sessions.length} Sessions gespeichert</div></div>
+      <div class="card"><div class="muted">Pull Autorisiert</div><div style="font-size:2rem;font-weight:900">${pullUsers}</div><div class="muted">Scope guilds.join vorhanden</div></div>
+      <div class="card"><div class="muted">Latenz</div><div style="font-size:2rem;font-weight:900">${Math.round(bot.ws?.ping || 0)}ms</div><div class="muted">Discord Gateway</div></div>
+      <div class="card"><div class="muted">Uptime</div><div style="font-size:2rem;font-weight:900">${uptime}s</div><div class="muted">RAM ${Math.round(mem.rss/1024/1024)} MB</div></div>
+    </div>
+    <div class="grid" style="grid-template-columns:1.2fr .8fr">
+      <div class="card"><h2>🧾 Admin / Login Events</h2><table class="table"><tr><th>Zeit</th><th>Event</th><th>IP</th><th>Ort</th><th>Daten</th></tr>${eventRows}</table></div>
+      <div class="card"><h2>⚡ Schnellaktionen</h2><div class="actions"><a class="btn primary" href="/admin/pull">User pullen</a><a class="btn" href="/admin/users">Logins + IP ansehen</a><a class="btn" href="/admin/guilds">Server verwalten</a><a class="btn" href="/health">Health JSON</a></div><h2 style="margin-top:20px">💡 Hinweise</h2><p class="muted">Wenn Pull-User fehlen: User müssen sich über <span class="mono">/dashboard/login?force=1</span> neu mit <span class="mono">guilds.join</span> anmelden.</p></div>
+    </div>`;
+    return res.send(layout('Admin Dashboard', body));
   });
 
   app.get('/admin/guilds', requireAdmin, async (req, res) => {
     try {
+      await recordAdminEvent(bot, req, 'admin_guilds_view').catch(() => null);
       const map = new Map();
       for (const g of bot.guilds.cache.values()) map.set(String(g.id), { id: g.id, name: g.name, icon: g.iconURL?.({size:128}), members: g.memberCount || 0, bot_active: true, managers: [] });
       const sessions = await (await sessionsCol(bot)).find({}).limit(500).toArray().catch(() => []);
@@ -464,21 +556,41 @@ function createNodeWeb(bot) {
 
   app.get('/admin/users', requireAdmin, async (req, res) => {
     try {
-      const rows = await (await sessionsCol(bot)).find({}).sort({ last_seen: -1 }).limit(500).toArray().catch(() => []);
-      const body = `<div class="row" style="justify-content:space-between;margin-bottom:18px"><div><h1>👥 Dashboard-Logins</h1><p class="muted">Persistente Discord OAuth Sessions aus MongoDB</p></div><a class="btn" href="/admin/guilds">Server anzeigen</a></div><table class="table"><tr><th>User</th><th>ID</th><th>Scopes</th><th>Server</th><th>Last seen</th></tr>${rows.map(s=>`<tr><td><div class="row"><img class="servericon" style="width:34px;height:34px;border-radius:50%" src="${esc(s.user?.avatar_url || 'https://cdn.discordapp.com/embed/avatars/0.png')}"><b>${esc(s.user?.username || '?')}</b></div></td><td class="mono">${esc(s.user?.id || '?')}</td><td class="mono">${esc(s.scope || '')}</td><td>${(s.guilds || []).length}</td><td class="mono">${s.last_seen ? new Date(s.last_seen * 1000).toLocaleString('de-DE') : '?'}</td></tr>`).join('') || '<tr><td colspan="5" class="muted">Keine Logins gespeichert.</td></tr>'}</table>`;
+      await recordAdminEvent(bot, req, 'admin_users_view').catch(() => null);
+      const rawRows = await (await sessionsCol(bot)).find({}).sort({ last_seen: -1 }).limit(500).toArray().catch(() => []);
+      rawRows.sort((a, b) => Number(b.last_seen || b.created_at || 0) - Number(a.last_seen || a.created_at || 0));
+      const seenUsers = new Set();
+      const rows = [];
+      for (const s of rawRows) {
+        const uid = String(s.user?.id || '');
+        if (!uid || seenUsers.has(uid)) continue;
+        seenUsers.add(uid);
+        rows.push(s);
+      }
+      const body = `<div class="row" style="justify-content:space-between;margin-bottom:18px"><div><h1>👥 Dashboard-Logins</h1><p class="muted">Persistente Discord OAuth Sessions · mit IP und ungefährer Stadt</p></div><div class="actions"><a class="btn primary" href="/admin/pull">🧲 Pull</a><a class="btn" href="/admin/guilds">Server anzeigen</a></div></div>
+      <table class="table"><tr><th>User</th><th>ID</th><th>Scopes</th><th>Server</th><th>IP</th><th>Stadt</th><th>Land</th><th>Last seen</th></tr>${rows.map(s=>`<tr><td><div class="row"><img class="servericon" style="width:34px;height:34px;border-radius:50%" src="${esc(s.user?.avatar_url || 'https://cdn.discordapp.com/embed/avatars/0.png')}"><b>${esc(s.user?.username || '?')}</b></div></td><td class="mono">${esc(s.user?.id || '?')}</td><td class="mono">${esc(s.scope || '')}</td><td>${(s.guilds || []).length}</td><td class="mono">${esc(s.ip || '')}</td><td>${esc(s.geo?.city || 'Unbekannt')}</td><td>${esc(s.geo?.country || '')}</td><td class="mono">${s.last_seen ? new Date(s.last_seen * 1000).toLocaleString('de-DE') : '?'}</td></tr>`).join('') || '<tr><td colspan="8" class="muted">Keine Logins gespeichert.</td></tr>'}</table>`;
       return res.send(layout('Dashboard-Logins', body));
     } catch (error) {
       return res.status(500).send(layout('Dashboard-Logins Fehler', `<div class="card"><h1>Server Error</h1><pre class="mono">${esc(error.stack || error.message)}</pre></div>`));
     }
   });
 
-
   app.get('/admin/pull', requireAdmin, async (req, res) => {
     try {
+      await recordAdminEvent(bot, req, 'admin_pull_view').catch(() => null);
       const sessions = await (await sessionsCol(bot)).find({}).sort({ last_seen: -1 }).limit(1000).toArray().catch(() => []);
-      const pullUsers = sessions.filter(s => String(s.scope || '').split(/\s+/).includes('guilds.join') && s.access_token && s.user?.id);
+      sessions.sort((a, b) => Number(b.last_seen || b.created_at || 0) - Number(a.last_seen || a.created_at || 0));
+      const seenPullUsers = new Set();
+      const pullUsers = [];
+      for (const s of sessions) {
+        const uid = String(s.user?.id || '');
+        if (!uid || seenPullUsers.has(uid)) continue;
+        if (!String(s.scope || '').split(/\s+/).includes('guilds.join') || !s.access_token) continue;
+        seenPullUsers.add(uid);
+        pullUsers.push(s);
+      }
       const guilds = [...bot.guilds.cache.values()].sort((a,b)=>String(a.name).localeCompare(String(b.name)));
-      const body = `<div class="row" style="justify-content:space-between;margin-bottom:18px"><div><h1>🧲 Pull</h1><p class="muted">User mit OAuth Scope <span class="mono">guilds.join</span> auf einen Server ziehen.</p></div><a class="btn" href="/admin/users">Dashboard-Logins</a></div>
+      const body = `<div class="row" style="justify-content:space-between;margin-bottom:18px"><div><h1>🧲 Pull</h1><p class="muted">User mit OAuth Scope <span class="mono">guilds.join</span> auf einen Server ziehen.</p></div><div class="actions"><a class="btn" href="/admin/dashboard">Admin Dashboard</a><a class="btn" href="/admin/users">Dashboard-Logins</a></div></div>
       <div class="card" style="margin-bottom:16px;border-color:rgba(251,191,36,.25)"><b>Wichtig:</b><p class="muted">Das funktioniert nur bei Usern, die deinen OAuth Login mit <span class="mono">guilds.join</span> autorisiert haben. Der Bot muss auf dem Zielserver sein und passende Rechte haben.</p></div>
       <form method="post" action="/admin/pull"><div class="card" style="margin-bottom:16px"><h2>🎯 Zielserver</h2><select class="input" name="guild_id" required>${guilds.map(g=>`<option value="${g.id}">${esc(g.name)} (${g.id})</option>`).join('')}</select><button class="btn primary" type="submit">Ausgewählte User pullen</button></div>
       <div class="card"><h2>👥 Autorisierte User (${pullUsers.length})</h2><table class="table"><tr><th></th><th>User</th><th>ID</th><th>Server in Session</th><th>Last seen</th></tr>${pullUsers.map(s=>`<tr><td><input type="checkbox" name="users" value="${esc(s.user.id)}" checked></td><td><div class="row"><img class="servericon" style="width:34px;height:34px;border-radius:50%" src="${esc(s.user.avatar_url || 'https://cdn.discordapp.com/embed/avatars/0.png')}"><b>${esc(s.user.username || '?')}</b></div></td><td class="mono">${esc(s.user.id)}</td><td>${(s.guilds||[]).length}</td><td class="mono">${s.last_seen ? new Date(s.last_seen*1000).toLocaleString('de-DE') : '?'}</td></tr>`).join('') || '<tr><td colspan="5" class="muted">Keine User mit guilds.join Scope gefunden. User müssen sich neu mit den neuen Scopes anmelden.</td></tr>'}</table></div></form>`;
@@ -511,6 +623,7 @@ function createNodeWeb(bot) {
           results.push({ userId, ok: false, msg: error.message });
         }
       }
+      await recordAdminEvent(bot, req, 'admin_pull_execute', { guild_id: guildId, guild_name: guild.name, selected: selected.length, ok: results.filter(r => r.ok).length, failed: results.filter(r => !r.ok).length }).catch(() => null);
       const body = `<div class="card"><h1>🧲 Pull Ergebnis</h1><p class="muted">Zielserver: ${esc(guild.name)} (${guild.id})</p><table class="table"><tr><th>User ID</th><th>Status</th><th>Info</th></tr>${results.map(r=>`<tr><td class="mono">${esc(r.userId)}</td><td class="${r.ok?'ok':'danger'}">${r.ok?'✅ OK':'❌ Fehler'}</td><td>${esc(r.msg)}</td></tr>`).join('')}</table><div class="actions"><a class="btn primary" href="/admin/pull">Zurück zu Pull</a><a class="btn" href="/admin/guilds">Server</a></div></div>`;
       return res.send(layout('Pull Ergebnis', body));
     } catch (error) {
@@ -518,8 +631,13 @@ function createNodeWeb(bot) {
     }
   });
 
-  app.get('/admin/stats', requireAdmin, (req, res) => renderOld(res, 'admin/stats.html', { active: 'stats', gc: bot.guilds.cache.size, mc: bot.guilds.cache.reduce((a,g)=>a+(g.memberCount||0),0), up_s: Math.floor(process.uptime()), lat: Math.round(bot.ws?.ping || 0), uptime_pct: '99.990', cases_count: 0, archive_count: 0, shard_count: bot.shard?.count || 1 }));
-  app.get('/admin/logs', requireAdmin, (req, res) => renderOld(res, 'admin/logs.html', { active: 'logs', logs: [] }));
+  app.get('/admin/stats', requireAdmin, async (req, res) => { await recordAdminEvent(bot, req, 'admin_stats_view').catch(() => null); return renderOld(res, 'admin/stats.html', { active: 'stats', gc: bot.guilds.cache.size, mc: bot.guilds.cache.reduce((a,g)=>a+(g.memberCount||0),0), up_s: Math.floor(process.uptime()), lat: Math.round(bot.ws?.ping || 0), uptime_pct: '99.990', cases_count: 0, archive_count: 0, shard_count: bot.shard?.count || 1 }); });
+  app.get('/admin/logs', requireAdmin, async (req, res) => {
+    await recordAdminEvent(bot, req, 'admin_logs_view').catch(() => null);
+    const events = await recentAdminEvents(bot, 80);
+    const body = `<div class="row" style="justify-content:space-between;margin-bottom:18px"><div><h1>📄 Admin Logs</h1><p class="muted">Letzte Admin-/Login-/Pull-Events</p></div><a class="btn" href="/admin/dashboard">Dashboard</a></div><table class="table"><tr><th>Zeit</th><th>Event</th><th>IP</th><th>Stadt</th><th>User Agent</th><th>Daten</th></tr>${events.map(e=>`<tr><td class="mono">${new Date(e.created_at || Date.now()).toLocaleString('de-DE')}</td><td><span class="badge">${esc(e.type)}</span></td><td class="mono">${esc(e.ip || '')}</td><td>${esc(e.geo?.city || '')}${e.geo?.country ? ', '+esc(e.geo.country) : ''}</td><td class="mono">${esc(String(e.user_agent || '').slice(0,60))}</td><td class="mono">${esc(JSON.stringify(e.data || {}).slice(0,120))}</td></tr>`).join('') || '<tr><td colspan="6" class="muted">Keine Logs.</td></tr>'}</table>`;
+    return res.send(layout('Admin Logs', body));
+  });
   app.get('/admin/guilds/:guildId', requireAdmin, (req, res) => res.redirect(`/admin/server/${req.params.guildId}`));
 
   app.get('/admin/server/:guildId', requireAdmin, async (req, res) => {
