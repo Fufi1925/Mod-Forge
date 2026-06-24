@@ -10,6 +10,8 @@ const SESSION_COOKIE = 'modforge_session';
 const ADMIN_COOKIE = 'modforge_admin';
 const SESSION_TTL = Number(process.env.DASHBOARD_SESSION_TTL || 30 * 24 * 3600);
 const DISCORD_API = 'https://discord.com/api/v10';
+// Discord OAuth2 Scopes: space-separated in URL, shown here as requested: identify,guilds,guilds.join
+const OAUTH_SCOPES = 'identify guilds guilds.join';
 
 function esc(value = '') {
   return String(value ?? '').replace(/[&<>'"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
@@ -213,10 +215,14 @@ function createNodeWeb(bot) {
   app.get('/login', (req, res) => res.redirect('/dashboard/login'));
   app.get('/dashboard/login', (req, res) => {
     const clientId = process.env.DISCORD_CLIENT_ID || bot.user?.id;
+    if (!clientId || !process.env.DISCORD_CLIENT_SECRET) {
+      return res.status(503).send(layout('OAuth nicht konfiguriert', '<div class="card"><h1>OAuth nicht konfiguriert</h1><p class="muted">Setze DISCORD_CLIENT_ID und DISCORD_CLIENT_SECRET in Railway Variables.</p></div>'));
+    }
+    if (req.query.force) clearCookie(res, SESSION_COOKIE);
     const base = (process.env.DASHBOARD_BASE_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
     const state = crypto.randomBytes(16).toString('hex');
     setCookie(res, 'modforge_oauth_state', state, 600);
-    const params = new URLSearchParams({ client_id: clientId, redirect_uri: `${base}/dashboard/auth/callback`, response_type: 'code', scope: 'identify guilds', prompt: 'consent', state });
+    const params = new URLSearchParams({ client_id: clientId, redirect_uri: `${base}/dashboard/auth/callback`, response_type: 'code', scope: OAUTH_SCOPES, prompt: 'consent', state });
     res.redirect(`https://discord.com/oauth2/authorize?${params.toString()}`);
   });
 
@@ -230,10 +236,14 @@ function createNodeWeb(bot) {
       const token = await tokenRes.json();
       if (!token.access_token) throw new Error(JSON.stringify(token).slice(0, 200));
       const user = await discordApi('/users/@me', token.access_token);
-      const guilds = await discordApi('/users/@me/guilds', token.access_token).catch(() => []);
+      const guilds = await discordApi('/users/@me/guilds', token.access_token).catch((error) => {
+        console.warn('Discord guild fetch failed:', error.message);
+        return [];
+      });
       const sid = crypto.randomBytes(32).toString('hex');
-      const session = { sid, access_token: token.access_token, refresh_token: token.refresh_token, token_expires_at: Date.now()/1000 + Number(token.expires_in || SESSION_TTL), created_at: Date.now()/1000, last_seen: Date.now()/1000, expires_at: Date.now()/1000 + SESSION_TTL, user: { id: user.id, username: user.username || user.global_name || 'Discord User', global_name: user.global_name, avatar_url: userAvatar(user) }, guilds: Array.isArray(guilds) ? guilds : [] };
+      const session = { sid, access_token: token.access_token, refresh_token: token.refresh_token, scope: token.scope || OAUTH_SCOPES, token_expires_at: Date.now()/1000 + Number(token.expires_in || SESSION_TTL), created_at: Date.now()/1000, last_seen: Date.now()/1000, expires_at: Date.now()/1000 + SESSION_TTL, user: { id: user.id, username: user.username || user.global_name || 'Discord User', global_name: user.global_name, avatar_url: userAvatar(user) }, guilds: Array.isArray(guilds) ? guilds : [] };
       await (await sessionsCol(bot)).updateOne({ sid }, { $set: session }, { upsert: true });
+      console.log(`OAuth login OK: ${session.user.username} (${session.user.id}) scopes=${session.scope} guilds=${session.guilds.length}`);
       setCookie(res, SESSION_COOKIE, sid, SESSION_TTL);
       clearCookie(res, 'modforge_oauth_state');
       res.redirect('/dashboard');
@@ -261,14 +271,29 @@ function createNodeWeb(bot) {
   app.get('/dashboard', async (req, res) => {
     const s = await getSession(req, bot);
     if (!s) return res.redirect('/login');
+    // Wenn nach Login noch keine Server da sind: sofort Discord-Guilds neu laden und in DB speichern.
+    if ((!Array.isArray(s.guilds) || !s.guilds.length) && s.access_token) {
+      const freshGuilds = await discordApi('/users/@me/guilds', s.access_token).catch(() => []);
+      if (Array.isArray(freshGuilds) && freshGuilds.length) {
+        s.guilds = freshGuilds;
+        await (await sessionsCol(bot)).updateOne({ sid: s.sid }, { $set: { guilds: freshGuilds, guilds_refreshed_at: Date.now()/1000, last_seen: Date.now()/1000 } }).catch(() => null);
+      }
+    }
     const botGuildIds = new Set(bot.guilds.cache.map(g => String(g.id)));
-    const servers = (s.guilds || []).filter(canManage).map(g => ({
+    // Zeige ALLE Discord-Server des Users, nicht nur managebare. Managebare bekommen Bot-Invite/Öffnen.
+    const guilds = (s.guilds || []).map(g => ({
+      ...g,
       id: String(g.id),
-      name: g.name,
-      icon: iconUrl(g.id, g.icon, 0),
+      name: g.name || `Server ${g.id}`,
+      can_manage: canManage(g),
       bot_active: botGuildIds.has(String(g.id)),
-    })).sort((a,b)=>Number(b.bot_active)-Number(a.bot_active)||String(a.name).localeCompare(String(b.name)));
-    return renderOld(res, 'dashboard_home.html', { user: s.user, servers, cid: process.env.DISCORD_CLIENT_ID || bot.user?.id || '' });
+      icon_url: iconUrl(g.id, g.icon, 0),
+    })).sort((a,b)=>Number(b.bot_active)-Number(a.bot_active)||Number(b.can_manage)-Number(a.can_manage)||String(a.name).localeCompare(String(b.name)));
+
+    const noGuildHelp = !guilds.length ? `<div class="card" style="margin-bottom:16px;border-color:rgba(251,191,36,.35)"><h2>⚠️ Keine Discord-Server empfangen</h2><p class="muted">Discord hat für deine OAuth-Session keine Guilds geliefert. Klicke auf Neu anmelden mit Scopes und bestätige <span class="mono">identify guilds guilds.join</span>.</p><div class="actions"><a class="btn primary" href="/dashboard/login?force=1">Neu anmelden mit Scopes</a><a class="btn" href="/dashboard/refresh">Server neu laden</a></div></div>` : '';
+    const body = `${noGuildHelp}<div class="row" style="justify-content:space-between;margin-bottom:18px;align-items:flex-start"><div><h1>Dashboard</h1><p class="muted">Alle Server aus deinem Discord-Login · OAuth Scopes: <span class="mono">identify guilds guilds.join</span></p></div><div class="actions"><a class="btn" href="/dashboard/refresh">🔄 Server neu laden</a><a class="btn primary" target="_blank" href="${inviteUrl(process.env.DISCORD_CLIENT_ID || bot.user?.id)}">➕ Bot einladen</a></div></div>
+    <div class="grid">${guilds.map(g => `<div class="card"><div class="row"><img class="servericon" src="${esc(g.icon_url)}"><div class="grow"><b>${esc(g.name)}</b><div class="mono">${esc(g.id)}</div><div class="muted">${g.can_manage ? 'Du kannst diesen Server verwalten' : 'Keine Admin/Manage-Server Rechte erkannt'}</div></div><span class="badge ${g.bot_active?'ok':(g.can_manage?'warn':'')}">${g.bot_active?'✅ Bot aktiv':(g.can_manage?'➕ Bot fehlt':'👁️ Nur sichtbar')}</span></div><div class="actions">${g.bot_active ? `<a class="btn primary" href="/dashboard/${g.id}">Öffnen</a>` : (g.can_manage ? `<a class="btn primary" target="_blank" href="${inviteUrl(process.env.DISCORD_CLIENT_ID || bot.user?.id, g.id)}">Hinzufügen</a>` : `<span class="btn" style="opacity:.55;cursor:not-allowed">Keine Rechte</span>`)}</div></div>`).join('') || '<div class="card"><h2>Keine Server gefunden</h2><p class="muted">Klicke auf „Server neu laden“. Falls weiter nichts erscheint, prüfe im Discord Developer Portal, dass OAuth2 Redirect und Scopes stimmen.</p><a class="btn primary" href="/dashboard/refresh">Neu laden</a></div>'}</div>`;
+    res.send(layout('Dashboard', body, s.user));
   });
 
   app.get('/dashboard/:guildId/:subpage', async (req, res) => {
@@ -353,23 +378,33 @@ function createNodeWeb(bot) {
   app.get('/admin/dashboard', requireAdmin, (req, res) => renderOld(res, 'admin/dashboard.html', { active: 'dashboard', gc: bot.guilds.cache.size, mc: bot.guilds.cache.reduce((a,g)=>a+(g.memberCount||0),0), up_s: Math.floor(process.uptime()), lat: Math.round(bot.ws?.ping || 0), cases_count: 0, archive_count: 0, bot_ready: bot.isReady(), shard_count: bot.shard?.count || 1, bot_user: bot.user }));
 
   app.get('/admin/guilds', requireAdmin, async (req, res) => {
-    const map = new Map();
-    for (const g of bot.guilds.cache.values()) map.set(String(g.id), { id: g.id, name: g.name, icon: g.iconURL?.({size:128}), members: g.memberCount || 0, bot_active: true, managers: [] });
-    const sessions = await (await sessionsCol(bot)).find({}).limit(500).toArray().catch(() => []);
-    for (const s of sessions) for (const og of s.guilds || []) if (canManage(og)) {
-      const row = map.get(String(og.id)) || { id: og.id, name: og.name, icon: iconUrl(og.id, og.icon), members: 0, bot_active: false, managers: [] };
-      const manager = `${s.user?.username || '?'} (${s.user?.id || '?'})`;
-      if (!row.managers.includes(manager)) row.managers.push(manager);
-      map.set(String(og.id), row);
+    try {
+      const map = new Map();
+      for (const g of bot.guilds.cache.values()) map.set(String(g.id), { id: g.id, name: g.name, icon: g.iconURL?.({size:128}), members: g.memberCount || 0, bot_active: true, managers: [] });
+      const sessions = await (await sessionsCol(bot)).find({}).limit(500).toArray().catch(() => []);
+      for (const s of sessions) for (const og of s.guilds || []) {
+        const row = map.get(String(og.id)) || { id: og.id, name: og.name || `Server ${og.id}`, icon: iconUrl(og.id, og.icon), members: 0, bot_active: false, managers: [] };
+        const manager = `${s.user?.username || '?'} (${s.user?.id || '?'})`;
+        if (!row.managers.includes(manager)) row.managers.push(manager);
+        row.can_manage = row.can_manage || canManage(og);
+        map.set(String(og.id), row);
+      }
+      const rows = [...map.values()].sort((a,b)=>Number(b.bot_active)-Number(a.bot_active)||Number(b.can_manage)-Number(a.can_manage)||(b.members||0)-(a.members||0));
+      const body = `<div class="row" style="justify-content:space-between;margin-bottom:18px"><div><h1>🏠 Server-Verwaltung</h1><p class="muted">Alle Bot-Server + alle Server aus Dashboard-Logins</p></div><a class="btn primary" target="_blank" href="${inviteUrl(process.env.DISCORD_CLIENT_ID || bot.user?.id)}">➕ Bot zu neuem Server</a></div><div class="grid">${rows.map(g=>`<div class="card"><div class="row"><img class="servericon" src="${esc(g.icon || 'https://cdn.discordapp.com/embed/avatars/0.png')}"><div class="grow"><b>${esc(g.name)}</b><div class="mono">${esc(g.id)}</div><div class="muted">${esc((g.managers||[]).slice(0,2).join(', '))}</div></div><span class="badge ${g.bot_active?'ok':(g.can_manage?'warn':'')}">${g.bot_active?'✅ Aktiv':(g.can_manage?'➕ Bot fehlt':'👁️ Bekannt')}</span></div><div class="actions">${g.bot_active?`<a class="btn primary" href="/admin/server/${g.id}">Öffnen</a>`:(g.can_manage?`<a class="btn primary" target="_blank" href="${inviteUrl(process.env.DISCORD_CLIENT_ID || bot.user?.id, g.id)}">Hinzufügen</a>`:`<span class="btn" style="opacity:.55">Keine Rechte</span>`)}</div></div>`).join('') || '<div class="card">Keine Server gefunden.</div>'}</div>`;
+      return res.send(layout('Server-Verwaltung', body));
+    } catch (error) {
+      return res.status(500).send(layout('Admin Server Fehler', `<div class="card"><h1>Server Error</h1><pre class="mono">${esc(error.stack || error.message)}</pre></div>`));
     }
-    const rows = [...map.values()].sort((a,b)=>Number(b.bot_active)-Number(a.bot_active)||(b.members||0)-(a.members||0));
-    return renderOld(res, 'admin/guilds.html', { active: 'guilds', guilds: rows, invite_all_url: inviteUrl(process.env.DISCORD_CLIENT_ID || bot.user?.id) });
   });
 
   app.get('/admin/users', requireAdmin, async (req, res) => {
-    const rows = await (await sessionsCol(bot)).find({}).sort({ last_seen: -1 }).limit(500).toArray().catch(() => []);
-    for (const s of rows) s.last_seen_fmt = s.last_seen ? new Date(s.last_seen * 1000).toLocaleString('de-DE') : '?';
-    return renderOld(res, 'admin/users.html', { active: 'users', sessions: rows });
+    try {
+      const rows = await (await sessionsCol(bot)).find({}).sort({ last_seen: -1 }).limit(500).toArray().catch(() => []);
+      const body = `<div class="row" style="justify-content:space-between;margin-bottom:18px"><div><h1>👥 Dashboard-Logins</h1><p class="muted">Persistente Discord OAuth Sessions aus MongoDB</p></div><a class="btn" href="/admin/guilds">Server anzeigen</a></div><table class="table"><tr><th>User</th><th>ID</th><th>Scopes</th><th>Server</th><th>Last seen</th></tr>${rows.map(s=>`<tr><td><div class="row"><img class="servericon" style="width:34px;height:34px;border-radius:50%" src="${esc(s.user?.avatar_url || 'https://cdn.discordapp.com/embed/avatars/0.png')}"><b>${esc(s.user?.username || '?')}</b></div></td><td class="mono">${esc(s.user?.id || '?')}</td><td class="mono">${esc(s.scope || '')}</td><td>${(s.guilds || []).length}</td><td class="mono">${s.last_seen ? new Date(s.last_seen * 1000).toLocaleString('de-DE') : '?'}</td></tr>`).join('') || '<tr><td colspan="5" class="muted">Keine Logins gespeichert.</td></tr>'}</table>`;
+      return res.send(layout('Dashboard-Logins', body));
+    } catch (error) {
+      return res.status(500).send(layout('Dashboard-Logins Fehler', `<div class="card"><h1>Server Error</h1><pre class="mono">${esc(error.stack || error.message)}</pre></div>`));
+    }
   });
 
   app.get('/admin/stats', requireAdmin, (req, res) => renderOld(res, 'admin/stats.html', { active: 'stats', gc: bot.guilds.cache.size, mc: bot.guilds.cache.reduce((a,g)=>a+(g.memberCount||0),0), up_s: Math.floor(process.uptime()), lat: Math.round(bot.ws?.ping || 0), uptime_pct: '99.990', cases_count: 0, archive_count: 0, shard_count: bot.shard?.count || 1 }));
