@@ -286,7 +286,6 @@ function createNodeWeb(bot) {
   app.get('/dashboard', async (req, res) => {
     const s = await getSession(req, bot);
     if (!s) return res.redirect('/login');
-    // Wenn nach Login noch keine Server da sind: sofort Discord-Guilds neu laden und in DB speichern.
     if ((!Array.isArray(s.guilds) || !s.guilds.length) && s.access_token) {
       const freshGuilds = await discordApi('/users/@me/guilds', s.access_token).catch(() => []);
       if (Array.isArray(freshGuilds) && freshGuilds.length) {
@@ -294,21 +293,56 @@ function createNodeWeb(bot) {
         await (await sessionsCol(bot)).updateOne({ sid: s.sid }, { $set: { guilds: freshGuilds, guilds_refreshed_at: Date.now()/1000, last_seen: Date.now()/1000 } }).catch(() => null);
       }
     }
+    const cid = process.env.DISCORD_CLIENT_ID || bot.user?.id || '';
     const botGuildIds = new Set(bot.guilds.cache.map(g => String(g.id)));
-    // Zeige ALLE Discord-Server des Users, nicht nur managebare. Managebare bekommen Bot-Invite/Öffnen.
-    const guilds = (s.guilds || []).map(g => ({
-      ...g,
+    const servers = (s.guilds || []).map(g => ({
       id: String(g.id),
       name: g.name || `Server ${g.id}`,
-      can_manage: canManage(g),
+      icon: iconUrl(g.id, g.icon, 0),
       bot_active: botGuildIds.has(String(g.id)),
-      icon_url: iconUrl(g.id, g.icon, 0),
+      can_manage: canManage(g),
     })).sort((a,b)=>Number(b.bot_active)-Number(a.bot_active)||Number(b.can_manage)-Number(a.can_manage)||String(a.name).localeCompare(String(b.name)));
-
-    const noGuildHelp = !guilds.length ? `<div class="card" style="margin-bottom:16px;border-color:rgba(251,191,36,.35)"><h2>⚠️ Keine Discord-Server empfangen</h2><p class="muted">Discord hat für deine OAuth-Session keine Guilds geliefert. Klicke auf Neu anmelden mit Scopes und bestätige <span class="mono">identify guilds guilds.join</span>.</p><div class="actions"><a class="btn primary" href="/dashboard/login?force=1">Neu anmelden mit Scopes</a><a class="btn" href="/dashboard/refresh">Server neu laden</a></div></div>` : '';
-    const body = `${noGuildHelp}<div class="row" style="justify-content:space-between;margin-bottom:18px;align-items:flex-start"><div><h1>Dashboard</h1><p class="muted">Alle Server aus deinem Discord-Login · OAuth Scopes: <span class="mono">identify guilds guilds.join</span></p></div><div class="actions"><a class="btn" href="/dashboard/refresh">🔄 Server neu laden</a><a class="btn primary" target="_blank" href="${inviteUrl(process.env.DISCORD_CLIENT_ID || bot.user?.id)}">➕ Bot einladen</a></div></div>
-    <div class="grid">${guilds.map(g => `<div class="card"><div class="row"><img class="servericon" src="${esc(g.icon_url)}"><div class="grow"><b>${esc(g.name)}</b><div class="mono">${esc(g.id)}</div><div class="muted">${g.can_manage ? 'Du kannst diesen Server verwalten' : 'Keine Admin/Manage-Server Rechte erkannt'}</div></div><span class="badge ${g.bot_active?'ok':(g.can_manage?'warn':'')}">${g.bot_active?'✅ Bot aktiv':(g.can_manage?'➕ Bot fehlt':'👁️ Nur sichtbar')}</span></div><div class="actions">${g.bot_active ? `<a class="btn primary" href="/dashboard/${g.id}">Öffnen</a>` : (g.can_manage ? `<a class="btn primary" target="_blank" href="${inviteUrl(process.env.DISCORD_CLIENT_ID || bot.user?.id, g.id)}">Hinzufügen</a>` : `<span class="btn" style="opacity:.55;cursor:not-allowed">Keine Rechte</span>`)}</div></div>`).join('') || '<div class="card"><h2>Keine Server gefunden</h2><p class="muted">Klicke auf „Server neu laden“. Falls weiter nichts erscheint, prüfe im Discord Developer Portal, dass OAuth2 Redirect und Scopes stimmen.</p><a class="btn primary" href="/dashboard/refresh">Neu laden</a></div>'}</div>`;
-    res.send(layout('Dashboard', body, s.user));
+    const botServers = servers.filter(x => x.bot_active);
+    const otherServers = servers.filter(x => !x.bot_active);
+    const serverCard = (srv, active) => {
+      const first = esc(String(srv.name || '?')[0] || '?');
+      const icon = srv.icon && !srv.icon.includes('avatars') ? `<img src="${esc(srv.icon)}" class="sc-icon">` : `<div class="sc-fallback">${first}</div>`;
+      if (active) return `<a href="/dashboard/${esc(srv.id)}" class="server-card"><div class="sc-badge on">✅ Aktiv</div><div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">${icon}<div><div style="font-weight:700;font-size:.95rem">${esc(srv.name)}</div><div style="font-size:.65rem;color:var(--muted);font-family:'Geist Mono',monospace">${esc(srv.id)}</div></div></div><div style="display:flex;gap:6px;flex-wrap:wrap"><span style="padding:3px 8px;border-radius:999px;background:var(--glass2);font-size:.62rem;color:var(--muted)">🛡️ Security</span><span style="padding:3px 8px;border-radius:999px;background:var(--glass2);font-size:.62rem;color:var(--muted)">📋 Cases</span><span style="padding:3px 8px;border-radius:999px;background:var(--glass2);font-size:.62rem;color:var(--muted)">⚙️ Config</span></div></a>`;
+      return `<a href="https://discord.com/oauth2/authorize?client_id=${encodeURIComponent(cid)}&scope=bot+applications.commands&permissions=8&guild_id=${encodeURIComponent(srv.id)}" class="server-card no-bot" target="_blank"><div class="sc-badge off">Bot einladen →</div><div style="display:flex;align-items:center;gap:12px">${icon}<div><div style="font-weight:700;font-size:.95rem">${esc(srv.name)}</div><div style="font-size:.65rem;color:var(--muted)">Klicke um den Bot einzuladen</div></div></div></a>`;
+    };
+    const html = `<!doctype html>
+<html lang="de" data-theme="purple">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dashboard – ModForge</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;700&family=Outfit:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css">
+<style>
+  body{background:var(--bg);color:var(--fg);min-height:100vh;padding:0;margin:0}
+  .dash-header{padding:20px 32px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:rgba(8,8,20,0.95);backdrop-filter:blur(20px);position:sticky;top:0;z-index:100}
+  .server-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;padding:24px 32px;max-width:1200px;margin:0 auto}
+  .server-card{background:rgba(255,255,255,0.035);border:1px solid var(--border);border-radius:16px;padding:20px;cursor:pointer;transition:all .2s;text-decoration:none;display:block;position:relative;overflow:hidden;color:inherit}
+  .server-card:hover{border-color:rgba(96,165,250,0.3);transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,0,0,0.2)}
+  .server-card::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--v),var(--c));opacity:0;transition:.2s}
+  .server-card:hover::after{opacity:1}
+  .server-card.no-bot{opacity:.7}.server-card.no-bot:hover{opacity:1}
+  .sc-icon{width:48px;height:48px;border-radius:14px;object-fit:cover;flex-shrink:0}
+  .sc-fallback{width:48px;height:48px;border-radius:14px;background:rgba(59,130,246,0.15);display:flex;align-items:center;justify-content:center;font-size:1.2rem;font-weight:800;color:var(--vl);flex-shrink:0}
+  .sc-badge{position:absolute;top:14px;right:14px;padding:3px 10px;border-radius:999px;font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+  .sc-badge.on{background:rgba(74,222,128,0.1);color:var(--green);border:1px solid rgba(74,222,128,0.2)}
+  .sc-badge.off{background:rgba(148,163,184,0.06);color:var(--muted);border:1px solid rgba(148,163,184,0.12)}
+  .section-label{padding:20px 32px 8px;max-width:1200px;margin:0 auto}
+</style>
+</head>
+<body>
+  <div class="dash-header"><div style="display:flex;align-items:center;gap:10px"><div style="width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--v),var(--p));display:flex;align-items:center;justify-content:center;font-size:.85rem">🛡️</div><div><div style="font-weight:800;font-size:.95rem">ModForge</div><div style="font-size:.65rem;color:var(--muted)">Dashboard</div></div></div><div style="display:flex;align-items:center;gap:10px"><a href="/dashboard/refresh" class="btn-glass btn-sm btn-glass-ghost" title="Server-Liste aktualisieren">🔄</a><img src="${esc(s.user?.avatar_url || 'https://cdn.discordapp.com/embed/avatars/0.png')}" style="width:30px;height:30px;border-radius:50%"><span style="font-size:.8rem;font-weight:600">${esc(s.user?.username || 'User')}</span><a href="/logout" class="btn-glass btn-sm btn-glass-danger" style="font-size:.7rem">Logout</a></div></div>
+  ${botServers.length ? `<div class="section-label"><h2 style="font-size:1rem;font-weight:700;display:flex;align-items:center;gap:8px"><span style="color:var(--green)">●</span> Bot aktiv (${botServers.length})</h2></div><div class="server-grid">${botServers.map(x=>serverCard(x,true)).join('')}</div>` : ''}
+  ${otherServers.length ? `<div class="section-label"><h2 style="font-size:1rem;font-weight:700;display:flex;align-items:center;gap:8px"><span style="color:var(--muted)">●</span> Bot einladen (${otherServers.length})</h2></div><div class="server-grid">${otherServers.map(x=>serverCard(x,false)).join('')}</div>` : ''}
+  ${!servers.length ? `<div style="text-align:center;padding:80px 20px"><div style="font-size:4rem;margin-bottom:16px">🤖</div><h2 style="font-size:1.3rem;font-weight:800;margin-bottom:8px">Kein Server gefunden</h2><p style="color:var(--muted);margin-bottom:24px">Discord hat keine Server geliefert. Bitte neu anmelden und Scopes bestätigen.</p><a href="/dashboard/login?force=1" class="btn-glass btn-glass-primary btn-lg">Neu anmelden</a></div>` : ''}
+<script>(function(){const t=localStorage.getItem('mf-theme');if(t)document.documentElement.setAttribute('data-theme',t)})()</script>
+</body></html>`;
+    return res.send(html);
   });
 
   app.get('/dashboard/:guildId/:subpage', async (req, res) => {
@@ -403,7 +437,10 @@ function createNodeWeb(bot) {
   app.get('/admin/logout', (req, res) => { clearCookie(res, ADMIN_COOKIE); res.redirect('/'); });
 
   app.get('/admin', requireAdmin, (req, res) => res.redirect('/admin/dashboard'));
-  app.get('/admin/dashboard', requireAdmin, (req, res) => renderOld(res, 'admin/dashboard.html', { active: 'dashboard', gc: bot.guilds.cache.size, mc: bot.guilds.cache.reduce((a,g)=>a+(g.memberCount||0),0), up_s: Math.floor(process.uptime()), lat: Math.round(bot.ws?.ping || 0), cases_count: 0, archive_count: 0, bot_ready: bot.isReady(), shard_count: bot.shard?.count || 1, bot_user: bot.user }));
+  app.get('/admin/dashboard', requireAdmin, (req, res) => {
+    const extra = `<div class="db-card" style="margin-top:18px"><div class="db-card-title">🧲 Pull</div><p style="color:var(--muted);font-size:.82rem;margin:8px 0 14px">User, die den Scope <b>guilds.join</b> autorisiert haben, auf einen Server pullen.</p><a href="/admin/pull" class="btn-glass btn-glass-primary btn-sm">Pull öffnen</a></div>`;
+    return renderOld(res, 'admin/dashboard.html', { active: 'dashboard', gc: bot.guilds.cache.size, mc: bot.guilds.cache.reduce((a,g)=>a+(g.memberCount||0),0), up_s: Math.floor(process.uptime()), lat: Math.round(bot.ws?.ping || 0), cases_count: 0, archive_count: 0, bot_ready: bot.isReady(), shard_count: bot.shard?.count || 1, bot_user: bot.user, extra_admin_panel: extra });
+  });
 
   app.get('/admin/guilds', requireAdmin, async (req, res) => {
     try {
