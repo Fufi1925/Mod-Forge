@@ -15,6 +15,7 @@ const {
 const { Database } = require('../database/db');
 const { ACTIVITY, SUPERUSER_IDS, COLOR_PRIMARY, COLOR_SUCCESS, COLOR_WARNING, COLOR_DANGER, devPrint, devBanner, getUptime } = require('./config');
 const { createEmbed, runWithEmbedContext, modernizeEmbed, embedPayload, createButtonRows, defaultEmbedButtons } = require('./utils');
+const { enforceBlockedUserOnGuild, enforceGlobalSecurityOnGuild, enforceAllGlobalSecurity } = require('./global_security');
 
 class Tracker {
   constructor() {
@@ -56,6 +57,8 @@ class ModForge extends Client {
     this.commands = new Collection();
     this.prefixCommands = new Collection();
     this.startTime = Date.now();
+    this.runtimeInitialized = false;
+    this.globalSecurityEnforcing = new Set();
     this.statusRotation = [
       { type: ActivityType.Watching, name: '🔒 ModForge Security | /help', duration: 10000 },
       { type: ActivityType.Streaming, name: '🛡️ Anti Raid Active | /help', duration: 3000 },
@@ -67,9 +70,14 @@ class ModForge extends Client {
 
   async start(token) {
     const databaseReady = await this.db.testConnection();
-    if (!databaseReady) throw new Error('MongoDB ist nicht erreichbar. Bot-Start wurde abgebrochen, damit keine unvollständige Instanz online geht.');
-    await this.loadCogs();
-    this.registerCoreEvents();
+    if (!databaseReady) throw new Error('MongoDB ist nicht erreichbar. Bot-Verbindung wird später erneut versucht.');
+    await this.db.refreshGlobalSecurityCache();
+    if (!this.runtimeInitialized) {
+      await this.loadCogs();
+      this.registerCoreEvents();
+      this.runtimeInitialized = true;
+    }
+    if (this.isReady()) return this.user;
     return this.login(token);
   }
 
@@ -107,7 +115,31 @@ class ModForge extends Client {
 
   addEvent(event, file = 'unknown') {
     if (!event || !event.name || typeof event.execute !== 'function') return;
-    const handler = (...args) => event.execute(this, ...args).catch((error) => devPrint(`Event ${event.name} (${file}) Fehler: ${error.message}`, 'error', 'Events'));
+    const handler = async (...args) => {
+      try {
+        const subject = args[0];
+        if (event.name === 'interactionCreate' && subject?.user && this.db.isGlobalDiscordBlocked(subject.user.id)) {
+          if (!subject.replied && !subject.deferred) await subject.reply({ content: '⛔ Du bist für die Nutzung von ModForge global gesperrt.', ephemeral: true }).catch(() => null);
+          return;
+        }
+        if (event.name === 'messageCreate' && subject?.author && this.db.isGlobalDiscordBlocked(subject.author.id)) return;
+        if (event.name === 'guildMemberAdd' && subject?.user && this.db.isGlobalDiscordBlocked(subject.user.id)) {
+          const enforcementKey = `${subject.guild.id}:${subject.user.id}`;
+          if (this.globalSecurityEnforcing.has(enforcementKey)) return;
+          this.globalSecurityEnforcing.add(enforcementKey);
+          try {
+            const entry = await this.db.global_security.findOne({ type: 'discord_id', value: String(subject.user.id), active: { $ne: false } }).catch(() => null);
+            await enforceBlockedUserOnGuild(this, subject.guild, subject.user.id, entry);
+          } finally {
+            setTimeout(() => this.globalSecurityEnforcing.delete(enforcementKey), 5000);
+          }
+          return;
+        }
+        await event.execute(this, ...args);
+      } catch (error) {
+        devPrint(`Event ${event.name} (${file}) Fehler: ${error.message}`, 'error', 'Events');
+      }
+    };
     if (event.once) this.once(event.name, handler);
     else this.on(event.name, handler);
   }
@@ -143,10 +175,16 @@ class ModForge extends Client {
       await this.warmupCaches();
       await this.syncSlashCommands();
       this.rotateStatus();
+      void enforceAllGlobalSecurity(this).catch(error => devPrint(`Global-Security Startprüfung fehlgeschlagen: ${error.message}`, 'error', 'Security'));
+    });
+
+    this.on('guildCreate', async (guild) => {
+      await enforceGlobalSecurityOnGuild(this, guild).catch(error => devPrint(`Global-Security Prüfung für ${guild.name} fehlgeschlagen: ${error.message}`, 'error', 'Security'));
     });
 
     this.on('interactionCreate', async (interaction) => {
       if (!interaction.isChatInputCommand()) return;
+      if (this.db.isGlobalDiscordBlocked(interaction.user.id)) return interaction.reply({ content: '⛔ Du bist für die Nutzung von ModForge global gesperrt.', ephemeral: true }).catch(() => null);
       const command = this.commands.get(interaction.commandName);
       if (!command) return;
       this.patchInteractionEmbeds(interaction);
@@ -168,7 +206,7 @@ class ModForge extends Client {
     });
 
     this.on('messageCreate', async (message) => {
-      if (!message.guild || message.author.bot) return;
+      if (!message.guild || message.author.bot || this.db.isGlobalDiscordBlocked(message.author.id)) return;
       const cfg = await this.db.fetchConfig(message.guild.id).catch(() => this.db.getConfig(message.guild.id));
       const prefix = cfg.prefix || '!';
       if (!message.content.startsWith(prefix)) return;
