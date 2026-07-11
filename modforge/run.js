@@ -12,7 +12,7 @@ async function closeHttpServer(server) {
 function validateEnvironment() {
   const required = ['DISCORD_TOKEN', 'MONGO_URL'];
   if (process.env.NODE_ENV === 'production') {
-    required.push('DISCORD_CLIENT_ID', 'DISCORD_CLIENT_SECRET', 'ADMIN_USERNAME', 'ADMIN_PASSWORD', 'IP_HASH_SECRET');
+    required.push('DISCORD_CLIENT_ID', 'DISCORD_CLIENT_SECRET', 'ADMIN_USERNAME', 'ADMIN_PASSWORD');
   }
   const missing = required.filter(name => !String(process.env[name] || '').trim());
   if (missing.length) {
@@ -33,10 +33,12 @@ async function main() {
   global.BOT_REF = bot;
   const webServer = startNodeWeb(bot);
   let shuttingDown = false;
+  let reconnectTimer = null;
 
   async function shutdown(signal, exitCode = 0) {
     if (shuttingDown) return;
     shuttingDown = true;
+    if (reconnectTimer) clearTimeout(reconnectTimer);
     devPrint(`${signal}: ModForge wird sauber beendet.`, 'warning', 'Startup');
 
     const forceTimer = setTimeout(() => {
@@ -68,8 +70,21 @@ async function main() {
     void shutdown('uncaughtException', 1);
   });
 
+  async function connectBot() {
+    if (shuttingDown || bot.isReady()) return;
+    try {
+      await bot.start(BOT_TOKEN);
+      devPrint('Discord-Bot erfolgreich verbunden.', 'success', 'Startup');
+    } catch (error) {
+      devPrint(`Discord-/MongoDB-Verbindung fehlgeschlagen: ${error.stack || error.message}`, 'error', 'Startup');
+      devPrint('Website bleibt online; neuer Verbindungsversuch in 30 Sekunden.', 'warning', 'Startup');
+      reconnectTimer = setTimeout(() => void connectBot(), 30_000);
+      reconnectTimer.unref();
+    }
+  }
+
   devBanner('ModForge startet', 'Version: v3.0.0-node', 'Web-Dashboard: Node/Express aktiv', 'Discord-Bot: wird verbunden', 'info', 'Startup');
-  await bot.start(BOT_TOKEN);
+  await connectBot();
 }
 
 main().catch((error) => {

@@ -425,8 +425,13 @@ function createNodeWeb(bot) {
   app.get('/health', (req, res) => {
     const botReady = Boolean(bot.isReady());
     const databaseReady = Boolean(bot.db?.ready);
-    const ok = botReady && databaseReady;
-    return res.status(ok ? 200 : 503).json({ ok, status: ok ? 'ready' : 'starting', bot_ready: botReady, database_ready: databaseReady, guilds: bot.guilds.cache.size, uptime: Math.floor(process.uptime()), ts: new Date().toISOString() });
+    return res.status(200).json({ ok: true, status: botReady && databaseReady ? 'ready' : 'degraded', web_ready: true, bot_ready: botReady, database_ready: databaseReady, guilds: bot.guilds.cache.size, uptime: Math.floor(process.uptime()), ts: new Date().toISOString() });
+  });
+  app.get('/ready', (req, res) => {
+    const botReady = Boolean(bot.isReady());
+    const databaseReady = Boolean(bot.db?.ready);
+    const ready = botReady && databaseReady;
+    return res.status(ready ? 200 : 503).json({ ok: ready, status: ready ? 'ready' : 'degraded', web_ready: true, bot_ready: botReady, database_ready: databaseReady, guilds: bot.guilds.cache.size, uptime: Math.floor(process.uptime()), ts: new Date().toISOString() });
   });
   app.get('/healthz', (req, res) => res.redirect('/health'));
   app.get('/api/status', (req, res) => res.json({ ok: true, bot_ready: bot.isReady(), guilds: bot.guilds.cache.size, members: bot.guilds.cache.reduce((a, g) => a + (g.memberCount || 0), 0) }));

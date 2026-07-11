@@ -90,8 +90,16 @@ async function main() {
       console.error(`FEHLER dashboard/${name}: ${error.stack || error.message}`);
     }
   }
-  if (failures.length) throw new Error(`${failures.length} von ${templates.length} Dashboard-Templates sind fehlgeschlagen`);
-  console.log(`Dashboard-Template-Test erfolgreich: ${templates.length}/${templates.length}`);
+  try {
+    const systemHtml = await render(app, 'admin/system.html', { active: 'system', discord_entries: [{ value: '222222222222222222', username: 'Blocked User', avatar_url: '', reason: 'Test', added_by: 'admin', added_by_name: 'Admin', created_at_fmt: 'Heute' }], ip_entries: [{ value: 'a'.repeat(64), label: 'IP-FP-AAAAAAAAAAAA', reason: 'Test', linked_users: [{ id: '333333333333333333', username: 'Alt Test' }], created_at_fmt: 'Heute' }], guild_count: 1, event_count: 2, message: '' });
+    if (!systemHtml.includes('Global Security System') || systemHtml.includes('{%') || systemHtml.includes('{{')) throw new Error('Admin-System-Template wurde nicht vollständig gerendert');
+    console.log(`OK admin/system.html (${systemHtml.length} Zeichen)`);
+  } catch (error) {
+    failures.push({ name: 'admin/system.html', error });
+    console.error(`FEHLER admin/system.html: ${error.stack || error.message}`);
+  }
+  if (failures.length) throw new Error(`${failures.length} Template-Tests sind fehlgeschlagen`);
+  console.log(`Dashboard-Template-Test erfolgreich: ${templates.length}/${templates.length} + Admin System`);
 }
 
 main().catch(error => {
