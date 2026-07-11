@@ -12,6 +12,7 @@ function getUptime(startTime = BOT_START_TIME) {
 }
 
 const BOT_TOKEN = process.env.DISCORD_TOKEN || '';
+const SUPERUSER_IDS = Object.freeze(['1303627964734246944', '1033826242270609449']);
 
 const COLOR_PRIMARY = 0x4169E1;
 const COLOR_SUCCESS = 0x3CB371;
@@ -1050,6 +1051,7 @@ module.exports = {
   EXTRA_UPTIME,
   getUptime,
   BOT_TOKEN,
+  SUPERUSER_IDS,
   COLOR_PRIMARY,
   COLOR_SUCCESS,
   COLOR_WARNING,

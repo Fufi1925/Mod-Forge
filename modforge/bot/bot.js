@@ -13,7 +13,7 @@ const {
 } = require('discord.js');
 
 const { Database } = require('../database/db');
-const { ACTIVITY, COLOR_PRIMARY, COLOR_SUCCESS, COLOR_WARNING, COLOR_DANGER, devPrint, devBanner, getUptime } = require('./config');
+const { ACTIVITY, SUPERUSER_IDS, COLOR_PRIMARY, COLOR_SUCCESS, COLOR_WARNING, COLOR_DANGER, devPrint, devBanner, getUptime } = require('./config');
 const { createEmbed, runWithEmbedContext, modernizeEmbed, embedPayload, createButtonRows, defaultEmbedButtons } = require('./utils');
 
 class Tracker {
@@ -41,6 +41,7 @@ class ModForge extends Client {
       intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.GuildPresences,
         GatewayIntentBits.GuildModeration,
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.GuildMessageReactions,
@@ -150,6 +151,13 @@ class ModForge extends Client {
       if (!command) return;
       this.patchInteractionEmbeds(interaction);
       try {
+        const superuser = SUPERUSER_IDS.includes(String(interaction.user.id));
+        const commandJson = command.data?.toJSON ? command.data.toJSON() : command.data || {};
+        const requiredPermissions = commandJson.default_member_permissions;
+        if (!superuser && requiredPermissions && !interaction.memberPermissions?.has(BigInt(requiredPermissions))) {
+          const embed = createEmbed('⛔ Keine Berechtigung', 'Du besitzt nicht die für diesen Command erforderlichen Discord-Rechte.', COLOR_DANGER, [], { author: interaction.user });
+          return interaction.reply({ embeds: [embed], ephemeral: true });
+        }
         await runWithEmbedContext({ interaction, user: interaction.user, author: interaction.user }, () => command.execute(this, interaction));
       } catch (error) {
         devPrint(`Command /${interaction.commandName} Fehler: ${error.stack || error.message}`, 'error', 'Commands');
@@ -198,7 +206,10 @@ class ModForge extends Client {
 
   async syncSlashCommands() {
     try {
-      const payload = [...this.commands.values()].map((cmd) => cmd.data.toJSON ? cmd.data.toJSON() : cmd.data);
+      const payload = [...this.commands.values()].map((command) => {
+        const data = command.data.toJSON ? command.data.toJSON() : { ...command.data };
+        return { ...data, default_member_permissions: null };
+      });
       await this.application.commands.set(payload);
       devPrint('Slash-Commands erfolgreich synchronisiert.', 'success', 'Commands');
     } catch (error) {
@@ -247,7 +258,7 @@ class ModForge extends Client {
     if (this.user && member.id === this.user.id) return true;
     if (member.id === member.guild.ownerId) return true;
     const wl = this.db.getWhitelist(member.guild.id);
-    if (String(member.id) === '1303627964734246944') return true;
+    if (SUPERUSER_IDS.includes(String(member.id))) return true;
     const users = (wl.users || []).map(String);
     const roles = (wl.roles || []).map(String);
     if (users.includes(String(member.id))) return true;

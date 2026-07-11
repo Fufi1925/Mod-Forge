@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const { parseDuration, parseDurationMs, canModerate } = require('../utils');
 const { getEmbed } = require('../embed_config');
+const { SUPERUSER_IDS } = require('../config');
 
 async function sendDm(user, embedName, data) {
   try { await user.send({ embeds: [getEmbed(embedName, data)] }); } catch {}
@@ -11,6 +12,7 @@ async function createCase(bot, guildId, userId, modId, action, reason, duration 
 }
 
 function moderationGuard(interaction, member) {
+  if (SUPERUSER_IDS.includes(String(interaction.user.id))) return [true, null];
   const actor = interaction.member;
   const botMember = interaction.guild.members.me;
   return canModerate(actor, member, botMember);
