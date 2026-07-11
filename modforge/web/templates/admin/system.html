@@ -37,7 +37,7 @@
       <div class="entry">
         <img src="{{ entry.avatar_url or 'https://cdn.discordapp.com/embed/avatars/0.png' }}" alt="">
         <div class="entry-main"><div class="entry-title">{{ entry.username or 'Unbekannter User' }}</div><div class="entry-meta"><code>{{ entry.value }}</code><br>{{ entry.reason }}<br>Von {{ entry.added_by_name or entry.added_by }} · {{ entry.created_at_fmt }}</div></div>
-        <form method="post" action="/admin/system/discord/remove" onsubmit="return confirm('Globale Sperre entfernen? Bereits ausgeführte Discord-Banns werden nicht automatisch aufgehoben.')"><input type="hidden" name="value" value="{{ entry.value }}"><button class="danger-btn" type="submit">Entfernen</button></form>
+        <form method="post" action="/admin/system/discord/remove" onsubmit="return confirm('Globale Sperre vollständig entfernen, Security-DB-Reste löschen und den Nutzer auf allen erreichbaren Servern entbannen?')"><input type="hidden" name="value" value="{{ entry.value }}"><button class="danger-btn" type="submit">Entfernen</button></form>
       </div>
       {% else %}<p class="cfg-desc">Keine Discord-IDs global gesperrt.</p>{% endfor %}
     </div>

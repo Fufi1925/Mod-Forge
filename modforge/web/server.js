@@ -8,7 +8,7 @@ const { isIP } = require('node:net');
 const { URLSearchParams } = require('node:url');
 const { registerDashboard } = require('./dashboard');
 const { SUPERUSER_IDS } = require('../bot/config');
-const { enforceBlockedUserEverywhere } = require('../bot/global_security');
+const { enforceBlockedUserEverywhere, removeBlockedUserEverywhere } = require('../bot/bot');
 
 const SESSION_COOKIE = 'modforge_session';
 const ADMIN_COOKIE = 'modforge_admin';
@@ -658,8 +658,13 @@ function createNodeWeb(bot) {
   app.post('/admin/system/discord/remove', requireSystemAccess, async (req, res) => {
     const value = String(req.body.value || '').trim();
     await bot.db.removeGlobalSecurityEntry('discord_id', value);
-    await recordAdminEvent(bot, req, 'global_discord_block_remove', { user_id: value, actor_id: req.systemActor.id }).catch(() => null);
-    return res.redirect(`/admin/system?message=${encodeURIComponent(`Globale ModForge-Sperre für ${value} entfernt. Bestehende Discord-Banns bleiben bestehen.`)}`);
+    const results = await removeBlockedUserEverywhere(bot, value);
+    const unbanned = results.filter(result => result.ok).length;
+    const failed = results.filter(result => result.ok === false).length;
+    await bot.db.global_security_events.deleteMany({ user_id: value }).catch(() => null);
+    await (await sessionsCol(bot)).deleteMany({ 'user.id': value }).catch(() => null);
+    await recordAdminEvent(bot, req, 'global_discord_block_remove', { user_id: value, unbanned, failed, actor_id: req.systemActor.id }).catch(() => null);
+    return res.redirect(`/admin/system?message=${encodeURIComponent(`Globale Sperre für ${value} vollständig entfernt · ${unbanned} Server entbannt · ${failed} Fehler · Security-DB-Reste gelöscht.`)}`);
   });
 
   app.post('/admin/system/ip/add', requireSystemAccess, async (req, res) => {
