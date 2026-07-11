@@ -1,6 +1,6 @@
 const crypto = require('node:crypto');
 const { ObjectId } = require('mongodb');
-const { PermissionFlagsBits, ChannelType, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { PermissionFlagsBits, ChannelType, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
 const { BADGES, LOG_MODS, ACTIVITY, DEFAULT_CONFIG } = require('../bot/config');
 const { collectBackupData, restoreFromBackup } = require('../bot/cogs/backup');
 
@@ -312,11 +312,15 @@ async function warnsContext(bot, guild, cfg) {
   const rows = (await casesContext(bot, guild)).cases.filter(item => String(item.action).toLowerCase() === 'warn');
   const counts = new Map();
   for (const row of rows) counts.set(String(row.user_id), (counts.get(String(row.user_id)) || 0) + 1);
+  const thresholdSource = cfg.warn_thresholds || cfg.warn_system?.thresholds || { 3: 'timeout', 5: 'kick', 7: 'ban' };
+  const thresholds = Array.isArray(thresholdSource)
+    ? thresholdSource.map(item => ({ count: Number(item.count), action: String(item.action) }))
+    : Object.entries(thresholdSource).map(([count, action]) => ({ count: Number(count), action: String(action) }));
+  thresholds.sort((a, b) => a.count - b.count);
   return {
     warns: rows, total_warns: rows.length, warns_7d: rows.filter(row => Date.now() - new Date(row.created_at || 0).getTime() <= 7 * 864e5).length,
     top_warned: [...counts.entries()].map(([id, count]) => ({ id, name: guild.members.cache.get(id)?.displayName || id, count })).sort((a, b) => b.count - a.count).slice(0, 10),
-    decay: cfg.warn_decay || {}, thresholds: cfg.warn_thresholds || [{ count: 3, action: 'timeout' }, { count: 5, action: 'kick' }, { count: 7, action: 'ban' }],
-    sorted_th: cfg.warn_thresholds || [{ count: 3, action: 'timeout' }, { count: 5, action: 'kick' }, { count: 7, action: 'ban' }],
+    decay: cfg.warn_decay || {}, thresholds, sorted_th: thresholds,
   };
 }
 
@@ -325,22 +329,28 @@ function automodEvaluate(cfg, text) {
   const hits = [];
   const lower = String(text || '').toLowerCase();
   for (const word of am.bad_words || []) if (lower.includes(String(word).toLowerCase())) hits.push({ label: `BadWord: ${word}`, action: am.punishment || 'delete', severity: 'high' });
-  for (const domain of am.blocked_domains || []) if (lower.includes(String(domain).toLowerCase())) hits.push({ label: `Domain: ${domain}`, action: am.punishment || 'delete', severity: 'high' });
   if (am.invite_filter && /discord(?:app)?\.(?:gg|com\/invite)\//i.test(text)) hits.push({ label: 'Discord-Einladung', action: am.punishment || 'delete', severity: 'medium' });
-  if (am.link_filter && /https?:\/\//i.test(text)) hits.push({ label: 'Link', action: am.punishment || 'delete', severity: 'medium' });
-  for (const pattern of am.regex_patterns || []) {
-    try { if (new RegExp(pattern, 'iu').test(text)) hits.push({ label: `Regex: ${pattern}`, action: am.punishment || 'delete', severity: 'high' }); } catch {}
+  if (am.link_filter) {
+    const urls = String(text || '').match(/https?:\/\/[^\s<]+/gi) || [];
+    const allowed = new Set((am.allowed_domains || []).map(domain => String(domain).toLowerCase()));
+    for (const url of urls) {
+      try { const hostname = new URL(url).hostname.toLowerCase().replace(/^www\./, ''); if (![...allowed].some(domain => hostname === domain || hostname.endsWith(`.${domain}`))) hits.push({ label: `Nicht erlaubte Domain: ${hostname}`, action: am.punishment || 'delete', severity: 'medium' }); }
+      catch { hits.push({ label: 'Ungültiger Link', action: am.punishment || 'delete', severity: 'medium' }); }
+    }
+  }
+  for (const pattern of am.regex_patterns || am.regex_rules || []) { const source = String(pattern).replace(/^\(\?i\)/, '');
+    try { if (new RegExp(source, 'iu').test(text)) hits.push({ label: `Regex: ${pattern}`, action: am.punishment || 'delete', severity: 'high' }); } catch {}
   }
   return { hits, count: hits.length, would_delete: hits.length > 0, warnings: [] };
 }
 
 function automodContext(cfg) {
   const am = cfg.automod || {};
-  const regexReport = (am.regex_patterns || []).map((pattern, index) => {
-    try { new RegExp(pattern, 'iu'); return { index, pattern, level: 'ok', message: 'Gültig', danger: false }; }
-    catch (error) { return { index, pattern, level: 'danger', message: error.message, danger: true }; }
+  const regexReport = (am.regex_patterns || am.regex_rules || []).map((pattern, index) => {
+    try { new RegExp(String(pattern).replace(/^\(\?i\)/, ''), 'iu'); return { index, pattern, level: 'ok', message: 'Gültig', danger: false, ok: true }; }
+    catch (error) { return { index, pattern, level: 'danger', message: error.message, danger: true, ok: false }; }
   });
-  return { am, regex_report: regexReport, stats: { bad_words: (am.bad_words || []).length, regex: regexReport.length, regex_bad: regexReport.filter(x => x.danger).length, regex_warn: 0, domains: (am.blocked_domains || []).length }, suggestions: [] };
+  return { am, regex_report: regexReport, stats: { bad_words: (am.bad_words || []).length, regex: regexReport.length, regex_bad: regexReport.filter(x => x.danger).length, regex_warn: 0, domains: (am.allowed_domains || []).length }, suggestions: [] };
 }
 
 async function backupRows(bot, guildId) {
@@ -442,7 +452,7 @@ async function pageContext(bot, guild, cfg, user, page) {
   else if (page === 'roles') extra = await rolesContext(guild, cfg);
   else if (page === 'security') { const rc = await rolesContext(guild, cfg); extra = { ...rc, ...securityContext(cfg, rc.roles) }; }
   else if (page === 'badges') extra = await badgeContext(bot, guild, cfg);
-  else if (page === 'tickets') extra = await ticketContext(bot, guild, cfg);
+  else if (page === 'tickets') extra = { ...(await ticketContext(bot, guild, cfg)), channels: common.text_channels, categories: common.categories };
   else if (page === 'templates') extra = await templateContext(bot, guild);
   else if (page === 'whitelist') {
     const whitelist = await bot.db.fetchWhitelist(guild.id);
@@ -489,13 +499,13 @@ async function pageContext(bot, guild, cfg, user, page) {
     extra = { activities: ACTIVITY.snapshot(100), events, dangerous_roles: (await rolesContext(guild, cfg)).dangerous_roles };
   }
   else if (page === 'tempvoice') extra = { active_channels: await findMany(bot, 'tempvoice_channels', guildQuery(guild.id), { limit: 100 }), tv: cfg.tempvoice || cfg.temp_voice || {} };
-  else if (page === 'verification') { const vs = cfg.verify_system || {}; extra = { vs, ve: cfg.verify_extended || {}, quiz: vs.quiz || [], panel_status: { channel_ok: Boolean(vs.channel_id || vs.verify_channel), reason: (vs.channel_id || vs.verify_channel) ? 'Kanal gesetzt' : 'Kein Kanal gesetzt' }, role_health: [], verify_stats: { enabled: Boolean(vs.enabled), add_roles: (vs.add_roles || []).length, remove_roles: (vs.remove_roles || []).length, quiz_questions: (vs.quiz || []).length, mode: vs.mode || 'one_click' } }; }
-  else if (page === 'welcome') extra = { wc: cfg.welcome || {}, lv: cfg.leave || {}, wc_col: cfg.welcome?.embed_color || '#22c55e', lv_col: cfg.leave?.embed_color || '#ef4444', placeholder_warnings: [], role_health: [] };
+  else if (page === 'verification') { const vs = cfg.verify_system || {}; extra = { vs, ve: cfg.verify_extended || {}, quiz: vs.quiz || [], channels: common.text_channels, panel_status: { channel_ok: Boolean(vs.channel_id || vs.verify_channel), reason: (vs.channel_id || vs.verify_channel) ? 'Kanal gesetzt' : 'Kein Kanal gesetzt' }, role_health: [], verify_stats: { enabled: Boolean(vs.enabled), add_roles: (vs.add_roles || []).length, remove_roles: (vs.remove_roles || []).length, quiz_questions: (vs.quiz || []).length, mode: vs.mode || 'one_click' } }; }
+  else if (page === 'welcome') extra = { wc: cfg.welcome || {}, lv: cfg.leave || {}, channels: common.text_channels, wc_col: cfg.welcome?.embed_color || '#22c55e', lv_col: cfg.leave?.embed_color || '#ef4444', placeholder_warnings: [], role_health: [] };
   else if (page === 'autonick') { const settings = cfg.auto_nickname || {}; extra = { enabled: Boolean(settings.enabled), rules: (settings.rules || []).map(rule => ({ ...rule, role_name: rule.role_name || guild.roles.cache.get(String(rule.role_id))?.name || String(rule.role_id) })), exempt_roles: (settings.exempt_roles || []).map(item => typeof item === 'object' ? { id: String(item.id), name: item.name || guild.roles.cache.get(String(item.id))?.name || String(item.id) } : { id: String(item), name: guild.roles.cache.get(String(item))?.name || String(item) }) }; }
   else if (page === 'autoresponse') extra = { auto_responses: cfg.auto_responses || [] };
   else if (page === 'modules') extra = { sections: MODULE_SECTIONS };
-  else if (page === 'embed') extra = {};
-  else if (page === 'settings') extra = { setting_fields: [] };
+  else if (page === 'embed') extra = { channels: common.text_channels };
+  else if (page === 'settings') extra = { setting_fields: [], channels: common.text_channels };
   else if (page === 'beta' || page === 'appeals') { const appeals = await findMany(bot, 'appeals', guildQuery(guild.id), { sort: { created_at: -1 }, limit: 100 }); const applications = await findMany(bot, 'staff_applications', guildQuery(guild.id), { sort: { created_at: -1 }, limit: 100 }); extra = { appeals, applications, staff_applications: applications, appeals_count: appeals.length, appeals_pending: appeals.filter(x => x.status === 'pending').length, staff_count: applications.length, staff_pending: applications.filter(x => x.status === 'pending').length, beta_warning: { warning: 'Beta-Funktionen können sich ändern.' }, themes: { dark: '#111827', midnight: '#0f172a', forest: '#14532d', ocean: '#164e63' }, current_theme: cfg.dashboard_theme || 'dark', auto_dm: false, smart_timeout: false, risk_alerts: false }; }
   else if (page === 'staff_applications') extra = { applications: await findMany(bot, 'staff_applications', guildQuery(guild.id), { sort: { created_at: -1 }, limit: 100 }) };
   return { ...common, ...extra, active: page };
@@ -578,6 +588,23 @@ function registerDashboard({ app, bot, render, getSession, canManage, forbidden,
       patch.tempvoice = deepMerge(patch.tempvoice || oldCfg.tempvoice || {}, patch.temp_voice);
       delete patch.temp_voice;
     }
+    if (patch.warn_thresholds_add) {
+      patch.warn_thresholds = { ...(oldCfg.warn_thresholds || {}), ...patch.warn_thresholds_add };
+      delete patch.warn_thresholds_add;
+    }
+    if (Array.isArray(patch.warn_thresholds_remove)) {
+      patch.warn_thresholds = { ...(patch.warn_thresholds || oldCfg.warn_thresholds || {}) };
+      for (const threshold of patch.warn_thresholds_remove) delete patch.warn_thresholds[String(threshold)];
+      delete patch.warn_thresholds_remove;
+    }
+    if (String(patch.log_channel) === '1') {
+      let logChannel = req.dashboard.guild.channels.cache.find(channel => channel.name === 'modforge-logs' && channel.isTextBased?.());
+      if (!logChannel) {
+        logChannel = await req.dashboard.guild.channels.create({ name: 'modforge-logs', type: ChannelType.GuildText, reason: `Dashboard Quick-Fix von ${req.dashboard.session.user.id}` });
+      }
+      patch.log_channel = String(logChannel.id);
+      patch.log_channels = { ...(oldCfg.log_channels || {}), default: String(logChannel.id) };
+    }
     const cfg = deepMerge(oldCfg, patch);
     await bot.db.setConfig(req.params.guildId, cfg);
     res.json({ ok: true, config: cfg });
@@ -585,7 +612,21 @@ function registerDashboard({ app, bot, render, getSession, canManage, forbidden,
 
   app.get('/api/guild/:guildId/activity', async (req, res) => {
     const stored = await findMany(bot, 'guild_events', guildQuery(req.params.guildId), { sort: { created_at: -1 }, limit: 100 });
-    res.json({ ok: true, activities: [...ACTIVITY.snapshot(100), ...stored].slice(0, 100) });
+    res.json([...ACTIVITY.snapshot(100), ...stored].slice(0, 100));
+  });
+
+  app.post('/api/guild/:guildId/embed', async (req, res) => {
+    const channel = req.dashboard.guild.channels.cache.get(String(req.body.channel_id || ''));
+    if (!channel?.isTextBased?.()) return res.status(400).json({ ok: false, error: 'Textkanal nicht gefunden' });
+    try {
+      const source = req.body.embed && typeof req.body.embed === 'object' ? req.body.embed : {};
+      const embed = EmbedBuilder.from(source);
+      const message = await channel.send({ embeds: [embed] });
+      await bot.db.arecord_activity(req.params.guildId, 'embed', `Embed in #${channel.name} gesendet`, { channel_id: channel.id, message_id: message.id, actor_id: String(req.dashboard.session.user.id) }).catch(() => null);
+      return res.json({ ok: true, channel_id: channel.id, message_id: message.id, url: message.url });
+    } catch (error) {
+      return res.status(400).json({ ok: false, error: `Embed konnte nicht gesendet werden: ${error.message}` });
+    }
   });
 
   app.post('/api/guild/:guildId/onboarding/wizard_seen', async (req, res) => { const cfg = await bot.db.fetchConfig(req.params.guildId); cfg.dashboard_onboarding = { ...(cfg.dashboard_onboarding || {}), wizard_popup_seen: true, wizard_popup_seen_at: new Date().toISOString() }; await bot.db.setConfig(req.params.guildId, cfg); res.json({ ok: true }); });
@@ -614,7 +655,34 @@ function registerDashboard({ app, bot, render, getSession, canManage, forbidden,
     res.json({ ok: true, locked, errors });
   });
 
-  app.post('/api/guild/:guildId/automod', async (req, res) => { const cfg = await bot.db.fetchConfig(req.params.guildId); cfg.automod = deepMerge(cfg.automod || {}, req.body || {}); await bot.db.setConfig(req.params.guildId, cfg); res.json({ ok: true, automod: cfg.automod }); });
+  app.post('/api/guild/:guildId/automod', async (req, res) => {
+    const cfg = await bot.db.fetchConfig(req.params.guildId);
+    const automod = deepMerge({ bad_words: [], regex_patterns: [], allowed_domains: [] }, cfg.automod || {});
+    automod.regex_patterns = automod.regex_patterns?.length ? automod.regex_patterns : (automod.regex_rules || []);
+    const action = safeText(req.body.action, 30);
+    const value = safeText(req.body.value, 500);
+    if (action === 'add_word' && value && !automod.bad_words.includes(value)) automod.bad_words.push(value);
+    else if (action === 'del_word') automod.bad_words = automod.bad_words.filter(item => item !== value);
+    else if (action === 'add_regex') {
+      try { new RegExp(value, 'iu'); } catch (error) { return res.status(400).json({ ok: false, error: `Ungültiger Regex: ${error.message}` }); }
+      if (value && !automod.regex_patterns.includes(value)) automod.regex_patterns.push(value);
+    } else if (action === 'del_regex') automod.regex_patterns.splice(int(req.body.index, -1), 1);
+    else if (action === 'add_domain') {
+      const domain = value.toLowerCase().replace(/^https?:\/\//, '').split('/')[0];
+      if (domain && !automod.allowed_domains.includes(domain)) automod.allowed_domains.push(domain);
+    } else if (action === 'del_domain') automod.allowed_domains = automod.allowed_domains.filter(item => item !== value.toLowerCase());
+    else if (action === 'bulk_words' || action === 'bulk_domains') {
+      const values = safeText(req.body.value, 20_000).split(/[\n,;]+/).map(item => item.trim()).filter(Boolean);
+      const key = action === 'bulk_words' ? 'bad_words' : 'allowed_domains';
+      const normalized = key === 'allowed_domains' ? values.map(item => item.toLowerCase().replace(/^https?:\/\//, '').split('/')[0]) : values;
+      automod[key] = req.body.mode === 'replace' ? [...new Set(normalized)] : [...new Set([...(automod[key] || []), ...normalized])];
+    } else if (action) return res.status(400).json({ ok: false, error: 'Unbekannte AutoMod-Aktion' });
+    else Object.assign(automod, deepMerge(automod, req.body || {}));
+    automod.regex_rules = [...automod.regex_patterns];
+    cfg.automod = automod;
+    await bot.db.setConfig(req.params.guildId, cfg);
+    res.json({ ok: true, automod, regex_report: automodContext(cfg).regex_report });
+  });
   app.post('/api/guild/:guildId/automod/test', async (req, res) => { const cfg = await bot.db.fetchConfig(req.params.guildId); res.json({ ok: true, result: automodEvaluate(cfg, safeText(req.body.text, 4000)) }); });
   app.get('/api/guild/:guildId/automod/export', async (req, res) => { const cfg = await bot.db.fetchConfig(req.params.guildId); res.attachment(`modforge-automod-${req.params.guildId}.json`).json({ automod: cfg.automod || {} }); });
   app.post('/api/guild/:guildId/automod/import', async (req, res) => { const cfg = await bot.db.fetchConfig(req.params.guildId); cfg.automod = req.body.mode === 'replace' ? plain(req.body.automod || {}) : deepMerge(cfg.automod || {}, req.body.automod || {}); await bot.db.setConfig(req.params.guildId, cfg); res.json({ ok: true }); });
@@ -680,10 +748,35 @@ function registerDashboard({ app, bot, render, getSession, canManage, forbidden,
 
   app.get('/api/guild/:guildId/cases/export', async (req, res) => { const cases = (await casesContext(bot, req.dashboard.guild)).cases; if (req.query.format === 'html') { res.attachment(`cases-${req.params.guildId}.html`).type('html').send(`<!doctype html><meta charset="utf-8"><title>Cases</title><table><tr><th>ID</th><th>User</th><th>Aktion</th><th>Grund</th></tr>${cases.map(c => `<tr><td>${c.case_id}</td><td>${safeText(c.user_id)}</td><td>${safeText(c.action)}</td><td>${safeText(c.reason)}</td></tr>`).join('')}</table>`); } else res.attachment(`cases-${req.params.guildId}.json`).json(cases); });
   app.post('/api/guild/:guildId/case/:caseId/reason', async (req, res) => { await bot.db.updateCase(req.params.guildId, req.params.caseId, { reason: safeText(req.body.reason, 1000), updated_at: new Date() }); res.json({ ok: true }); });
-  app.post('/api/guild/:guildId/case/:caseId/evidence', async (req, res) => { await bot.db.aadd_case_evidence(req.params.guildId, req.params.caseId, { text: safeText(req.body.evidence || req.body.text, 2000), added_by: String(req.dashboard.session.user.id), created_at: new Date() }); res.json({ ok: true }); });
+  app.post('/api/guild/:guildId/case/:caseId/evidence', async (req, res) => {
+    const url = safeText(req.body.url, 1000);
+    const note = safeText(req.body.note || req.body.evidence || req.body.text, 1000);
+    if (!url && !note) return res.status(400).json({ ok: false, error: 'URL oder Notiz wird benötigt' });
+    if (url) {
+      try { const parsed = new URL(url); if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('protocol'); }
+      catch { return res.status(400).json({ ok: false, error: 'Ungültige Beweis-URL' }); }
+    }
+    const evidence = { url: url || null, note, text: note, added_by: String(req.dashboard.session.user.id), created_at: new Date() };
+    await bot.db.aadd_case_evidence(req.params.guildId, req.params.caseId, evidence);
+    res.json({ ok: true, evidence: plain(evidence) });
+  });
   app.delete('/api/guild/:guildId/case/:caseId', async (req, res) => { await (await collection(bot, 'cases')).deleteOne({ guild_id: Number(req.params.guildId), case_id: Number(req.params.caseId) }); res.json({ ok: true }); });
 
-  app.post('/api/guild/:guildId/whitelist', async (req, res) => { const whitelist = await bot.db.fetchWhitelist(req.params.guildId); const category = safeText(req.body.category || req.body.type || 'users', 40); if (!Object.prototype.hasOwnProperty.call(whitelist, category) || !Array.isArray(whitelist[category])) return res.status(400).json({ ok: false, error: 'Unbekannte Kategorie' }); const id = safeText(req.body.id, 30); if (req.body.action === 'remove') whitelist[category] = whitelist[category].filter(item => String(item) !== id); else if (id && !whitelist[category].includes(id)) whitelist[category].push(id); await bot.db.setWhitelist(req.params.guildId, whitelist); res.json({ ok: true, whitelist }); });
+  app.post('/api/guild/:guildId/whitelist', async (req, res) => {
+    const whitelist = await bot.db.fetchWhitelist(req.params.guildId);
+    const category = safeText(req.body.category || req.body.type || 'users', 40);
+    if (!Object.prototype.hasOwnProperty.call(whitelist, category) || !Array.isArray(whitelist[category])) return res.status(400).json({ ok: false, error: 'Unbekannte Kategorie' });
+    const action = safeText(req.body.action || 'add', 20).toLowerCase();
+    const id = safeText(req.body.id, 30);
+    if (action === 'clear') whitelist[category] = [];
+    else if (action === 'remove' || action === 'del' || action === 'delete') whitelist[category] = whitelist[category].filter(item => String(item) !== id);
+    else if (action === 'add') {
+      if (!/^\d{15,22}$/.test(id)) return res.status(400).json({ ok: false, error: 'Ungültige Discord-ID' });
+      if (!whitelist[category].map(String).includes(id)) whitelist[category].push(id);
+    } else return res.status(400).json({ ok: false, error: 'Unbekannte Aktion' });
+    await bot.db.setWhitelist(req.params.guildId, whitelist);
+    res.json({ ok: true, whitelist, category, count: whitelist[category].length });
+  });
 
   app.post('/api/guild/:guildId/roles', async (req, res) => {
     const guild = req.dashboard.guild; const action = safeText(req.body.action, 30); const roleId = safeText(req.body.role_id, 30); const role = guild.roles.cache.get(roleId);
@@ -712,15 +805,126 @@ function registerDashboard({ app, bot, render, getSession, canManage, forbidden,
   });
   app.get('/api/guild/:guildId/roles/preview/:id', async (req, res) => { const role = req.dashboard.guild.roles.cache.get(String(req.params.id)); if (!role) return res.status(404).json({ ok: false, error: 'Rolle nicht gefunden' }); res.json({ ok: true, role: roleView(role, req.dashboard.guild), members: [...role.members.values()].slice(0, 100).map(m => ({ id: m.id, name: m.displayName, avatar: m.displayAvatarURL({ size: 64 }) })) }); });
 
-  app.get('/api/guild/:guildId/logs/health', async (req, res) => { const cfg = await bot.db.fetchConfig(req.params.guildId); const channels = cfg.log_channels || {}; const health = Object.entries(channels).map(([module, id]) => { const channel = req.dashboard.guild.channels.cache.get(String(id)); return { module, channel_id: id, ok: Boolean(channel?.isTextBased?.()), reason: channel ? 'OK' : 'Kanal nicht gefunden' }; }); res.json({ ok: true, health }); });
-  app.post('/api/guild/:guildId/logs/test', async (req, res) => { const cfg = await bot.db.fetchConfig(req.params.guildId); const module = safeText(req.body.module || 'default', 40); const id = req.body.channel_id || cfg.log_channels?.[module] || cfg.log_channel; const channel = req.dashboard.guild.channels.cache.get(String(id)); if (!channel?.isTextBased?.()) return res.status(400).json({ ok: false, error: 'Log-Kanal nicht gefunden' }); const message = await channel.send({ content: `✅ ModForge Test-Log · Modul **${module}** · ausgelöst von <@${req.dashboard.session.user.id}>` }); res.json({ ok: true, message_id: message.id }); });
-  app.post('/api/guild/:guildId/logs/preset', async (req, res) => { const cfg = await bot.db.fetchConfig(req.params.guildId); const channelId = safeText(req.body.channel_id, 30); const preset = safeText(req.body.preset || 'all', 20); const keys = preset === 'security' ? LOG_CATEGORIES.Sicherheit : preset === 'moderation' ? LOG_CATEGORIES.Moderation : LOG_MODS; cfg.log_channels = { ...(cfg.log_channels || {}) }; for (const key of keys) cfg.log_channels[key] = channelId; await bot.db.setConfig(req.params.guildId, cfg); res.json({ ok: true, configured: keys.length }); });
-  app.post('/api/guild/:guildId/logs/repair', async (req, res) => { const cfg = await bot.db.fetchConfig(req.params.guildId); const valid = {}; for (const [key, id] of Object.entries(cfg.log_channels || {})) if (req.dashboard.guild.channels.cache.has(String(id))) valid[key] = id; cfg.log_channels = valid; await bot.db.setConfig(req.params.guildId, cfg); res.json({ ok: true, removed: Object.keys(cfg.log_channels || {}).length - Object.keys(valid).length }); });
+  app.get('/api/guild/:guildId/logs/health', async (req, res) => {
+    const cfg = await bot.db.fetchConfig(req.params.guildId);
+    const configured = cfg.log_channels || {};
+    const modules = [...new Set(['default', ...LOG_MODS, ...Object.keys(configured)])].map(module => {
+      const explicit = module === 'default' ? cfg.log_channel : configured[module];
+      const disabled = String(explicit) === '0';
+      const id = disabled ? null : explicit || cfg.log_channel || null;
+      const channel = id ? req.dashboard.guild.channels.cache.get(String(id)) : null;
+      const ok = Boolean(channel?.isTextBased?.());
+      return { module, channel_id: id, channel: channel?.name || null, ok, disabled, reason: disabled ? 'Deaktiviert' : !id ? 'Kein Kanal' : ok ? 'OK' : 'Kanal nicht gefunden' };
+    });
+    const active = modules.filter(item => !item.disabled);
+    const modulesOk = active.filter(item => item.ok).length;
+    const broken = active.filter(item => item.channel_id && !item.ok).length;
+    const missing = active.filter(item => !item.channel_id).length;
+    const score = active.length ? Math.round((modulesOk / active.length) * 100) : 0;
+    res.json({ ok: true, score, modules, modules_ok: modulesOk, modules_total: modules.length, broken, missing, disabled: modules.filter(item => item.disabled).length });
+  });
+  app.post('/api/guild/:guildId/logs/test', async (req, res) => {
+    const cfg = await bot.db.fetchConfig(req.params.guildId);
+    const targets = new Map();
+    if (cfg.log_channel) targets.set(String(cfg.log_channel), 'Standard');
+    for (const [module, id] of Object.entries(cfg.log_channels || {})) if (id && String(id) !== '0') targets.set(String(id), module);
+    if (!targets.size) return res.status(400).json({ ok: false, error: 'Keine Log-Kanäle konfiguriert' });
+    const results = [];
+    for (const [id, name] of targets) {
+      const channel = req.dashboard.guild.channels.cache.get(id);
+      if (!channel?.isTextBased?.()) { results.push({ channel_id: id, name, ok: false, reason: 'Kanal nicht gefunden' }); continue; }
+      try { const message = await channel.send({ content: `✅ **ModForge Test-Log** · ausgelöst von <@${req.dashboard.session.user.id}>` }); results.push({ channel_id: id, name: channel.name, ok: true, reason: `Nachricht ${message.id} gesendet` }); }
+      catch (error) { results.push({ channel_id: id, name: channel.name, ok: false, reason: error.message }); }
+    }
+    res.json({ ok: results.some(item => item.ok), tested: results.length, results });
+  });
+  app.post('/api/guild/:guildId/logs/preset', async (req, res) => {
+    const cfg = await bot.db.fetchConfig(req.params.guildId);
+    const preset = safeText(req.body.preset || 'simple', 20);
+    let channelId = safeText(req.body.channel_id, 30);
+    const created = {};
+    cfg.log_channels = { ...(cfg.log_channels || {}) };
+    if (preset === 'hardcore') {
+      for (const [categoryName, keys] of Object.entries(LOG_CATEGORIES)) {
+        const name = `logs-${categoryName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+        let channel = req.dashboard.guild.channels.cache.find(item => item.name === name && item.isTextBased?.());
+        if (!channel) channel = await req.dashboard.guild.channels.create({ name, type: ChannelType.GuildText, reason: `Log-Preset von ${req.dashboard.session.user.id}` });
+        created[categoryName] = String(channel.id);
+        for (const key of keys) cfg.log_channels[key] = String(channel.id);
+        if (!channelId) channelId = String(channel.id);
+      }
+    } else {
+      if (!channelId) {
+        let channel = req.dashboard.guild.channels.cache.find(item => item.name === 'modforge-logs' && item.isTextBased?.());
+        if (!channel) channel = await req.dashboard.guild.channels.create({ name: 'modforge-logs', type: ChannelType.GuildText, reason: `Log-Preset von ${req.dashboard.session.user.id}` });
+        channelId = String(channel.id); created.default = channelId;
+      }
+      const keys = preset === 'security' ? LOG_CATEGORIES.Sicherheit : LOG_MODS;
+      for (const key of keys) cfg.log_channels[key] = channelId;
+    }
+    cfg.log_channel = channelId || cfg.log_channel;
+    await bot.db.setConfig(req.params.guildId, cfg);
+    await bot.db.log_channels_snapshot(req.params.guildId, cfg.log_channels).catch(() => null);
+    res.json({ ok: true, configured: Object.keys(cfg.log_channels).length, created, log_channel: cfg.log_channel });
+  });
+  app.post('/api/guild/:guildId/logs/repair', async (req, res) => {
+    const cfg = await bot.db.fetchConfig(req.params.guildId);
+    const action = safeText(req.body.action || 'remove_broken', 30);
+    const target = safeText(req.body.channel_id || cfg.log_channel, 30);
+    cfg.log_channels = { ...(cfg.log_channels || {}) };
+    let changed = 0;
+    if (action === 'fill_missing') {
+      const channel = req.dashboard.guild.channels.cache.get(target);
+      if (!channel?.isTextBased?.()) return res.status(400).json({ ok: false, error: 'Gültiger Zielkanal erforderlich' });
+      for (const module of LOG_MODS) if (!cfg.log_channels[module] || !req.dashboard.guild.channels.cache.has(String(cfg.log_channels[module]))) { cfg.log_channels[module] = target; changed += 1; }
+      if (!cfg.log_channel) { cfg.log_channel = target; changed += 1; }
+    } else if (action === 'remove_broken') {
+      for (const [module, id] of Object.entries(cfg.log_channels)) if (String(id) !== '0' && !req.dashboard.guild.channels.cache.has(String(id))) { delete cfg.log_channels[module]; changed += 1; }
+      if (cfg.log_channel && !req.dashboard.guild.channels.cache.has(String(cfg.log_channel))) { cfg.log_channel = null; changed += 1; }
+    } else return res.status(400).json({ ok: false, error: 'Unbekannte Repair-Aktion' });
+    await bot.db.setConfig(req.params.guildId, cfg);
+    await bot.db.log_channels_snapshot(req.params.guildId, cfg.log_channels).catch(() => null);
+    res.json({ ok: true, changed });
+  });
 
-  app.post('/api/guild/:guildId/verification/save', async (req, res) => { const cfg = await bot.db.fetchConfig(req.params.guildId); cfg.verify_system = deepMerge(cfg.verify_system || {}, req.body || {}); await bot.db.setConfig(req.params.guildId, cfg); res.json({ ok: true }); });
+  app.post('/api/guild/:guildId/verification/save', async (req, res) => {
+    const cfg = await bot.db.fetchConfig(req.params.guildId);
+    const body = req.body || {};
+    const systemKeys = ['enabled', 'mode', 'verify_channel', 'channel_id', 'captcha_difficulty', 'add_roles', 'remove_roles'];
+    const systemPatch = {};
+    const extendedPatch = {};
+    for (const [key, value] of Object.entries(body)) {
+      if (systemKeys.includes(key)) systemPatch[key] = value;
+      else extendedPatch[key] = value;
+    }
+    if (systemPatch.verify_channel) systemPatch.channel_id = String(systemPatch.verify_channel);
+    if (Array.isArray(systemPatch.add_roles)) systemPatch.add_roles = systemPatch.add_roles.map(String);
+    if (Array.isArray(systemPatch.remove_roles)) systemPatch.remove_roles = systemPatch.remove_roles.map(String);
+    for (const key of ['whitelist_ids', 'blacklist_ids']) {
+      if (typeof extendedPatch[key] === 'string') extendedPatch[key] = extendedPatch[key].split(/[\s,;]+/).map(value => value.trim()).filter(Boolean);
+    }
+    cfg.verify_system = deepMerge(cfg.verify_system || {}, systemPatch);
+    cfg.verify_extended = deepMerge(cfg.verify_extended || {}, extendedPatch);
+    await bot.db.setConfig(req.params.guildId, cfg);
+    res.json({ ok: true, verify_system: cfg.verify_system, verify_extended: cfg.verify_extended });
+  });
   app.post('/api/guild/:guildId/verification/quiz', async (req, res) => { const cfg = await bot.db.fetchConfig(req.params.guildId); cfg.verify_system = cfg.verify_system || {}; cfg.verify_system.quiz = cfg.verify_system.quiz || []; cfg.verify_system.quiz.push({ question: safeText(req.body.question, 300), answer: safeText(req.body.answer, 300) }); await bot.db.setConfig(req.params.guildId, cfg); res.json({ ok: true }); });
   app.delete('/api/guild/:guildId/verification/quiz', async (req, res) => { const cfg = await bot.db.fetchConfig(req.params.guildId); cfg.verify_system = cfg.verify_system || {}; cfg.verify_system.quiz = cfg.verify_system.quiz || []; cfg.verify_system.quiz.splice(int(req.body.index, -1), 1); await bot.db.setConfig(req.params.guildId, cfg); res.json({ ok: true }); });
-  app.post('/api/guild/:guildId/verification/panel', async (req, res) => { const cfg = await bot.db.fetchConfig(req.params.guildId); const vs = cfg.verify_system || {}; const channel = req.dashboard.guild.channels.cache.get(String(req.body.channel_id || vs.channel_id || vs.verify_channel)); if (!channel?.isTextBased?.()) return res.status(400).json({ ok: false, error: 'Verify-Kanal nicht gefunden' }); const row = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('modforge:verify').setLabel(vs.button_label || 'Verifizieren').setEmoji(vs.button_emoji || '✅').setStyle(ButtonStyle.Success)); let message = req.body.update && vs.message_id ? await channel.messages.fetch(vs.message_id).catch(() => null) : null; const payload = { content: `## ${vs.embed_title || '✅ Verifizierung'}\n${vs.embed_description || 'Klicke den Button, um dich zu verifizieren.'}`, components: [row] }; if (message) await message.edit(payload); else message = await channel.send(payload); cfg.verify_system = { ...vs, channel_id: channel.id, verify_channel: channel.id, message_id: message.id, enabled: true }; await bot.db.setConfig(req.params.guildId, cfg); res.json({ ok: true, message_id: message.id }); });
+  app.post('/api/guild/:guildId/verification/panel', async (req, res) => {
+    const cfg = await bot.db.fetchConfig(req.params.guildId);
+    const vs = cfg.verify_system || {};
+    const ve = cfg.verify_extended || {};
+    const channel = req.dashboard.guild.channels.cache.get(String(req.body.channel_id || vs.channel_id || vs.verify_channel));
+    if (!channel?.isTextBased?.()) return res.status(400).json({ ok: false, error: 'Verify-Kanal nicht gefunden' });
+    const row = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('modforge:verify').setLabel(ve.button_label || 'Verifizieren').setEmoji(ve.button_emoji || '✅').setStyle(ButtonStyle.Success));
+    let message = req.body.update && vs.message_id ? await channel.messages.fetch(vs.message_id).catch(() => null) : null;
+    const embed = new EmbedBuilder().setTitle(ve.embed_title || '✅ Verifizierung').setDescription(ve.embed_description || 'Klicke den Button, um dich zu verifizieren.').setColor(safeText(ve.embed_color || '#4169E1', 16));
+    const payload = { embeds: [embed], components: [row] };
+    if (message) await message.edit(payload); else message = await channel.send(payload);
+    cfg.verify_system = { ...vs, channel_id: String(channel.id), verify_channel: String(channel.id), message_id: String(message.id), enabled: true };
+    await bot.db.setConfig(req.params.guildId, cfg);
+    res.json({ ok: true, channel_id: channel.id, message_id: message.id });
+  });
   app.post('/api/guild/:guildId/verification/test', async (req, res) => { const cfg = await bot.db.fetchConfig(req.params.guildId); const vs = cfg.verify_system || {}; const channel = req.dashboard.guild.channels.cache.get(String(vs.channel_id || vs.verify_channel)); const roleIds = [...(vs.add_roles || []).map(id => ({ id, kind: 'add' })), ...(vs.remove_roles || []).map(id => ({ id, kind: 'remove' }))]; res.json({ ok: true, panel_status: { channel_ok: Boolean(channel), reason: channel ? `#${channel.name}` : 'Kanal fehlt' }, role_health: roleIds.map(item => { const role = req.dashboard.guild.roles.cache.get(String(item.id)); return { ...item, name: role?.name || item.id, ok: Boolean(role?.editable), reason: role ? (role.editable ? 'OK' : 'Nicht verwaltbar') : 'Nicht gefunden' }; }) }); });
 
   app.post('/api/guild/:guildId/welcome/test', async (req, res) => { const cfg = await bot.db.fetchConfig(req.params.guildId); const mode = req.body.mode === 'leave' ? cfg.leave || {} : cfg.welcome || {}; const description = safeText(mode.embed_description || mode.message || `Test für ${req.dashboard.guild.name}`, 1800).replaceAll('{server}', req.dashboard.guild.name).replaceAll('{user}', `<@${req.dashboard.session.user.id}>`); try { if (req.body.target === 'dm') { const user = await bot.users.fetch(req.dashboard.session.user.id); await user.send(description); } else { const channel = req.dashboard.guild.channels.cache.get(String(req.body.channel_id || mode.channel_id)); if (!channel?.isTextBased?.()) throw new Error('Kanal nicht gefunden'); await channel.send(description); } res.json({ ok: true }); } catch (error) { res.status(400).json({ ok: false, error: error.message }); } });
@@ -736,14 +940,37 @@ function registerDashboard({ app, bot, render, getSession, canManage, forbidden,
 
   app.post('/api/guild/:guildId/beta/theme', async (req, res) => { const theme = safeText(req.body.theme, 30); await bot.db.setServerTheme(req.params.guildId, theme); const cfg = await bot.db.fetchConfig(req.params.guildId); cfg.dashboard_theme = theme; await bot.db.setConfig(req.params.guildId, cfg); res.json({ ok: true, theme }); });
   app.post('/api/guild/:guildId/beta/settings', async (req, res) => { const cfg = await bot.db.fetchConfig(req.params.guildId); cfg.beta_settings = deepMerge(cfg.beta_settings || {}, req.body || {}); await bot.db.setConfig(req.params.guildId, cfg); res.json({ ok: true }); });
-  app.post('/api/guild/:guildId/beta/appeals/:id', async (req, res) => { await (await collection(bot, 'appeals')).updateOne(documentIdQuery(req.params.id, 'appeal_id'), { $set: { status: safeText(req.body.status || req.body.vote, 20), reviewer_id: String(req.dashboard.session.user.id), reviewed_at: new Date() } }); res.json({ ok: true }); });
-  app.post('/api/guild/:guildId/beta/staff/:id', async (req, res) => { await (await collection(bot, 'staff_applications')).updateOne(documentIdQuery(req.params.id, 'app_id'), { $set: { status: safeText(req.body.status, 20), reviewer_id: String(req.dashboard.session.user.id), reviewed_at: new Date() } }); res.json({ ok: true }); });
+  app.post('/api/guild/:guildId/beta/appeals/:id', async (req, res) => {
+    const action = safeText(req.body.action || req.body.status || req.body.vote, 20).toLowerCase();
+    const target = documentIdQuery(req.params.id, 'appeal_id');
+    if (action === 'delete') await (await collection(bot, 'appeals')).deleteOne(target);
+    else { const status = ['approve', 'approved', 'accept', 'accepted', 'yes'].includes(action) ? 'accepted' : ['reject', 'rejected', 'deny', 'no'].includes(action) ? 'rejected' : action; await (await collection(bot, 'appeals')).updateOne(target, { $set: { status, reviewer_id: String(req.dashboard.session.user.id), reviewed_at: new Date() } }); }
+    res.json({ ok: true });
+  });
+  app.post('/api/guild/:guildId/beta/staff/:id', async (req, res) => {
+    const action = safeText(req.body.action || req.body.status, 20).toLowerCase();
+    const target = documentIdQuery(req.params.id, 'app_id');
+    if (action === 'delete') await (await collection(bot, 'staff_applications')).deleteOne(target);
+    else { const status = ['approve', 'approved', 'accept', 'accepted'].includes(action) ? 'accepted' : ['reject', 'rejected', 'deny'].includes(action) ? 'rejected' : action; await (await collection(bot, 'staff_applications')).updateOne(target, { $set: { status, notes: safeText(req.body.notes, 2000), reviewer_id: String(req.dashboard.session.user.id), reviewed_at: new Date() } }); }
+    res.json({ ok: true });
+  });
   app.post('/api/guild/:guildId/appeal/:id/vote', async (req, res) => { const status = ['yes', 'approve', 'accepted'].includes(String(req.body.vote || req.body.status)) ? 'accepted' : 'rejected'; await (await collection(bot, 'appeals')).updateOne(documentIdQuery(req.params.id, 'appeal_id'), { $set: { status, reviewer_id: String(req.dashboard.session.user.id), reviewed_at: new Date() } }); res.json({ ok: true, status }); });
 
   app.post('/api/guild/:guildId/templates/share', async (req, res) => { const backup = await backupDocument(bot, req.params.guildId, req.body.backup_id); if (!backup) return res.status(404).json({ ok: false, error: 'Backup nicht gefunden' }); const id = crypto.randomUUID().slice(0, 12); await (await collection(bot, 'community_templates')).insertOne({ template_id: id, guild_id: String(req.params.guildId), guild_name: req.dashboard.guild.name, name: safeText(req.body.name || backup.label, 100), description: safeText(req.body.description, 1000), category: safeText(req.body.category || 'general', 30), data: backup.data, likes: [], ratings: [], downloads: 0, created_at: new Date() }); res.json({ ok: true, template_id: id }); });
-  app.get('/api/guild/:guildId/templates/preview/:id', async (req, res) => { const t = await findOne(bot, 'community_templates', { template_id: String(req.params.id) }); if (!t) return res.status(404).json({ ok: false, error: 'Template nicht gefunden' }); const data = t.data || {}; res.json({ ok: true, template: { ...t, id: req.params.id, roles: data.roles || [], channels: data.channels || [], score: 100, risk: { level: 'low' }, rating_avg: 0, rating_count: (t.ratings || []).length, likes: (t.likes || []).length } }); });
+  app.get('/api/guild/:guildId/templates/preview/:id', async (req, res) => { const t = await findOne(bot, 'community_templates', { template_id: String(req.params.id) }); if (!t) return res.status(404).json({ ok: false, error: 'Template nicht gefunden' }); const data = t.data || {}; const ratings = t.ratings || []; const average = ratings.length ? (ratings.reduce((sum, item) => sum + Number(item.stars || 0), 0) / ratings.length).toFixed(1) : '0.0'; res.json({ ok: true, template: { ...t, id: req.params.id, roles: data.roles || [], channels: data.channels || [], score: 100, risk: { level: 'low' }, rating_avg: average, rating_count: ratings.length, likes: (t.likes || []).length, downloads: Number(t.downloads || 0) } }); });
   app.get('/api/guild/:guildId/templates/check/:id', async (req, res) => { const t = await findOne(bot, 'community_templates', { template_id: String(req.params.id) }); if (!t) return res.status(404).json({ ok: false, error: 'Template nicht gefunden' }); const data = t.data || {}; const roleNames = new Set(req.dashboard.guild.roles.cache.map(r => r.name)); const channelNames = new Set(req.dashboard.guild.channels.cache.map(c => c.name)); res.json({ ok: true, risk: 'low', warnings: [], summary: { roles_new: (data.roles || []).filter(r => !roleNames.has(r.name)).length, roles_existing: (data.roles || []).filter(r => roleNames.has(r.name)).length, channels_new: (data.channels || []).filter(c => !channelNames.has(c.name)).length, channels_existing: (data.channels || []).filter(c => channelNames.has(c.name)).length, categories_total: (data.channels || []).filter(c => c.type === ChannelType.GuildCategory).length } }); });
-  app.post('/api/guild/:guildId/templates/import/:id', async (req, res) => { const t = await findOne(bot, 'community_templates', { template_id: String(req.params.id) }); if (!t) return res.status(404).json({ ok: false, error: 'Template nicht gefunden' }); const report = await restoreFromBackup(req.dashboard.guild, t.data || {}); await (await collection(bot, 'community_templates')).updateOne({ template_id: String(req.params.id) }, { $inc: { downloads: 1 } }); res.json({ ok: true, report }); });
+  app.post('/api/guild/:guildId/templates/import/:id', async (req, res) => {
+    if (!req.body.confirmed) return res.status(400).json({ ok: false, error: 'Import muss ausdrücklich bestätigt werden' });
+    const template = await findOne(bot, 'community_templates', { template_id: String(req.params.id) });
+    if (!template) return res.status(404).json({ ok: false, error: 'Template nicht gefunden' });
+    const before = await collectBackupData(req.dashboard.guild);
+    const preBackupId = crypto.randomUUID().slice(0, 8);
+    await (await collection(bot, 'backups')).insertOne({ backup_id: preBackupId, guild_id: String(req.params.guildId), guild_id_str: String(req.params.guildId), guild_name: req.dashboard.guild.name, data: before, label: `Auto-Backup vor Template ${template.name || req.params.id}`, created_by: String(req.dashboard.session.user.id), created_at: new Date() });
+    const report = await restoreFromBackup(req.dashboard.guild, template.data || {});
+    await (await collection(bot, 'community_templates')).updateOne({ template_id: String(req.params.id) }, { $inc: { downloads: 1 } });
+    const restoreLog = [`Sicherheits-Backup ${preBackupId} erstellt.`, `${report.roles_created || 0} Rollen erstellt.`, `${report.channels_created || 0} Kanäle erstellt.`, `${(report.errors || []).length} Fehler.`];
+    res.json({ ok: true, pre_backup_id: preBackupId, report, restore_log: restoreLog });
+  });
   app.post('/api/guild/:guildId/templates/like/:id', async (req, res) => { const col = await collection(bot, 'community_templates'); const t = await col.findOne({ template_id: String(req.params.id) }); if (!t) return res.status(404).json({ ok: false, error: 'Template nicht gefunden' }); const uid = String(req.dashboard.session.user.id); const liked = !(t.likes || []).includes(uid); await col.updateOne({ template_id: String(req.params.id) }, liked ? { $addToSet: { likes: uid } } : { $pull: { likes: uid } }); res.json({ ok: true, liked, likes: (t.likes || []).length + (liked ? 1 : -1) }); });
   app.post('/api/guild/:guildId/templates/rate/:id', async (req, res) => { const stars = int(req.body.stars, 5, 1, 5); const col = await collection(bot, 'community_templates'); const t = await col.findOne({ template_id: String(req.params.id) }); if (!t) return res.status(404).json({ ok: false, error: 'Template nicht gefunden' }); const uid = String(req.dashboard.session.user.id); const ratings = (t.ratings || []).filter(r => String(r.user_id) !== uid); ratings.push({ user_id: uid, stars }); await col.updateOne({ template_id: String(req.params.id) }, { $set: { ratings } }); res.json({ ok: true, rating_avg: (ratings.reduce((n, r) => n + Number(r.stars), 0) / ratings.length).toFixed(1) }); });
   app.post('/api/guild/:guildId/templates/unshare/:id', async (req, res) => { await (await collection(bot, 'community_templates')).deleteOne({ template_id: String(req.params.id), guild_id: String(req.params.guildId) }); res.json({ ok: true }); });

@@ -8,7 +8,7 @@
     "bot": "node run.js",
     "check": "find . -path './node_modules' -prune -o -name '*.js' -print | sort | xargs -n1 node --check",
     "test:bot": "node -e \"const {ModForge}=require('./bot/bot');(async()=>{const b=new ModForge();await b.loadCogs();for(const c of b.commands.values())c.data.toJSON();console.log('OK commands='+b.commands.size);await b.destroy();process.exit(0)})().catch(e=>{console.error(e);process.exit(1)})\"",
-    "test:web": "node tests/dashboard_templates.test.js && node tests/dashboard_contexts.test.js",
+    "test:web": "node tests/dashboard_templates.test.js && node tests/dashboard_contexts.test.js && node tests/dashboard_persistence.test.js",
     "test": "npm run check && npm run test:bot && npm run test:web"
   },
   "dependencies": {
