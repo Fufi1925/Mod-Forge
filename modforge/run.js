@@ -12,7 +12,7 @@ async function closeHttpServer(server) {
 function validateEnvironment() {
   const required = ['DISCORD_TOKEN', 'MONGO_URL'];
   if (process.env.NODE_ENV === 'production') {
-    required.push('DISCORD_CLIENT_ID', 'DISCORD_CLIENT_SECRET', 'ADMIN_USERNAME', 'ADMIN_PASSWORD');
+    required.push('DISCORD_CLIENT_ID', 'DISCORD_CLIENT_SECRET', 'ADMIN_USERNAME', 'ADMIN_PASSWORD', 'IP_HASH_SECRET');
   }
   const missing = required.filter(name => !String(process.env[name] || '').trim());
   if (missing.length) {

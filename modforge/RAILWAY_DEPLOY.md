@@ -36,6 +36,7 @@ DISCORD_CLIENT_SECRET=dein_discord_oauth_client_secret
 MONGO_URL=deine_mongodb_verbindungsurl
 ADMIN_USERNAME=admin
 ADMIN_PASSWORD=ein_sehr_langes_zufaelliges_passwort
+IP_HASH_SECRET=ein_stabiler_zufaelliger_schluessel_mit_mindestens_64_hex_zeichen
 DASHBOARD_BASE_URL=https://deine-railway-domain.up.railway.app
 PUBLIC_BASE_URL=https://deine-railway-domain.up.railway.app
 NODE_ENV=production

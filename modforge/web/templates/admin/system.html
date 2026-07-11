@@ -1,0 +1,69 @@
+{% extends "admin/_base.html" %}
+{% set active = 'system' %}
+{% block title %}System{% endblock %}
+{% block page_title %}🛡️ Global Security System{% endblock %}
+{% block page_desc %}Persistente Discord-Sperrliste, globale Durchsetzung und datenschutzfreundliche IP-Fingerprints{% endblock %}
+
+{% block head %}
+<style>
+.system-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}.entry{display:flex;gap:12px;align-items:flex-start;padding:13px;border:1px solid var(--border);border-radius:13px;background:rgba(255,255,255,.025);margin-bottom:8px}.entry img{width:44px;height:44px;border-radius:50%;object-fit:cover}.entry-main{flex:1;min-width:0}.entry-title{font-weight:800;font-size:.85rem;word-break:break-word}.entry-meta{font-size:.68rem;color:var(--muted);margin-top:3px;line-height:1.5}.danger-btn{padding:7px 10px;border-radius:9px;border:1px solid rgba(239,68,68,.3);background:rgba(239,68,68,.12);color:#fca5a5;font-weight:800;cursor:pointer}.system-form{display:grid;gap:8px}.system-form .cfg-input{max-width:none;width:100%;box-sizing:border-box}.system-form textarea{min-height:76px;resize:vertical}.submit-danger{padding:10px 14px;border-radius:10px;border:1px solid rgba(239,68,68,.35);background:linear-gradient(135deg,rgba(220,38,38,.8),rgba(153,27,27,.8));color:white;font-weight:900;cursor:pointer}.notice{padding:12px 14px;border:1px solid rgba(245,158,11,.25);background:rgba(245,158,11,.07);border-radius:12px;color:#fde68a;font-size:.75rem;line-height:1.55}.result{padding:10px 12px;border-radius:10px;margin-bottom:12px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.2);color:#86efac;font-size:.78rem}@media(max-width:980px){.system-grid{grid-template-columns:1fr}}
+</style>
+{% endblock %}
+
+{% block content %}
+{% if message %}<div class="result">{{ message }}</div>{% endif %}
+<div class="db-grid" style="margin-bottom:18px">
+  <div class="db-stat"><div class="db-stat-val" style="color:#f87171">{{ discord_entries|length }}</div><div class="db-stat-label">Discord-Sperren</div></div>
+  <div class="db-stat"><div class="db-stat-val" style="color:#fbbf24">{{ ip_entries|length }}</div><div class="db-stat-label">IP-Fingerprints</div></div>
+  <div class="db-stat"><div class="db-stat-val" style="color:var(--vl)">{{ guild_count }}</div><div class="db-stat-label">Geschützte Server</div></div>
+  <div class="db-stat"><div class="db-stat-val" style="color:var(--green)">{{ event_count }}</div><div class="db-stat-label">Security Events</div></div>
+</div>
+
+<div class="system-grid">
+  <section>
+    <div class="db-card" style="margin-bottom:16px">
+      <div class="db-card-header"><span class="db-card-title">🚫 Discord-ID global sperren</span></div>
+      <form method="post" action="/admin/system/discord/add" class="system-form" onsubmit="return confirm('Nutzer wirklich auf allen ModForge-Servern bannen und dauerhaft sperren?')">
+        <input class="cfg-input" name="user_id" pattern="[0-9]{15,22}" maxlength="22" placeholder="Discord User-ID" required>
+        <textarea class="cfg-input" name="reason" maxlength="500" placeholder="Nachvollziehbarer Sicherheitsgrund" required></textarea>
+        <button class="submit-danger" type="submit">Global sperren und Bann ausführen</button>
+      </form>
+      <div class="notice" style="margin-top:12px">Der Bot versucht den Bann auf jedem verbundenen Server. Fehlen Rechte oder ist die Botrolle zu niedrig, erhält der Server-Owner höchstens einmal pro 24 Stunden eine DM.</div>
+    </div>
+
+    <div class="db-card">
+      <div class="db-card-header"><span class="db-card-title">Discord-Sperrliste</span><span class="cfg-desc">MongoDB-persistent</span></div>
+      {% for entry in discord_entries %}
+      <div class="entry">
+        <img src="{{ entry.avatar_url or 'https://cdn.discordapp.com/embed/avatars/0.png' }}" alt="">
+        <div class="entry-main"><div class="entry-title">{{ entry.username or 'Unbekannter User' }}</div><div class="entry-meta"><code>{{ entry.value }}</code><br>{{ entry.reason }}<br>Von {{ entry.added_by_name or entry.added_by }} · {{ entry.created_at_fmt }}</div></div>
+        <form method="post" action="/admin/system/discord/remove" onsubmit="return confirm('Globale Sperre entfernen? Bereits ausgeführte Discord-Banns werden nicht automatisch aufgehoben.')"><input type="hidden" name="value" value="{{ entry.value }}"><button class="danger-btn" type="submit">Entfernen</button></form>
+      </div>
+      {% else %}<p class="cfg-desc">Keine Discord-IDs global gesperrt.</p>{% endfor %}
+    </div>
+  </section>
+
+  <section>
+    <div class="db-card" style="margin-bottom:16px">
+      <div class="db-card-header"><span class="db-card-title">🔐 Dashboard-IP sperren</span></div>
+      <form method="post" action="/admin/system/ip/add" class="system-form">
+        <input class="cfg-input" name="ip" maxlength="64" placeholder="IPv4 oder IPv6" required>
+        <textarea class="cfg-input" name="reason" maxlength="500" placeholder="Grund / Alt-Account-Verdacht" required></textarea>
+        <button class="submit-danger" type="submit">IP-Fingerprint sperren</button>
+      </form>
+      <div class="notice" style="margin-top:12px">Die IP wird sofort als HMAC-Fingerprint umgewandelt und nicht im Klartext gespeichert. Der Fingerprint blockiert Dashboard-Logins. Verknüpfte Accounts werden nur zur manuellen Prüfung angezeigt und nicht automatisch auf Discord gebannt.</div>
+    </div>
+
+    <div class="db-card">
+      <div class="db-card-header"><span class="db-card-title">Gesperrte IP-Fingerprints</span><span class="cfg-desc">Nicht rückrechenbar</span></div>
+      {% for entry in ip_entries %}
+      <div class="entry">
+        <div style="width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:rgba(245,158,11,.12)">🔐</div>
+        <div class="entry-main"><div class="entry-title">{{ entry.label }}</div><div class="entry-meta">{{ entry.reason }}<br>Verknüpfte Konten: {{ entry.linked_users|length }} · {{ entry.created_at_fmt }}</div>{% for user in entry.linked_users %}<div style="font-size:.7rem;margin-top:4px">👤 {{ user.username }} <code>{{ user.id }}</code></div>{% endfor %}</div>
+        <form method="post" action="/admin/system/ip/remove" onsubmit="return confirm('IP-Fingerprint entsperren?')"><input type="hidden" name="value" value="{{ entry.value }}"><button class="danger-btn" type="submit">Entfernen</button></form>
+      </div>
+      {% else %}<p class="cfg-desc">Keine IP-Fingerprints gesperrt.</p>{% endfor %}
+    </div>
+  </section>
+</div>
+{% endblock %}
