@@ -229,7 +229,7 @@ async function commonContext(bot, guild, cfg, user) {
   const channels = [...guild.channels.cache.values()].filter(ch => !ch.isThread?.()).map(channelView).sort((a, b) => a.position - b.position);
   const roles = [...guild.roles.cache.values()].filter(role => role.id !== guild.id).map(role => roleView(role, guild)).sort((a, b) => b.pos - a.pos);
   return {
-    guild: guildView(guild), raw_guild: guild, cfg: plain(cfg), user: plain(user || { id: '0', username: 'Admin', avatar_url: '' }),
+    guild: guildView(guild), cfg: plain(cfg), user: plain(user || { id: '0', username: 'Admin', avatar_url: '' }),
     dashboard_base: `/dashboard/${guild.id}`, web_bot_online: bot.isReady(), channels,
     text_channels: channels.filter(ch => [ChannelType.GuildText, ChannelType.GuildAnnouncement].includes(ch.type)),
     voice_channels: channels.filter(ch => [ChannelType.GuildVoice, ChannelType.GuildStageVoice].includes(ch.type)),

@@ -38,6 +38,10 @@ function pythonCompat(value, seen = new WeakSet()) {
     for (const item of value) pythonCompat(item, seen);
     return value;
   }
+  if (!Object.isExtensible(value)) {
+    for (const item of Object.values(value)) pythonCompat(item, seen);
+    return value;
+  }
   if (!Object.prototype.hasOwnProperty.call(value, 'get')) {
     Object.defineProperty(value, 'get', { enumerable: false, configurable: true, value(key, fallback = null) { return pythonCompat(this[key] == null ? fallback : this[key]); } });
   }

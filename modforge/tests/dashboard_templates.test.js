@@ -66,6 +66,8 @@ const context = {
 };
 
 async function main() {
+  const frozenContext = Object.freeze({ nested: Object.freeze({ value: 1 }) });
+  pythonCompat(frozenContext);
   const templatesDirectory = path.join(__dirname, '..', 'web', 'templates', 'dashboard');
   const templates = fs.readdirSync(templatesDirectory).filter(name => name.endsWith('.html') && !name.startsWith('_')).sort();
   const failures = [];
