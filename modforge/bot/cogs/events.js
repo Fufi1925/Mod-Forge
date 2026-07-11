@@ -118,6 +118,26 @@ function scheduleTimeoutExpiryDm(bot, member, untilTs, reason = 'Timeout abgelau
   ).catch(() => null);
 }
 
+async function cacheGuildInvites(bot, guild) {
+  const invites = await guild.invites.fetch().catch(() => null);
+  if (!invites) return null;
+  const snapshot = new Map(invites.map(invite => [invite.code, Number(invite.uses || 0)]));
+  bot.tracker.inviteCache.set(guild.id, snapshot);
+  return invites;
+}
+
+async function trackMemberInvite(bot, member, config) {
+  if (!config.invite_tracking?.enabled) return;
+  const previous = bot.tracker.inviteCache.get(member.guild.id) || new Map();
+  const invites = await member.guild.invites.fetch().catch(() => null);
+  if (!invites) return;
+  const used = invites.find(invite => Number(invite.uses || 0) > Number(previous.get(invite.code) || 0));
+  bot.tracker.inviteCache.set(member.guild.id, new Map(invites.map(invite => [invite.code, Number(invite.uses || 0)])));
+  const channelId = config.invite_tracking.channel_id || config.log_channels?.members || config.log_channel;
+  const channel = channelId ? member.guild.channels.cache.get(String(channelId)) : null;
+  if (channel?.isTextBased?.()) await channel.send({ content: `📨 ${member} ist beigetreten${used ? ` über **${used.code}** von ${used.inviter || 'Unbekannt'}` : ' (Invite unbekannt)'}.` }).catch(() => null);
+}
+
 const events = [
   {
     name: 'clientReady',
@@ -130,6 +150,8 @@ const events = [
             const until = member.communicationDisabledUntilTimestamp;
             if (until && until > Date.now()) scheduleTimeoutExpiryDm(bot, member, until, 'Beim Bot-Start aus Discord gelesen');
           }
+          const cfg = await bot.db.fetchConfig(guild.id);
+          if (cfg.invite_tracking?.enabled) await cacheGuildInvites(bot, guild);
         } catch (error) {
           // Wenn Members Intent/Rechte fehlen, läuft der Bot weiter; neue Timeout-Events werden trotzdem erfasst.
         }
@@ -143,6 +165,7 @@ const events = [
       const cfg = await bot.db.fetchConfig(guild.id);
       const secLevel = cfg.security_level || 0;
       const raidCfg = cfg.anti_raid || {};
+      await trackMemberInvite(bot, member, cfg).catch(() => null);
       ACTIVITY.push('join', `${member} ist **${guild.name}** beigetreten (${guild.memberCount} Member).`, { guild_id: guild.id, guild_name: guild.name, user_id: member.id, user_name: String(member) });
       if (bot.isWhitelisted(member, 'bypass_antinuke')) {
         await bot.logAction(guild, '➕ Mitglied beigetreten', `${member}`, COLOR_SUCCESS, { user: member, module: 'members' });
@@ -294,9 +317,9 @@ const events = [
       }
     }
   },
-  { name: 'messageDelete', async execute(bot, message) { if (!message.guild || message.author?.bot) return; bot.tracker.ghostTracker.set(`${message.guild.id}:${message.channel.id}`, { author: message.author?.tag, content: message.content, ts: Date.now() }); await bot.db.amark_message_deleted(message.guild.id, message.id).catch(() => null); await bot.logAction(message.guild, '🗑️ Nachricht gelöscht', `Autor: ${message.author}\nKanal: ${message.channel}\nInhalt: ${String(message.content || '').slice(0, 1000)}`, COLOR_WARNING, { module: 'messages' }); } },
-  { name: 'messageUpdate', async execute(bot, before, after) { if (!before.guild || before.author?.bot || before.content === after.content) return; await bot.db.aappend_message_edit(before.guild.id, before.id, before.content || '', after.content || '').catch(() => null); await bot.logAction(before.guild, '✏️ Nachricht bearbeitet', `Autor: ${before.author}\nKanal: ${before.channel}\nVorher: ${String(before.content || '').slice(0, 500)}\nNachher: ${String(after.content || '').slice(0, 500)}`, COLOR_WARNING, { module: 'messages' }); } },
-  { name: 'messageCreate', async execute(bot, message) { if (!message.guild || message.author?.bot) return; await bot.db.arecord_message(message.guild.id, message).catch(() => null); } },
+  { name: 'messageDelete', async execute(bot, message) { if (!message.guild || message.author?.bot) return; bot.tracker.ghostTracker.set(`${message.guild.id}:${message.channel.id}`, { author: message.author?.tag, content: message.content, ts: Date.now() }); const cfg = await bot.db.fetchConfig(message.guild.id); if (cfg.message_archive?.enabled) await bot.db.amark_message_deleted(message.guild.id, message.id).catch(() => null); await bot.logAction(message.guild, '🗑️ Nachricht gelöscht', `Autor: ${message.author}\nKanal: ${message.channel}\nInhalt: ${String(message.content || '').slice(0, 1000)}`, COLOR_WARNING, { module: 'messages' }); } },
+  { name: 'messageUpdate', async execute(bot, before, after) { if (!before.guild || before.author?.bot || before.content === after.content) return; const cfg = await bot.db.fetchConfig(before.guild.id); if (cfg.message_archive?.enabled) await bot.db.aappend_message_edit(before.guild.id, before.id, before.content || '', after.content || '').catch(() => null); await bot.logAction(before.guild, '✏️ Nachricht bearbeitet', `Autor: ${before.author}\nKanal: ${before.channel}\nVorher: ${String(before.content || '').slice(0, 500)}\nNachher: ${String(after.content || '').slice(0, 500)}`, COLOR_WARNING, { module: 'messages' }); } },
+  { name: 'messageCreate', async execute(bot, message) { if (!message.guild || message.author?.bot) return; const cfg = await bot.db.fetchConfig(message.guild.id); if (cfg.message_archive?.enabled) await bot.db.arecord_message(message.guild.id, message).catch(() => null); } },
   {
     name: 'guildMemberRemove',
     async execute(bot, member) {

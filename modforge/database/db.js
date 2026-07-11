@@ -49,7 +49,15 @@ class TTLMap {
 class Database {
   constructor(mongoUrl = null) {
     this.mongoUrl = process.env.MONGO_URL || mongoUrl || 'mongodb://localhost:27017';
-    this.client = new MongoClient(this.mongoUrl, { serverSelectionTimeoutMS: 8000, tlsAllowInvalidCertificates: true });
+    this.client = new MongoClient(this.mongoUrl, {
+      serverSelectionTimeoutMS: 8000,
+      connectTimeoutMS: 8000,
+      socketTimeoutMS: 15000,
+      maxPoolSize: 20,
+      minPoolSize: 0,
+      maxIdleTimeMS: 30000,
+      tlsAllowInvalidCertificates: process.env.NODE_ENV !== 'production',
+    });
     this.ready = false;
     this.configCache = new TTLMap(300000, 10000);
     this.whitelistCache = new TTLMap(300000, 10000);
@@ -127,11 +135,13 @@ class Database {
 
   async fetchConfig(guildId) {
     await this.connect();
-    const gid = Number(guildId);
+    const gid = String(guildId);
     let data = await this.config.findOne({ _id: gid });
     if (!data) {
-      data = ensureDefaults({});
-      await this.config.updateOne({ _id: gid }, { $setOnInsert: { ...deepClone(data), _id: gid } }, { upsert: true });
+      const legacyId = Number(gid);
+      const legacy = Number.isFinite(legacyId) ? await this.config.findOne({ _id: legacyId }) : null;
+      data = ensureDefaults(legacy || {});
+      await this.config.updateOne({ _id: gid }, { $set: { ...deepClone(data), guild_id_str: gid }, $setOnInsert: { _id: gid, migrated_at: new Date() } }, { upsert: true });
     }
     const cleaned = ensureDefaults(data);
     this.configCache.set(gid, cleaned);
@@ -140,9 +150,9 @@ class Database {
 
   async setConfig(guildId, cfg) {
     await this.connect();
-    const gid = Number(guildId);
+    const gid = String(guildId);
     const cleaned = ensureDefaults(cfg);
-    await this.config.updateOne({ _id: gid }, { $set: deepClone(cleaned), $setOnInsert: { _id: gid } }, { upsert: true });
+    await this.config.updateOne({ _id: gid }, { $set: { ...deepClone(cleaned), guild_id_str: gid }, $setOnInsert: { _id: gid, created_at: new Date() } }, { upsert: true });
     this.configCache.set(gid, cleaned);
   }
 
@@ -168,8 +178,16 @@ class Database {
 
   async fetchWhitelist(guildId) {
     await this.connect();
-    const gid = Number(guildId);
-    const data = await this.whitelist.findOne({ _id: gid }) || this.emptyWhitelist();
+    const gid = String(guildId);
+    let data = await this.whitelist.findOne({ _id: gid });
+    if (!data) {
+      const legacyId = Number(gid);
+      data = (Number.isFinite(legacyId) ? await this.whitelist.findOne({ _id: legacyId }) : null) || this.emptyWhitelist();
+      const migrated = { ...this.emptyWhitelist(), ...deepClone(data), guild_id_str: gid };
+      delete migrated._id;
+      await this.whitelist.updateOne({ _id: gid }, { $set: migrated, $setOnInsert: { _id: gid, migrated_at: new Date() } }, { upsert: true });
+      data = migrated;
+    }
     delete data._id;
     for (const key of Object.keys(this.emptyWhitelist())) if (!Array.isArray(data[key])) data[key] = [];
     this.whitelistCache.set(gid, data);
@@ -178,10 +196,10 @@ class Database {
 
   async setWhitelist(guildId, whitelist) {
     await this.connect();
-    const gid = Number(guildId);
-    const clean = { ...this.emptyWhitelist(), ...(whitelist || {}) };
+    const gid = String(guildId);
+    const clean = { ...this.emptyWhitelist(), ...(whitelist || {}), guild_id_str: gid };
     delete clean._id;
-    await this.whitelist.updateOne({ _id: gid }, { $set: clean, $setOnInsert: { _id: gid } }, { upsert: true });
+    await this.whitelist.updateOne({ _id: gid }, { $set: clean, $setOnInsert: { _id: gid, created_at: new Date() } }, { upsert: true });
     this.whitelistCache.set(gid, clean);
   }
 

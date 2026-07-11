@@ -298,6 +298,14 @@ class ModForge extends Client {
       const doc = await this.db.acreate_case(guild.id, member.id, modId, punishment, reason, punishment === 'timeout' ? duration : null);
       caseId = doc.case_id;
       ACTIVITY.push('case', `Case #${caseId} (${punishment}) – ${member}`, { guild_id: guild.id, guild_name: guild.name, user_id: member.id, user_name: String(member) });
+      if (punishment === 'warn') {
+        const cfg = await this.db.fetchConfig(guild.id);
+        const source = cfg.warn_thresholds || cfg.warn_system?.thresholds || {};
+        const thresholds = Object.entries(source).map(([count, action]) => ({ count: Number(count), action: String(action) })).filter(item => Number.isFinite(item.count)).sort((a, b) => b.count - a.count);
+        const warnings = await this.db.getCases(guild.id, { user_id: String(member.id), action: 'warn' }, 500).catch(() => []);
+        const threshold = thresholds.find(item => warnings.length >= item.count && item.action !== 'warn');
+        if (threshold) await this.punish(member, threshold.action, `Warn-Schwelle erreicht: ${warnings.length} Verwarnungen`, cfg.anti_spam?.timeout_duration || 3600, modId).catch(() => null);
+      }
       return caseId;
     }
     return null;
