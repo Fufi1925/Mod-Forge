@@ -61,6 +61,8 @@ class Database {
     this.ready = false;
     this.configCache = new TTLMap(300000, 10000);
     this.whitelistCache = new TTLMap(300000, 10000);
+    this.globalDiscordBlockCache = new Set();
+    this.globalIpBlockCache = new Set();
   }
 
   async connect() {
@@ -93,6 +95,8 @@ class Database {
     this.appeals = this.db.collection('appeals');
     this.staff_applications = this.db.collection('staff_applications');
     this.server_themes = this.db.collection('server_themes');
+    this.global_security = this.db.collection('global_security');
+    this.global_security_events = this.db.collection('global_security_events');
     this.ready = true;
     await this.ensureIndexes();
     return this;
@@ -121,6 +125,10 @@ class Database {
       this.notes.createIndex({ guild_id: 1, user_id: 1 }),
       this.badges.createIndex({ guild_id: 1, user_id: 1 }),
       this.config_versions.createIndex({ guild_id: 1, created_at: -1 }),
+      this.global_security.createIndex({ type: 1, value: 1 }, { unique: true }),
+      this.global_security.createIndex({ created_at: -1 }),
+      this.global_security_events.createIndex({ created_at: -1 }),
+      this.global_security_events.createIndex({ notification_key: 1 }),
     ]);
   }
 
@@ -430,6 +438,45 @@ class Database {
   async adelete_staff_application(appId) { await this.connect(); const q = ObjectId.isValid(String(appId)) ? { _id: new ObjectId(String(appId)) } : { app_id: String(appId) }; return this.staff_applications.deleteOne(q); }
   async acount_staff_applications(guildId, status = null) { await this.connect(); const q = { guild_id: Number(guildId) }; if (status) q.status = status; return this.staff_applications.countDocuments(q); }
   async acount_server_themes(guildId) { await this.connect(); return this.server_themes.countDocuments({ guild_id: Number(guildId) }); }
+
+  async refreshGlobalSecurityCache() {
+    await this.connect();
+    const entries = await this.global_security.find({ active: { $ne: false } }).toArray();
+    this.globalDiscordBlockCache = new Set(entries.filter(entry => entry.type === 'discord_id').map(entry => String(entry.value)));
+    this.globalIpBlockCache = new Set(entries.filter(entry => entry.type === 'ip_fingerprint').map(entry => String(entry.value)));
+    return entries;
+  }
+
+  isGlobalDiscordBlocked(userId) { return this.globalDiscordBlockCache.has(String(userId)); }
+  isGlobalIpBlocked(fingerprint) { return this.globalIpBlockCache.has(String(fingerprint)); }
+
+  async listGlobalSecurityEntries(type = null) {
+    await this.connect();
+    const query = { active: { $ne: false } };
+    if (type) query.type = String(type);
+    return this.global_security.find(query).sort({ created_at: -1 }).toArray();
+  }
+
+  async addGlobalSecurityEntry(entry) {
+    await this.connect();
+    const document = { ...entry, type: String(entry.type), value: String(entry.value), active: true, updated_at: new Date() };
+    delete document.created_at;
+    await this.global_security.updateOne({ type: document.type, value: document.value }, { $set: document, $setOnInsert: { created_at: entry.created_at || new Date() } }, { upsert: true });
+    await this.refreshGlobalSecurityCache();
+    return this.global_security.findOne({ type: document.type, value: document.value });
+  }
+
+  async removeGlobalSecurityEntry(type, value) {
+    await this.connect();
+    const result = await this.global_security.deleteOne({ type: String(type), value: String(value) });
+    await this.refreshGlobalSecurityCache();
+    return result;
+  }
+
+  async recordGlobalSecurityEvent(event) {
+    await this.connect();
+    return this.global_security_events.insertOne({ ...event, created_at: event.created_at || new Date() });
+  }
 
   async close() {
     await this.client.close();
