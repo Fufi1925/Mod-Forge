@@ -13,6 +13,16 @@ const SESSION_TTL = Number(process.env.DASHBOARD_SESSION_TTL || 30 * 24 * 3600);
 const DISCORD_API = 'https://discord.com/api/v10';
 // Discord OAuth2 Scopes: space-separated in URL, shown here as requested: identify,guilds,guilds.join
 const OAUTH_SCOPES = 'identify guilds guilds.join';
+const sessionCollectionPromises = new WeakMap();
+const adminEventCollectionPromises = new WeakMap();
+
+function withTimeout(promise, milliseconds, label = 'Operation') {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label} hat nach ${milliseconds} ms das Zeitlimit überschritten.`)), milliseconds);
+  });
+  return Promise.race([Promise.resolve(promise), timeout]).finally(() => clearTimeout(timer));
+}
 
 function esc(value = '') {
   return String(value ?? '').replace(/[&<>'"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
@@ -132,21 +142,45 @@ function layout(title, body, user = null) {
 }
 
 async function sessionsCol(bot) {
-  await bot.db.connect();
-  const col = bot.db.db.collection('dashboard_sessions');
-  await col.createIndex({ sid: 1 }, { unique: true }).catch(() => null);
-  await col.createIndex({ 'user.id': 1 }).catch(() => null);
-  await col.createIndex({ expires_at: 1 }).catch(() => null);
-  return col;
+  if (!sessionCollectionPromises.has(bot)) {
+    sessionCollectionPromises.set(bot, (async () => {
+      await withTimeout(bot.db.connect(), 8_000, 'MongoDB-Verbindung für Dashboard-Sessions');
+      const col = bot.db.db.collection('dashboard_sessions');
+      await Promise.allSettled([
+        col.createIndex({ sid: 1 }, { unique: true }),
+        col.createIndex({ 'user.id': 1 }),
+        col.createIndex({ expires_at: 1 }),
+      ]);
+      return col;
+    })());
+  }
+  try {
+    return await sessionCollectionPromises.get(bot);
+  } catch (error) {
+    sessionCollectionPromises.delete(bot);
+    throw error;
+  }
 }
 
 async function adminEventsCol(bot) {
-  await bot.db.connect();
-  const col = bot.db.db.collection('admin_events');
-  await col.createIndex({ created_at: -1 }).catch(() => null);
-  await col.createIndex({ type: 1 }).catch(() => null);
-  await col.createIndex({ ip: 1 }).catch(() => null);
-  return col;
+  if (!adminEventCollectionPromises.has(bot)) {
+    adminEventCollectionPromises.set(bot, (async () => {
+      await withTimeout(bot.db.connect(), 8_000, 'MongoDB-Verbindung für Admin-Events');
+      const col = bot.db.db.collection('admin_events');
+      await Promise.allSettled([
+        col.createIndex({ created_at: -1 }),
+        col.createIndex({ type: 1 }),
+        col.createIndex({ ip: 1 }),
+      ]);
+      return col;
+    })());
+  }
+  try {
+    return await adminEventCollectionPromises.get(bot);
+  } catch (error) {
+    adminEventCollectionPromises.delete(bot);
+    throw error;
+  }
 }
 
 async function recordAdminEvent(bot, req, type, data = {}) {
@@ -180,11 +214,16 @@ async function recentAdminEvents(bot, limit = 12) {
 async function getSession(req, bot) {
   const sid = parseCookies(req)[SESSION_COOKIE];
   if (!sid) return null;
-  const col = await sessionsCol(bot);
-  const doc = await col.findOne({ sid });
-  if (!doc || (doc.expires_at && doc.expires_at < Date.now() / 1000)) return null;
-  await col.updateOne({ sid }, { $set: { last_seen: Date.now() / 1000 } }).catch(() => null);
-  return doc;
+  try {
+    const col = await withTimeout(sessionsCol(bot), 8_000, 'Dashboard-Session-Collection');
+    const doc = await withTimeout(col.findOne({ sid }, { maxTimeMS: 5_000 }), 6_000, 'Dashboard-Session-Abfrage');
+    if (!doc || (doc.expires_at && doc.expires_at < Date.now() / 1000)) return null;
+    col.updateOne({ sid }, { $set: { last_seen: Date.now() / 1000 } }, { maxTimeMS: 5_000 }).catch(() => null);
+    return doc;
+  } catch (error) {
+    console.error('Dashboard-Session-Fehler:', error.message);
+    return null;
+  }
 }
 
 function requireAdmin(req, res, next) {

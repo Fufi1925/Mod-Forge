@@ -124,6 +124,14 @@ function bool(value) {
   return value === true || value === 1 || value === '1' || String(value).toLowerCase() === 'true' || String(value).toLowerCase() === 'on';
 }
 
+function withTimeout(promise, milliseconds, label = 'Operation') {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label} hat nach ${milliseconds} ms das Zeitlimit überschritten.`)), milliseconds);
+  });
+  return Promise.race([Promise.resolve(promise), timeout]).finally(() => clearTimeout(timer));
+}
+
 function channelView(channel) {
   return { id: String(channel.id), name: channel.name, type: channel.type, position: channel.position || 0, category_id: channel.parentId || null };
 }
@@ -239,7 +247,7 @@ async function overviewContext(bot, guild, cfg) {
   let score = 20 + Math.min(20, logCount * 2) + activeMods.length * 6;
   if (cfg.security_level) score += int(cfg.security_level, 0, 0, 5) * 4;
   score = Math.min(100, score);
-  const owner = await guild.fetchOwner().catch(() => null);
+  const owner = guild.members.cache.get(String(guild.ownerId)) || null;
   return {
     humans, bots, online_count: online, in_timeout: members.filter(m => m.communicationDisabledUntilTimestamp > Date.now()).size,
     voice_active: members.filter(m => m.voice?.channelId).size, text_ch: guild.channels.cache.filter(c => c.type === ChannelType.GuildText).size,
@@ -499,10 +507,14 @@ async function backupDocument(bot, guildId, id) {
 
 function registerDashboard({ app, bot, render, getSession, canManage, forbidden, invite, isAdmin }) {
   async function dashboardAuth(req, res, next) {
-    let session = await getSession(req, bot);
     const admin = Boolean(isAdmin?.(req));
-    if (!session && admin) session = { user: { id: '0', username: 'Admin', avatar_url: bot.user?.displayAvatarURL?.({ size: 128 }) || '' }, guilds: [] };
-    if (!session) return res.redirect('/login');
+    let session = admin
+      ? { user: { id: '0', username: 'Admin', avatar_url: bot.user?.displayAvatarURL?.({ size: 128 }) || '' }, guilds: [] }
+      : await withTimeout(getSession(req, bot), 8_000, 'Dashboard-Session').catch(error => {
+          console.error('Dashboard-Session konnte nicht geladen werden:', error.message);
+          return null;
+        });
+    if (!session) return res.redirect('/login?error=session');
     const guildInfo = (session.guilds || []).find(g => String(g.id) === String(req.params.guildId));
     if (!admin && (!guildInfo || !canManage(guildInfo))) return forbidden(res, session.user);
     const guild = bot.guilds.cache.get(String(req.params.guildId));
@@ -529,10 +541,15 @@ function registerDashboard({ app, bot, render, getSession, canManage, forbidden,
   async function renderDashboardPage(req, res) {
     const page = PAGE_MAP[req.params.subpage || ''];
     if (!page) return res.status(404).send('Seite nicht gefunden');
-    const cfg = await bot.db.fetchConfig(req.dashboard.guild.id);
-    const context = await pageContext(bot, req.dashboard.guild, cfg, req.dashboard.session.user, page);
-    context.dashboard_base = req.dashboard.admin ? `/admin/server/${req.dashboard.guild.id}` : `/dashboard/${req.dashboard.guild.id}`;
-    return render(res, `dashboard/${page}.html`, context, true);
+    try {
+      const cfg = await withTimeout(bot.db.fetchConfig(req.dashboard.guild.id), 8_000, 'Server-Konfiguration');
+      const context = await withTimeout(pageContext(bot, req.dashboard.guild, cfg, req.dashboard.session.user, page), 20_000, `Dashboard-Seite ${page}`);
+      context.dashboard_base = req.dashboard.admin ? `/admin/server/${req.dashboard.guild.id}` : `/dashboard/${req.dashboard.guild.id}`;
+      return render(res, `dashboard/${page}.html`, context, true);
+    } catch (error) {
+      console.error(`Dashboard ${req.dashboard.guild.id}/${page} konnte nicht geladen werden:`, error.stack || error.message);
+      return res.status(504).send(`<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dashboard-Fehler</title><link rel="stylesheet" href="/static/style.css"></head><body style="padding:40px;background:#070712;color:#f8fafc;font-family:system-ui"><main style="max-width:720px;margin:auto;padding:24px;border:1px solid rgba(255,255,255,.12);border-radius:16px"><h1>Dashboard konnte nicht geladen werden</h1><p>Die Anfrage wurde beendet, statt unendlich zu laden.</p><pre style="white-space:pre-wrap;color:#fca5a5">${String(error.message).replace(/[&<>]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[character]))}</pre><p><a href="${req.dashboard.admin ? '/admin/guilds' : '/dashboard'}" style="color:#60a5fa">Zur Serverauswahl zurück</a></p></main></body></html>`);
+    }
   }
 
   app.get(['/dashboard/:guildId', '/dashboard/:guildId/:subpage'], dashboardAuth, renderDashboardPage);
