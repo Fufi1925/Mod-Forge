@@ -95,25 +95,40 @@
     .embed-preview .ep-image{width:100%;border-radius:6px;margin-top:10px}
 
     /* ── RESPONSIVE ── */
+    .mobile-db-top,.mobile-db-overlay{display:none}
     @media(max-width:900px){
-      .db-sidebar{width:60px;overflow:hidden}
-      .db-sidebar .db-brand-text,.db-nav a span,.db-server-name,.db-server-sub,.db-user-info,.db-nav-label{display:none}
-      .db-nav a{justify-content:center;padding:12px 0}
-      .db-nav a .nav-icon{width:auto}
-      .db-main{margin-left:60px;padding:20px 16px 80px}
-      .db-user{justify-content:center;padding:10px}
-      .db-server{justify-content:center}
-      .save-bar{left:60px}
-      :root{--sidebar-w:60px}
+      :root{--sidebar-w:280px}
+      body{overflow-x:hidden}
+      .mobile-db-top{display:flex;position:fixed;inset:0 0 auto 0;height:58px;z-index:10020;align-items:center;gap:11px;padding:0 12px;background:rgba(8,8,20,.96);border-bottom:1px solid var(--border);backdrop-filter:blur(22px)}
+      .mobile-menu-btn{width:38px;height:38px;display:grid;place-items:center;border-radius:11px;border:1px solid var(--border);background:rgba(255,255,255,.055);color:var(--fg);font-size:1.05rem;cursor:pointer;flex-shrink:0}
+      .mobile-title{min-width:0;flex:1}.mobile-title b,.mobile-title span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.mobile-title b{font-size:.84rem}.mobile-title span{font-size:.62rem;color:var(--muted);margin-top:2px}
+      .mobile-db-overlay{position:fixed;inset:0;z-index:10009;background:rgba(0,0,0,.66);backdrop-filter:blur(3px)}
+      body.db-nav-open .mobile-db-overlay{display:block}
+      .db-sidebar{width:min(84vw,300px);overflow-y:auto;transform:translateX(-105%);transition:transform .22s ease;box-shadow:18px 0 60px rgba(0,0,0,.45);z-index:10010}
+      body.db-nav-open .db-sidebar{transform:translateX(0)}
+      .db-sidebar .db-brand-text,.db-nav a span,.db-server-name,.db-server-sub,.db-user-info,.db-nav-label{display:initial}
+      .db-nav a{justify-content:flex-start;padding:10px 20px}.db-nav a .nav-icon{width:18px}
+      .db-user{justify-content:flex-start;padding:14px 20px}.db-server{justify-content:flex-start}
+      .db-main{margin-left:0;padding:76px 12px 92px;min-width:0;width:100%;box-sizing:border-box}
+      .db-header{margin-bottom:20px}.db-header h1{font-size:1.25rem;line-height:1.25}.db-header p{font-size:.75rem;line-height:1.45}
+      .db-grid{grid-template-columns:minmax(0,1fr);gap:12px}.db-card{padding:15px;border-radius:14px;min-width:0;overflow-wrap:anywhere}
+      .cfg-row{padding:12px;gap:10px;flex-wrap:wrap}.cfg-input,.cfg-select{max-width:100%;min-width:0}.save-bar{left:0;padding:9px 10px}.save-bar>div{width:100%;box-sizing:border-box}
+      .table-wrap,.table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}table{display:block;max-width:100%;overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch}
+      .embed-preview{max-width:100%;box-sizing:border-box}.actions{gap:6px}.btn-glass{white-space:normal;text-align:center;justify-content:center}
     }
-    @media(max-width:640px){
-      .db-grid{grid-template-columns:1fr}
+    @media(max-width:560px){
+      .db-main{padding-left:9px;padding-right:9px}.db-card{padding:13px}.cfg-row{align-items:stretch}.cfg-row>div:first-child{min-width:0;flex:1 1 100%}.cfg-row .toggle{align-self:flex-end}.cfg-input,.cfg-select{width:100%;box-sizing:border-box}
+      .db-stat{padding:14px 8px}.db-stat-val{font-size:1.3rem}.tag-list{gap:4px}.modal-box,.mf-modal-box{width:calc(100vw - 18px)!important;max-width:none!important;max-height:88vh;overflow:auto}
+      [style*="grid-template-columns:1fr 1fr"],[style*="grid-template-columns: 1fr 1fr"],[style*="grid-template-columns:1fr 320px"],[style*="grid-template-columns: 1fr 320px"]{grid-template-columns:minmax(0,1fr)!important}
+      [style*="min-width:280px"],[style*="min-width: 280px"]{min-width:0!important;width:100%!important}
     }
   </style>
   {% block head %}{% endblock %}
 </head>
 <body>
   {% if dashboard_base %}{% set dash_base = dashboard_base %}{% elif user.id|string == '0' %}{% set dash_base = '/admin/server/' ~ guild.id %}{% else %}{% set dash_base = '/dashboard/' ~ guild.id %}{% endif %}
+  <header class="mobile-db-top"><button class="mobile-menu-btn" type="button" onclick="toggleMobileDashboardNav()" aria-label="Navigation öffnen">☰</button><div class="mobile-title"><b>{{ guild.name }}</b><span>{% block mobile_page_title %}ModForge Dashboard{% endblock %}</span></div><a href="/dashboard" class="mobile-menu-btn" aria-label="Serverauswahl">⌂</a></header>
+  <div class="mobile-db-overlay" onclick="closeMobileDashboardNav()"></div>
   <!-- SIDEBAR -->
   <aside class="db-sidebar">
     <a href="/" class="db-brand"><div class="db-brand-icon">🛡️</div><span class="db-brand-text">ModForge</span></a>
@@ -433,6 +448,11 @@
        mf-sidebar → "expanded" | "compact"
        mf-anim-preset → "calm" | "smooth" | "cyber" | "minimal" | "performance"
   */
+  function toggleMobileDashboardNav(){document.body.classList.toggle('db-nav-open')}
+  function closeMobileDashboardNav(){document.body.classList.remove('db-nav-open')}
+  document.addEventListener('keydown',event=>{if(event.key==='Escape')closeMobileDashboardNav()});
+  document.querySelectorAll('.db-sidebar a').forEach(link=>link.addEventListener('click',()=>{if(window.innerWidth<=900)closeMobileDashboardNav()}));
+  window.addEventListener('resize',()=>{if(window.innerWidth>900)closeMobileDashboardNav()});
   function setTheme(t){
     if(!t) return;
     document.documentElement.setAttribute('data-theme', t);

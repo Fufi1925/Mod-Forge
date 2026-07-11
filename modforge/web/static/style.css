@@ -3023,3 +3023,17 @@ body:not(.mf-dashboard-ready) .db-main .ov-stat::before {
 .mini-badge-btn { border:0; border-radius:999px; padding:0 5px; font-size:.65rem; line-height:1.2; cursor:pointer; color:inherit; background:rgba(255,255,255,.12); margin-left:2px; }
 .mini-badge-btn:hover { background:rgba(255,255,255,.24); }
 .mini-badge-btn.danger { color:#fca5a5; }
+
+/* Mobile dashboard hardening */
+@media (max-width: 700px) {
+  html, body { max-width:100%; overflow-x:hidden; }
+  button, a, input, select, textarea { touch-action:manipulation; }
+  button, .btn, .btn-glass, .action-btn { min-height:38px; }
+  input, select, textarea { font-size:16px !important; }
+  img, video, canvas, svg { max-width:100%; }
+  pre, code { max-width:100%; overflow-wrap:anywhere; white-space:pre-wrap; }
+  .mf-toast-wrap { left:8px !important; right:8px !important; bottom:72px !important; width:auto !important; }
+  .mf-toast { width:100% !important; box-sizing:border-box; }
+  .mf-modal-overlay { padding:9px !important; }
+  .mf-modal, .mf-modal-box { width:100% !important; max-width:none !important; max-height:90vh !important; overflow:auto !important; box-sizing:border-box; }
+}
