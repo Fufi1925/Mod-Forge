@@ -1,7 +1,7 @@
 const crypto = require('node:crypto');
 const { ObjectId } = require('mongodb');
 const { PermissionFlagsBits, ChannelType, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
-const { BADGES, LOG_MODS, ACTIVITY, DEFAULT_CONFIG } = require('../bot/config');
+const { BADGES, LOG_MODS, ACTIVITY, DEFAULT_CONFIG, SUPERUSER_IDS } = require('../bot/config');
 const { collectBackupData, restoreFromBackup } = require('../bot/cogs/backup');
 
 const PAGE_MAP = Object.freeze({
@@ -208,6 +208,20 @@ function formatAgo(date) {
   return new Date(timestamp).toLocaleDateString('de-DE');
 }
 
+function memberSortGroup(member) {
+  if (member.is_modforge_owner) return 0;
+  if (member.is_modforge_bot) return 1;
+  if (member.bot) return 2;
+  return 3;
+}
+
+function compareMemberViews(a, b) {
+  const groupDifference = memberSortGroup(a) - memberSortGroup(b);
+  if (groupDifference) return groupDifference;
+  if (memberSortGroup(a) === 3 && Number(b.top_role_position || 0) !== Number(a.top_role_position || 0)) return Number(b.top_role_position || 0) - Number(a.top_role_position || 0);
+  return String(a.display_name || '').localeCompare(String(b.display_name || ''), 'de', { sensitivity: 'base' });
+}
+
 function riskForMember(member, cases = 0, warns = 0) {
   let score = Math.min(45, cases * 6 + warns * 8);
   const age = Date.now() - member.user.createdTimestamp;
@@ -263,7 +277,7 @@ async function overviewContext(bot, guild, cfg) {
 }
 
 async function membersContext(bot, guild) {
-  await guild.members.fetch().catch(() => null);
+  await guild.members.fetch({ withPresences: true }).catch(() => guild.members.fetch().catch(() => null));
   const cases = await findMany(bot, 'cases', guildQuery(guild.id), { limit: 5000 });
   const badgeRows = await findMany(bot, 'badges', guildQuery(guild.id), { limit: 5000 });
   const customDefs = await findMany(bot, 'badge_defs', guildQuery(guild.id), { limit: 500 });
@@ -287,15 +301,17 @@ async function membersContext(bot, guild) {
     return {
       id: String(member.id), name: member.user.tag, display_name: member.displayName, nick: member.nickname || '', bot: member.user.bot,
       avatar: member.displayAvatarURL({ size: 256 }), banner_url: null, status: member.presence?.status || 'offline',
-      top_role: roles[0]?.name || '', roles, roles_str: roles.map(role => role.name).join(' '),
+      top_role: roles[0]?.name || '', top_role_position: member.roles.highest?.position || 0, roles, roles_str: roles.map(role => role.name).join(' '),
+      is_modforge_owner: String(member.id) === '1303627964734246944', is_modforge_bot: String(member.id) === String(bot.user?.id || ''),
       is_admin: member.permissions.has(PermissionFlagsBits.Administrator), timeout: member.communicationDisabledUntil?.toISOString?.() || '',
       voice_ch: member.voice?.channel?.name || '', voice_mute: Boolean(member.voice?.mute), joined: member.joinedAt?.toISOString?.(),
       created: member.user.createdAt?.toISOString?.(), warns, cases: ownCases.length, risk: riskForMember(member, ownCases.length, warns),
       badges: badgesByUser.get(String(member.id)) || [], badge_score: (badgesByUser.get(String(member.id)) || []).reduce((sum, badge) => sum + int(badge.level, 1), 0),
-      tag: member.user.bot ? 'BOT' : '', tag_color: member.user.bot ? '#60a5fa' : '#94a3b8',
+      tag: String(member.id) === '1303627964734246944' ? 'MODFORGE OWNER' : String(member.id) === String(bot.user?.id || '') ? 'MODFORGE BOT' : member.user.bot ? 'BOT' : '',
+      tag_color: String(member.id) === '1303627964734246944' ? '#fbbf24' : String(member.id) === String(bot.user?.id || '') ? '#4ade80' : member.user.bot ? '#60a5fa' : '#94a3b8',
       all_perms: { administrator: member.permissions.has(PermissionFlagsBits.Administrator), manage_guild: member.permissions.has(PermissionFlagsBits.ManageGuild), manage_roles: member.permissions.has(PermissionFlagsBits.ManageRoles), moderate_members: member.permissions.has(PermissionFlagsBits.ModerateMembers) },
     };
-  }).sort((a, b) => Number(a.bot) - Number(b.bot) || a.display_name.localeCompare(b.display_name, 'de'));
+  }).sort(compareMemberViews);
   return { members, badge_catalog: catalog };
 }
 
@@ -525,11 +541,12 @@ function registerDashboard({ app, bot, render, getSession, canManage, forbidden,
           return null;
         });
     if (!session) return res.redirect('/login?error=session');
+    const superuser = SUPERUSER_IDS.includes(String(session.user?.id));
     const guildInfo = (session.guilds || []).find(g => String(g.id) === String(req.params.guildId));
-    if (!admin && (!guildInfo || !canManage(guildInfo))) return forbidden(res, session.user);
+    if (!admin && !superuser && (!guildInfo || !canManage(guildInfo))) return forbidden(res, session.user);
     const guild = bot.guilds.cache.get(String(req.params.guildId));
-    if (!guild) return admin ? res.status(404).send('Server nicht gefunden') : res.redirect(invite(req.params.guildId));
-    req.dashboard = { session, guild, admin };
+    if (!guild) return admin || superuser ? res.status(404).send('Server nicht gefunden') : res.redirect(invite(req.params.guildId));
+    req.dashboard = { session, guild, admin, superuser };
     return next();
   }
 
@@ -976,4 +993,4 @@ function registerDashboard({ app, bot, render, getSession, canManage, forbidden,
   app.post('/api/guild/:guildId/templates/unshare/:id', async (req, res) => { await (await collection(bot, 'community_templates')).deleteOne({ template_id: String(req.params.id), guild_id: String(req.params.guildId) }); res.json({ ok: true }); });
 }
 
-module.exports = { registerDashboard, pageContext, guildView, plain, deepMerge, PAGE_MAP };
+module.exports = { registerDashboard, pageContext, guildView, plain, deepMerge, compareMemberViews, PAGE_MAP };

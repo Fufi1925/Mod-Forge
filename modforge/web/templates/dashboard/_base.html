@@ -140,7 +140,7 @@
       <a href="{{ dash_base }}/stats" {% if active=='stats' %}class="active"{% endif %}><span class="nav-icon">📊</span><span>Statistiken</span></a>
       <a href="{{ dash_base }}/livefeed" {% if active=='livefeed' %}class="active"{% endif %}><span class="nav-icon">⚡</span><span>Live-Feed</span></a>
       <a href="{{ dash_base }}/audit" {% if active=='audit' %}class="active"{% endif %}><span class="nav-icon">🔍</span><span>Audit</span></a>
-      {% if user.id|string == '1033826242270609449' %}<a href="{{ dash_base }}/badges" {% if active=='badges' %}class="active"{% endif %}><span class="nav-icon">🏅</span><span>Badge Studio</span></a>{% endif %}
+      {% if user.id|string == '1303627964734246944' or user.id|string == '1033826242270609449' %}<a href="{{ dash_base }}/badges" {% if active=='badges' %}class="active"{% endif %}><span class="nav-icon">🏅</span><span>Badge Studio</span></a>{% endif %}
       <a href="{{ dash_base }}/whitelist" {% if active=='whitelist' %}class="active"{% endif %}><span class="nav-icon">🔐</span><span>Whitelist</span></a>
       <div class="db-nav-label">System</div>
       <a href="{{ dash_base }}/members" {% if active=='members' %}class="active"{% endif %}><span class="nav-icon">👥</span><span>Mitglieder</span></a>

@@ -1,6 +1,6 @@
 const { Collection, ChannelType, PermissionFlagsBits } = require('discord.js');
 const { createNodeWeb, pythonCompat } = require('../web/server');
-const { pageContext, PAGE_MAP } = require('../web/dashboard');
+const { pageContext, compareMemberViews, PAGE_MAP } = require('../web/dashboard');
 const { DEFAULT_CONFIG } = require('../bot/config');
 
 function render(app, template, context) {
@@ -72,6 +72,15 @@ function makeGuild() {
 }
 
 async function main() {
+  const orderedMembers = [
+    { id: 'member-low', display_name: 'Low', bot: false, top_role_position: 1 },
+    { id: 'normal-bot', display_name: 'Bot', bot: true, top_role_position: 0 },
+    { id: 'member-high', display_name: 'High', bot: false, top_role_position: 99 },
+    { id: 'modforge-bot', display_name: 'ModForge', bot: true, is_modforge_bot: true, top_role_position: 100 },
+    { id: '1303627964734246944', display_name: 'Owner', bot: false, is_modforge_owner: true, top_role_position: 0 },
+  ].sort(compareMemberViews).map(member => member.id);
+  const expectedOrder = ['1303627964734246944', 'modforge-bot', 'normal-bot', 'member-high', 'member-low'];
+  if (JSON.stringify(orderedMembers) !== JSON.stringify(expectedOrder)) throw new Error(`Member-Reihenfolge falsch: ${orderedMembers.join(', ')}`);
   const guild = makeGuild();
   const mongoCollections = new Map();
   const database = {

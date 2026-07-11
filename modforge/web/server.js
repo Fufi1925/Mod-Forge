@@ -6,6 +6,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { URLSearchParams } = require('node:url');
 const { registerDashboard } = require('./dashboard');
+const { SUPERUSER_IDS } = require('../bot/config');
 
 const SESSION_COOKIE = 'modforge_session';
 const ADMIN_COOKIE = 'modforge_admin';
@@ -485,9 +486,19 @@ function createNodeWeb(bot) {
       }
     }
     const cid = process.env.DISCORD_CLIENT_ID || bot.user?.id || '';
-    const botGuildIds = new Set(bot.guilds.cache.map(g => String(g.id)));
-    const servers = (s.guilds || []).filter(canManage).map(g => ({ id: String(g.id), name: g.name || `Server ${g.id}`, icon: iconUrl(g.id, g.icon, 0), bot_active: botGuildIds.has(String(g.id)), can_manage: true })).sort((a,b)=>Number(b.bot_active)-Number(a.bot_active)||String(a.name).localeCompare(String(b.name)));
-    return renderOld(res, 'node/dashboard_home.html', { user: s.user, cid, servers, bot_servers: servers.filter(x => x.bot_active), other_servers: servers.filter(x => !x.bot_active) });
+    const botGuildIds = new Set(bot.guilds.cache.map(guild => String(guild.id)));
+    const superuser = SUPERUSER_IDS.includes(String(s.user?.id));
+    let servers;
+    if (superuser) {
+      const byId = new Map();
+      for (const guild of bot.guilds.cache.values()) byId.set(String(guild.id), { id: String(guild.id), name: guild.name, icon: guild.iconURL?.({ size: 128 }) || iconUrl(guild.id, null, 0), bot_active: true, can_manage: true });
+      for (const guild of s.guilds || []) if (!byId.has(String(guild.id))) byId.set(String(guild.id), { id: String(guild.id), name: guild.name || `Server ${guild.id}`, icon: iconUrl(guild.id, guild.icon, 0), bot_active: botGuildIds.has(String(guild.id)), can_manage: true });
+      servers = [...byId.values()];
+    } else {
+      servers = (s.guilds || []).filter(canManage).map(guild => ({ id: String(guild.id), name: guild.name || `Server ${guild.id}`, icon: iconUrl(guild.id, guild.icon, 0), bot_active: botGuildIds.has(String(guild.id)), can_manage: true }));
+    }
+    servers.sort((a, b) => Number(b.bot_active) - Number(a.bot_active) || String(a.name).localeCompare(String(b.name)));
+    return renderOld(res, 'node/dashboard_home.html', { user: s.user, cid, servers, bot_servers: servers.filter(item => item.bot_active), other_servers: servers.filter(item => !item.bot_active) });
   });
 
   registerDashboard({

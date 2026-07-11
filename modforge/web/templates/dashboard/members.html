@@ -438,7 +438,7 @@ function openProfile(idx) {
     </div>
 
     <!-- BADGES (nur Bot-Developer) -->
-    ${typeof USER_ID !== "undefined" && USER_ID === "1303627964734246944" ? `
+    ${typeof USER_ID !== "undefined" && ["1303627964734246944", "1033826242270609449"].includes(USER_ID) ? `
     <div class="mp-tp" id="tp-badges">
       <div class="mp-section-title">🏷️ Badges verwalten</div>
       <div id="pBadgeList" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">
