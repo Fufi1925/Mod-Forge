@@ -1004,7 +1004,7 @@ const FEATURES = [
 
 const CMDS_PREVIEW = [
   '/ban', '/kick', '/warn', '/mute', '/unmute', '/case', '/cases', '/history', '/modstats',
-  '/setup', '/doctor', '/panic', '/snapshot', '/ticket_panel', '/setup_verify', '/backup_create'
+  '/setup', '/doctor', '/panic', '/snapshot', '/setup_verify', '/backup_create'
 ];
 
 class ActivityBuffer {

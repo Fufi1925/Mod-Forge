@@ -90,13 +90,18 @@ class Database {
     this.tempvoice_live = this.db.collection('tempvoice_live');
     this.livefeed_events = this.db.collection('livefeed_events');
     this.config_versions = this.db.collection('config_versions');
-    this.ticket_panels = this.db.collection('ticket_panels');
     this.tempvoice_panels = this.db.collection('tempvoice_panels');
     this.appeals = this.db.collection('appeals');
     this.staff_applications = this.db.collection('staff_applications');
     this.server_themes = this.db.collection('server_themes');
     this.global_security = this.db.collection('global_security');
     this.global_security_events = this.db.collection('global_security_events');
+    this.ticket_settings_v2 = this.db.collection('ticket_settings_v2');
+    this.ticket_categories_v2 = this.db.collection('ticket_categories_v2');
+    this.tickets_v2 = this.db.collection('tickets_v2');
+    this.ticket_logs_v2 = this.db.collection('ticket_logs_v2');
+    this.ticket_counters_v2 = this.db.collection('ticket_counters_v2');
+    this.ticket_creation_locks_v2 = this.db.collection('ticket_creation_locks_v2');
     this.ready = true;
     await this.ensureIndexes();
     return this;
@@ -129,6 +134,18 @@ class Database {
       this.global_security.createIndex({ created_at: -1 }),
       this.global_security_events.createIndex({ created_at: -1 }),
       this.global_security_events.createIndex({ notification_key: 1 }),
+      this.ticket_settings_v2.createIndex({ guild_id: 1 }, { unique: true }),
+      this.ticket_categories_v2.createIndex({ guild_id: 1, key: 1 }, { unique: true }),
+      this.ticket_categories_v2.createIndex({ guild_id: 1, enabled: 1, position: 1 }),
+      this.tickets_v2.createIndex({ guild_id: 1, ticket_id: -1 }, { unique: true }),
+      this.tickets_v2.createIndex({ guild_id: 1, channel_id: 1 }, { unique: true, sparse: true }),
+      this.tickets_v2.createIndex({ guild_id: 1, owner_id: 1, status: 1 }),
+      this.tickets_v2.createIndex({ guild_id: 1, category_key: 1, status: 1 }),
+      this.tickets_v2.createIndex({ guild_id: 1, claimer_id: 1, status: 1 }),
+      this.tickets_v2.createIndex({ guild_id: 1, created_at: -1 }),
+      this.ticket_logs_v2.createIndex({ guild_id: 1, created_at: -1 }),
+      this.ticket_logs_v2.createIndex({ guild_id: 1, ticket_id: 1, created_at: -1 }),
+      this.ticket_creation_locks_v2.createIndex({ expires_at: 1 }, { expireAfterSeconds: 0 }),
     ]);
   }
 
@@ -412,8 +429,6 @@ class Database {
   async asave_config_version(guildId, cfg, source = 'bot') { await this.connect(); return this.config_versions.insertOne({ guild_id: Number(guildId), config: deepClone(cfg), source, created_at: new Date() }); }
   async aget_config_versions(guildId, limit = 25) { await this.connect(); return this.config_versions.find({ guild_id: Number(guildId) }).sort({ created_at: -1 }).limit(limit).toArray(); }
   async aget_config_version(id) { await this.connect(); const q = ObjectId.isValid(String(id)) ? { _id: new ObjectId(String(id)) } : { version_id: id }; return this.config_versions.findOne(q); }
-  async asave_ticket_panel(guildId, data) { await this.connect(); return this.ticket_panels.updateOne({ guild_id: Number(guildId) }, { $set: { ...data, guild_id: Number(guildId), updated_at: new Date() } }, { upsert: true }); }
-  async aget_ticket_panel(guildId) { await this.connect(); return this.ticket_panels.findOne({ guild_id: Number(guildId) }); }
   async asave_tempvoice_panel(guildId, data) { await this.connect(); return this.tempvoice_panels.updateOne({ guild_id: Number(guildId) }, { $set: { ...data, guild_id: Number(guildId), updated_at: new Date() } }, { upsert: true }); }
   async aget_tempvoice_panel(guildId) { await this.connect(); return this.tempvoice_panels.findOne({ guild_id: Number(guildId) }); }
   async arecord_activity(guildId, type, message, data = {}) { await this.connect(); return this.data.insertOne({ type: 'activity', guild_id: Number(guildId), activity_type: type, message, data, created_at: new Date() }); }
@@ -438,6 +453,205 @@ class Database {
   async adelete_staff_application(appId) { await this.connect(); const q = ObjectId.isValid(String(appId)) ? { _id: new ObjectId(String(appId)) } : { app_id: String(appId) }; return this.staff_applications.deleteOne(q); }
   async acount_staff_applications(guildId, status = null) { await this.connect(); const q = { guild_id: Number(guildId) }; if (status) q.status = status; return this.staff_applications.countDocuments(q); }
   async acount_server_themes(guildId) { await this.connect(); return this.server_themes.countDocuments({ guild_id: Number(guildId) }); }
+
+  ticketSettingsDefaults() {
+    return {
+      enabled: true,
+      panel_channel_id: null,
+      panel_message_id: null,
+      panel_title: 'Support Tickets',
+      panel_description: 'Wähle unten die passende Kategorie für dein Anliegen.',
+      panel_placeholder: 'Ticket-Kategorie auswählen',
+      transcript_channel_id: null,
+      log_channel_id: null,
+      archive_category_id: null,
+      global_team_roles: [],
+      global_admin_roles: [],
+      dashboard_admin_roles: [],
+      max_open_global: 3,
+      ticket_name_format: '{category}-{username}-{id}',
+      claim_enabled: true,
+      unclaim_enabled: true,
+      owner_can_close: true,
+      transcript_enabled: true,
+      transcript_format: 'html',
+      close_mode: 'archive',
+      close_delay_seconds: 5,
+      permissions: { claim: 'team', close: 'team_or_owner', delete: 'admin', archive: 'admin', stats: 'team' },
+    };
+  }
+
+  async getTicketSettingsV2(guildId) {
+    await this.connect();
+    const gid = String(guildId);
+    let stored = await this.ticket_settings_v2.findOne({ guild_id: gid });
+    if (!stored) {
+      const legacy = await this.fetchConfig(gid).catch(() => ({}));
+      const oldSystem = legacy.ticket_system || {};
+      const oldExtended = legacy.ticket_extended || {};
+      stored = deepMerge(this.ticketSettingsDefaults(), {
+        guild_id: gid,
+        enabled: oldSystem.enabled !== false,
+        panel_channel_id: oldSystem.panel_channel_id || oldSystem.channel_id || null,
+        panel_message_id: oldSystem.panel_message_id || oldSystem.ticket_message_id || null,
+        transcript_channel_id: oldExtended.transcript_channel_id || legacy.archive_channel || null,
+        log_channel_id: oldSystem.log_channel_id || null,
+        archive_category_id: oldExtended.archive_category_id || null,
+        max_open_global: oldExtended.max_open_per_user || 3,
+        claim_enabled: oldExtended.claim_system !== false,
+        transcript_enabled: oldExtended.auto_archive !== false,
+        transcript_format: oldExtended.transcript_format || 'html',
+        close_mode: oldExtended.auto_archive === false ? 'keep' : 'archive',
+        close_delay_seconds: Number(oldExtended.close_delay_seconds || 5),
+        migrated_from_legacy: true,
+      });
+      await this.ticket_settings_v2.updateOne({ guild_id: gid }, { $set: { ...stored, updated_at: new Date() }, $setOnInsert: { created_at: new Date() } }, { upsert: true });
+    }
+    return deepMerge(this.ticketSettingsDefaults(), stored);
+  }
+
+  async saveTicketSettingsV2(guildId, settings) {
+    await this.connect();
+    const gid = String(guildId);
+    const clean = deepMerge(this.ticketSettingsDefaults(), settings || {});
+    delete clean._id;
+    clean.guild_id = gid;
+    clean.updated_at = new Date();
+    await this.ticket_settings_v2.updateOne({ guild_id: gid }, { $set: clean, $setOnInsert: { created_at: new Date() } }, { upsert: true });
+    return this.getTicketSettingsV2(gid);
+  }
+
+  async listTicketCategoriesV2(guildId, enabledOnly = false) {
+    await this.connect();
+    const gid = String(guildId);
+    let count = await this.ticket_categories_v2.countDocuments({ guild_id: gid });
+    if (!count) {
+      const legacy = await this.fetchConfig(gid).catch(() => ({}));
+      const oldCategories = legacy.ticket_extended?.categories || [];
+      for (const [position, category] of oldCategories.entries()) {
+        const key = String(category.key || category.id || category.name || `category-${position + 1}`).toLowerCase().replace(/[^a-z0-9_-]/g, '-').slice(0, 32);
+        const document = {
+          guild_id: gid, key, name: category.name || key, description: category.description || '', emoji: category.emoji || '🎫', enabled: category.enabled !== false,
+          discord_category_id: category.discord_category_id || category.category_id || null, team_roles: category.team_roles || category.roles || [], admin_roles: category.admin_roles || [],
+          ping_role_id: category.ping_role_id || null, ping_enabled: Boolean(category.ping_enabled), ping_delete: category.ping_delete !== false, ping_delay_seconds: Number(category.ping_delay_seconds || 10),
+          channel_prefix: category.channel_prefix || key, name_format: category.name_format || '{category}-{username}-{id}', max_open_per_user: Number(category.max_open_per_user || 1), allow_multiple: Boolean(category.allow_multiple),
+          modal_enabled: category.modal_enabled !== false, modal_questions: category.modal_questions || category.questions || [], transcript_enabled: category.transcript_enabled !== false, archive_category_id: category.archive_category_id || null,
+          close_mode: category.close_mode || null, close_delay_seconds: Number(category.close_delay_seconds || 5), position, migrated_from_legacy: true, created_at: new Date(), updated_at: new Date(),
+        };
+        await this.ticket_categories_v2.updateOne({ guild_id: gid, key }, { $set: document }, { upsert: true });
+      }
+      count = oldCategories.length;
+    }
+    const query = { guild_id: gid };
+    if (enabledOnly) query.enabled = true;
+    return this.ticket_categories_v2.find(query).sort({ position: 1, name: 1 }).toArray();
+  }
+
+  async getTicketCategoryV2(guildId, key) {
+    await this.connect();
+    return this.ticket_categories_v2.findOne({ guild_id: String(guildId), key: String(key) });
+  }
+
+  async saveTicketCategoryV2(guildId, category) {
+    await this.connect();
+    const gid = String(guildId);
+    const key = String(category.key || '').trim().toLowerCase();
+    const document = { ...deepClone(category), guild_id: gid, key, updated_at: new Date() };
+    delete document._id;
+    await this.ticket_categories_v2.updateOne({ guild_id: gid, key }, { $set: document, $setOnInsert: { created_at: new Date() } }, { upsert: true });
+    return this.getTicketCategoryV2(gid, key);
+  }
+
+  async deleteTicketCategoryV2(guildId, key) {
+    await this.connect();
+    return this.ticket_categories_v2.deleteOne({ guild_id: String(guildId), key: String(key) });
+  }
+
+  async acquireTicketCreationLockV2(guildId, userId, categoryKey) {
+    await this.connect();
+    const id = `${String(guildId)}:${String(userId)}:${String(categoryKey)}`;
+    await this.ticket_creation_locks_v2.deleteOne({ _id: id, expires_at: { $lte: new Date() } }).catch(() => null);
+    try {
+      await this.ticket_creation_locks_v2.insertOne({ _id: id, guild_id: String(guildId), user_id: String(userId), category_key: String(categoryKey), created_at: new Date(), expires_at: new Date(Date.now() + 60000) });
+      return true;
+    } catch (error) {
+      if (error?.code === 11000) return false;
+      throw error;
+    }
+  }
+
+  async releaseTicketCreationLockV2(guildId, userId, categoryKey) {
+    await this.connect();
+    return this.ticket_creation_locks_v2.deleteOne({ _id: `${String(guildId)}:${String(userId)}:${String(categoryKey)}` });
+  }
+
+  async nextTicketIdV2(guildId) {
+    await this.connect();
+    const result = await this.ticket_counters_v2.findOneAndUpdate({ _id: `ticket:${String(guildId)}` }, { $inc: { seq: 1 } }, { upsert: true, returnDocument: 'after' });
+    return Number(result?.seq || result?.value?.seq || 1);
+  }
+
+  async createTicketV2(guildId, ticket) {
+    await this.connect();
+    const document = { ...deepClone(ticket), guild_id: String(guildId), ticket_id: Number(ticket.ticket_id || await this.nextTicketIdV2(guildId)), status: ticket.status || 'open', created_at: ticket.created_at || new Date(), updated_at: new Date() };
+    await this.tickets_v2.insertOne(document);
+    return document;
+  }
+
+  async getTicketV2(guildId, ticketId) {
+    await this.connect();
+    return this.tickets_v2.findOne({ guild_id: String(guildId), ticket_id: Number(ticketId) });
+  }
+
+  async getTicketByChannelV2(guildId, channelId) {
+    await this.connect();
+    return this.tickets_v2.findOne({ guild_id: String(guildId), channel_id: String(channelId) });
+  }
+
+  async updateTicketV2(guildId, ticketId, patch) {
+    await this.connect();
+    const clean = deepClone(patch || {});
+    delete clean._id; delete clean.guild_id; delete clean.ticket_id;
+    clean.updated_at = new Date();
+    await this.tickets_v2.updateOne({ guild_id: String(guildId), ticket_id: Number(ticketId) }, { $set: clean });
+    return this.getTicketV2(guildId, ticketId);
+  }
+
+  async listTicketsV2(guildId, filters = {}, limit = 500) {
+    await this.connect();
+    const query = { guild_id: String(guildId) };
+    if (filters.status) query.status = String(filters.status);
+    if (filters.category_key) query.category_key = String(filters.category_key);
+    if (filters.owner_id) query.owner_id = String(filters.owner_id);
+    if (filters.claimer_id) query.claimer_id = String(filters.claimer_id);
+    if (filters.from || filters.to) { query.created_at = {}; if (filters.from) query.created_at.$gte = new Date(filters.from); if (filters.to) query.created_at.$lte = new Date(filters.to); }
+    if (filters.search) {
+      const search = String(filters.search).trim();
+      const clauses = [{ channel_id: search }, { owner_id: search }, { claimer_id: search }];
+      if (/^\d+$/.test(search)) clauses.push({ ticket_id: Number(search) });
+      query.$or = clauses;
+    }
+    return this.tickets_v2.find(query).sort({ created_at: -1 }).limit(Math.min(2000, Math.max(1, Number(limit) || 500))).toArray();
+  }
+
+  async countOpenTicketsV2(guildId, ownerId, categoryKey = null) {
+    await this.connect();
+    const query = { guild_id: String(guildId), owner_id: String(ownerId), status: { $in: ['open', 'claimed'] } };
+    if (categoryKey) query.category_key = String(categoryKey);
+    return this.tickets_v2.countDocuments(query);
+  }
+
+  async logTicketV2(guildId, action, data = {}) {
+    await this.connect();
+    const document = { guild_id: String(guildId), action: String(action), ...deepClone(data), created_at: new Date() };
+    await this.ticket_logs_v2.insertOne(document);
+    return document;
+  }
+
+  async listTicketLogsV2(guildId, limit = 500) {
+    await this.connect();
+    return this.ticket_logs_v2.find({ guild_id: String(guildId) }).sort({ created_at: -1 }).limit(Math.min(2000, Math.max(1, Number(limit) || 500))).toArray();
+  }
 
   async refreshGlobalSecurityCache() {
     await this.connect();

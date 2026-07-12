@@ -35,11 +35,6 @@ function embed_onboarding() { return new EmbedBuilder().setTitle('🎉 Willkomme
 function embed_verification_panel() { return new EmbedBuilder().setTitle('✅ Verification').setDescription('Klicke auf den Button, um dich zu verifizieren.').setColor(COLORS.primary).setFooter({ text: 'Verification System' }); }
 function embed_verification_success(kwargs) { const { user } = kwargs; return new EmbedBuilder().setTitle('✅ Verifiziert!').setDescription(`${mention(user)} wurde erfolgreich verifiziert.`).setColor(COLORS.success); }
 function embed_verification_failed() { return new EmbedBuilder().setTitle('❌ Verification fehlgeschlagen').setDescription('Bitte versuche es erneut.').setColor(COLORS.danger); }
-function embed_ticket_panel() { return new EmbedBuilder().setTitle('🎫 Ticket System').setDescription('Wähle eine Kategorie aus, um ein Ticket zu öffnen.').setColor(COLORS.info).setFooter({ text: 'Ticket System • ModForge' }); }
-function embed_ticket_created(kwargs) { const ticket_id = kwargs.ticket_id; const category = kwargs.category || 'Support'; return new EmbedBuilder().setTitle('🎫 Ticket erstellt').setDescription(`Dein Ticket **#${ticket_id}** wurde erstellt.`).setColor(COLORS.success).addFields({ name: 'Kategorie', value: String(category) }).setFooter({ text: 'Ticket System' }); }
-function embed_ticket_closed(kwargs) { return new EmbedBuilder().setTitle('🔒 Ticket geschlossen').setDescription(`Ticket **#${kwargs.ticket_id}** wurde von ${kwargs.closed_by} geschlossen.`).setColor(COLORS.dark); }
-function embed_ticket_transcript(kwargs) { return new EmbedBuilder().setTitle('📜 Transcript').setDescription(`Transcript für Ticket #${kwargs.ticket_id}`).setColor(COLORS.purple).setFooter({ text: 'Ticket System' }); }
-function embed_ticket_claimed(kwargs) { return new EmbedBuilder().setTitle('🙋 Ticket übernommen').setDescription(`Ticket #${kwargs.ticket_id} wurde von ${kwargs.staff} übernommen.`).setColor(COLORS.info); }
 function embed_tempvoice_panel() { return new EmbedBuilder().setTitle('🔊 TempVoice').setDescription('Klicke auf den Button, um einen eigenen Voice-Kanal zu erstellen.').setColor(COLORS.purple).setFooter({ text: 'TempVoice System' }); }
 function embed_tempvoice_created(kwargs) { return new EmbedBuilder().setTitle('🔊 TempVoice erstellt').setDescription(`${mention(kwargs.owner)} hat den Kanal ${mention(kwargs.channel)} erstellt.`).setColor(COLORS.success); }
 function embed_tempvoice_deleted(kwargs) { return new EmbedBuilder().setTitle('🗑️ TempVoice gelöscht').setDescription(`Der Kanal **${kwargs.channel_name}** wurde gelöscht.`).setColor(COLORS.dark); }
@@ -85,11 +80,6 @@ const EMBEDS = {
   verification_panel: embed_verification_panel,
   verification_success: embed_verification_success,
   verification_failed: embed_verification_failed,
-  ticket_panel: embed_ticket_panel,
-  ticket_created: embed_ticket_created,
-  ticket_closed: embed_ticket_closed,
-  ticket_transcript: embed_ticket_transcript,
-  ticket_claimed: embed_ticket_claimed,
   tempvoice_panel: embed_tempvoice_panel,
   tempvoice_created: embed_tempvoice_created,
   tempvoice_deleted: embed_tempvoice_deleted,
