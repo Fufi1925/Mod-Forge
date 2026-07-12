@@ -3,6 +3,7 @@ const { ObjectId } = require('mongodb');
 const { PermissionFlagsBits, ChannelType, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require('discord.js');
 const { BADGES, LOG_MODS, ACTIVITY, DEFAULT_CONFIG, SUPERUSER_IDS } = require('../bot/config');
 const { collectBackupData, restoreFromBackup } = require('../bot/cogs/backup');
+const { sendOrUpdatePanel, createTranscript } = require('../bot/cogs/tickets');
 
 const PAGE_MAP = Object.freeze({
   '': 'overview', overview: 'overview', activity: 'activity_feed', activity_feed: 'activity_feed',
@@ -11,7 +12,8 @@ const PAGE_MAP = Object.freeze({
   design: 'design', embed: 'embed', livefeed: 'livefeed', logs: 'logs', members: 'members', modules: 'modules',
   roles: 'roles', security: 'security', settings: 'settings', 'staff-applications': 'staff_applications',
   staff_applications: 'staff_applications', stats: 'stats', templates: 'templates', tempvoice: 'tempvoice',
-  tickets: 'tickets', verification: 'verification', warns: 'warns', welcome: 'welcome', whitelist: 'whitelist',
+  tickets: 'tickets', 'ticket-list': 'ticket_list', 'ticket-stats': 'ticket_stats', 'ticket-logs': 'ticket_logs', 'ticket-categories': 'ticket_categories',
+  verification: 'verification', warns: 'warns', welcome: 'welcome', whitelist: 'whitelist',
 });
 
 const LOG_CATEGORIES = Object.freeze({
@@ -115,6 +117,38 @@ function safeText(value, max = 1000) {
   return String(value ?? '').trim().slice(0, max);
 }
 
+function stringList(value, maximum = 100) {
+  const values = Array.isArray(value) ? value : String(value || '').split(/[\s,;]+/);
+  return [...new Set(values.map(item => String(item).trim()).filter(Boolean))].slice(0, maximum);
+}
+
+function ensureGuildChannel(guild, id, allowedTypes, label, required = false) {
+  if (!id) { if (required) throw new Error(`${label} ist erforderlich.`); return null; }
+  const channel = guild.channels.cache.get(String(id));
+  if (!channel || !allowedTypes.includes(channel.type)) throw new Error(`${label} existiert nicht oder hat den falschen Channel-Typ.`);
+  return channel;
+}
+
+function ensureGuildRoles(guild, roleIds, label) {
+  const ids = stringList(roleIds, 50);
+  for (const id of ids) if (!guild.roles.cache.has(String(id))) throw new Error(`${label}: Rolle ${id} existiert nicht.`);
+  return ids;
+}
+
+function normalizeModalQuestions(questions) {
+  return (Array.isArray(questions) ? questions : []).slice(0, 5).map((question, index) => ({
+    id: safeText(question.id || `q${index + 1}`, 32).replace(/[^a-zA-Z0-9_-]/g, '') || `q${index + 1}`,
+    label: safeText(question.label || question.question || `Frage ${index + 1}`, 45),
+    placeholder: safeText(question.placeholder, 100),
+    style: String(question.style).toLowerCase() === 'paragraph' ? 'paragraph' : 'short',
+    required: question.required !== false,
+    min_length: int(question.min_length, 0, 0, 4000),
+    max_length: int(question.max_length, 200, 1, 4000),
+    enabled: question.enabled !== false,
+    position: index,
+  })).map(question => ({ ...question, max_length: Math.max(question.min_length || 0, question.max_length) }));
+}
+
 function int(value, fallback = 0, min = Number.MIN_SAFE_INTEGER, max = Number.MAX_SAFE_INTEGER) {
   const number = Number.parseInt(value, 10);
   return Number.isFinite(number) ? Math.max(min, Math.min(max, number)) : fallback;
@@ -122,6 +156,24 @@ function int(value, fallback = 0, min = Number.MIN_SAFE_INTEGER, max = Number.MA
 
 function bool(value) {
   return value === true || value === 1 || value === '1' || String(value).toLowerCase() === 'true' || String(value).toLowerCase() === 'on';
+}
+
+function memberHasConfiguredRole(member, roleIds) {
+  const allowed = new Set((Array.isArray(roleIds) ? roleIds : []).map(String));
+  return allowed.size > 0 && member?.roles?.cache?.some(role => allowed.has(String(role.id)));
+}
+
+function ticketCsrfToken(session, guildId) {
+  const secret = process.env.SESSION_SECRET || process.env.IP_HASH_SECRET || process.env.DISCORD_CLIENT_SECRET || 'development-ticket-csrf';
+  const identity = `${session?.sid || session?.user?.id || 'admin'}:${String(guildId)}`;
+  return crypto.createHmac('sha256', secret).update(identity).digest('hex');
+}
+
+function validTicketCsrf(session, guildId, candidate) {
+  const expected = ticketCsrfToken(session, guildId);
+  const supplied = String(candidate || '');
+  if (supplied.length !== expected.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(supplied), Buffer.from(expected));
 }
 
 function withTimeout(promise, milliseconds, label = 'Operation') {
@@ -425,10 +477,50 @@ async function badgeContext(bot, guild, cfg) {
   return { definitions, users_with_badges: users, history: await findMany(bot, 'badge_history', guildQuery(guild.id), { sort: { created_at: -1 }, limit: 100 }), ba: cfg.badge_automation || {} };
 }
 
-async function ticketContext(bot, guild, cfg) {
-  const transcripts = await findMany(bot, 'ticket_transcripts', guildQuery(guild.id), { sort: { updated_at: -1 }, limit: 100 });
-  const cats = cfg.ticket_extended?.categories || [];
-  return { tickets: transcripts, ticket_docs: transcripts.map(item => ({ created_at_iso: item.created_at_iso || item.created_at || item.updated_at || new Date().toISOString(), status: item.status || 'closed', transcript: item.transcript || '', ...item })), cats, ticket_categories: cats, te: cfg.ticket_extended || {}, ticket_stats: { total: transcripts.length, open: transcripts.filter(x => x.status === 'open').length, closed: transcripts.filter(x => x.status === 'closed').length, claimed: transcripts.filter(x => x.claimed_by).length } };
+async function ticketContext(bot, guild, filters = {}) {
+  const settings = await bot.db.getTicketSettingsV2(guild.id);
+  const ticketCategories = await bot.db.listTicketCategoriesV2(guild.id);
+  const tickets = await bot.db.listTicketsV2(guild.id, filters, 1000);
+  const logs = await bot.db.listTicketLogsV2(guild.id, 300);
+  const now = Date.now();
+  const startToday = new Date(); startToday.setHours(0, 0, 0, 0);
+  const startWeek = new Date(startToday); startWeek.setDate(startWeek.getDate() - ((startWeek.getDay() + 6) % 7));
+  const startMonth = new Date(startToday.getFullYear(), startToday.getMonth(), 1);
+  const byCategory = {};
+  const byClaimer = {};
+  for (const ticket of tickets) {
+    const key = ticket.category_key || 'unknown';
+    byCategory[key] ||= { key, name: ticket.category_name || key, total: 0, open: 0, claimed: 0, closed: 0, archived: 0, durations: [] };
+    byCategory[key].total += 1;
+    if (byCategory[key][ticket.status] != null) byCategory[key][ticket.status] += 1;
+    if (ticket.closed_at && ticket.created_at) byCategory[key].durations.push(new Date(ticket.closed_at).getTime() - new Date(ticket.created_at).getTime());
+    if (ticket.claimer_id) {
+      const id = String(ticket.claimer_id);
+      byClaimer[id] ||= { id, claimed: 0, closed: 0, active: 0, claim_delays: [], close_delays: [] };
+      byClaimer[id].claimed += 1;
+      if (ticket.status === 'claimed') byClaimer[id].active += 1;
+      if (ticket.closed_at) byClaimer[id].closed += 1;
+      if (ticket.claimed_at && ticket.created_at) byClaimer[id].claim_delays.push(new Date(ticket.claimed_at).getTime() - new Date(ticket.created_at).getTime());
+      if (ticket.closed_at && ticket.created_at) byClaimer[id].close_delays.push(new Date(ticket.closed_at).getTime() - new Date(ticket.created_at).getTime());
+    }
+  }
+  const average = values => values.length ? Math.round(values.reduce((sum, value) => sum + value, 0) / values.length / 1000) : 0;
+  const categoryStats = Object.values(byCategory).map(item => ({ ...item, average_seconds: average(item.durations) })).sort((a, b) => b.total - a.total);
+  const teamStats = Object.values(byClaimer).map(item => ({ ...item, name: guild.members.cache.get(item.id)?.displayName || item.id, average_claim_seconds: average(item.claim_delays), average_close_seconds: average(item.close_delays) })).sort((a, b) => b.claimed - a.claimed);
+  const stats = {
+    total: tickets.length,
+    open: tickets.filter(ticket => ticket.status === 'open').length,
+    claimed: tickets.filter(ticket => ticket.status === 'claimed').length,
+    closed: tickets.filter(ticket => ticket.status === 'closed').length,
+    archived: tickets.filter(ticket => ticket.status === 'archived').length,
+    deleted: tickets.filter(ticket => ticket.status === 'deleted').length,
+    today: tickets.filter(ticket => new Date(ticket.created_at) >= startToday).length,
+    week: tickets.filter(ticket => new Date(ticket.created_at) >= startWeek).length,
+    month: tickets.filter(ticket => new Date(ticket.created_at) >= startMonth).length,
+    frequent_category: categoryStats[0]?.name || '—',
+    active_categories: ticketCategories.filter(category => category.enabled).length,
+  };
+  return { ticket_settings: settings, ticket_categories: ticketCategories, ticket_docs: tickets, ticket_logs: logs, ticket_stats: stats, ticket_category_stats: categoryStats, ticket_team_stats: teamStats };
 }
 
 async function templateContext(bot, guild) {
@@ -455,7 +547,7 @@ async function templateContext(bot, guild) {
   return { all_public: normalized, my_shared: normalized.filter(t => t.is_mine), categories, bot_ready: bot.isReady(), cat_labels: { general: 'Allgemein', gaming: 'Gaming', community: 'Community', support: 'Support', security: 'Security' } };
 }
 
-async function pageContext(bot, guild, cfg, user, page) {
+async function pageContext(bot, guild, cfg, user, page, query = {}) {
   const common = await commonContext(bot, guild, cfg, user);
   let extra = {};
   if (page === 'overview') extra = await overviewContext(bot, guild, cfg);
@@ -468,7 +560,10 @@ async function pageContext(bot, guild, cfg, user, page) {
   else if (page === 'roles') extra = await rolesContext(guild, cfg);
   else if (page === 'security') { const rc = await rolesContext(guild, cfg); extra = { ...rc, ...securityContext(cfg, rc.roles) }; }
   else if (page === 'badges') extra = await badgeContext(bot, guild, cfg);
-  else if (page === 'tickets') extra = { ...(await ticketContext(bot, guild, cfg)), channels: common.text_channels, categories: common.categories };
+  else if (['tickets', 'ticket_list', 'ticket_stats', 'ticket_logs', 'ticket_categories'].includes(page)) {
+    const filters = page === 'ticket_list' ? { status: query.status || null, category_key: query.category || null, owner_id: query.user || null, claimer_id: query.claimer || null, search: query.search || null, from: query.from || null, to: query.to || null } : {};
+    extra = { ...(await ticketContext(bot, guild, filters)), channels: common.text_channels, categories: common.categories, guild_roles: common.guild_roles, ticket_filters: filters, csrf_token: null };
+  }
   else if (page === 'templates') extra = await templateContext(bot, guild);
   else if (page === 'whitelist') {
     const whitelist = await bot.db.fetchWhitelist(guild.id);
@@ -532,6 +627,20 @@ async function backupDocument(bot, guildId, id) {
 }
 
 function registerDashboard({ app, bot, render, getSession, canManage, forbidden, invite, isAdmin }) {
+  const ticketRateLimits = new Map();
+
+  function ticketMutationGuard(req, res, next) {
+    if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
+    const guildId = req.dashboard?.guild?.id || req.params.guildId;
+    if (!validTicketCsrf(req.dashboard?.session, guildId, req.headers['x-csrf-token'] || req.body?._csrf)) return res.status(403).json({ ok: false, error: 'Ungültiger oder fehlender CSRF-Token' });
+    const key = `${req.dashboard?.session?.user?.id || 'admin'}:${guildId}`;
+    const now = Date.now();
+    const entries = (ticketRateLimits.get(key) || []).filter(timestamp => now - timestamp < 60000);
+    if (entries.length >= 40) return res.status(429).json({ ok: false, error: 'Zu viele kritische Ticket-Aktionen. Bitte kurz warten.' });
+    entries.push(now); ticketRateLimits.set(key, entries);
+    return next();
+  }
+
   async function dashboardAuth(req, res, next) {
     const admin = Boolean(isAdmin?.(req));
     let session = admin
@@ -543,10 +652,21 @@ function registerDashboard({ app, bot, render, getSession, canManage, forbidden,
     if (!session) return res.redirect('/login?error=session');
     const superuser = SUPERUSER_IDS.includes(String(session.user?.id));
     const guildInfo = (session.guilds || []).find(g => String(g.id) === String(req.params.guildId));
-    if (!admin && !superuser && (!guildInfo || !canManage(guildInfo))) return forbidden(res, session.user);
     const guild = bot.guilds.cache.get(String(req.params.guildId));
     if (!guild) return admin || superuser ? res.status(404).send('Server nicht gefunden') : res.redirect(invite(req.params.guildId));
-    req.dashboard = { session, guild, admin, superuser };
+    let dashboardRoleAccess = false;
+    if (!admin && !superuser && guildInfo && !canManage(guildInfo)) {
+      const settings = await bot.db.getTicketSettingsV2(guild.id).catch(() => null);
+      const member = await guild.members.fetch(String(session.user?.id || '')).catch(() => null);
+      let allowedRoles = settings?.dashboard_admin_roles || [];
+      if (req.params.subpage === 'ticket-stats' && settings?.permissions?.stats === 'team') {
+        const ticketCategories = await bot.db.listTicketCategoriesV2(guild.id).catch(() => []);
+        allowedRoles = [...allowedRoles, ...(settings.global_team_roles || []), ...ticketCategories.flatMap(category => category.team_roles || [])];
+      }
+      dashboardRoleAccess = Boolean(member && memberHasConfiguredRole(member, allowedRoles));
+    }
+    if (!admin && !superuser && (!guildInfo || (!canManage(guildInfo) && !dashboardRoleAccess))) return forbidden(res, session.user);
+    req.dashboard = { session, guild, admin, superuser, dashboardRoleAccess };
     return next();
   }
 
@@ -570,8 +690,9 @@ function registerDashboard({ app, bot, render, getSession, canManage, forbidden,
     if (!page) return res.status(404).send('Seite nicht gefunden');
     try {
       const cfg = await withTimeout(bot.db.fetchConfig(req.dashboard.guild.id), 8_000, 'Server-Konfiguration');
-      const context = await withTimeout(pageContext(bot, req.dashboard.guild, cfg, req.dashboard.session.user, page), 20_000, `Dashboard-Seite ${page}`);
+      const context = await withTimeout(pageContext(bot, req.dashboard.guild, cfg, req.dashboard.session.user, page, req.query || {}), 20_000, `Dashboard-Seite ${page}`);
       context.dashboard_base = req.dashboard.admin ? `/admin/server/${req.dashboard.guild.id}` : `/dashboard/${req.dashboard.guild.id}`;
+      if (['tickets', 'ticket_list', 'ticket_stats', 'ticket_logs', 'ticket_categories'].includes(page)) context.csrf_token = ticketCsrfToken(req.dashboard.session, req.dashboard.guild.id);
       return render(res, `dashboard/${page}.html`, context, true);
     } catch (error) {
       console.error(`Dashboard ${req.dashboard.guild.id}/${page} konnte nicht geladen werden:`, error.stack || error.message);
@@ -583,6 +704,7 @@ function registerDashboard({ app, bot, render, getSession, canManage, forbidden,
   app.get(['/admin/server/:guildId', '/admin/server/:guildId/:subpage'], dashboardAuth, renderDashboardPage);
 
   app.use('/api/guild/:guildId', dashboardAuth);
+  app.use('/api/guild/:guildId/tickets-v2', ticketMutationGuard);
 
   app.get('/api/guild/:guildId/config', async (req, res) => res.json({ ok: true, config: await bot.db.fetchConfig(req.params.guildId) }));
   app.post('/api/guild/:guildId/config', async (req, res) => {
@@ -946,11 +1068,183 @@ function registerDashboard({ app, bot, render, getSession, canManage, forbidden,
 
   app.post('/api/guild/:guildId/welcome/test', async (req, res) => { const cfg = await bot.db.fetchConfig(req.params.guildId); const mode = req.body.mode === 'leave' ? cfg.leave || {} : cfg.welcome || {}; const description = safeText(mode.embed_description || mode.message || `Test für ${req.dashboard.guild.name}`, 1800).replaceAll('{server}', req.dashboard.guild.name).replaceAll('{user}', `<@${req.dashboard.session.user.id}>`); try { if (req.body.target === 'dm') { const user = await bot.users.fetch(req.dashboard.session.user.id); await user.send(description); } else { const channel = req.dashboard.guild.channels.cache.get(String(req.body.channel_id || mode.channel_id)); if (!channel?.isTextBased?.()) throw new Error('Kanal nicht gefunden'); await channel.send(description); } res.json({ ok: true }); } catch (error) { res.status(400).json({ ok: false, error: error.message }); } });
 
+  app.get('/api/guild/:guildId/tickets-v2/state', async (req, res) => {
+    const context = await ticketContext(bot, req.dashboard.guild, req.query || {});
+    res.json({ ok: true, ...plain(context) });
+  });
+
+  app.put('/api/guild/:guildId/tickets-v2/settings', async (req, res) => {
+    try {
+      const guild = req.dashboard.guild;
+      const current = await bot.db.getTicketSettingsV2(guild.id);
+      const body = req.body || {};
+      if (body.panel_channel_id) ensureGuildChannel(guild, body.panel_channel_id, [ChannelType.GuildText, ChannelType.GuildAnnouncement], 'Panel-Channel');
+      if (body.transcript_channel_id) ensureGuildChannel(guild, body.transcript_channel_id, [ChannelType.GuildText, ChannelType.GuildAnnouncement], 'Transcript-Channel');
+      if (body.log_channel_id) ensureGuildChannel(guild, body.log_channel_id, [ChannelType.GuildText, ChannelType.GuildAnnouncement], 'Log-Channel');
+      if (body.archive_category_id) ensureGuildChannel(guild, body.archive_category_id, [ChannelType.GuildCategory], 'Archiv-Kategorie');
+      const patch = {
+        enabled: body.enabled !== false,
+        panel_channel_id: body.panel_channel_id ? String(body.panel_channel_id) : null,
+        panel_title: safeText(body.panel_title || current.panel_title, 250),
+        panel_description: safeText(body.panel_description || current.panel_description, 3500),
+        panel_placeholder: safeText(body.panel_placeholder || current.panel_placeholder, 150),
+        transcript_channel_id: body.transcript_channel_id ? String(body.transcript_channel_id) : null,
+        log_channel_id: body.log_channel_id ? String(body.log_channel_id) : null,
+        archive_category_id: body.archive_category_id ? String(body.archive_category_id) : null,
+        global_team_roles: ensureGuildRoles(guild, body.global_team_roles || [], 'Globale Team-Rollen'),
+        global_admin_roles: ensureGuildRoles(guild, body.global_admin_roles || [], 'Globale Admin-Rollen'),
+        dashboard_admin_roles: ensureGuildRoles(guild, body.dashboard_admin_roles || [], 'Dashboard-Admin-Rollen'),
+        max_open_global: int(body.max_open_global, current.max_open_global || 3, 1, 50),
+        ticket_name_format: safeText(body.ticket_name_format || current.ticket_name_format || '{category}-{username}-{id}', 100),
+        claim_enabled: body.claim_enabled !== false,
+        unclaim_enabled: body.unclaim_enabled !== false,
+        owner_can_close: body.owner_can_close !== false,
+        transcript_enabled: body.transcript_enabled !== false,
+        transcript_format: String(body.transcript_format).toLowerCase() === 'txt' ? 'txt' : 'html',
+        close_mode: ['archive', 'delete', 'keep'].includes(body.close_mode) ? body.close_mode : 'archive',
+        close_delay_seconds: int(body.close_delay_seconds, current.close_delay_seconds || 5, 0, 86400),
+        permissions: { ...(current.permissions || {}), ...(body.permissions || {}) },
+      };
+      const settings = await bot.db.saveTicketSettingsV2(guild.id, { ...current, ...patch });
+      await bot.db.logTicketV2(guild.id, 'settings_changed', { actor_id: String(req.dashboard.session.user.id), old_values: current, new_values: settings });
+      res.json({ ok: true, settings: plain(settings) });
+    } catch (error) { res.status(400).json({ ok: false, error: error.message }); }
+  });
+
+  app.post('/api/guild/:guildId/tickets-v2/categories', async (req, res) => {
+    try {
+      const guild = req.dashboard.guild;
+      const body = req.body || {};
+      const key = safeText(body.key, 32).toLowerCase().replace(/[^a-z0-9_-]/g, '');
+      if (!key) throw new Error('Kategorie-Key/Slug ist erforderlich.');
+      if (await bot.db.getTicketCategoryV2(guild.id, key)) throw new Error('Eine Kategorie mit diesem Key existiert bereits.');
+      if (body.enabled !== false && (await bot.db.listTicketCategoriesV2(guild.id, true)).length >= 25) throw new Error('Discord Select-Menüs erlauben maximal 25 aktive Ticket-Kategorien.');
+      ensureGuildChannel(guild, body.discord_category_id, [ChannelType.GuildCategory], 'Discord-Ticket-Kategorie', true);
+      if (body.archive_category_id) ensureGuildChannel(guild, body.archive_category_id, [ChannelType.GuildCategory], 'Archiv-Kategorie');
+      const document = {
+        key, name: safeText(body.name || key, 100), description: safeText(body.description, 100), emoji: safeText(body.emoji || '🎫', 32), enabled: body.enabled !== false,
+        discord_category_id: String(body.discord_category_id), team_roles: ensureGuildRoles(guild, body.team_roles || [], 'Team-Rollen'), admin_roles: ensureGuildRoles(guild, body.admin_roles || [], 'Admin-Rollen'),
+        ping_role_id: body.ping_role_id ? ensureGuildRoles(guild, [body.ping_role_id], 'Ping-Rolle')[0] : null, ping_enabled: Boolean(body.ping_enabled), ping_delete: body.ping_delete !== false, ping_delay_seconds: int(body.ping_delay_seconds, 10, 1, 3600),
+        channel_prefix: safeText(body.channel_prefix || key, 24), name_format: safeText(body.name_format || '{category}-{username}-{id}', 100), max_open_per_user: int(body.max_open_per_user, 1, 1, 20), allow_multiple: Boolean(body.allow_multiple),
+        modal_enabled: body.modal_enabled !== false, modal_title: safeText(body.modal_title || body.name || key, 45), modal_questions: normalizeModalQuestions(body.modal_questions), transcript_enabled: body.transcript_enabled !== false,
+        archive_category_id: body.archive_category_id ? String(body.archive_category_id) : null, close_mode: ['archive', 'delete', 'keep'].includes(body.close_mode) ? body.close_mode : null, close_delay_seconds: int(body.close_delay_seconds, 5, 0, 86400), position: int(body.position, 0, 0, 1000),
+      };
+      const category = await bot.db.saveTicketCategoryV2(guild.id, document);
+      await bot.db.logTicketV2(guild.id, 'category_created', { actor_id: String(req.dashboard.session.user.id), category_key: key, new_values: category });
+      res.json({ ok: true, category: plain(category) });
+    } catch (error) { res.status(400).json({ ok: false, error: error.message }); }
+  });
+
+  app.put('/api/guild/:guildId/tickets-v2/categories/:key', async (req, res) => {
+    try {
+      const guild = req.dashboard.guild;
+      const key = String(req.params.key);
+      const current = await bot.db.getTicketCategoryV2(guild.id, key);
+      if (!current) return res.status(404).json({ ok: false, error: 'Kategorie nicht gefunden.' });
+      const body = req.body || {};
+      const discordCategoryId = body.discord_category_id || current.discord_category_id;
+      ensureGuildChannel(guild, discordCategoryId, [ChannelType.GuildCategory], 'Discord-Ticket-Kategorie', true);
+      if (body.archive_category_id) ensureGuildChannel(guild, body.archive_category_id, [ChannelType.GuildCategory], 'Archiv-Kategorie');
+      const patch = {
+        ...current, key, name: safeText(body.name ?? current.name, 100), description: safeText(body.description ?? current.description, 100), emoji: safeText(body.emoji ?? current.emoji, 32), enabled: body.enabled ?? current.enabled,
+        discord_category_id: String(discordCategoryId), team_roles: ensureGuildRoles(guild, body.team_roles ?? current.team_roles, 'Team-Rollen'), admin_roles: ensureGuildRoles(guild, body.admin_roles ?? current.admin_roles, 'Admin-Rollen'),
+        ping_role_id: body.ping_role_id ? ensureGuildRoles(guild, [body.ping_role_id], 'Ping-Rolle')[0] : null, ping_enabled: body.ping_enabled ?? current.ping_enabled, ping_delete: body.ping_delete ?? current.ping_delete, ping_delay_seconds: int(body.ping_delay_seconds, current.ping_delay_seconds || 10, 1, 3600),
+        channel_prefix: safeText(body.channel_prefix ?? current.channel_prefix, 24), name_format: safeText(body.name_format ?? current.name_format, 100), max_open_per_user: int(body.max_open_per_user, current.max_open_per_user || 1, 1, 20), allow_multiple: body.allow_multiple ?? current.allow_multiple,
+        modal_enabled: body.modal_enabled ?? current.modal_enabled, modal_title: safeText(body.modal_title ?? current.modal_title, 45), modal_questions: body.modal_questions ? normalizeModalQuestions(body.modal_questions) : current.modal_questions || [], transcript_enabled: body.transcript_enabled ?? current.transcript_enabled,
+        archive_category_id: body.archive_category_id ? String(body.archive_category_id) : null, close_mode: ['archive', 'delete', 'keep', null].includes(body.close_mode) ? body.close_mode : current.close_mode, close_delay_seconds: int(body.close_delay_seconds, current.close_delay_seconds || 5, 0, 86400), position: int(body.position, current.position || 0, 0, 1000),
+      };
+      const category = await bot.db.saveTicketCategoryV2(guild.id, patch);
+      await bot.db.logTicketV2(guild.id, 'category_changed', { actor_id: String(req.dashboard.session.user.id), category_key: key, old_values: current, new_values: category });
+      res.json({ ok: true, category: plain(category) });
+    } catch (error) { res.status(400).json({ ok: false, error: error.message }); }
+  });
+
+  app.delete('/api/guild/:guildId/tickets-v2/categories/:key', async (req, res) => {
+    const open = await bot.db.tickets_v2.countDocuments({ guild_id: String(req.params.guildId), category_key: String(req.params.key), status: { $in: ['open', 'claimed'] } });
+    if (open) return res.status(409).json({ ok: false, error: `Kategorie hat noch ${open} offene/geclaimte Tickets und kann nicht gelöscht werden.` });
+    await bot.db.deleteTicketCategoryV2(req.params.guildId, req.params.key);
+    await bot.db.logTicketV2(req.params.guildId, 'category_deleted', { actor_id: String(req.dashboard.session.user.id), category_key: String(req.params.key) });
+    res.json({ ok: true });
+  });
+
+  app.post('/api/guild/:guildId/tickets-v2/panel/:action', async (req, res) => {
+    try {
+      const action = String(req.params.action);
+      const guild = req.dashboard.guild;
+      if (action === 'delete') {
+        const settings = await bot.db.getTicketSettingsV2(guild.id);
+        const channel = settings.panel_channel_id ? guild.channels.cache.get(String(settings.panel_channel_id)) : null;
+        const message = channel?.isTextBased?.() && settings.panel_message_id ? await channel.messages.fetch(String(settings.panel_message_id)).catch(() => null) : null;
+        if (message) await message.delete().catch(() => null);
+        const updated = await bot.db.saveTicketSettingsV2(guild.id, { ...settings, panel_message_id: null });
+        await bot.db.logTicketV2(guild.id, 'panel_deleted', { actor_id: String(req.dashboard.session.user.id) });
+        return res.json({ ok: true, settings: plain(updated) });
+      }
+      if (!['send', 'update'].includes(action)) return res.status(400).json({ ok: false, error: 'Unbekannte Panel-Aktion.' });
+      const result = await sendOrUpdatePanel(bot, guild, req.dashboard.session.user.id, action === 'send');
+      return res.json({ ok: true, message_id: result.message.id, channel_id: result.message.channelId, settings: plain(result.settings) });
+    } catch (error) { return res.status(400).json({ ok: false, error: error.message }); }
+  });
+
+  app.get('/api/guild/:guildId/tickets-v2/transcript/:ticketId', async (req, res) => {
+    const transcript = await bot.db.ticket_transcripts.findOne({ guild_id: Number(req.params.guildId), ticket_id: String(req.params.ticketId) })
+      || await bot.db.ticket_transcripts.findOne({ guild_id: String(req.params.guildId), ticket_id: String(req.params.ticketId) });
+    if (!transcript?.transcript) return res.status(404).send('Transcript nicht gefunden');
+    const format = transcript.format === 'txt' ? 'text/plain' : 'text/html';
+    res.type(format).send(transcript.transcript);
+  });
+
+  app.post('/api/guild/:guildId/tickets-v2/ticket/:ticketId/action', async (req, res) => {
+    try {
+      const guild = req.dashboard.guild;
+      const ticket = await bot.db.getTicketV2(guild.id, req.params.ticketId);
+      if (!ticket) return res.status(404).json({ ok: false, error: 'Ticket nicht gefunden.' });
+      const settings = await bot.db.getTicketSettingsV2(guild.id);
+      const category = await bot.db.getTicketCategoryV2(guild.id, ticket.category_key) || { key: ticket.category_key, name: ticket.category_name };
+      const channel = ticket.channel_id ? guild.channels.cache.get(String(ticket.channel_id)) : null;
+      const action = String(req.body.action || '');
+      let updated = ticket;
+      if (action === 'unclaim') updated = await bot.db.updateTicketV2(guild.id, ticket.ticket_id, { status: 'open', claimer_id: null, claimed_at: null });
+      else if (action === 'close') {
+        let transcript = null;
+        if (channel?.isTextBased?.()) transcript = await createTranscript(bot, { guild, channel }, ticket, settings, category);
+        updated = await bot.db.updateTicketV2(guild.id, ticket.ticket_id, { status: 'closed', closed_by_id: String(req.dashboard.session.user.id), closed_at: new Date(), transcript_url: transcript?.url || null, transcript_file_name: transcript?.fileName || null });
+        if (channel?.isTextBased?.()) await channel.permissionOverwrites.edit(String(ticket.owner_id), { SendMessages: false }, { reason: 'Ticket über Dashboard geschlossen' }).catch(() => null);
+      } else if (action === 'archive') {
+        const archiveId = category.archive_category_id || settings.archive_category_id;
+        const archive = archiveId ? guild.channels.cache.get(String(archiveId)) : null;
+        if (channel?.isTextBased?.() && archive?.type === ChannelType.GuildCategory) await channel.setParent(archive.id, { lockPermissions: false, reason: 'Ticket über Dashboard archiviert' });
+        updated = await bot.db.updateTicketV2(guild.id, ticket.ticket_id, { status: 'archived', archived_by_id: String(req.dashboard.session.user.id), archived_at: new Date() });
+      } else if (action === 'delete') {
+        updated = await bot.db.updateTicketV2(guild.id, ticket.ticket_id, { status: 'deleted', deleted_by_id: String(req.dashboard.session.user.id), deleted_at: new Date() });
+        if (channel) setTimeout(() => void channel.delete('Ticket über Dashboard gelöscht').catch(() => null), 500);
+      } else if (action === 'correct') {
+        const patch = {};
+        if (req.body.owner_id && /^\d{15,22}$/.test(String(req.body.owner_id))) patch.owner_id = String(req.body.owner_id);
+        if (req.body.category_key && await bot.db.getTicketCategoryV2(guild.id, req.body.category_key)) patch.category_key = String(req.body.category_key);
+        if (['open', 'claimed', 'closed', 'archived'].includes(req.body.status)) patch.status = req.body.status;
+        updated = await bot.db.updateTicketV2(guild.id, ticket.ticket_id, patch);
+      } else return res.status(400).json({ ok: false, error: 'Unbekannte Ticket-Aktion.' });
+      await bot.db.logTicketV2(guild.id, `dashboard_${action}`, { ticket_id: ticket.ticket_id, actor_id: String(req.dashboard.session.user.id), old_values: ticket, new_values: updated });
+      res.json({ ok: true, ticket: plain(updated) });
+    } catch (error) { res.status(400).json({ ok: false, error: error.message }); }
+  });
+
   app.post('/api/guild/:guildId/tempvoice/panel', async (req, res) => { const cfg = await bot.db.fetchConfig(req.params.guildId); const tv = cfg.tempvoice || cfg.temp_voice || {}; const channel = req.dashboard.guild.channels.cache.get(String(req.body.channel_id || req.body.panel_channel_id || tv.panel_channel_id)); if (!channel?.isTextBased?.()) return res.status(400).json({ ok: false, error: 'Panel-Kanal nicht gefunden' }); const message = await channel.send({ content: '## 🎤 TempVoice\nBetritt den Join-Channel, um einen temporären Voice-Kanal zu erstellen.' }); cfg.tempvoice = { ...tv, panel_channel_id: channel.id, panel_message_id: message.id, enabled: true }; await bot.db.setConfig(req.params.guildId, cfg); res.json({ ok: true, message_id: message.id }); });
   app.get('/api/guild/:guildId/tempvoice/health', async (req, res) => { const cfg = await bot.db.fetchConfig(req.params.guildId); const tv = cfg.tempvoice || cfg.temp_voice || {}; const join = req.dashboard.guild.channels.cache.get(String(tv.join_channel_id || tv.hub_channel_id || tv.create_channel_id)); const category = req.dashboard.guild.channels.cache.get(String(tv.category_id)); const panel = req.dashboard.guild.channels.cache.get(String(tv.panel_channel_id)); const active = (await findMany(bot, 'tempvoice_channels', guildQuery(req.params.guildId), { limit: 1000 })).length; const checks = [{ label: 'Join-/Hub-Kanal', ok: Boolean(join), reason: join ? `#${join.name}` : 'Nicht gesetzt oder nicht gefunden' }, { label: 'Kategorie', ok: Boolean(category), reason: category ? category.name : 'Nicht gesetzt oder nicht gefunden' }, { label: 'Panel-Kanal', ok: Boolean(panel), reason: panel ? `#${panel.name}` : 'Nicht gesetzt oder nicht gefunden' }, { label: 'Aktive Temp-Channels', ok: true, reason: String(active) }]; res.json({ ok: true, checks, join_channel: checks[0], category: checks[1], active }); });
 
-  app.post('/api/guild/:guildId/tickets/panel', async (req, res) => { const cfg = await bot.db.fetchConfig(req.params.guildId); const ts = cfg.ticket_system || {}; const channel = req.dashboard.guild.channels.cache.get(String(req.body.channel_id || ts.panel_channel_id)); if (!channel?.isTextBased?.()) return res.status(400).json({ ok: false, error: 'Panel-Kanal nicht gefunden' }); const row = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('modforge:open_ticket').setLabel('Ticket öffnen').setEmoji('🎫').setStyle(ButtonStyle.Primary)); const title = safeText(req.body.title || '🎫 Support', 100); const description = safeText(req.body.description || 'Klicke auf den Button, um ein Ticket zu öffnen.', 1800); const message = await channel.send({ content: `## ${title}\n${description}`, components: [row] }); cfg.ticket_system = { ...ts, panel_channel_id: channel.id, panel_message_id: message.id, enabled: true }; await bot.db.setConfig(req.params.guildId, cfg); res.json({ ok: true, message_id: message.id }); });
-  app.get('/api/guild/:guildId/tickets/health', async (req, res) => { const cfg = await bot.db.fetchConfig(req.params.guildId); const ts = cfg.ticket_system || {}; const panel = req.dashboard.guild.channels.cache.get(String(ts.panel_channel_id)); const category = req.dashboard.guild.channels.cache.get(String(ts.category_id)); const log = req.dashboard.guild.channels.cache.get(String(ts.log_channel_id)); const checks = [{ label: 'Panel-Kanal', ok: Boolean(panel), reason: panel ? `#${panel.name}` : 'Nicht gesetzt oder nicht gefunden' }, { label: 'Ticket-Kategorie', ok: Boolean(category), reason: category ? category.name : 'Nicht gesetzt oder nicht gefunden' }, { label: 'Log-Kanal', ok: Boolean(log), reason: log ? `#${log.name}` : 'Optional / nicht gesetzt' }]; res.json({ ok: true, checks, panel: checks[0], category: checks[1] }); });
+  app.post('/api/guild/:guildId/tickets/panel', async (req, res) => res.status(410).json({ ok: false, error: 'Der alte Ticket-Panel-Endpunkt wurde entfernt. Verwende das neue Ticket-Dashboard.' }));
+  app.get('/api/guild/:guildId/tickets/health', async (req, res) => {
+    const settings = await bot.db.getTicketSettingsV2(req.params.guildId);
+    const categories = await bot.db.listTicketCategoriesV2(req.params.guildId, true);
+    const panel = settings.panel_channel_id ? req.dashboard.guild.channels.cache.get(String(settings.panel_channel_id)) : null;
+    const checks = [
+      { label: 'Panel-Channel', ok: Boolean(panel?.isTextBased?.()), reason: panel?.name || 'Nicht gesetzt' },
+      { label: 'Aktive Kategorien', ok: categories.length > 0, reason: `${categories.length} aktiv` },
+      { label: 'Panel-Message', ok: Boolean(settings.panel_message_id), reason: settings.panel_message_id || 'Nicht gesendet' },
+    ];
+    res.json({ ok: true, checks });
+  });
 
   app.get('/api/guild/:guildId/config/versions', async (req, res) => { const versions = await bot.db.aget_config_versions(req.params.guildId, 50); res.json({ ok: true, versions: versions.map(version => ({ ...plain(version), id: String(version._id || version.version_id || '') })) }); });
   app.post('/api/guild/:guildId/config/rollback', async (req, res) => { let version = req.body.version_id ? await bot.db.aget_config_version(req.body.version_id) : (await bot.db.aget_config_versions(req.params.guildId, 2))[1]; if (!version?.config) return res.status(404).json({ ok: false, error: 'Version nicht gefunden' }); await bot.db.asave_config_version(req.params.guildId, await bot.db.fetchConfig(req.params.guildId), `rollback:${req.dashboard.session.user.id}`); await bot.db.setConfig(req.params.guildId, version.config); res.json({ ok: true }); });

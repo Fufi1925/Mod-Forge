@@ -87,6 +87,10 @@ async function main() {
     db: { collection(name) { if (!mongoCollections.has(name)) mongoCollections.set(name, new EmptyMongoCollection()); return mongoCollections.get(name); } },
     async connect() { return this; },
     async fetchWhitelist() { return { users: [], roles: [], channels: [], bypass_antispam: [], bypass_antinuke: [] }; },
+    async getTicketSettingsV2() { return { enabled: true, panel_channel_id: null, panel_message_id: null, panel_title: 'Support', panel_description: 'Kategorie wählen', panel_placeholder: 'Auswählen', transcript_channel_id: null, log_channel_id: null, archive_category_id: null, global_team_roles: [], global_admin_roles: [], dashboard_admin_roles: [], max_open_global: 3, claim_enabled: true, unclaim_enabled: true, owner_can_close: true, transcript_enabled: true, transcript_format: 'html', close_mode: 'archive', close_delay_seconds: 5 }; },
+    async listTicketCategoriesV2() { return []; },
+    async listTicketsV2() { return []; },
+    async listTicketLogsV2() { return []; },
   };
   const bot = {
     db: database, guilds: { cache: new Collection([[guild.id, guild]]) }, user: null, ws: { ping: 1 }, shard: null,

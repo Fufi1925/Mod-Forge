@@ -555,7 +555,18 @@ function createNodeWeb(bot) {
       for (const guild of s.guilds || []) if (!byId.has(String(guild.id))) byId.set(String(guild.id), { id: String(guild.id), name: guild.name || `Server ${guild.id}`, icon: iconUrl(guild.id, guild.icon, 0), bot_active: botGuildIds.has(String(guild.id)), can_manage: true });
       servers = [...byId.values()];
     } else {
-      servers = (s.guilds || []).filter(canManage).map(guild => ({ id: String(guild.id), name: guild.name || `Server ${guild.id}`, icon: iconUrl(guild.id, guild.icon, 0), bot_active: botGuildIds.has(String(guild.id)), can_manage: true }));
+      servers = [];
+      for (const oauthGuild of s.guilds || []) {
+        let allowed = canManage(oauthGuild);
+        const liveGuild = bot.guilds.cache.get(String(oauthGuild.id));
+        if (!allowed && liveGuild) {
+          const settings = await bot.db.getTicketSettingsV2(liveGuild.id).catch(() => null);
+          const member = await liveGuild.members.fetch(String(s.user?.id || '')).catch(() => null);
+          const configuredRoles = new Set([...(settings?.dashboard_admin_roles || []), ...(settings?.permissions?.stats === 'team' ? settings?.global_team_roles || [] : [])].map(String));
+          allowed = Boolean(member && configuredRoles.size && member.roles.cache.some(role => configuredRoles.has(String(role.id))));
+        }
+        if (allowed) servers.push({ id: String(oauthGuild.id), name: oauthGuild.name || `Server ${oauthGuild.id}`, icon: iconUrl(oauthGuild.id, oauthGuild.icon, 0), bot_active: botGuildIds.has(String(oauthGuild.id)), can_manage: true });
+      }
     }
     servers.sort((a, b) => Number(b.bot_active) - Number(a.bot_active) || String(a.name).localeCompare(String(b.name)));
     return renderOld(res, 'node/dashboard_home.html', { user: s.user, cid, servers, bot_servers: servers.filter(item => item.bot_active), other_servers: servers.filter(item => !item.bot_active) });
