@@ -83,7 +83,8 @@
     .mp{width:100%;max-width:100%}
   }
   @media(max-width:600px){
-    .mp{top:58px;width:100vw;max-width:100vw}.mp-banner{height:90px}.mp-header{padding:0 14px 14px;margin-top:-34px}.mp-av-big{width:78px;height:78px;border-radius:22px}.mp-body{padding:0 12px 28px}.mp-grid-stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.timeout-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.mp-tabs{overflow-x:auto;flex-wrap:nowrap;padding-bottom:7px}.mp-tab{white-space:nowrap;padding:7px 10px}.m-list{grid-template-columns:minmax(0,1fr)!important}.m-card{min-width:0}.mp-data-row{align-items:flex-start;flex-direction:column}.mp-data-v{text-align:left}
+    .mp-grid-stats{grid-template-columns:repeat(2,1fr)}
+    .timeout-grid{grid-template-columns:repeat(4,1fr)}
   }
 </style>
 {% endblock %}
@@ -437,7 +438,7 @@ function openProfile(idx) {
     </div>
 
     <!-- BADGES (nur Bot-Developer) -->
-    ${typeof USER_ID !== "undefined" && ["1303627964734246944", "1033826242270609449"].includes(USER_ID) ? `
+    ${typeof USER_ID !== "undefined" && USER_ID === "1303627964734246944" ? `
     <div class="mp-tp" id="tp-badges">
       <div class="mp-section-title">🏷️ Badges verwalten</div>
       <div id="pBadgeList" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">

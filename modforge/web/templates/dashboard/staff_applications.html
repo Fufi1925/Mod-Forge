@@ -25,19 +25,3 @@
     {% endfor %}
 </div>
 {% endblock %}
-
-{% block scripts %}
-<script>
-const GID = '{{ guild.id }}';
-function reviewApplication(id) {
-  showModal(`<div style="font-weight:900;font-size:1.1rem;margin-bottom:10px">Bewerbung prüfen</div><p style="color:var(--muted)">Bewerbung ${id}</p><textarea id="reviewNotes" class="cfg-input" style="width:100%;max-width:100%;min-height:90px" placeholder="Interne Notiz"></textarea><div style="display:flex;gap:8px;margin-top:10px"><button class="btn-glass btn-glass-primary" onclick="submitReview('${id}','accepted')">✅ Annehmen</button><button class="btn-glass btn-glass-danger" onclick="submitReview('${id}','rejected')">❌ Ablehnen</button></div>`);
-}
-async function submitReview(id, status) {
-  const response = await fetch(`/api/guild/${GID}/beta/staff/${id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status, notes: document.getElementById('reviewNotes')?.value || '' }) });
-  const data = await response.json();
-  if (!response.ok || !data.ok) return showToast(data.error || 'Review fehlgeschlagen', 'err');
-  showToast('Bewerbung aktualisiert', 'ok');
-  setTimeout(() => location.reload(), 500);
-}
-</script>
-{% endblock %}

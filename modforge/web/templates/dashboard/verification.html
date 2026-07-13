@@ -31,8 +31,8 @@
     <div class="db-card-header"><span class="db-card-title">🏷️ Rollen</span></div>
     <div class="cfg-desc" style="margin-bottom:8px">Add-Rollen werden nach Erfolg gegeben. Remove-Rollen werden entfernt (z.B. Unverified).</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-      <div><b style="font-size:.8rem">✅ Nach Verify geben</b><div class="vf-select-list" id="addRoleList">{% for r in roles %}<label class="vf-role-option"><input type="checkbox" value="{{ r.id }}" {% if r.id|string in vs.get('add_roles',[])|map('string') %}checked{% endif %} onchange="showSaveBar()"> @{{ r.name }}</label>{% endfor %}</div></div>
-      <div><b style="font-size:.8rem">➖ Nach Verify entfernen</b><div class="vf-select-list" id="removeRoleList">{% for r in roles %}<label class="vf-role-option"><input type="checkbox" value="{{ r.id }}" {% if r.id|string in vs.get('remove_roles',[])|map('string') %}checked{% endif %} onchange="showSaveBar()"> @{{ r.name }}</label>{% endfor %}</div></div>
+      <div><b style="font-size:.8rem">✅ Nach Verify geben</b><div class="vf-select-list" id="addRoleList">{% for r in roles %}<label class="vf-role-option"><input type="checkbox" value="{{ r.id }}" {% if r.id|int in vs.get('add_roles',[]) %}checked{% endif %} onchange="showSaveBar()"> @{{ r.name }}</label>{% endfor %}</div></div>
+      <div><b style="font-size:.8rem">➖ Nach Verify entfernen</b><div class="vf-select-list" id="removeRoleList">{% for r in roles %}<label class="vf-role-option"><input type="checkbox" value="{{ r.id }}" {% if r.id|int in vs.get('remove_roles',[]) %}checked{% endif %} onchange="showSaveBar()"> @{{ r.name }}</label>{% endfor %}</div></div>
     </div>
   </div>
 
@@ -97,7 +97,7 @@
 {% block scripts %}
 <script>
 const GID='{{ guild.id }}';
-function vals(selector){return Array.from(document.querySelectorAll(selector+' input:checked')).map(x=>String(x.value));}
+function vals(selector){return Array.from(document.querySelectorAll(selector+' input:checked')).map(x=>Number(x.value));}
 function updatePreview(){prevTitle.textContent=eTitle.value||'✅ Verifizierung';prevDesc.textContent=eDesc.value||'Klicke den Button, um dich zu verifizieren.';prevEmbed.style.setProperty('--vf-color',eColor.value);}
 function syncMode(){quizCard.style.display=vMode.value==='quiz'?'block':'none';}
 function payload(){return {enabled:vEnabled.checked,mode:vMode.value,verify_channel:vChannel.value||null,captcha_difficulty:vCaptcha.value,add_roles:vals('#addRoleList'),remove_roles:vals('#removeRoleList'),embed_title:eTitle.value,embed_description:eDesc.value,embed_color:eColor.value,timer_enabled:timerEnabled.checked,timer_minutes:Number(timerMinutes.value||0),timer_action:timerAction.value,anti_alt_account:antiAlt.checked,anti_alt_min_age_hours:Number(altHours.value||0),trust_score_enabled:trustOn.checked,trust_score_min:Number(trustMin.value||0),rate_limit_per_minute:Number(rateLimit.value||3),admin_approval_required:approvalOn.checked,admin_approval_channel:approvalChannel.value||null,whitelist_ids:whiteIds.value,blacklist_ids:blackIds.value};}

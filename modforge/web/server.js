@@ -4,11 +4,8 @@ const nunjucks = require('nunjucks');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const { isIP } = require('node:net');
 const { URLSearchParams } = require('node:url');
 const { registerDashboard } = require('./dashboard');
-const { SUPERUSER_IDS } = require('../bot/config');
-const { enforceBlockedUserEverywhere, removeBlockedUserEverywhere } = require('../bot/bot');
 
 const SESSION_COOKIE = 'modforge_session';
 const ADMIN_COOKIE = 'modforge_admin';
@@ -16,16 +13,6 @@ const SESSION_TTL = Number(process.env.DASHBOARD_SESSION_TTL || 30 * 24 * 3600);
 const DISCORD_API = 'https://discord.com/api/v10';
 // Discord OAuth2 Scopes: space-separated in URL, shown here as requested: identify,guilds,guilds.join
 const OAUTH_SCOPES = 'identify guilds guilds.join';
-const sessionCollectionPromises = new WeakMap();
-const adminEventCollectionPromises = new WeakMap();
-
-function withTimeout(promise, milliseconds, label = 'Operation') {
-  let timer;
-  const timeout = new Promise((_, reject) => {
-    timer = setTimeout(() => reject(new Error(`${label} hat nach ${milliseconds} ms das Zeitlimit überschritten.`)), milliseconds);
-  });
-  return Promise.race([Promise.resolve(promise), timeout]).finally(() => clearTimeout(timer));
-}
 
 function esc(value = '') {
   return String(value ?? '').replace(/[&<>'"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
@@ -39,10 +26,6 @@ function pythonCompat(value, seen = new WeakSet()) {
       Object.defineProperty(value, 'append', { enumerable: false, configurable: true, value(item) { this.push(item); return null; } });
     }
     for (const item of value) pythonCompat(item, seen);
-    return value;
-  }
-  if (!Object.isExtensible(value)) {
-    for (const item of Object.values(value)) pythonCompat(item, seen);
     return value;
   }
   if (!Object.prototype.hasOwnProperty.call(value, 'get')) {
@@ -66,20 +49,8 @@ function parseCookies(req) {
 }
 
 function getClientIp(req) {
-  const raw = req.headers['cf-connecting-ip'] || req.headers['x-real-ip'] || req.ip || req.socket?.remoteAddress || '';
+  const raw = req.headers['cf-connecting-ip'] || req.headers['x-real-ip'] || req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '';
   return String(Array.isArray(raw) ? raw[0] : raw).split(',')[0].trim().replace(/^::ffff:/, '') || 'unknown';
-}
-
-function ipFingerprint(ip) {
-  const normalized = String(ip || '').trim().replace(/^::ffff:/, '');
-  if (!isIP(normalized)) throw new Error('Ungültige IP-Adresse');
-  const secret = process.env.IP_HASH_SECRET || process.env.SESSION_SECRET || process.env.DISCORD_CLIENT_SECRET;
-  if (!secret) throw new Error('IP_HASH_SECRET ist nicht konfiguriert');
-  return crypto.createHmac('sha256', secret).update(normalized).digest('hex');
-}
-
-function fingerprintLabel(fingerprint) {
-  return `IP-FP-${String(fingerprint || '').slice(0, 12).toUpperCase()}`;
 }
 
 async function lookupGeo(ip) {
@@ -161,60 +132,30 @@ function layout(title, body, user = null) {
 }
 
 async function sessionsCol(bot) {
-  if (!sessionCollectionPromises.has(bot)) {
-    sessionCollectionPromises.set(bot, (async () => {
-      await withTimeout(bot.db.connect(), 8_000, 'MongoDB-Verbindung für Dashboard-Sessions');
-      const col = bot.db.db.collection('dashboard_sessions');
-      await Promise.allSettled([
-        col.createIndex({ sid: 1 }, { unique: true }),
-        col.createIndex({ 'user.id': 1 }),
-        col.createIndex({ expires_at: 1 }),
-      ]);
-      return col;
-    })());
-  }
-  try {
-    return await sessionCollectionPromises.get(bot);
-  } catch (error) {
-    sessionCollectionPromises.delete(bot);
-    throw error;
-  }
+  await bot.db.connect();
+  const col = bot.db.db.collection('dashboard_sessions');
+  await col.createIndex({ sid: 1 }, { unique: true }).catch(() => null);
+  await col.createIndex({ 'user.id': 1 }).catch(() => null);
+  await col.createIndex({ expires_at: 1 }).catch(() => null);
+  return col;
 }
 
 async function adminEventsCol(bot) {
-  if (!adminEventCollectionPromises.has(bot)) {
-    adminEventCollectionPromises.set(bot, (async () => {
-      await withTimeout(bot.db.connect(), 8_000, 'MongoDB-Verbindung für Admin-Events');
-      const col = bot.db.db.collection('admin_events');
-      await Promise.allSettled([
-        col.createIndex({ created_at: -1 }),
-        col.createIndex({ type: 1 }),
-        col.createIndex({ ip: 1 }),
-        col.createIndex({ ip_fingerprint: 1 }),
-      ]);
-      return col;
-    })());
-  }
-  try {
-    return await adminEventCollectionPromises.get(bot);
-  } catch (error) {
-    adminEventCollectionPromises.delete(bot);
-    throw error;
-  }
+  await bot.db.connect();
+  const col = bot.db.db.collection('admin_events');
+  await col.createIndex({ created_at: -1 }).catch(() => null);
+  await col.createIndex({ type: 1 }).catch(() => null);
+  await col.createIndex({ ip: 1 }).catch(() => null);
+  return col;
 }
 
 async function recordAdminEvent(bot, req, type, data = {}) {
   try {
     const ip = getClientIp(req);
-    let fingerprint = null;
-    try { fingerprint = ipFingerprint(ip); } catch {}
-    const geo = data.geo || await lookupGeo(ip).catch(() => ({ city: 'Unbekannt', country: '' }));
-    if (geo && typeof geo === 'object') delete geo.ip;
+    const geo = data.geo || await lookupGeo(ip).catch(() => ({ ip, city: 'Unbekannt', country: '' }));
     await (await adminEventsCol(bot)).insertOne({
       type,
-      ip: null,
-      ip_fingerprint: fingerprint,
-      ip_label: fingerprint ? fingerprintLabel(fingerprint) : 'Unbekannt',
+      ip,
       geo,
       path: req.originalUrl || req.url,
       method: req.method,
@@ -239,44 +180,16 @@ async function recentAdminEvents(bot, limit = 12) {
 async function getSession(req, bot) {
   const sid = parseCookies(req)[SESSION_COOKIE];
   if (!sid) return null;
-  try {
-    const col = await withTimeout(sessionsCol(bot), 8_000, 'Dashboard-Session-Collection');
-    const doc = await withTimeout(col.findOne({ sid }, { maxTimeMS: 5_000 }), 6_000, 'Dashboard-Session-Abfrage');
-    if (!doc || (doc.expires_at && doc.expires_at < Date.now() / 1000)) return null;
-    if (doc.ip_fingerprint && bot.db.isGlobalIpBlocked(doc.ip_fingerprint)) {
-      await col.deleteOne({ sid }).catch(() => null);
-      return null;
-    }
-    if (doc.user?.id && bot.db.isGlobalDiscordBlocked(doc.user.id)) {
-      await col.deleteOne({ sid }).catch(() => null);
-      return null;
-    }
-    col.updateOne({ sid }, { $set: { last_seen: Date.now() / 1000 } }, { maxTimeMS: 5_000 }).catch(() => null);
-    return doc;
-  } catch (error) {
-    console.error('Dashboard-Session-Fehler:', error.message);
-    return null;
-  }
+  const col = await sessionsCol(bot);
+  const doc = await col.findOne({ sid });
+  if (!doc || (doc.expires_at && doc.expires_at < Date.now() / 1000)) return null;
+  await col.updateOne({ sid }, { $set: { last_seen: Date.now() / 1000 } }).catch(() => null);
+  return doc;
 }
 
 function requireAdmin(req, res, next) {
   const cookies = parseCookies(req);
   if (process.env.ADMIN_SESSION_TOKEN && cookies[ADMIN_COOKIE] === process.env.ADMIN_SESSION_TOKEN) return next();
-  return res.redirect('/admin/login');
-}
-
-async function requireSystemAccess(req, res, next) {
-  const cookies = parseCookies(req);
-  if (process.env.ADMIN_SESSION_TOKEN && cookies[ADMIN_COOKIE] === process.env.ADMIN_SESSION_TOKEN) {
-    req.systemActor = { id: 'admin', username: 'Admin' };
-    return next();
-  }
-  const bot = res.locals.bot;
-  const session = bot ? await getSession(req, bot) : null;
-  if (session?.user?.id && SUPERUSER_IDS.includes(String(session.user.id))) {
-    req.systemActor = session.user;
-    return next();
-  }
   return res.redirect('/admin/login');
 }
 
@@ -425,13 +338,8 @@ function createNodeWeb(bot) {
   app.get('/health', (req, res) => {
     const botReady = Boolean(bot.isReady());
     const databaseReady = Boolean(bot.db?.ready);
-    return res.status(200).json({ ok: true, status: botReady && databaseReady ? 'ready' : 'degraded', web_ready: true, bot_ready: botReady, database_ready: databaseReady, guilds: bot.guilds.cache.size, uptime: Math.floor(process.uptime()), ts: new Date().toISOString() });
-  });
-  app.get('/ready', (req, res) => {
-    const botReady = Boolean(bot.isReady());
-    const databaseReady = Boolean(bot.db?.ready);
-    const ready = botReady && databaseReady;
-    return res.status(ready ? 200 : 503).json({ ok: ready, status: ready ? 'ready' : 'degraded', web_ready: true, bot_ready: botReady, database_ready: databaseReady, guilds: bot.guilds.cache.size, uptime: Math.floor(process.uptime()), ts: new Date().toISOString() });
+    const ok = botReady && databaseReady;
+    return res.status(ok ? 200 : 503).json({ ok, status: ok ? 'ready' : 'starting', bot_ready: botReady, database_ready: databaseReady, guilds: bot.guilds.cache.size, uptime: Math.floor(process.uptime()), ts: new Date().toISOString() });
   });
   app.get('/healthz', (req, res) => res.redirect('/health'));
   app.get('/api/status', (req, res) => res.json({ ok: true, bot_ready: bot.isReady(), guilds: bot.guilds.cache.size, members: bot.guilds.cache.reduce((a, g) => a + (g.memberCount || 0), 0) }));
@@ -463,12 +371,6 @@ function createNodeWeb(bot) {
 
   app.get('/login', (req, res) => res.redirect('/dashboard/login'));
   app.get('/dashboard/login', (req, res) => {
-    try {
-      const fingerprint = ipFingerprint(getClientIp(req));
-      if (bot.db.isGlobalIpBlocked(fingerprint)) return res.status(403).send(layout('Zugriff gesperrt', '<div class="card"><h1>⛔ Dashboard-Zugriff gesperrt</h1><p class="muted">Dieser Zugriff wurde durch ModForge Global Security blockiert.</p></div>'));
-    } catch (error) {
-      if (process.env.NODE_ENV === 'production') return res.status(503).send(layout('Sicherheitskonfiguration fehlt', `<div class="card"><h1>Konfigurationsfehler</h1><p class="muted">${esc(error.message)}</p></div>`));
-    }
     const clientId = process.env.DISCORD_CLIENT_ID || bot.user?.id;
     if (!clientId || !process.env.DISCORD_CLIENT_SECRET) {
       return res.status(503).send(layout('OAuth nicht konfiguriert', '<div class="card"><h1>OAuth nicht konfiguriert</h1><p class="muted">Setze DISCORD_CLIENT_ID und DISCORD_CLIENT_SECRET in Railway Variables.</p></div>'));
@@ -496,20 +398,14 @@ function createNodeWeb(bot) {
         return [];
       });
       const ip = getClientIp(req);
-      const fingerprint = ipFingerprint(ip);
-      if (bot.db.isGlobalIpBlocked(fingerprint) || bot.db.isGlobalDiscordBlocked(user.id)) {
-        clearCookie(res, SESSION_COOKIE);
-        await recordAdminEvent(bot, req, 'dashboard_login_blocked', { user_id: user.id, ip_fingerprint: fingerprintLabel(fingerprint) }).catch(() => null);
-        return res.status(403).send(layout('Zugriff gesperrt', '<div class="card"><h1>⛔ ModForge Global Security</h1><p class="muted">Dieser Discord-Account oder Zugriff ist für das Dashboard gesperrt.</p></div>'));
-      }
       const geo = await lookupGeo(ip);
       const sid = crypto.randomBytes(32).toString('hex');
-      const session = { sid, access_token: token.access_token, refresh_token: token.refresh_token, scope: token.scope || OAUTH_SCOPES, token_expires_at: Date.now()/1000 + Number(token.expires_in || SESSION_TTL), created_at: Date.now()/1000, last_seen: Date.now()/1000, expires_at: Date.now()/1000 + SESSION_TTL, ip: null, ip_fingerprint: fingerprint, geo, user: { id: user.id, username: user.username || user.global_name || 'Discord User', global_name: user.global_name, avatar_url: userAvatar(user) }, guilds: Array.isArray(guilds) ? guilds : [] };
+      const session = { sid, access_token: token.access_token, refresh_token: token.refresh_token, scope: token.scope || OAUTH_SCOPES, token_expires_at: Date.now()/1000 + Number(token.expires_in || SESSION_TTL), created_at: Date.now()/1000, last_seen: Date.now()/1000, expires_at: Date.now()/1000 + SESSION_TTL, ip, geo, user: { id: user.id, username: user.username || user.global_name || 'Discord User', global_name: user.global_name, avatar_url: userAvatar(user) }, guilds: Array.isArray(guilds) ? guilds : [] };
       const col = await sessionsCol(bot);
       // Keine doppelten Pull-/Dashboard-User: gleicher Discord user.id => alte Sessions löschen, neue Session speichern.
       await col.deleteMany({ 'user.id': String(user.id) }).catch(() => null);
       await col.updateOne({ sid }, { $set: session }, { upsert: true });
-      console.log(`OAuth login OK: ${session.user.username} (${session.user.id}) scopes=${session.scope} guilds=${session.guilds.length} ip_fingerprint=${fingerprintLabel(fingerprint)} city=${geo.city || '?'}`);
+      console.log(`OAuth login OK: ${session.user.username} (${session.user.id}) scopes=${session.scope} guilds=${session.guilds.length} ip=${ip} city=${geo.city || '?'}`);
       await recordAdminEvent(bot, req, 'dashboard_login', { user_id: user.id, username: session.user.username, scopes: session.scope, guilds: session.guilds.length, geo }).catch(() => null);
       setCookie(res, SESSION_COOKIE, sid, SESSION_TTL);
       clearCookie(res, 'modforge_oauth_state');
@@ -546,30 +442,9 @@ function createNodeWeb(bot) {
       }
     }
     const cid = process.env.DISCORD_CLIENT_ID || bot.user?.id || '';
-    const botGuildIds = new Set(bot.guilds.cache.map(guild => String(guild.id)));
-    const superuser = SUPERUSER_IDS.includes(String(s.user?.id));
-    let servers;
-    if (superuser) {
-      const byId = new Map();
-      for (const guild of bot.guilds.cache.values()) byId.set(String(guild.id), { id: String(guild.id), name: guild.name, icon: guild.iconURL?.({ size: 128 }) || iconUrl(guild.id, null, 0), bot_active: true, can_manage: true });
-      for (const guild of s.guilds || []) if (!byId.has(String(guild.id))) byId.set(String(guild.id), { id: String(guild.id), name: guild.name || `Server ${guild.id}`, icon: iconUrl(guild.id, guild.icon, 0), bot_active: botGuildIds.has(String(guild.id)), can_manage: true });
-      servers = [...byId.values()];
-    } else {
-      servers = [];
-      for (const oauthGuild of s.guilds || []) {
-        let allowed = canManage(oauthGuild);
-        const liveGuild = bot.guilds.cache.get(String(oauthGuild.id));
-        if (!allowed && liveGuild) {
-          const settings = await bot.db.getTicketSettingsV2(liveGuild.id).catch(() => null);
-          const member = await liveGuild.members.fetch(String(s.user?.id || '')).catch(() => null);
-          const configuredRoles = new Set([...(settings?.dashboard_admin_roles || []), ...(settings?.permissions?.stats === 'team' ? settings?.global_team_roles || [] : [])].map(String));
-          allowed = Boolean(member && configuredRoles.size && member.roles.cache.some(role => configuredRoles.has(String(role.id))));
-        }
-        if (allowed) servers.push({ id: String(oauthGuild.id), name: oauthGuild.name || `Server ${oauthGuild.id}`, icon: iconUrl(oauthGuild.id, oauthGuild.icon, 0), bot_active: botGuildIds.has(String(oauthGuild.id)), can_manage: true });
-      }
-    }
-    servers.sort((a, b) => Number(b.bot_active) - Number(a.bot_active) || String(a.name).localeCompare(String(b.name)));
-    return renderOld(res, 'node/dashboard_home.html', { user: s.user, cid, servers, bot_servers: servers.filter(item => item.bot_active), other_servers: servers.filter(item => !item.bot_active) });
+    const botGuildIds = new Set(bot.guilds.cache.map(g => String(g.id)));
+    const servers = (s.guilds || []).filter(canManage).map(g => ({ id: String(g.id), name: g.name || `Server ${g.id}`, icon: iconUrl(g.id, g.icon, 0), bot_active: botGuildIds.has(String(g.id)), can_manage: true })).sort((a,b)=>Number(b.bot_active)-Number(a.bot_active)||String(a.name).localeCompare(String(b.name)));
+    return renderOld(res, 'node/dashboard_home.html', { user: s.user, cid, servers, bot_servers: servers.filter(x => x.bot_active), other_servers: servers.filter(x => !x.bot_active) });
   });
 
   registerDashboard({
@@ -634,80 +509,6 @@ function createNodeWeb(bot) {
   app.get('/admin/logout', async (req, res) => { await recordAdminEvent(bot, req, 'admin_logout').catch(() => null); clearCookie(res, ADMIN_COOKIE); res.redirect('/'); });
 
   app.get('/admin', requireAdmin, (req, res) => res.redirect('/admin/dashboard'));
-
-  app.get('/admin/system', requireSystemAccess, async (req, res) => {
-    try {
-      const entries = await bot.db.listGlobalSecurityEntries();
-      const discordEntries = [];
-      for (const entry of entries.filter(item => item.type === 'discord_id')) {
-        const user = await bot.users.fetch(String(entry.value)).catch(() => null);
-        discordEntries.push({ ...entry, value: String(entry.value), username: entry.username || user?.tag || user?.username || 'Unbekannter User', avatar_url: entry.avatar_url || user?.displayAvatarURL?.({ size: 128 }) || null, created_at_fmt: new Date(entry.created_at || Date.now()).toLocaleString('de-DE') });
-      }
-      const ipEntries = entries.filter(item => item.type === 'ip_fingerprint').map(entry => ({ ...entry, value: String(entry.value), label: entry.label || fingerprintLabel(entry.value), linked_users: Array.isArray(entry.linked_users) ? entry.linked_users : [], created_at_fmt: new Date(entry.created_at || Date.now()).toLocaleString('de-DE') }));
-      const eventCount = await bot.db.global_security_events.countDocuments({}).catch(() => 0);
-      return renderOld(res, 'admin/system.html', { active: 'system', discord_entries: discordEntries, ip_entries: ipEntries, guild_count: bot.guilds.cache.size, event_count: eventCount, message: String(req.query.message || '').slice(0, 500) });
-    } catch (error) {
-      return res.status(500).send(layout('Global System Fehler', `<div class="card"><h1>System-Fehler</h1><pre class="mono">${esc(error.stack || error.message)}</pre></div>`));
-    }
-  });
-
-  app.post('/admin/system/discord/add', requireSystemAccess, async (req, res) => {
-    const userId = String(req.body.user_id || '').trim();
-    const reason = String(req.body.reason || '').trim().slice(0, 500);
-    if (!/^\d{15,22}$/.test(userId) || !reason) return res.redirect(`/admin/system?message=${encodeURIComponent('Ungültige Discord-ID oder fehlender Grund.')}`);
-    if (SUPERUSER_IDS.includes(userId) || userId === String(bot.user?.id || '')) return res.redirect(`/admin/system?message=${encodeURIComponent('Superuser und der ModForge-Bot können nicht global gesperrt werden.')}`);
-    const user = await bot.users.fetch(userId).catch(() => null);
-    const entry = await bot.db.addGlobalSecurityEntry({ type: 'discord_id', value: userId, reason, username: user?.tag || user?.username || `User ${userId}`, avatar_url: user?.displayAvatarURL?.({ size: 128 }) || null, added_by: String(req.systemActor.id), added_by_name: req.systemActor.username || req.systemActor.global_name || 'Admin' });
-    await (await sessionsCol(bot)).deleteMany({ 'user.id': userId }).catch(() => null);
-    const results = await enforceBlockedUserEverywhere(bot, userId, entry);
-    const success = results.filter(item => item.ok).length;
-    const failed = results.filter(item => item.ok === false).length;
-    await recordAdminEvent(bot, req, 'global_discord_block_add', { user_id: userId, reason, success, failed, actor_id: req.systemActor.id }).catch(() => null);
-    return res.redirect(`/admin/system?message=${encodeURIComponent(`${entry.username}: global gesperrt · ${success} Banns erfolgreich · ${failed} fehlgeschlagen/Owner informiert.`)}`);
-  });
-
-  app.post('/admin/system/discord/remove', requireSystemAccess, async (req, res) => {
-    const value = String(req.body.value || '').trim();
-    await bot.db.removeGlobalSecurityEntry('discord_id', value);
-    const results = await removeBlockedUserEverywhere(bot, value);
-    const unbanned = results.filter(result => result.ok).length;
-    const failed = results.filter(result => result.ok === false).length;
-    await bot.db.global_security_events.deleteMany({ user_id: value }).catch(() => null);
-    await (await sessionsCol(bot)).deleteMany({ 'user.id': value }).catch(() => null);
-    await recordAdminEvent(bot, req, 'global_discord_block_remove', { user_id: value, unbanned, failed, actor_id: req.systemActor.id }).catch(() => null);
-    return res.redirect(`/admin/system?message=${encodeURIComponent(`Globale Sperre für ${value} vollständig entfernt · ${unbanned} Server entbannt · ${failed} Fehler · Security-DB-Reste gelöscht.`)}`);
-  });
-
-  app.post('/admin/system/ip/add', requireSystemAccess, async (req, res) => {
-    const rawIp = String(req.body.ip || '').trim();
-    const reason = String(req.body.reason || '').trim().slice(0, 500);
-    let fingerprint;
-    try { fingerprint = ipFingerprint(rawIp); }
-    catch (error) { return res.redirect(`/admin/system?message=${encodeURIComponent(error.message)}`); }
-    if (!reason) return res.redirect(`/admin/system?message=${encodeURIComponent('Ein Grund ist erforderlich.')}`);
-    const sessionCollection = await sessionsCol(bot);
-    const matching = await sessionCollection.find({ $or: [{ ip_fingerprint: fingerprint }, { ip: rawIp }] }).limit(500).toArray().catch(() => []);
-    const seen = new Set();
-    const linkedUsers = [];
-    for (const session of matching) {
-      const id = String(session.user?.id || '');
-      if (!id || seen.has(id)) continue;
-      seen.add(id);
-      linkedUsers.push({ id, username: session.user?.username || session.user?.global_name || 'Discord User', avatar_url: session.user?.avatar_url || null });
-    }
-    await bot.db.addGlobalSecurityEntry({ type: 'ip_fingerprint', value: fingerprint, label: fingerprintLabel(fingerprint), reason, linked_users: linkedUsers, added_by: String(req.systemActor.id), added_by_name: req.systemActor.username || req.systemActor.global_name || 'Admin' });
-    await sessionCollection.deleteMany({ $or: [{ ip_fingerprint: fingerprint }, { ip: rawIp }] }).catch(() => null);
-    await recordAdminEvent(bot, req, 'global_ip_fingerprint_add', { ip_fingerprint: fingerprintLabel(fingerprint), linked_user_ids: linkedUsers.map(user => user.id), actor_id: req.systemActor.id }).catch(() => null);
-    return res.redirect(`/admin/system?message=${encodeURIComponent(`${fingerprintLabel(fingerprint)} gesperrt · ${linkedUsers.length} verknüpfte Konten zur manuellen Prüfung.`)}`);
-  });
-
-  app.post('/admin/system/ip/remove', requireSystemAccess, async (req, res) => {
-    const value = String(req.body.value || '').trim();
-    await bot.db.removeGlobalSecurityEntry('ip_fingerprint', value);
-    await recordAdminEvent(bot, req, 'global_ip_fingerprint_remove', { ip_fingerprint: fingerprintLabel(value), actor_id: req.systemActor.id }).catch(() => null);
-    return res.redirect(`/admin/system?message=${encodeURIComponent(`${fingerprintLabel(value)} entsperrt.`)}`);
-  });
-
   app.get('/admin/dashboard', requireAdmin, async (req, res) => {
     await recordAdminEvent(bot, req, 'admin_dashboard_view').catch(() => null);
     const sessions = await (await sessionsCol(bot)).find({}).sort({ last_seen: -1 }).limit(1000).toArray().catch(() => []);
@@ -718,7 +519,7 @@ function createNodeWeb(bot) {
     for (const g of bot.guilds.cache.values()) knownGuilds.add(String(g.id));
     const events = (await recentAdminEvents(bot, 12)).map(e => ({
       type: e.type,
-      ip: e.ip_label || (e.ip_fingerprint ? fingerprintLabel(e.ip_fingerprint) : ''),
+      ip: e.ip || '',
       city: e.geo?.city || '',
       country: e.geo?.country || '',
       time: new Date(e.created_at || Date.now()).toLocaleString('de-DE'),
@@ -776,7 +577,7 @@ function createNodeWeb(bot) {
           user: s.user || {},
           scope: s.scope || '',
           guild_count: (s.guilds || []).length,
-          ip: s.ip_fingerprint ? fingerprintLabel(s.ip_fingerprint) : (s.ip ? 'Legacy-IP vorhanden' : ''),
+          ip: s.ip || '',
           city: s.geo?.city || 'Unbekannt',
           country: s.geo?.country || '',
           last_seen_fmt: s.last_seen ? new Date(s.last_seen * 1000).toLocaleString('de-DE') : '?',
@@ -844,7 +645,7 @@ function createNodeWeb(bot) {
   app.get('/admin/logs', requireAdmin, async (req, res) => {
     await recordAdminEvent(bot, req, 'admin_logs_view').catch(() => null);
     const events = await recentAdminEvents(bot, 80);
-    const body = `<div class="row" style="justify-content:space-between;margin-bottom:18px"><div><h1>📄 Admin Logs</h1><p class="muted">Letzte Admin-/Login-/Pull-Events</p></div><a class="btn" href="/admin/dashboard">Dashboard</a></div><table class="table"><tr><th>Zeit</th><th>Event</th><th>IP</th><th>Stadt</th><th>User Agent</th><th>Daten</th></tr>${events.map(e=>`<tr><td class="mono">${new Date(e.created_at || Date.now()).toLocaleString('de-DE')}</td><td><span class="badge">${esc(e.type)}</span></td><td class="mono">${esc(e.ip_label || (e.ip_fingerprint ? fingerprintLabel(e.ip_fingerprint) : ''))}</td><td>${esc(e.geo?.city || '')}${e.geo?.country ? ', '+esc(e.geo.country) : ''}</td><td class="mono">${esc(String(e.user_agent || '').slice(0,60))}</td><td class="mono">${esc(JSON.stringify(e.data || {}).slice(0,120))}</td></tr>`).join('') || '<tr><td colspan="6" class="muted">Keine Logs.</td></tr>'}</table>`;
+    const body = `<div class="row" style="justify-content:space-between;margin-bottom:18px"><div><h1>📄 Admin Logs</h1><p class="muted">Letzte Admin-/Login-/Pull-Events</p></div><a class="btn" href="/admin/dashboard">Dashboard</a></div><table class="table"><tr><th>Zeit</th><th>Event</th><th>IP</th><th>Stadt</th><th>User Agent</th><th>Daten</th></tr>${events.map(e=>`<tr><td class="mono">${new Date(e.created_at || Date.now()).toLocaleString('de-DE')}</td><td><span class="badge">${esc(e.type)}</span></td><td class="mono">${esc(e.ip || '')}</td><td>${esc(e.geo?.city || '')}${e.geo?.country ? ', '+esc(e.geo.country) : ''}</td><td class="mono">${esc(String(e.user_agent || '').slice(0,60))}</td><td class="mono">${esc(JSON.stringify(e.data || {}).slice(0,120))}</td></tr>`).join('') || '<tr><td colspan="6" class="muted">Keine Logs.</td></tr>'}</table>`;
     return res.send(layout('Admin Logs', body));
   });
   app.get('/admin/guilds/:guildId', requireAdmin, (req, res) => res.redirect(`/admin/server/${req.params.guildId}`));
@@ -910,4 +711,4 @@ function startNodeWeb(bot) {
   return server;
 }
 
-module.exports = { createNodeWeb, startNodeWeb, pythonCompat, ipFingerprint, fingerprintLabel };
+module.exports = { createNodeWeb, startNodeWeb, pythonCompat };

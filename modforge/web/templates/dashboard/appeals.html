@@ -30,7 +30,6 @@
 
 {% block scripts %}
 <script>
-const GID = '{{ guild.id }}';
 async function voteAppeal(id, vote) {
     const res = await fetch(`/api/guild/${GID}/appeal/${id}/vote`, {
         method: 'POST',

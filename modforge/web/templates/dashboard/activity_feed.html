@@ -31,21 +31,3 @@
     {% endfor %}
 </div>
 {% endblock %}
-
-{% block scripts %}
-<script>
-function filterActivity(type) {
-  document.querySelectorAll('.filter-chip').forEach(chip => chip.classList.toggle('active', chip.textContent.trim().toLowerCase().includes(type === 'all' ? 'alle' : type)));
-  document.querySelectorAll('.event-row').forEach(row => {
-    const value = String(row.dataset.type || '').toLowerCase();
-    const groups = {
-      voice: ['voice'],
-      message: ['message', 'automod', 'spam'],
-      join: ['join', 'leave', 'member'],
-      moderation: ['moderation', 'warn', 'ban', 'kick', 'timeout', 'case'],
-    };
-    row.style.display = type === 'all' || (groups[type] || [type]).some(item => value.includes(item)) ? 'flex' : 'none';
-  });
-}
-</script>
-{% endblock %}
